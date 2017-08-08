@@ -1,0 +1,66 @@
+/savesearch:
+  post:
+    summary: Save a search query
+    operationId: save-search
+    tags:
+    - savesearch
+    parameters:
+      - name: body
+        in: body
+        required: true
+        description: The batch proposal
+        schema:
+          $ref: schemas/input/save-search-input.json
+    responses:
+      '200':
+        description:
+        schema:
+          $ref: schemas/output/container-new.json
+  get:
+    summary: Return all saved searches
+    operationId: get_all_saved_searches
+    tags:
+    - savesearch
+    responses:
+      '200':
+        description: 'Returns a list of all known batch jobs for the user'
+        schema:
+          $ref: schemas/output/save-search-list.json
+/savesearch/{SearchId}:
+  put:
+    summary: Replace a search query
+    operationId: replace-search
+    tags:
+    - savesearch
+    parameters:
+      - name: body
+        in: body
+        required: true
+        description: The batch proposal
+        schema:
+          $ref: schemas/input/save-search-update.json
+    responses:
+      '200':
+        $ref: '#/responses/200:modified-with-count'
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+
+  get:
+    summary: Return a saved search query
+    operationId: get_saved_search
+    tags:
+    - savesearch
+    responses:
+      '200':
+        description: 'Returns a list of all known batch jobs for the user'
+        schema:
+          $ref: schemas/output/save-search.json
+
+  delete:
+    summary: Delete a saved search
+    operationId: delete_save_search
+    tags:
+    - savesearch
+    responses:
+      '200':
+        $ref: '#/responses/200:deleted-with-count'
