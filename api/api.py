@@ -15,7 +15,7 @@ from .handlers.refererhandler           import AnalysesHandler
 from .handlers.reporthandler            import ReportHandler
 from .handlers.resolvehandler           import ResolveHandler
 from .handlers.roothandler              import RootHandler
-from .handlers.savedsearchhandler       import SavedSearchHandler
+from .handlers.savedsearchhandler       import SaveSearchHandler
 from .handlers.schemahandler            import SchemaHandler
 from .handlers.userhandler              import UserHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
@@ -264,8 +264,13 @@ endpoints = [
 
         # Collections / Projects
 
+<<<<<<< HEAD
         prefix('/<cont_name:collections|projects>', [
             prefix('/<cid:{oid}>', [
+=======
+        prefix('/<cont_name:collections|projects|savesearches>', [
+            prefix('/<cid:{cid}>', [
+>>>>>>> refactored code to make names consistent
                 route('/<list_name:permissions>',                          PermissionsListHandler, m=['POST']),
                 route('/<list_name:permissions>/<_id:{uid}>',              PermissionsListHandler, m=['GET', 'PUT', 'DELETE']),
             ]),
