@@ -12,10 +12,7 @@ import zipfile
 import datetime
 from abc import ABCMeta, abstractproperty
 
-from .. import config
-from .. import upload
-from .. import util
-from .. import validators
+from .. import config, files, upload, util, validators
 from ..auth import containerauth, always_ok
 from ..dao import containerstorage, noop
 from ..dao.basecontainerstorage import ContainerStorage
@@ -367,16 +364,19 @@ class AnalysesHandler(RefererHandler):
                 self.abort(404, "{} doesn't exist".format(filename))
             else:
                 fileinfo = fileinfo[0]
-                filepath = os.path.join(
-                    config.get_item('persistent', 'data_path'),
-                    util.path_from_hash(fileinfo['hash'])
-                )
+                data_path = config.get_item('persistent', 'data_path')
+                file_path = files.get_file_abs_path(fileinfo.get('_id', ''))
+                if not util.file_exists(file_path):
+                    file_path = os.path.join(
+                        data_path,
+                        util.path_from_hash(fileinfo['hash'])
+                    )
                 filename = fileinfo['name']
 
                 # Request for info about zipfile
                 if self.is_true('info'):
                     try:
-                        info = FileListHandler.build_zip_info(filepath)
+                        info = FileListHandler.build_zip_info(file_path)
                     except zipfile.BadZipfile:
                         self.abort(400, 'not a zip file')
                     return info
@@ -385,7 +385,7 @@ class AnalysesHandler(RefererHandler):
                 elif self.get_param('member') is not None:
                     zip_member = self.get_param('member')
                     try:
-                        with zipfile.ZipFile(filepath) as zf:
+                        with zipfile.ZipFile(file_path) as zf:
                             self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                             self.response.write(zf.open(zip_member).read())
                     except zipfile.BadZipfile:
@@ -402,7 +402,7 @@ class AnalysesHandler(RefererHandler):
 
                 # Request to download the file itself
                 else:
-                    self.response.app_iter = open(filepath, 'rb')
+                    self.response.app_iter = open(file_path, 'rb')
                     self.response.headers['Content-Length'] = str(fileinfo['size']) # must be set after setting app_iter
                     if self.is_true('view'):
                         self.response.headers['Content-Type'] = str(fileinfo.get('mimetype', 'application/octet-stream'))
@@ -447,9 +447,11 @@ class AnalysesHandler(RefererHandler):
         data_path = config.get_item('persistent', 'data_path')
         dirname = 'input' if filegroup == 'inputs' else 'output'
         for f in fileinfo:
-            filepath = os.path.join(data_path, util.path_from_hash(f['hash']))
-            if os.path.exists(filepath): # silently skip missing files
-                targets.append((filepath,
+            file_path = files.get_file_abs_path(f.get('_id', ''))
+            if not util.file_exists(file_path):
+                file_path = os.path.join(data_path, util.path_from_hash(f['hash']))
+            if util.file_exists(file_path):  # silently skip missing files
+                targets.append((file_path,
                                 '/'.join([util.sanitize_string_to_filename(analysis['label']), dirname, f['name']]),
                                 'analyses', analysis['_id'], f['size']))
                 total_size += f['size']

@@ -5,6 +5,7 @@ import dateutil
 import os
 import pymongo
 import shutil
+import uuid
 import zipfile
 
 from backports import tempfile
@@ -93,7 +94,7 @@ class Placer(object):
 
         # Save file
         if field is not None:
-            files.move_form_file_field_into_cas(field)
+            files.move_form_file_field_into_storage(field)
 
         # Update the DB
         if file_attrs is not None:
@@ -211,7 +212,7 @@ class UIDPlacer(Placer):
             self.save_file(field, file_attrs)
         else:
             if field is not None:
-                files.move_form_file_field_into_cas(field)
+                files.move_form_file_field_into_storage(field)
             if file_attrs is not None:
                 container.upsert_file(file_attrs)
 
@@ -559,7 +560,8 @@ class PackfilePlacer(Placer):
             'filename': self.name,
             'path':	 self.path,
             'size':	 os.path.getsize(self.path),
-            'hash':	 files.hash_file_formatted(self.path),
+            'hash': files.hash_file_formatted(self.path),
+            'uuid':	 str(uuid.uuid4()),
             'mimetype': util.guess_mimetype('lol.zip'),
             'modified': self.timestamp
         })
@@ -568,10 +570,11 @@ class PackfilePlacer(Placer):
         # This could be coalesced into a single map thrown on file fields, for example.
         # Used in the API return.
         cgi_attrs = {
+            '_id': cgi_field.uuid,
             'name':	 cgi_field.filename,
             'modified': cgi_field.modified,
             'size':	 cgi_field.size,
-            'hash':	 cgi_field.hash,
+            'hash': cgi_field.hash,
             'mimetype': cgi_field.mimetype,
 
             'type': self.metadata['packfile']['type'],
@@ -786,7 +789,8 @@ class GearPlacer(Placer):
             proper_hash = file_attrs.get('hash')[3:].replace('-', ':')
             self.metadata.update({'exchange': {'rootfs-hash': proper_hash,
                                                'git-commit': 'local',
-                                               'rootfs-url': 'INVALID'}})
+                                               'rootfs-url': 'INVALID',
+                                               'rootfs-id': file_attrs['_id']}})
         # self.metadata['hash'] = file_attrs.get('hash')
         self.save_file(field)
         self.saved.append(file_attrs)
