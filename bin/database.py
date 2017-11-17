@@ -22,7 +22,8 @@ from api.jobs import gears
 from api.types import Origin
 from api.jobs import batch
 
-CURRENT_DATABASE_VERSION = 44 # An int that is bumped when a new schema change is made
+
+CURRENT_DATABASE_VERSION = 45 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1408,6 +1409,69 @@ def upgrade_to_44():
             query = {'_id': {'$in': subject['sids']}}
             update = {'$set': {'subject._id': subject_id}}
             config.db.sessions.update_many(query, update)
+
+
+
+def upgrade_to_45_closure(cont, cont_name):
+    """
+    if the file has a modality, we try to find a matching classification
+    key and value for each measurement in the modality's classification map
+
+    if there is no modality or the modality cannot be found in the modalities
+    collection, all measurements are added to the custom key
+    """
+
+    files = cont['files']
+    for f in cont['files']:
+        modality = f.get('modality')
+        measurements = f['measurements']
+        modality_container = None
+
+        if modality:
+            modality_container = config.db.modalities.find_one({'_id': modality})
+
+        if modality_container:
+            classification = {}
+            m_class = modality_container.get('classifications', {})
+
+            for m in measurements:
+                found = False
+                for k, v_array in m_class.iteritems():
+                    for v in v_array:
+                        if v.lower() == m.lower():
+                            found = True
+                            if classification.get(k):
+                                classification[k].append(v)
+                            else:
+                                classification[k] = [v]
+                if not found:
+                    if classification.get('Custom'):
+                        classification['Custom'].append(m)
+                    else:
+                        classification['Custom'] = [m]
+
+        else:
+            classification = {'Custom': measurements}
+
+        f.pop('measurements')
+        f['classification'] = classification
+
+
+    config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
+
+    return True
+
+
+def upgrade_to_45():
+    """
+    Update classification for all files with existing measurements field
+    """
+
+
+    for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
+
+        cursor = config.db[cont_name].find({'files.measurements': {'$exists': True }})
+        process_cursor(cursor, upgrade_to_45_closure, context=cont_name)
 
 
 ###
