@@ -178,6 +178,7 @@ expected_input_schemas = set([
     'info_update.json',
     'job-logs.json',
     'job-new.json',
+    'modality.json',
     'note.json',
     'packfile.json',
     'permission.json',
