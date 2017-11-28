@@ -1361,6 +1361,7 @@ def upgrade_to_42():
         process_cursor(cursor, upgrade_to_42_closure, context=cont_name)
 
 
+<<<<<<< HEAD
 def upgrade_to_43_closure(analysis):
     inputs = [f for f in analysis['files'] if f.get('input')]
     outputs = [f for f in analysis['files'] if f.get('output')]
@@ -1412,7 +1413,7 @@ def upgrade_to_44():
 
 
 
-def upgrade_to_45_closure(cont, cont_name):
+def upgrade_files_to_45(cont, cont_name):
     """
     if the file has a modality, we try to find a matching classification
     key and value for each measurement in the modality's classification map
@@ -1461,6 +1462,21 @@ def upgrade_to_45_closure(cont, cont_name):
 
     return True
 
+def upgrade_rules_to_45(rule):
+
+    def adjust_type(r):
+        if r['type'] == 'file.measurement':
+            r['type'] = 'file.classification'
+        elif r['type'] == 'container.has-measurement':
+            r['type'] = 'container.has-classification'
+
+    for r in rule.get('any', []):
+        adjust_type(r)
+
+    for r in rule.get('all', []):
+        adjust_type(r)
+
+    config.db.project_rules.replace_one({'_id': rule['_id']}, rule)
 
 def upgrade_to_45():
     """
@@ -1471,7 +1487,16 @@ def upgrade_to_45():
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
 
         cursor = config.db[cont_name].find({'files.measurements': {'$exists': True }})
-        process_cursor(cursor, upgrade_to_45_closure, context=cont_name)
+        process_cursor(cursor, upgrade_files_to_45, context=cont_name)
+
+
+    cursor = config.db.project_rules.find({'$or': [
+        {'all.type': {'$in': ['file.measurement', 'container.has-measurement']}},
+        {'any.type': {'$in': ['file.measurement', 'container.has-measurement']}}
+    ]})
+    process_cursor(cursor, upgrade_rules_to_45)
+
+
 
 
 ###
