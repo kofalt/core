@@ -438,7 +438,6 @@ def test_rules(randstr, data_builder, file_form, as_root, as_admin, with_user, a
     r = as_admin.delete('/projects/' + project + '/rules/' + rule3)
     assert r.ok
 
-    # TODO add and test 'new-style' rules
 
 def test_context_input_rule(randstr, data_builder, default_payload, api_db, as_admin, as_root, file_form):
     project = data_builder.create_project()
@@ -531,6 +530,7 @@ def test_context_input_rule(randstr, data_builder, default_payload, api_db, as_a
     # must remove jobs manually because gears were added manually
     api_db.jobs.remove({'gear_id': {'$in': [gear]}})
 
+
 def test_disabled_rules(randstr, data_builder, api_db, as_admin, file_form):
     # Create gear, project and *disabled* rule triggering on any csv (once enabled)
     gear_name = randstr()
@@ -567,3 +567,4 @@ def test_disabled_rules(randstr, data_builder, api_db, as_admin, file_form):
     assert len(gear_jobs) == 1
     assert len(gear_jobs[0]['inputs']) == 1
     assert gear_jobs[0]['inputs'][0]['name'] == 'test2.csv'
+
