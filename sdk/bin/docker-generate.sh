@@ -11,6 +11,6 @@ docker run --rm -it \
 	-v "${PWD}:/local" \
 	-v "${maven_cache_repo}:/var/maven/.m2/repository" \
 	--entrypoint /local/docker/generate.sh \
-	maven:3-jdk-8
+	maven:3-jdk-8 "$@"
 
 
