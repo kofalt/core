@@ -1,5 +1,6 @@
 package io.flywheel.codegen;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import io.swagger.codegen.*;
 import io.swagger.models.properties.*;
 
@@ -11,6 +12,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
   // source folder where to write the files
   protected String sourceFolder = "src";
   protected String apiVersion = "1.0.0";
+
+  protected String packageName;
 
   /**
    * Configures the type of generator.
@@ -45,6 +48,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
   public MatlabGenerator() {
     super();
 
+    importMapping.clear();
+
     // set the output folder here
     outputFolder = "generated-code/matlab";
 
@@ -56,7 +61,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
      */
     modelTemplateFiles.put(
       "model.mustache", // the template to use
-      ".sample");       // the extension for each file to write
+      ".m");       // the extension for each file to write
 
     /**
      * Api classes.  You can write classes for each Api file with the apiTemplateFiles map.
@@ -65,7 +70,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
      */
     apiTemplateFiles.put(
       "api.mustache",   // the template to use
-      ".sample");       // the extension for each file to write
+      ".m");       // the extension for each file to write
 
     /**
      * Template Location.  This is the location which templates will be read from.  The generator
@@ -76,20 +81,38 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
     /**
      * Api Package.  Optional, if needed, this can be used in templates
      */
-    apiPackage = "io.swagger.client.api";
+    apiPackage = "api";
 
     /**
      * Model Package.  Optional, if needed, this can be used in templates
      */
-    modelPackage = "io.swagger.client.model";
+    modelPackage = "model";
 
     /**
      * Reserved words.  Override this with reserved words specific to your language
      */
     reservedWords = new HashSet<String> (
       Arrays.asList(
-        "sample1",  // replace with static values
-        "sample2")
+        "break",
+        "case",
+        "catch",
+        "classdef",
+        "continue",
+        "else",
+        "elseif",
+        "end",
+        "for",
+        "function",
+        "global",
+        "if",
+        "otherwise",
+        "parfor",
+        "persistent",
+        "return",
+        "spmd",
+        "switch",
+        "try",
+        "while")
     );
 
     /**
@@ -103,10 +126,12 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
      * entire object tree available.  If the input file has a suffix of `.mustache
      * it will be processed by the template engine.  Otherwise, it will be copied
      */
+    /*
     supportingFiles.add(new SupportingFile("myFile.mustache",   // the input template or file
       "",                                                       // the destination folder, relative `outputFolder`
       "myFile.sample")                                          // the output file
     );
+    */
 
     /**
      * Language Specific Primitives.  These types will not trigger imports by
@@ -119,6 +144,20 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
     );
   }
 
+  @Override
+  public void processOpts() {
+    super.processOpts();
+
+    if (additionalProperties.containsKey(CodegenConstants.PACKAGE_NAME)) {
+      packageName = (String) additionalProperties.get(CodegenConstants.PACKAGE_NAME);
+    } else {
+      packageName = "swagger_client";
+    }
+
+    modelPackage = packageName + "." + modelPackage;
+    apiPackage = packageName + "." + apiPackage;
+  }
+
   /**
    * Escapes a reserved word as defined in the `reservedWords` array. Handle escaping
    * those terms here.  This logic is only called if a variable matches the reserved words
@@ -127,7 +166,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
    */
   @Override
   public String escapeReservedWord(String name) {
-    return "_" + name;  // add an underscore to the name
+    return "x_" + name;  // add an underscore to the name
   }
 
   /**
@@ -188,4 +227,207 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
       type = swaggerType;
     return toModelName(type);
   }
+
+  @Override
+  public String toModelName(String name) {
+    name = sanitizeName(name);
+
+    // Must begin with a letter, strip any other characters from the front
+    name = stripLeader(name);
+
+    // Replace every other non-word character with an underscore (compressing multiples)
+    name = name.replaceAll("[^\\w]+", "_");
+
+    // If it begins with a digit, add "Model" prefix
+    if( name.matches("^\\d.*") ) {
+      LOGGER.warn(name + " (model name starts with number) cannot be used as model name. Renamed to " + camelize("model_" + name));
+      name = "model_" + name; // e.g. 200Response => Model200Response (after camelize)
+    }
+
+    return camelize(name);
+  }
+
+  @Override
+  public String toModelFilename(String name) {
+    return toModelName(name);
+  }
+
+  @Override
+  public String toVarName(String name) {
+    name = sanitizeName(name);
+    name = underscore(name);
+
+    // Must begin with a letter, strip any other characters from the front
+    name = stripLeader(name);
+
+    // Replace every other non-word character with an underscore (compressing multiples)
+    name = name.replaceAll("[^\\w]+", "_");
+
+    // If we end up with a reserved word or
+    if( isReservedWord(name) || name.matches("^\\d.*") ) {
+      name = escapeReservedWord(name);
+    }
+
+    return camelize(name, true);
+  }
+
+  @Override
+  public String toDefaultValue(Property p) {
+    if( p instanceof StringProperty ) {
+      StringProperty dp = (StringProperty)p;
+      if( dp.getDefault() != null ) {
+        return "'" + dp.getDefault().replace("'", "''")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r") + "'";
+      }
+    } else if( p instanceof BooleanProperty ) {
+      BooleanProperty dp = (BooleanProperty)p;
+      if( dp.getDefault() != null ) {
+        if( dp.getDefault().toString().equalsIgnoreCase("false") ) {
+          return "false";
+        }
+        return "true";
+      }
+    } else if( p instanceof DoubleProperty ) {
+      DoubleProperty dp = (DoubleProperty)p;
+      if( dp.getDefault() != null ) {
+        return dp.getDefault().toString();
+      }
+    } else if( p instanceof FloatProperty ) {
+      FloatProperty dp = (FloatProperty)p;
+      if( dp.getDefault() != null ) {
+        return dp.getDefault().toString();
+      }
+    } else if( p instanceof IntegerProperty ) {
+      IntegerProperty dp = (IntegerProperty)p;
+      if( dp.getDefault() != null ) {
+        return dp.getDefault().toString();
+      }
+    } else if( p instanceof LongProperty ) {
+      LongProperty dp = (LongProperty)p;
+      if( dp.getDefault() != null ) {
+        return dp.getDefault().toString();
+      }
+    }
+    return null;
+  }
+
+  @Override
+  public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+    super.postProcessModelProperty(model, property);
+
+    // Add matlab name
+    String matlabName = makeValidMatlabNameHex(property.baseName);
+    property.vendorExtensions.put("x-matlab-baseName", matlabName);
+  }
+
+  @Override
+  public String escapeUnsafeCharacters(String input) {
+    // remove multi-line comments
+    return input.replace("%{", "{")
+            .replace("%}", "}");
+  }
+
+  @Override
+  public String escapeQuotationMark(String input) {
+    return input.replace("'", "''");
+  }
+
+  private static String stripLeader(String name) {
+    int idx = 0;
+    while( idx < name.length() && !isAsciiLetterOrNumber(name.charAt(idx)) ) {
+      ++idx;
+    }
+
+    if( idx > 0 ) {
+      return name.substring(idx);
+    }
+
+    return name;
+  }
+
+  private static String makeValidMatlabName(String input, final String prefix) {
+    // The best I can tell is that matlab splits the input string on whitespace
+    // Uppercases any parts beyond the first
+    // Replaces any non-word character with underscore
+    // Finally, if the name begins with a non-alphabet character, prefix it
+    input = stripMatlabName(input);
+
+    input = input.replaceAll("[^\\w]", "_");
+
+    if( input.isEmpty() || !isAsciiLetter(input.charAt(0)) ) {
+      input = prefix + input;
+    }
+
+    return input;
+  }
+
+  private static String makeValidMatlabName(String input) {
+    return makeValidMatlabName(input, "x");
+  }
+
+  private static String makeValidMatlabNameHex(String input) {
+    input = stripMatlabName(input);
+
+    // Replace
+    String result = "";
+    for( int i = 0; i < input.length(); i++ ) {
+      char c = input.charAt(i);
+      if( i == 0 && c == '_' ) {
+        result = result + makeHexReplacement(c);
+      } else if( isValidMatlabCharacter(c) ) {
+        result = result + c;
+      } else {
+        result = result + makeHexReplacement(c);
+      }
+    }
+
+    if( result.isEmpty() || !isAsciiLetter(result.charAt(0)) ) {
+      result = "x" + result;
+    }
+
+    return result;
+  }
+
+  private static String stripMatlabName(String input) {
+    String[] parts =  input.split("\\s+");
+    input = "";
+    for( String part : parts ) {
+      if( part.isEmpty() ) {
+        continue;
+      }
+      if( input.isEmpty() ) {
+        input = part;
+      } else {
+        input = input + part.substring(0, 1).toUpperCase() + part.substring(1);
+      }
+    }
+    return input;
+  }
+
+  private static boolean isAsciiLetter(char c) {
+    return (c >= 65 && c <= 90) ||
+            (c >= 97 && c <= 122 );
+  }
+
+  private static boolean isAsciiNumber(char c) {
+    return (c >= 48 && c <= 57);
+  }
+
+  private static boolean isAsciiLetterOrNumber(char c) {
+    return isAsciiLetter(c) || isAsciiNumber(c);
+  }
+
+  private static String makeHexReplacement(char c) {
+    String repl = Integer.toHexString((int)c);
+    while( repl.length() < 2 ) {
+      repl = "0" + repl;
+    }
+    return "0x" + repl.toUpperCase();
+  }
+
+  private static boolean isValidMatlabCharacter(char c) {
+    return c == '_' || isAsciiLetter(c) || isAsciiNumber(c);
+  }
+
 }
