@@ -1,0 +1,75 @@
+{{#models}}
+{{#model}}
+classdef {{classname}}
+    properties
+        props
+    end
+    properties (Constant)
+        propertyMap = containers.Map({ {{#vars}}'{{name}}'{{#hasMore}}, {{/hasMore}}{{/vars}} }, ...
+            { {{#vars}}'{{baseName}}'{{#hasMore}}, {{/hasMore}}{{/vars}} })
+    end
+    methods
+        function obj = {{classname}}(varargin)
+            p = inputParser;
+            {{#vars}}
+            addParameter(p, '{{name}}', {{#defaultValue}}{{defaultValue}}{{/defaultValue}}{{^defaultValue}}[]{{/defaultValue}});
+            {{/vars}}
+
+            parse(p, varargin{:});
+
+            obj.props = containers.Map;
+
+            {{#vars}}
+            if ~isempty(p.Results.{{name}})
+                obj.props('{{baseName}}') = p.Results.{{name}};
+            end
+            {{/vars}}
+        end
+        function sref = subsref(obj, s)
+            if s(1).type == '.' || s(1).type == '()'
+                if isKey({{classname}}.propertyMap, s(1).subs)
+                    sref = obj.props({{classname}}.propertyMap(s(1).subs))
+                else
+                    sref = builtin('subsref', obj, s);
+                end
+            else
+                error('{{classname}}:subsref', 'Not a supported subscripted reference')
+            end
+        end
+        function obj = subsasgn(obj, s, val)
+            switch s(1).type
+            case '.'
+                obj.assign(s(1).subs, val);
+            case '()'
+                obj.assign(s(1).subs{1}, val);
+            case '{}'
+                error('{{classname}}:subsasgn', 'Not a supported subscripted reference')
+            end
+        end
+        function result = toJson(obj)
+            result = jsonwrite(obj.props);
+        end
+    end
+    methods(Access = private)
+        function obj = assign(obj, subs, val)
+            if isKey({{classname}}.propertyMap, subs)
+                obj.props({{classname}}.propertyMap(subs)) = val;
+            else
+                error('{{classname}}:subsref', 'Not a supported property')
+            end
+        end
+    end
+    methods(Static)
+        function obj = fromJson(json)
+            s = jsonread(json, struct('ReplacementStyle', 'hex'));
+            obj = {{classname}};
+            {{#vars}}
+            if isfield(s, '{{vendorExtensions.x-matlab-baseName}}')
+                obj.props('{{baseName}}') = s.{{vendorExtensions.x-matlab-baseName}};
+            end
+            {{/vars}}
+        end
+    end
+end
+{{/model}}
+{{/models}}
