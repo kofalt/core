@@ -1,28 +1,114 @@
-
-# This is a sample api mustache template.  It is representing a ficticous 
-# language and won't be usable or compile to anything without lots of changes.
-# Use it as an example.  You can access the variables in the generator object
-# like such:
-
-# use the package from the `apiPackage` variable
-package: {{package}}
-
 # operations block
 {{#operations}}
-classname: {{classname}}
+classdef {{classname}}
+    properties
+        apiClient
+    end
+    methods
+        function obj = {{classname}}(apiClient)
+            obj.apiClient = apiClient;
+        end
 
-# loop over each operation in the API:
 {{#operation}}
+        function [returnData, status] = {{operationId}}(obj, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin)
+            % {{#summary}}{{{.}}}{{/summary}}{{^summary}}{{operationId}}{{/summary}}
+            {{#sortParamsByRequiredFlag}}
+            {{#allParams}}
+            {{#required}}
+            % {{paramName}} ({{dataType}}){{#description}}:{{{.}}}{{/description}}
+            {{/required}}
+            {{^required}}
+            % {{paramName}} ({{dataType}}){{#description}}:{{{.}}}{{/description}}
+            {{/required}}
+            {{/allParams}}
+            {{/sortParamsByRequiredFlag}}
+            % returns: [{{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}none{{/returnType}}, status]
 
-# each operation has an `operationId`:
-operationId: {{operationId}}
+            x__inp = inputParser;
+            {{#sortParamsByRequiredFlag}}
+            {{#allParams}}
+            {{#required}}
+            addRequired(x__inp, '{{paramName}}');
+            {{/required}}
+            {{^required}}
+            addParameter(x__inp, '{{paramName}}', []);
+            {{/required}}
+            {{/allParams}}
+            {{/sortParamsByRequiredFlag}}
+            parse(x__inp, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin);
 
-# and parameters:
-{{#allParams}}
-{{paramName}}: {{dataType}}
-{{/allParams}}
+            % Path parameters
+            pathParams = {};
+            {{#pathParams}}
+            if ~isempty(x__inp.Results.{{paramName}})
+                pathParams = [pathParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+            end
+            {{/pathParams}}
+
+            % Query parameters
+            queryParams = {};
+            {{#queryParams}}
+            if ~isempty(x__inp.Results.{{paramName}})
+                queryParams = [queryParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+            end
+            {{/queryParams}}
+
+            % Header parameters
+            headers = {};
+            {{#headerParams}}
+            if ~isempty(x__inp.Results.{{paramName}})
+                headers = [headers, '{{baseName}}', x__inp.Results.{{paramName}}];
+            end
+            {{/headerParams}}
+
+            % Form parameters
+            formParams = {};
+            files = {};
+            {{#formParams}}
+            if ~isempty(x__inp.Results.{{paramName}})
+                {{#notFile}}
+                formParams = [formParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+                {{/notFile}}
+                {{#isFile}}
+                files = [files, '{{baseName}}', x__inp.Results.{{paramName}}];
+                {{/isFile}}
+            end
+            {{/formParams}}
+
+            % Body
+            {{#bodyParam}}
+            body = x__inp.Results.{{paramName}};
+            {{/bodyParam}}
+            {{^bodyParam}}
+            body = [];
+            {{/bodyParam}}
+
+            resp = obj.apiClient.callApi('{{httpMethod}}', '{{{path}}}', ...
+                pathParams, queryParams, headers, body, formParams, files);
+
+            status = resp.getStatusCode();
+
+            switch num2str(status)
+            {{#responses}}
+                {{#dataType}}
+                case '{{code}}'
+                    {{#isListContainer}}
+                        {{!TODO: Handle lists here!}}
+                        % TODO: Handle {{containerType}} of {{baseType}}.
+                    {{/isListContainer}}
+                    {{^isListContainer}}
+                    returnData = {{dataType}}.fromJson(resp.getBodyAsString());
+                    {{/isListContainer}}
+                {{/dataType}}
+            {{/responses}}
+                otherwise
+                    returnData = [];
+            end
+        end
 
 {{/operation}}
 
+    end
+end
 # end of operations block
 {{/operations}}

@@ -1,0 +1,13 @@
+classdef ApiClient
+    properties
+        restClient
+    end
+    methods
+        function obj = ApiClient(apiKey)
+            obj.restClient = io.flywheel.rest.RestClient.fromApiKey(apiKey);
+        end
+        function resp = callApi(method, path, pathParams, queryParams, headers, body, postParams, files)
+            resp = obj.restClient.callApi(method, path, pathParams, queryParams, headers, body, postParams, files);
+        end
+    end
+end

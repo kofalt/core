@@ -21,6 +21,7 @@ public class RestClient {
     private HttpClient client;
     private URL baseUrl;
     private Map<String, String> defaultHeaders = new TreeMap<>();
+    private Map<String, String> defaultParameters = new TreeMap<>();
 
     private static final String JSON_CONTENT_TYPE = "application/json";
 
@@ -116,6 +117,51 @@ public class RestClient {
     }
 
     /**
+     * Performs an api call with the provided settings.
+     * @param method The HTTP method (e.g. GET)
+     * @param path The resource path, relative to baseUrl
+     * @param pathParams The path parameters as pairs of [name, value]
+     * @param queryParams The query parameters as pairs of [name, value]
+     * @param headers The headers as pairs of [name, value]
+     * @param body The request body
+     * @param postParams Post parameters as pairs of [name, value]
+     * @param files Files as pairs of [filename, filepath or data]
+     * @return The response object
+     */
+    public RestResponse callApi(String method, String path, Object[] pathParams,
+                                Object[] queryParams, Object[] headers, String body, Object[] postParams,
+                                Object[] files) throws IOException
+    {
+        // Resolve the path
+        path = RestUtils.resolvePathParameters(path, pathParams);
+
+        if( path.startsWith("/") ) {
+            path = path.substring(1);
+        }
+
+        // Resolve query parameters
+        String query = RestUtils.buildQueryString(defaultParameters, queryParams);
+
+        // Resolve url with query parameters
+        String url = new URL(this.baseUrl, path).toString() + query;
+
+        // Create the request with default headers
+        HttpMethod request = RestUtils.createMethod(method, url);
+
+        setDefaultHeaders(request);
+
+        // Add additional headers
+        RestUtils.addMethodHeaders(request, headers);
+
+        // Set the request entity based on provided body, postParams, and files
+        RestUtils.setRequestEntity(request, body, postParams, files);
+
+        client.executeMethod(request);
+
+        return new HttpMethodRestResponse(request);
+    }
+
+    /**
      * Initializes method with the default headers, including authorization, and
      * sets the request entity, if a body is specified.
      * @param method The method instance
@@ -124,9 +170,7 @@ public class RestClient {
      */
     private void initializeMethod(HttpMethod method, String contentType, String body) {
         // Add default headers
-        for( String headerKey: defaultHeaders.keySet() ) {
-            method.setRequestHeader(headerKey, defaultHeaders.get(headerKey));
-        }
+        setDefaultHeaders(method);
 
         if( body != null ) {
             EntityEnclosingMethod request;
@@ -143,6 +187,12 @@ public class RestClient {
                 // Shouldn't happen?
                 throw new RuntimeException("Unsupported encoding");
             }
+        }
+    }
+
+    private void setDefaultHeaders(HttpMethod method) {
+        for( String headerKey: defaultHeaders.keySet() ) {
+            method.setRequestHeader(headerKey, defaultHeaders.get(headerKey));
         }
     }
 

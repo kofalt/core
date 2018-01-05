@@ -23,7 +23,7 @@ public interface RestResponse {
      * Gets the http response body as a string
      * @return The response body as a string, or empty string if there is no response.
      */
-    public String getResponseBodyAsString() throws IOException;
+    public String getBodyAsString() throws IOException;
 
     /**
      * Get all of the headers that match name
