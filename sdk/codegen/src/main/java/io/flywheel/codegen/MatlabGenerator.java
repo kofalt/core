@@ -3,6 +3,7 @@ package io.flywheel.codegen;
 import com.sun.org.apache.xpath.internal.operations.Bool;
 import io.swagger.codegen.*;
 import io.swagger.models.properties.*;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.io.File;
@@ -269,6 +270,26 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
     }
 
     return camelize(name, true);
+  }
+
+  @Override
+  public String toApiName(String name) {
+    if (name.length() == 0) {
+      return "DefaultApi";
+    }
+    return camelize(name) + "Api";
+  }
+
+  @Override
+  public String toOperationId(String operationId) {
+    if(StringUtils.isEmpty(operationId)) {
+      throw new RuntimeException("Empty method name (operationId) is not allowed");
+    }
+    if(isReservedWord(operationId)) {
+      LOGGER.warn(operationId + " (reserved word) cannot be used as method name.");
+      operationId = "call_" + operationId;
+    }
+    return camelize(sanitizeName(operationId), true);
   }
 
   @Override
