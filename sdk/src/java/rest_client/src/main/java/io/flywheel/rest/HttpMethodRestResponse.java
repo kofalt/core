@@ -39,7 +39,7 @@ public class HttpMethodRestResponse implements RestResponse {
     }
 
     @Override
-    public String getResponseBodyAsString() throws IOException {
+    public String getBodyAsString() throws IOException {
         return method.getResponseBodyAsString();
     }
 

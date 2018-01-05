@@ -1,6 +1,5 @@
 package io.flywheel.codegen;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import io.swagger.codegen.*;
 import io.swagger.models.properties.*;
 import org.apache.commons.lang3.StringUtils;
@@ -11,7 +10,6 @@ import java.io.File;
 public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
   // source folder where to write the files
-  protected String sourceFolder = "src";
   protected String apiVersion = "1.0.0";
 
   protected String packageName;
@@ -155,6 +153,9 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
       packageName = "swagger_client";
     }
 
+    // Api client file
+    supportingFiles.add(new SupportingFile("api_client.mustache", packageName, "ApiClient.m"));
+
     modelPackage = packageName + "." + modelPackage;
     apiPackage = packageName + "." + apiPackage;
   }
@@ -175,7 +176,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
    * instantiated
    */
   public String modelFileFolder() {
-    return outputFolder + "/" + sourceFolder + "/" + modelPackage().replace('.', File.separatorChar);
+    return outputFolder + "/" + modelPackage().replace('.', File.separatorChar);
   }
 
   /**
@@ -184,7 +185,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
    */
   @Override
   public String apiFileFolder() {
-    return outputFolder + "/" + sourceFolder + "/" + apiPackage().replace('.', File.separatorChar);
+    return outputFolder + "/" + apiPackage().replace('.', File.separatorChar);
   }
 
   /**
