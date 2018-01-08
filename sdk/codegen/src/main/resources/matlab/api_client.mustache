@@ -10,4 +10,12 @@ classdef ApiClient
             resp = obj.restClient.callApi(method, path, pathParams, queryParams, headers, body, postParams, files);
         end
     end
+    methods(Static)
+        function json = encodeJson(data)
+            json = jsonencode(data);
+        end
+        function json = getResponseJson(resp)
+            resp = jsonread(resp.getBodyAsString(), struct('ReplacementStyle', 'hex'));
+        end
+    end
 end

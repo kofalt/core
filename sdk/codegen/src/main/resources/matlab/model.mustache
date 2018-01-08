@@ -1,15 +1,27 @@
 {{#models}}
 {{#model}}
-classdef {{classname}}
-    properties
-        props
-    end
+classdef {{classname}} < ModelBase
+    % {{classname}}
+    {{#description}}
+    % {{{.}}}
+    {{/description}}
+    %
+    % {{classname}} Properties:
+    {{#vars}}
+    %    {{name}} {{#description}} - {{{.}}}{{/description}}
+    {{/vars}}
+    %
+    % {{classname}} Methods:
+    %    toJson - Convert the object to a Map that can be encoded to json
+    %    struct - Convert the object to a struct
     properties (Constant)
         propertyMap = containers.Map({ {{#vars}}'{{name}}'{{#hasMore}}, {{/hasMore}}{{/vars}} }, ...
             { {{#vars}}'{{baseName}}'{{#hasMore}}, {{/hasMore}}{{/vars}} })
     end
     methods
         function obj = {{classname}}(varargin)
+            obj@ModelBase({{classname}}.propertyMap);
+
             p = inputParser;
             {{#vars}}
             addParameter(p, '{{name}}', {{#defaultValue}}{{defaultValue}}{{/defaultValue}}{{^defaultValue}}[]{{/defaultValue}});
@@ -17,55 +29,84 @@ classdef {{classname}}
 
             parse(p, varargin{:});
 
-            obj.props = containers.Map;
-
             {{#vars}}
             if ~isempty(p.Results.{{name}})
                 obj.props('{{baseName}}') = p.Results.{{name}};
             end
             {{/vars}}
         end
-        function sref = subsref(obj, s)
-            if s(1).type == '.' || s(1).type == '()'
-                if isKey({{classname}}.propertyMap, s(1).subs)
-                    sref = obj.props({{classname}}.propertyMap(s(1).subs))
-                else
-                    sref = builtin('subsref', obj, s);
-                end
-            else
-                error('{{classname}}:subsref', 'Not a supported subscripted reference')
-            end
-        end
-        function obj = subsasgn(obj, s, val)
-            switch s(1).type
-            case '.'
-                obj.assign(s(1).subs, val);
-            case '()'
-                obj.assign(s(1).subs{1}, val);
-            case '{}'
-                error('{{classname}}:subsasgn', 'Not a supported subscripted reference')
-            end
-        end
         function result = toJson(obj)
-            result = jsonwrite(obj.props);
+            result = containers.Map;
+
+            {{#vars}}
+            if isKey(obj.props, '{{baseName}}')
+                {{#isPrimitiveType}}
+                result('{{baseName}}') = obj.props('{{baseName}}');
+                {{/isPrimitiveType}}
+                {{^isPrimitiveType}}
+                {{^isListContainer}}
+                result('{{baseName}}') = obj.props('{{baseName}}').toJson();
+                {{/isListContainer}}
+                {{#isListContainer}}
+                result('{{baseName}}') = arrayfun(@(x) x.toJson(), obj.props('{{baseName}}'));
+                {{/isListContainer}}
+                {{/isPrimitiveType}}
+            end
+            {{/vars}}
+        end
+        function result = struct(obj)
+            result = struct;
+
+            {{#vars}}
+            if isKey(obj.props, '{{baseName}}')
+                {{#isPrimitiveType}}
+                result.{{name}} = obj.props('{{baseName}}');
+                {{/isPrimitiveType}}
+                {{^isPrimitiveType}}
+                {{^isListContainer}}
+                result.{{name}}} = struct(obj.props('{{baseName}}'));
+                {{/isListContainer}}
+                {{#isListContainer}}
+                result.{{name}} = arrayfun(@(x) struct(x), obj.props('{{baseName}}'));
+                {{/isListContainer}}
+                {{/isPrimitiveType}}
+            end
+            {{/vars}}
         end
     end
-    methods(Access = private)
-        function obj = assign(obj, subs, val)
-            if isKey({{classname}}.propertyMap, subs)
-                obj.props({{classname}}.propertyMap(subs)) = val;
+    methods(Access = protected)
+        function prpgrp = getPropertyGroups(obj)
+            if ~isscalar(obj)
+                prpgrp = getPropertyGroups@matlab.mixin.CustomDisplay(obj);
             else
-                error('{{classname}}:subsref', 'Not a supported property')
+                propList = struct;
+                {{#vars}}
+                if isKey(obj.props, '{{baseName}}')
+                    propList.{{name}} = obj.props('{{baseName}}');
+                else
+                    propList.{{name}} = [];
+                end
+                {{/vars}}
+                prpgrp = matlab.mixin.util.PropertyGroup(propList);
             end
         end
     end
     methods(Static)
         function obj = fromJson(json)
-            s = jsonread(json, struct('ReplacementStyle', 'hex'));
             obj = {{classname}};
             {{#vars}}
-            if isfield(s, '{{vendorExtensions.x-matlab-baseName}}')
-                obj.props('{{baseName}}') = s.{{vendorExtensions.x-matlab-baseName}};
+            if isfield(json, '{{vendorExtensions.x-matlab-baseName}}')
+                {{#isPrimitiveType}}
+                obj.props('{{baseName}}') = json.{{vendorExtensions.x-matlab-baseName}};
+                {{/isPrimitiveType}}
+                {{^isPrimitiveType}}
+                {{^isListContainer}}
+                obj.props('{{baseName}}') = {{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
+                {{/isListContainer}}
+                {{#isListContainer}}
+                obj.props('{{baseName}}') = arrayfun(@(x) {{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}});
+                {{/isListContainer}}
+                {{/isPrimitiveType}}
             end
             {{/vars}}
         end
