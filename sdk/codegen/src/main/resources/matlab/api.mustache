@@ -75,12 +75,18 @@ classdef {{classname}}
             end
             {{/formParams}}
 
-            % Body
+            % Body (as JSON)
             {{#bodyParam}}
-            body = x__inp.Results.{{paramName}};
+            {{! TODO: Handle collections? }}
+            if isa(x__inp.Results.{{paramName}}, '{{baseType}}')
+                body = x__inp.Results.{{paramName}};
+            else
+                body = {{baseType}}(x__inp.Results.{{paramName}});
+            end
+            body = ApiClient.encodeJson(body.toJson());
             {{/bodyParam}}
             {{^bodyParam}}
-            body = [];
+            body = {};
             {{/bodyParam}}
 
             resp = obj.apiClient.callApi('{{httpMethod}}', '{{{path}}}', ...
@@ -92,12 +98,12 @@ classdef {{classname}}
             {{#responses}}
                 {{#dataType}}
                 case '{{code}}'
+                    json = ApiClient.getResponseJson(resp);
                     {{#isListContainer}}
-                        {{!TODO: Handle lists here!}}
-                        % TODO: Handle {{containerType}} of {{baseType}}.
+                    returnData = arrayfunc(@(x) {{baseType}}.fromJson(x), json);
                     {{/isListContainer}}
                     {{^isListContainer}}
-                    returnData = {{dataType}}.fromJson(resp.getBodyAsString());
+                    returnData = {{dataType}}.fromJson(json);
                     {{/isListContainer}}
                 {{/dataType}}
             {{/responses}}

@@ -1,0 +1,42 @@
+classdef ModelBase < matlab.mixin.CustomDisplay
+    properties
+        props
+        propMap_
+    end
+    methods
+        function obj = ModelBase(propertyMap)
+            obj.props = containers.Map;
+            obj.propMap_ = propertyMap;
+        end
+        function sref = subsref(obj, s)
+            if s(1).type == '.' || s(1).type == '()'
+                if isKey(obj.propMap_, s(1).subs)
+                    sref = obj.props(obj.propMap_(s(1).subs))
+                else
+                    sref = builtin('subsref', obj, s);
+                end
+            else
+                error('subsref', 'Not a supported subscripted reference')
+            end
+        end
+        function obj = subsasgn(obj, s, val)
+            switch s(1).type
+                case '.'
+                    obj.assign(s(1).subs, val);
+                case '()'
+                    obj.assign(s(1).subs{1}, val);
+                case '{}'
+                    error('subsasgn', 'Not a supported subscripted reference')
+            end
+        end
+    end
+    methods(Access = protected)
+        function obj = assign(obj, subs, val)
+            if isKey(obj.propMap_, subs)
+                obj.props(obj.propMap_(subs)) = val;
+            else
+                error('subsasgn', 'Not a supported property')
+            end
+        end
+    end
+end

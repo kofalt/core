@@ -16,7 +16,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
   /**
    * Configures the type of generator.
-   * 
+   *
    * @return  the CodegenType for this generator
    * @see     io.swagger.codegen.CodegenType
    */
@@ -27,7 +27,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
   /**
    * Configures a friendly name for the generator.  This will be used by the generator
    * to select the library with the -l flag.
-   * 
+   *
    * @return the friendly name for the generator
    */
   public String getName() {
@@ -37,7 +37,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
   /**
    * Returns human-friendly help for the generator.  Provide the consumer with help
    * tips, parameters here
-   * 
+   *
    * @return A string value for the help message
    */
   public String getHelp() {
@@ -48,6 +48,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
     super();
 
     importMapping.clear();
+
+    supportsInheritance = false;
 
     // set the output folder here
     outputFolder = "generated-code/matlab";
@@ -136,11 +138,42 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
      * Language Specific Primitives.  These types will not trigger imports by
      * the client generator
      */
-    languageSpecificPrimitives = new HashSet<String>(
-      Arrays.asList(
-        "Type1",      // replace these with your types
-        "Type2")
-    );
+    languageSpecificPrimitives.clear();
+    languageSpecificPrimitives.add("char");
+    languageSpecificPrimitives.add("float");
+    languageSpecificPrimitives.add("integer");
+    languageSpecificPrimitives.add("logical");
+    languageSpecificPrimitives.add("vector");
+    languageSpecificPrimitives.add("containers.Map");
+
+    typeMapping.clear();
+    typeMapping.put("integer", "integer");
+    typeMapping.put("long", "integer");
+
+    typeMapping.put("float", "float");
+    typeMapping.put("double", "float");
+    typeMapping.put("number", "float");
+
+    typeMapping.put("boolean", "logical");
+
+    typeMapping.put("string", "char");
+
+    // TODO: Date and DateTime types in matlab?
+    typeMapping.put("date", "char");
+    typeMapping.put("DateTime", "char");
+
+    typeMapping.put("array", "vector");
+
+    typeMapping.put("object", "containers.Map");
+    typeMapping.put("map", "containers.Map");
+
+    // TODO: File type in matlab?
+    typeMapping.put("file", "char");
+
+    typeMapping.put("binary", "vector");
+    typeMapping.put("ByteArray", "vector");
+
+    typeMapping.put("UUID", "char");
   }
 
   @Override
@@ -153,6 +186,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
       packageName = "swagger_client";
     }
 
+    // Base model file
+    supportingFiles.add(new SupportingFile("model_base.mustache", packageName, "ModelBase.m"));
     // Api client file
     supportingFiles.add(new SupportingFile("api_client.mustache", packageName, "ApiClient.m"));
 
@@ -163,7 +198,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
   /**
    * Escapes a reserved word as defined in the `reservedWords` array. Handle escaping
    * those terms here.  This logic is only called if a variable matches the reserved words
-   * 
+   *
    * @return the escaped term
    */
   @Override
@@ -210,7 +245,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
   }
 
   /**
-   * Optional - swagger type conversion.  This is used to map swagger types in a `Property` into 
+   * Optional - swagger type conversion.  This is used to map swagger types in a `Property` into
    * either language specific types via `typeMapping` or into complex models if there is not a mapping.
    *
    * @return a string value of the type or complex model for this property
@@ -222,12 +257,13 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
     String type = null;
     if(typeMapping.containsKey(swaggerType)) {
       type = typeMapping.get(swaggerType);
-      if(languageSpecificPrimitives.contains(type))
-        return toModelName(type);
+      if(languageSpecificPrimitives.contains(type)) {
+          return type;
+      }
+    } else {
+        type = toModelName(swaggerType);
     }
-    else
-      type = swaggerType;
-    return toModelName(type);
+    return type;
   }
 
   @Override
