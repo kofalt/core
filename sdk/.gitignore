@@ -1,3 +1,6 @@
 swagger.json
 src/**/gen/
-
+persistent
+build/
+*.swp
+.gradle/

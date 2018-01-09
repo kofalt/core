@@ -1,0 +1,23 @@
+import io.swagger.codegen.config.CodegenConfigurator
+import io.swagger.codegen.DefaultGenerator
+
+def swaggerOutputDir = file('flywheel/gen')
+task generateApi {
+	inputs.file(swaggerInputSpec)
+	outputs.dir(swaggerOutputDir)
+
+	doLast {
+		def config = new CodegenConfigurator()
+		config.setInputSpec(swaggerInputSpec)
+		config.setOutputDir(swaggerOutputDir.path)
+		config.setLang('python')
+
+		new DefaultGenerator().opts(config.toClientOptInput()).generate()
+	}
+}
+
+clean.doFirst {
+	delete(swaggerOutputDir)
+}
+
+	
