@@ -1,0 +1,11 @@
+rootProject.name = 'swagger-codegen'
+include 'codegen', 'rest-client', 'python', 'matlab'
+
+project(':codegen').name = 'matlab-swagger-codegen'
+
+project(':rest-client').projectDir = file('src/java/rest_client')
+
+project(':python').projectDir = file('src/python')
+
+project(':matlab').projectDir = file('src/matlab')
+

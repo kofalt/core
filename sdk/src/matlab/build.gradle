@@ -1,0 +1,107 @@
+import io.swagger.codegen.config.CodegenConfigurator
+import io.swagger.codegen.DefaultGenerator
+
+
+def matlabCodegenJar = project(':matlab-swagger-codegen').jar.archivePath
+def templateDir = file('../../codegen/src/main/resources/matlab').path
+
+def toolboxDir = file('toolbox').path
+
+def intDir = file('build/intermediate').path
+def swaggerOutputDir = file('build/gen')
+def rootfsDir = intDir + '/rootfs'
+
+task generateApi(dependsOn: ':matlab-swagger-codegen:jar') {
+	inputs.file(swaggerInputSpec)
+	outputs.dir(swaggerOutputDir)
+
+	doLast {
+		// Swagger uses ServiceLoader to load the list modules. This in turn relies on the context class loader
+		// It's not pretty, but I haven't found a better way to load our module at runtime
+		def scriptHandler = project.getBuildscript()
+		def loader = scriptHandler.getClassLoader()
+		def myLoader = new java.net.URLClassLoader([matlabCodegenJar.toURL()] as URL[], loader)
+		Thread.currentThread().setContextClassLoader(myLoader)
+
+		def config = new CodegenConfigurator()
+		config.setInputSpec(swaggerInputSpec)
+		config.setOutputDir(swaggerOutputDir.path)
+		// Also have to re-specify the template dir because swagger isn't finding it from the classpath
+		config.setTemplateDir(templateDir)
+		config.setLang('matlab')
+
+		new DefaultGenerator().opts(config.toClientOptInput()).generate()
+	}
+}
+
+task copyRestApi(type: Copy, dependsOn: ':rest-client:jar') {
+	from project(':rest-client').jar.archivePath
+	into { rootfsDir + '/api' }
+}
+
+task copySwaggerApi(type: Copy, dependsOn: generateApi) {
+	from swaggerOutputDir
+	into { rootfsDir }
+}
+
+task copyToolboxFiles(type: Copy) {
+	from('toolbox/') {
+		include '**/*'
+	 	exclude 'metadata/configuration.xml'
+		exclude 'metadata/coreProperties.xml'
+	}
+	into { intDir }
+}
+
+def configureXml(src, dst, fn) {
+	def parser = new XmlParser()
+	def root = parser.parse(src)
+
+	fn(root)
+
+	new File(dst).parentFile.mkdirs()
+	def writer = new PrintWriter(new FileWriter(dst)) 
+	// Printer that doesn't write newlines or whitespace
+	def printer = new XmlNodePrinter(writer, '') {
+		@Override
+		protected void printLineEnd(String comment) {
+			out.flush()
+		}
+	}
+	printer.preserveWhitespace = false
+	printer.print(root)
+	writer.close()
+}
+
+task configureToolbox(dependsOn: copyToolboxFiles) {
+	def isoDate = new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC"));
+
+	// Configure configuration.xml
+	configureXml(toolboxDir + '/metadata/configuration.xml', intDir + '/metadata/configuration.xml', { root -> 
+		root.javaClassPaths[0]?.appendNode('javaClassPath', [:], '/api/' + project(':rest-client').jar.archiveName) 
+	})
+
+	// Configure core properties
+	configureXml(toolboxDir + '/metadata/coreProperties.xml', intDir + '/metadata/coreProperties.xml', { root ->
+		root.'cp:version'[0].value = "${project.version}"
+		root.'dcterms:modified'[0].value = isoDate
+	})
+
+	// Write filesystem manifest
+}
+
+task buildToolbox(type: Zip) {
+	baseName = 'flywheel-sdk'
+	extension = 'mltbx'
+	from intDir
+}
+
+buildToolbox.dependsOn copySwaggerApi, copyRestApi, configureToolbox
+
+clean.doFirst {
+	delete(swaggerOutputDir)
+	delete(rootfsDir)
+}
+
+	
+

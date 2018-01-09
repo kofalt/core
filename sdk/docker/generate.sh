@@ -59,8 +59,9 @@ function main() {
 
 	# Matlab codegen
 	if ${GEN_MATLAB}; then
-		${MVN} -f codegen/pom.xml package
-		java -cp ${MATLAB_JAR}:${SWAGGER_CLI_JAR} io.swagger.codegen.SwaggerCodegen generate -i swagger.json -l matlab -o src/matlab/gen
+		${MVN} -f codegen/pom.xml install
+		# java -cp ${MATLAB_JAR}:${SWAGGER_CLI_JAR} io.swagger.codegen.SwaggerCodegen generate -i swagger.json -l matlab -o src/matlab/gen
+		${MVN} -f src/matlab/pom.xml package
 	fi
 }
 
