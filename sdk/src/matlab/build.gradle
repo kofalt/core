@@ -9,19 +9,21 @@ def toolboxDir = file('toolbox').path
 
 def intDir = file('build/intermediate').path
 def swaggerOutputDir = file('build/gen')
-def rootfsDir = intDir + '/rootfs'
+def fsrootDir = intDir + '/fsroot'
 
 def dateToIso(date) {
 	return date.format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC"));
 }
 
 def configureXml(path, fn) {
-	def parser = new XmlParser()
+	def parser = new XmlParser(false, true)
 	def root = parser.parse(path)
 
 	fn(root)
 
 	def writer = new PrintWriter(new FileWriter(path)) 
+	writer.print('<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>')
+
 	// Printer that doesn't write newlines or whitespace
 	def printer = new XmlNodePrinter(writer, '') {
 		@Override
@@ -59,7 +61,7 @@ task generateApi(dependsOn: ':matlab-swagger-codegen:jar') {
 
 task copyRestApi(type: Copy, dependsOn: ':rest-client:jar') {
 	from project(':rest-client').jar.archivePath
-	into { rootfsDir + '/api' }
+	into { fsrootDir + '/api' }
 }
 
 task copySwaggerApi(type: Copy, dependsOn: generateApi) {
@@ -68,7 +70,7 @@ task copySwaggerApi(type: Copy, dependsOn: generateApi) {
 		exclude '.swagger-codegen/**'
 		exclude '.swagger-codegen-ignore'
 	}
-	into { rootfsDir }
+	into { fsrootDir }
 }
 
 task copyToolboxFiles(type: Copy) {
@@ -88,12 +90,13 @@ task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi]
 		// Configure core properties
 		configureXml(intDir + '/metadata/coreProperties.xml', { root ->
 			root.'cp:version'[0].value = "${project.version}"
+			root.'dcterms:created'[0].value = isoDate
 			root.'dcterms:modified'[0].value = isoDate
 		})
 
 		// Write filesystem manifest
 		configureXml(intDir + '/metadata/filesystemManifest.xml', { root ->
-			FileTree tree = fileTree(rootfsDir)
+			FileTree tree = fileTree(fsrootDir)
 			tree.visit{ element ->
 				if( !element.isDirectory() ) {
 					def f = element.getFile();
@@ -102,7 +105,7 @@ task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi]
 					root.appendNode('fileEntry', [
 						content: "/fsroot/$element.relativePath",
 						date: modified,
-						name: "$element.relativePath",
+						name: "/$element.relativePath",
 						permissions: '0644',
 						type: 'File'
 					])
@@ -124,7 +127,7 @@ artifacts {
 
 clean.doFirst {
 	delete(swaggerOutputDir)
-	delete(rootfsDir)
+	delete(fsrootDir)
 }
 
 	
