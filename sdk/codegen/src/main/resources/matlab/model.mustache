@@ -48,7 +48,7 @@ classdef {{classname}} < ModelBase
                 result('{{baseName}}') = obj.props('{{baseName}}').toJson();
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result('{{baseName}}') = arrayfun(@(x) x.toJson(), obj.props('{{baseName}}'));
+                result('{{baseName}}') = cellfun(@(x) x.toJson(), obj.props('{{baseName}}'), 'UniformOutput', false);
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             end
@@ -64,12 +64,14 @@ classdef {{classname}} < ModelBase
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
-                result.{{name}}} = struct(obj.props('{{baseName}}'));
+                result.{{name}} = struct(obj.props('{{baseName}}'));
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result.{{name}} = arrayfun(@(x) struct(x), obj.props('{{baseName}}'));
+                result.{{name}} = cellfun(@(x) struct(x), obj.props('{{baseName}}'));
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
+            else
+                result.{{name}} = {};
             end
             {{/vars}}
         end
@@ -104,7 +106,7 @@ classdef {{classname}} < ModelBase
                 obj.props('{{baseName}}') = {{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
                 {{/isListContainer}}
                 {{#isListContainer}}
-                obj.props('{{baseName}}') = arrayfun(@(x) {{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}});
+                obj.props('{{baseName}}') = arrayfun(@(x) {{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}}, 'UniformOutput', false);
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             end
