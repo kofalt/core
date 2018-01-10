@@ -13,7 +13,6 @@ docker run --rm -it \
 	-e GRADLE_USER_HOME=/gradle \
 	-v "${PWD}:/local" \
 	-v "${gradle_user_home}:/gradle" \
-	--entrypoint /local/docker/entrypoint2.sh \
 	gradle:4.4-jdk8 "$@"
 
 
