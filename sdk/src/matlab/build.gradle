@@ -1,7 +1,6 @@
 import io.swagger.codegen.config.CodegenConfigurator
 import io.swagger.codegen.DefaultGenerator
 
-
 def matlabCodegenJar = project(':matlab-swagger-codegen').jar.archivePath
 def templateDir = file('../../codegen/src/main/resources/matlab').path
 
@@ -85,6 +84,9 @@ task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi]
 		// Configure configuration.xml
 		configureXml(intDir + '/metadata/configuration.xml', { root -> 
 			root.javaClassPaths[0]?.appendNode('javaClassPath', [:], '/api/' + project(':rest-client').jar.archiveName) 
+			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/swagger_client')
+			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/swagger_client/api')
+			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/swagger_client/model')
 		})
 
 		// Configure core properties

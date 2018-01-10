@@ -1,4 +1,3 @@
-# operations block
 {{#operations}}
 classdef {{classname}}
     properties
@@ -35,7 +34,7 @@ classdef {{classname}}
             {{/required}}
             {{/allParams}}
             {{/sortParamsByRequiredFlag}}
-            parse(x__inp, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin);
+            parse(x__inp, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin{:});
 
             % Path parameters
             pathParams = {};
@@ -100,7 +99,7 @@ classdef {{classname}}
                 case '{{code}}'
                     json = ApiClient.getResponseJson(resp);
                     {{#isListContainer}}
-                    returnData = arrayfunc(@(x) {{baseType}}.fromJson(x), json);
+                    returnData = arrayfun(@(x) {{baseType}}.fromJson(x), json, 'UniformOutput', false);
                     {{/isListContainer}}
                     {{^isListContainer}}
                     returnData = {{dataType}}.fromJson(json);
@@ -113,8 +112,6 @@ classdef {{classname}}
         end
 
 {{/operation}}
-
     end
 end
-# end of operations block
 {{/operations}}

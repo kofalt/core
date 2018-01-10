@@ -6,7 +6,7 @@ classdef ApiClient
         function obj = ApiClient(apiKey)
             obj.restClient = io.flywheel.rest.RestClient.fromApiKey(apiKey);
         end
-        function resp = callApi(method, path, pathParams, queryParams, headers, body, postParams, files)
+        function resp = callApi(obj, method, path, pathParams, queryParams, headers, body, postParams, files)
             resp = obj.restClient.callApi(method, path, pathParams, queryParams, headers, body, postParams, files);
         end
     end
@@ -15,7 +15,8 @@ classdef ApiClient
             json = jsonencode(data);
         end
         function json = getResponseJson(resp)
-            resp = jsonread(resp.getBodyAsString(), struct('ReplacementStyle', 'hex'));
+            body = resp.getBodyAsString().toCharArray';
+            json = jsonread(body, struct('ReplacementStyle', 'hex'));
         end
     end
 end
