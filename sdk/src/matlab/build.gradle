@@ -11,6 +11,29 @@ def intDir = file('build/intermediate').path
 def swaggerOutputDir = file('build/gen')
 def rootfsDir = intDir + '/rootfs'
 
+def dateToIso(date) {
+	return date.format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC"));
+}
+
+def configureXml(path, fn) {
+	def parser = new XmlParser()
+	def root = parser.parse(path)
+
+	fn(root)
+
+	def writer = new PrintWriter(new FileWriter(path)) 
+	// Printer that doesn't write newlines or whitespace
+	def printer = new XmlNodePrinter(writer, '') {
+		@Override
+		protected void printLineEnd(String comment) {
+			out.flush()
+		}
+	}
+	printer.preserveWhitespace = false
+	printer.print(root)
+	writer.close()
+}
+
 task generateApi(dependsOn: ':matlab-swagger-codegen:jar') {
 	inputs.file(swaggerInputSpec)
 	outputs.dir(swaggerOutputDir)
@@ -40,63 +63,64 @@ task copyRestApi(type: Copy, dependsOn: ':rest-client:jar') {
 }
 
 task copySwaggerApi(type: Copy, dependsOn: generateApi) {
-	from swaggerOutputDir
+	from(swaggerOutputDir) {
+		include '**/*'
+		exclude '.swagger-codegen/**'
+		exclude '.swagger-codegen-ignore'
+	}
 	into { rootfsDir }
 }
 
 task copyToolboxFiles(type: Copy) {
-	from('toolbox/') {
-		include '**/*'
-	 	exclude 'metadata/configuration.xml'
-		exclude 'metadata/coreProperties.xml'
-	}
+	from 'toolbox/' 
 	into { intDir }
 }
 
-def configureXml(src, dst, fn) {
-	def parser = new XmlParser()
-	def root = parser.parse(src)
+task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi]) {
+	doLast {
+		def isoDate = dateToIso(new Date())
 
-	fn(root)
+		// Configure configuration.xml
+		configureXml(intDir + '/metadata/configuration.xml', { root -> 
+			root.javaClassPaths[0]?.appendNode('javaClassPath', [:], '/api/' + project(':rest-client').jar.archiveName) 
+		})
 
-	new File(dst).parentFile.mkdirs()
-	def writer = new PrintWriter(new FileWriter(dst)) 
-	// Printer that doesn't write newlines or whitespace
-	def printer = new XmlNodePrinter(writer, '') {
-		@Override
-		protected void printLineEnd(String comment) {
-			out.flush()
-		}
+		// Configure core properties
+		configureXml(intDir + '/metadata/coreProperties.xml', { root ->
+			root.'cp:version'[0].value = "${project.version}"
+			root.'dcterms:modified'[0].value = isoDate
+		})
+
+		// Write filesystem manifest
+		configureXml(intDir + '/metadata/filesystemManifest.xml', { root ->
+			FileTree tree = fileTree(rootfsDir)
+			tree.visit{ element ->
+				if( !element.isDirectory() ) {
+					def f = element.getFile();
+					// Hardcoded permissions - would these ever change?
+					def modified = dateToIso(new Date(f.lastModified()))
+					root.appendNode('fileEntry', [
+						content: "/fsroot/$element.relativePath",
+						date: modified,
+						name: "$element.relativePath",
+						permissions: '0644',
+						type: 'File'
+					])
+				}
+			}
+		})
 	}
-	printer.preserveWhitespace = false
-	printer.print(root)
-	writer.close()
 }
 
-task configureToolbox(dependsOn: copyToolboxFiles) {
-	def isoDate = new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC"));
-
-	// Configure configuration.xml
-	configureXml(toolboxDir + '/metadata/configuration.xml', intDir + '/metadata/configuration.xml', { root -> 
-		root.javaClassPaths[0]?.appendNode('javaClassPath', [:], '/api/' + project(':rest-client').jar.archiveName) 
-	})
-
-	// Configure core properties
-	configureXml(toolboxDir + '/metadata/coreProperties.xml', intDir + '/metadata/coreProperties.xml', { root ->
-		root.'cp:version'[0].value = "${project.version}"
-		root.'dcterms:modified'[0].value = isoDate
-	})
-
-	// Write filesystem manifest
-}
-
-task buildToolbox(type: Zip) {
+task buildToolbox(type: Zip, dependsOn: configureToolbox) {
 	baseName = 'flywheel-sdk'
 	extension = 'mltbx'
 	from intDir
 }
 
-buildToolbox.dependsOn copySwaggerApi, copyRestApi, configureToolbox
+artifacts {
+	archives buildToolbox
+}
 
 clean.doFirst {
 	delete(swaggerOutputDir)
