@@ -1,22 +1,33 @@
 classdef ModelBase < matlab.mixin.CustomDisplay
     properties
-        props
+        props_
         propMap_
     end
     methods
         function obj = ModelBase(propertyMap)
-            obj.props = containers.Map;
+            obj.props_ = containers.Map;
             obj.propMap_ = propertyMap;
         end
         function sref = subsref(obj, s)
             if s(1).type == '.'
-                if isKey(obj.propMap_, s(1).subs)
-                    sref = obj.props(obj.propMap_(s(1).subs));
-                    if length(s) > 1
-                        sref = subsref(sref, s(2:end));
+                if isempty(obj.propMap_)
+                    if isKey(obj.props_, s(1).subs)
+                        sref = obj.props_(s(1).subs);
+                        if length(s) > 1
+                            sref = subsref(sref, s(2:end));
+                        end
+                    else
+                        sref = builtin('subsref', obj, s);
                     end
                 else
-                    sref = builtin('subsref', obj, s);
+                    if isKey(obj.propMap_, s(1).subs)
+                        sref = obj.props_(obj.propMap_(s(1).subs));
+                        if length(s) > 1
+                            sref = subsref(sref, s(2:end));
+                        end
+                    else
+                        sref = builtin('subsref', obj, s);
+                    end
                 end
             else
                 error('subsref', 'Not a supported subscripted reference')
@@ -39,11 +50,19 @@ classdef ModelBase < matlab.mixin.CustomDisplay
                 subs = s(1).subs;
                 if s(1).type == '.'
                     if isa(obj, 'ModelBase')
-                        if isKey(obj.propMap_, subs)
-                            propName = obj.propMap_(subs);
-                            obj.props(propName) = ModelBase.recursiveAsgn(obj.props(propName), s(2:end), val);
+                        if isempty(obj.propMap_)
+                            if isKey(obj.props_, subs)
+                                obj.props_(subs) = ModelBase.recursiveAsgn(obj.props_(subs), s(2:end), val);
+                            else
+                                obj = builtin('subsasgn', obj, s, val);
+                            end
                         else
-                            error('subsasgn', 'No property ' + subs + ' exists for class ' + class(obj));
+                            if isKey(obj.propMap_, subs)
+                                propName = obj.propMap_(subs);
+                                obj.props_(propName) = ModelBase.recursiveAsgn(obj.props_(propName), s(2:end), val);
+                            else
+                                error('subsasgn', 'No property ' + subs + ' exists for class ' + class(obj));
+                            end
                         end
                     else
                         obj.(subs) = ModelBase.recursiveAsgn(obj.(subs), s(2:end), val);

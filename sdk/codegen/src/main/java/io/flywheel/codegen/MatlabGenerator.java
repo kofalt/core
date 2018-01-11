@@ -1,6 +1,7 @@
 package io.flywheel.codegen;
 
 import io.swagger.codegen.*;
+import io.swagger.models.ModelImpl;
 import io.swagger.models.properties.*;
 import org.apache.commons.lang3.StringUtils;
 
@@ -368,6 +369,16 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
             }
         }
         return null;
+    }
+
+    @Override
+    protected void addAdditionPropertiesToCodeGenModel(CodegenModel codegenModel, ModelImpl swaggerModel) {
+        Property srcProperty = swaggerModel.getAdditionalProperties();
+        if( srcProperty != null ) {
+            codegenModel.additionalPropertiesType = getSwaggerType(srcProperty);
+            CodegenProperty prop = fromProperty("", srcProperty);
+            codegenModel.vendorExtensions.put("x-matlab-additionalProperties", prop);
+        }
     }
 
     @Override
