@@ -14,17 +14,14 @@ classdef {{classname}} < ModelBase
     % {{classname}} Methods:
     %    toJson - Convert the object to a Map that can be encoded to json
     %    struct - Convert the object to a struct
-    {{#allVars}}
-    % allVars: {{name}}
-    {{/allVars}}
     properties (Constant)
         {{#hasVars}}
         propertyMap = containers.Map({ {{#vars}}'{{name}}'{{#hasMore}}, {{/hasMore}}{{/vars}} }, ...
             { {{#vars}}'{{baseName}}'{{#hasMore}}, {{/hasMore}}{{/vars}} })
         {{/hasVars}}
-        {{#emptyVars}}
+        {{^hasVars}}
         propertyMap = [];
-        {{/emptyVars}}
+        {{/hasVars}}
     end
     methods
         function obj = {{classname}}(varargin)
@@ -206,13 +203,11 @@ classdef {{classname}} < ModelBase
             {{/vars}}
         end
         function obj = ensureIsInstance(obj)
-            % Realistically, we only handle structs
             if ~isempty(obj)
+                % Realistically, we only convert structs
                 if isstruct(obj)
                     obj = {{classname}}(obj);
                 end
-
-                % Recursively ensure sub properties are of the correct type
                 {{#vars}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
