@@ -14,9 +14,18 @@ classdef {{classname}} < ModelBase
     % {{classname}} Methods:
     %    toJson - Convert the object to a Map that can be encoded to json
     %    struct - Convert the object to a struct
+    %  additionalPropertiesType - {{additionalPropertiesType}}
+    {{#allVars}}
+    % allVars: {{name}}
+    {{/allVars}}
     properties (Constant)
+        {{#hasVars}}
         propertyMap = containers.Map({ {{#vars}}'{{name}}'{{#hasMore}}, {{/hasMore}}{{/vars}} }, ...
             { {{#vars}}'{{baseName}}'{{#hasMore}}, {{/hasMore}}{{/vars}} })
+        {{/hasVars}}
+        {{#emptyVars}}
+        propertyMap = [];
+        {{/emptyVars}}
     end
     methods
         function obj = {{classname}}(varargin)
@@ -26,52 +35,106 @@ classdef {{classname}} < ModelBase
             {{#vars}}
             addParameter(p, '{{name}}', {{#defaultValue}}{{defaultValue}}{{/defaultValue}}{{^defaultValue}}[]{{/defaultValue}});
             {{/vars}}
+            {{^vars}}
+            p.KeepUnmatched = true;
+            {{/vars}}
 
             parse(p, varargin{:});
 
             {{#vars}}
             if ~isempty(p.Results.{{name}})
-                obj.props('{{baseName}}') = p.Results.{{name}};
+                obj.props_('{{baseName}}') = p.Results.{{name}};
+            end
+            {{/vars}}
+            {{^vars}}
+            names = fieldnames(p.Unmatched);
+            for i = 1:length(names)
+                name = names{i};
+                obj.props_(name) = p.Unmatched.(name);
             end
             {{/vars}}
         end
         function result = toJson(obj)
-            result = containers.Map;
-
             {{#vars}}
-            if isKey(obj.props, '{{baseName}}')
+            result = containers.Map;
+            if isKey(obj.props_, '{{baseName}}')
                 {{#isPrimitiveType}}
-                result('{{baseName}}') = obj.props('{{baseName}}');
+                result('{{baseName}}') = obj.props_('{{baseName}}');
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
-                result('{{baseName}}') = obj.props('{{baseName}}').toJson();
+                result('{{baseName}}') = obj.props_('{{baseName}}').toJson();
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result('{{baseName}}') = cellfun(@(x) x.toJson(), obj.props('{{baseName}}'), 'UniformOutput', false);
+                result('{{baseName}}') = cellfun(@(x) x.toJson(), obj.props_('{{baseName}}'), 'UniformOutput', false);
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             end
+            {{/vars}}
+            {{^vars}}
+            {{#vendorExtensions.x-matlab-additionalProperties}}
+            result = containers.Map;
+            propKeys = keys(obj.props_);
+            for i = 1:length(propKeys)
+                key = propKeys{i};
+                {{#isPrimitiveType}}
+                result(key) = obj.props_(key);
+                {{/isPrimitiveType}}
+                {{^isPrimitiveType}}
+                {{^isListContainer}}
+                result(key) = obj.props_(key).toJson();
+                {{/isListContainer}}
+                {{#isListContainer}}
+                result(key) = cellfun(@(x) x.toJson(), obj.props_(key), 'UniformOutput', false);
+                {{/isListContainer}}
+                {{/isPrimitiveType}}
+            end
+            {{/vendorExtensions.x-matlab-additionalProperties}}
+            {{^additionalPropertiesType}}
+            result = obj.props_;
+            {{/additionalPropertiesType}}
             {{/vars}}
         end
         function result = struct(obj)
             result = struct;
 
             {{#vars}}
-            if isKey(obj.props, '{{baseName}}')
+            if isKey(obj.props_, '{{baseName}}')
                 {{#isPrimitiveType}}
-                result.{{name}} = obj.props('{{baseName}}');
+                result.{{name}} = obj.props_('{{baseName}}');
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
-                result.{{name}} = struct(obj.props('{{baseName}}'));
+                result.{{name}} = struct(obj.props_('{{baseName}}'));
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result.{{name}} = cellfun(@(x) struct(x), obj.props('{{baseName}}'));
+                result.{{name}} = cellfun(@(x) struct(x), obj.props_('{{baseName}}'));
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             else
                 result.{{name}} = {};
+            end
+            {{/vars}}
+            {{^vars}}
+            propKeys = keys(obj.props_);
+            for i = 1:length(propKeys)
+                key = propKeys{i};
+                {{#vendorExtensions.x-matlab-additionalProperties}}
+                {{#isPrimitiveType}}
+                result.(key) = obj.props_(key);
+                {{/isPrimitiveType}}
+                {{^isPrimitiveType}}
+                {{^isListContainer}}
+                result.(key) = struct(obj.props_(key));
+                {{/isListContainer}}
+                {{#isListContainer}}
+                result.(key) = cellfun(@(x) struct(x), obj.props_(key), 'UniformOutput', false);
+                {{/isListContainer}}
+                {{/isPrimitiveType}}
+                {{/vendorExtensions.x-matlab-additionalProperties}}
+                {{^additionalPropertiesType}}
+                result.(key) = obj.props_(key);
+                {{/additionalPropertiesType}}
             end
             {{/vars}}
         end
@@ -83,10 +146,17 @@ classdef {{classname}} < ModelBase
             else
                 propList = struct;
                 {{#vars}}
-                if isKey(obj.props, '{{baseName}}')
-                    propList.{{name}} = obj.props('{{baseName}}');
+                if isKey(obj.props_, '{{baseName}}')
+                    propList.{{name}} = obj.props_('{{baseName}}');
                 else
                     propList.{{name}} = [];
+                end
+                {{/vars}}
+                {{^vars}}
+                propKeys = keys(obj.props_);
+                for i = 1:length(propKeys)
+                    key = propKeys{i};
+                    propList.(key) = obj.props_(key);
                 end
                 {{/vars}}
                 prpgrp = matlab.mixin.util.PropertyGroup(propList);
@@ -99,16 +169,38 @@ classdef {{classname}} < ModelBase
             {{#vars}}
             if isfield(json, '{{vendorExtensions.x-matlab-baseName}}')
                 {{#isPrimitiveType}}
-                obj.props('{{baseName}}') = json.{{vendorExtensions.x-matlab-baseName}};
+                obj.props_('{{baseName}}') = json.{{vendorExtensions.x-matlab-baseName}};
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
-                obj.props('{{baseName}}') = {{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
+                obj.props_('{{baseName}}') = {{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
                 {{/isListContainer}}
                 {{#isListContainer}}
-                obj.props('{{baseName}}') = arrayfun(@(x) {{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}}, 'UniformOutput', false);
+                obj.props_('{{baseName}}') = arrayfun(@(x) {{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}}, 'UniformOutput', false);
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
+            end
+            {{/vars}}
+            {{^vars}}
+            names = fieldnames(json);
+            for i = 1:length(names)
+                name = names{i};
+                {{#vendorExtensions.x-matlab-additionalProperties}}
+                {{#isPrimitiveType}}
+                obj.props_(name) = json.(name);
+                {{/isPrimitiveType}}
+                {{^isPrimitiveType}}
+                {{^isListContainer}}
+                obj.props_(name) = {{complexType}}.fromJson(json.(name));
+                {{/isListContainer}}
+                {{#isListContainer}}
+                obj.props_(name) = arrayfun(@(x) {{complexType}}.fromJson(x), json.(name), 'UniformOutput', false);
+                {{/isListContainer}}
+                {{/isPrimitiveType}}
+                {{/vendorExtensions.x-matlab-additionalProperties}}
+                {{^additionalPropertiesType}}
+                obj.props_(name) = json.(name);
+                {{/additionalPropertiesType}}
             end
             {{/vars}}
         end

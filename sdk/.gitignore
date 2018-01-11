@@ -4,3 +4,6 @@ persistent
 build/
 *.swp
 .gradle/
+.idea/
+*.iml
+
