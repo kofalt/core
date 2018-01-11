@@ -24,6 +24,7 @@ classdef {{classname}}
             % returns: [{{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}none{{/returnType}}, status]
 
             x__inp = inputParser;
+            x__inp.StructExpand = false;
             {{#sortParamsByRequiredFlag}}
             {{#allParams}}
             {{#required}}
@@ -76,12 +77,17 @@ classdef {{classname}}
 
             % Body (as JSON)
             {{#bodyParam}}
-            {{! TODO: Handle collections? }}
-            if isa(x__inp.Results.{{paramName}}, '{{baseType}}')
-                body = x__inp.Results.{{paramName}};
-            else
-                body = {{baseType}}(x__inp.Results.{{paramName}});
-            end
+            {{#isPrimitiveType}}
+            body = x__inp.Results.{{paramName}};
+            {{/isPrimitiveType}}
+            {{^isPrimitiveType}}
+            {{^isListContainer}}
+            body = {{baseType}}.ensureIsInstance(x__inp.Results.{{paramName}});
+            {{/isListContainer}}
+            {{#isListContainer}}
+            body = BaseModel.cellmap(@(x) {{baseType}}.ensureIsInstance(x), x__inp.Results.{{paramName}});
+            {{/isListContainer}}
+            {{/isPrimitiveType}}
             body = ApiClient.encodeJson(body.toJson());
             {{/bodyParam}}
             {{^bodyParam}}

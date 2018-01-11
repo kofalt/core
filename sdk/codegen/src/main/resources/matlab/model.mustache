@@ -14,7 +14,6 @@ classdef {{classname}} < ModelBase
     % {{classname}} Methods:
     %    toJson - Convert the object to a Map that can be encoded to json
     %    struct - Convert the object to a struct
-    %  additionalPropertiesType - {{additionalPropertiesType}}
     {{#allVars}}
     % allVars: {{name}}
     {{/allVars}}
@@ -55,8 +54,10 @@ classdef {{classname}} < ModelBase
             {{/vars}}
         end
         function result = toJson(obj)
-            {{#vars}}
+            {{#hasVars}}
             result = containers.Map;
+            {{/hasVars}}
+            {{#vars}}
             if isKey(obj.props_, '{{baseName}}')
                 {{#isPrimitiveType}}
                 result('{{baseName}}') = obj.props_('{{baseName}}');
@@ -203,6 +204,42 @@ classdef {{classname}} < ModelBase
                 {{/additionalPropertiesType}}
             end
             {{/vars}}
+        end
+        function obj = ensureIsInstance(obj)
+            % Realistically, we only handle structs
+            if ~isempty(obj)
+                if isstruct(obj)
+                    obj = {{classname}}(obj);
+                end
+
+                % Recursively ensure sub properties are of the correct type
+                {{#vars}}
+                {{^isPrimitiveType}}
+                {{^isListContainer}}
+                obj.props_('{{baseName}}') = {{complexType}}.ensureIsInstance(obj.props_('{{baseName}}'));
+                {{/isListContainer}}
+                {{#isListContainer}}
+                obj.props_('{{baseName}}') = ModelBase.cellmap(@(x) {{complexType}}.ensureIsInstance(x), obj.props_('{{baseName}}'));
+                {{/isListContainer}}
+                {{/isPrimitiveType}}
+                {{/vars}}
+                {{^vars}}
+                {{#vendorExtensions.x-matlab-additionalProperties}}
+                {{^isPrimitiveType}}
+                propKeys = keys(obj.props_);
+                for i = 1:length(propKeys)
+                    key = propKeys{i};
+                    {{^isListContainer}}
+                    obj.props_(key) = {{complexType}}.ensureIsInstance(obj.props_(key));
+                    {{/isListContainer}}
+                    {{#isListContainer}}
+                    obj.props_(key) = ModelBase.cellmap(@(x) {{complexType}}.ensureIsInstance(x), obj.props_(key));
+                    {{/isListContainer}}
+                end
+                {{/isPrimitiveType}}
+                {{/vendorExtensions.x-matlab-additionalProperties}}
+                {{/vars}}
+            end
         end
     end
 end
