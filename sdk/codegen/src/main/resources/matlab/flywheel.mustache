@@ -1,0 +1,31 @@
+classdef Flywheel
+    properties
+        apiClient
+        {{#apiInfo}}
+        {{#apis}}
+        {{classVarName}}
+        {{/apis}}
+        {{/apiInfo}}
+    end
+    methods
+        function obj = Flywheel(apiKey)
+            obj.apiClient = ApiClient(apiKey);
+            {{#apiInfo}}
+            {{#apis}}
+            obj.{{classVarName}} = {{classname}}(obj.apiClient);
+            {{/apis}}
+            {{/apiInfo}}
+        end
+        {{#apiInfo}}
+        {{#apis}}
+        {{#operations}}
+        {{#operation}}
+        function [returnData, status] = {{operationId}}(obj, varargin)
+            [returnData, status] = obj.{{classVarName}}.{{operationId}}(varargin{:});
+        end
+        {{/operation}}
+        {{/operations}}
+        {{/apis}}
+        {{/apiInfo}}
+    end
+end

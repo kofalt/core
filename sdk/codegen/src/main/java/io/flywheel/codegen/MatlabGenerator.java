@@ -190,8 +190,12 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
         // Base model file
         supportingFiles.add(new SupportingFile("model_base.mustache", packageName, "ModelBase.m"));
+        // FileSpec file
+        supportingFiles.add(new SupportingFile("file_spec.mustache", packageName, "FileSpec.m"));
         // Api client file
         supportingFiles.add(new SupportingFile("api_client.mustache", packageName, "ApiClient.m"));
+        // Flywheel wrapper file
+        supportingFiles.add(new SupportingFile("flywheel.mustache", packageName, "Flywheel.m"));
 
         modelPackage = packageName + "." + modelPackage;
         apiPackage = packageName + "." + apiPackage;
@@ -316,6 +320,14 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
             return "DefaultApi";
         }
         return camelize(name) + "Api";
+    }
+
+    @Override
+    public String toApiVarName(String name) {
+        if (name.length() == 0) {
+            return "defaultApi";
+        }
+        return camelize(name, true) + "Api";
     }
 
     @Override

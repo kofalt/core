@@ -4,16 +4,15 @@ import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.NameValuePair;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.methods.*;
-import org.apache.commons.httpclient.methods.multipart.ByteArrayPartSource;
-import org.apache.commons.httpclient.methods.multipart.FilePart;
-import org.apache.commons.httpclient.methods.multipart.Part;
-import org.apache.commons.httpclient.methods.multipart.StringPart;
+import org.apache.commons.httpclient.methods.multipart.*;
 import org.apache.commons.httpclient.util.EncodingUtil;
 import org.apache.commons.httpclient.util.URIUtil;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.net.FileNameMap;
+import java.net.URLConnection;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -24,6 +23,10 @@ public class RestUtils {
     public static final String DEFAULT_MIME_TYPE = "application/octet-stream";
 
     private static Map<String, Constructor<? extends HttpMethod>> METHOD_MAP;
+
+    private static FileNameMap FILE_NAME_MAP = URLConnection.getFileNameMap();
+
+    private static final String DEFAULT_FILE_TYPE = "application/octet-stream";
 
     static {
         METHOD_MAP = new TreeMap<>();
@@ -203,10 +206,13 @@ public class RestUtils {
             if( body != null && !body.isEmpty() ) {
                 // Start with body
                 request.setRequestEntity(new StringRequestEntity(body, null, null));
-            } else if( postParams != null && postParams.length > 0 ) {
-                setRequestEntityFormData(request, postParams);
-            } else if( files != null & files.length > 0 ) {
-                setRequestEntityFiles(request, files);
+            } else {
+                if( postParams != null && postParams.length > 0 ) {
+                    setRequestEntityFormData(request, postParams);
+                }
+                if( files != null & files.length > 0 ) {
+                    setRequestEntityFiles(request, files);
+                }
             }
         }
     }
@@ -235,17 +241,20 @@ public class RestUtils {
     }
 
     private static void setRequestEntityFiles(EntityEnclosingMethod method, Object[] files) throws IOException {
-        if (files.length % 2 == 1) {
+        if (files.length % 3 == 1) {
             throw new IllegalArgumentException("Unbalanced files!");
         }
 
-        Part[] parts = new Part[files.length / 2];
-        for (int i = 0; i < files.length; i += 2) {
+        PartBase[] parts = new PartBase[files.length / 3];
+        for (int i = 0; i < files.length; i += 3) {
             if (files[i] == null || files[i + 1] == null) {
                 throw new IllegalArgumentException("Unexpected null file");
             }
 
             String name = files[i].toString();
+            if( name.equals("file:") ) {
+                name = "";
+            }
 
             // If it's a string type, check if the file exists, otherwise add a string part
             if (files[i + 1] instanceof String) {
@@ -253,19 +262,44 @@ public class RestUtils {
                 File file = new File(data);
                 if (file.isFile()) {
                     // Add a file part
-                    parts[i / 2] = new FilePart(name, file);
+                    if( name.isEmpty() ) {
+                        name = file.getName();
+                    }
+                    parts[i / 3] = new FilePart(name, file);
                 } else {
                     // Add a string part
-                    parts[i / 2] = new StringPart(name, data);
+                    if( name.isEmpty() ) {
+                        throw new IllegalArgumentException("File name is required!");
+                    }
+                    parts[i / 3] = new StringPart(name, data);
                 }
             } else if (files[i + 1] instanceof byte[]) {
-                parts[i / 2] = new FilePart(name, new ByteArrayPartSource(name, (byte[]) files[i + 1]));
+                parts[i / 3] = new FilePart(name, new ByteArrayPartSource(name, (byte[]) files[i + 1]));
             } else {
                 // TODO: Convert to byte array if it's a numeric array?
                 throw new IllegalArgumentException("Unexpected file data type: " +
                         files[i + 1].getClass().getCanonicalName());
             }
+
+            String contentType = (String)files[i+2];
+            if( contentType == null || contentType.isEmpty() ) {
+                contentType = guessFileType(name);
+            }
+            parts[i / 3].setContentType(contentType);
         }
+
+        method.setRequestEntity(new MultipartRequestEntity(parts, method.getParams()));
+    }
+
+    public static String guessFileType(String name) {
+        String result = null;
+        if( FILE_NAME_MAP != null ) {
+            result = FILE_NAME_MAP.getContentTypeFor(name);
+        }
+        if( result == null || result.isEmpty() ) {
+            result = DEFAULT_FILE_TYPE;
+        }
+        return result;
     }
 
 }

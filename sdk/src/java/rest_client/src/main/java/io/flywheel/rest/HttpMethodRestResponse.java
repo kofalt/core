@@ -3,7 +3,7 @@ package io.flywheel.rest;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpMethod;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 
 /**
@@ -44,6 +44,29 @@ public class HttpMethodRestResponse implements RestResponse {
     }
 
     @Override
+    public void saveResponseBodyToFile(String path) throws IOException {
+        InputStream in = null;
+        OutputStream out = null;
+        byte[] buffer = new byte[8192];
+
+        try {
+            in = method.getResponseBodyAsStream();
+            out = new FileOutputStream(path);
+
+            int len = in.read(buffer);
+            while( len != -1 ) {
+                if( len > 0 ) {
+                    out.write(buffer, 0, len);
+                }
+                len = in.read(buffer);
+            }
+        } finally {
+            safeClose(in);
+            safeClose(out);
+        }
+    }
+
+    @Override
     public String[] getHeaders(String name) {
         Header[] headers = method.getResponseHeaders(name);
 
@@ -79,5 +102,13 @@ public class HttpMethodRestResponse implements RestResponse {
             result[i] = headers[i].getName();
         }
         return result;
+    }
+
+    private static void safeClose(Closeable c) {
+        if( c != null ) {
+            try {
+                c.close();
+            } catch( Exception e ) {}
+        }
     }
 }
