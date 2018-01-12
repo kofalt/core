@@ -26,6 +26,12 @@ public interface RestResponse {
     public String getBodyAsString() throws IOException;
 
     /**
+     * Saves the http response body to the given path.
+     * @param path The path to save the response body at
+     */
+    public void saveResponseBodyToFile(String path) throws IOException;
+
+    /**
      * Get all of the headers that match name
      * @param name The case-insensitive name of headers to retrieve
      * @return The set of headers that match name

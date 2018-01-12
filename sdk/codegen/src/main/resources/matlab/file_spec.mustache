@@ -1,0 +1,58 @@
+classdef FileSpec
+    % FileSpec Allows passing a file as a parameter for upload
+    %
+    % FileSpec Properties:
+    %    name The name of the file
+    %    path The path to the file on disk
+    %    data The file data (as binary or string)
+    %
+    % FileSpec Methods
+    %    toParam - Convert the file spec to a parameter
+    properties
+        name
+        path
+        data
+        contentType
+    end
+    methods
+        function obj = FileSpec(varargin)
+            disp(varargin);
+            if length(varargin) < 2
+                if isa(varargin{1}, 'FileSpec')
+                    obj = varargin{1};
+                else
+                    obj.path = varargin{1};
+                end
+            else
+                obj.name = varargin{1};
+                obj.data = varargin{2};
+                if length(varargin) > 2
+                    obj.contentType = varargin{3};
+                end
+            end
+        end
+        function param = toParam(obj)
+            if isempty(obj.path)
+                param = { obj.name, obj.data, obj.contentType };
+            else
+                if isempty(obj.name)
+                    param = { 'file:', obj.path, obj.contentType };
+                else
+                    param = { obj.name, obj.path, obj.contentType };
+                end
+            end
+        end
+    end
+    methods(Static)
+        function param = parametrize(obj)
+            if isempty(obj)
+               param = {};
+            else
+                if ~isa(obj, 'FileSpec')
+                    obj = FileSpec(obj)
+                end
+                param = obj.toParam();
+            end
+        end
+    end
+end

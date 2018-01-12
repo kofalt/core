@@ -70,7 +70,7 @@ classdef {{classname}}
                 formParams = [formParams, '{{baseName}}', x__inp.Results.{{paramName}}];
                 {{/notFile}}
                 {{#isFile}}
-                files = [files, '{{baseName}}', x__inp.Results.{{paramName}}];
+                files = [files, FileSpec.parametrize(x__inp.Results.{{paramName}})]
                 {{/isFile}}
             end
             {{/formParams}}
@@ -104,11 +104,14 @@ classdef {{classname}}
                 {{#dataType}}
                 case '{{code}}'
                     json = ApiClient.getResponseJson(resp);
-                    {{#isListContainer}}
-                    returnData = arrayfun(@(x) {{baseType}}.fromJson(x), json, 'UniformOutput', false);
-                    {{/isListContainer}}
                     {{^isListContainer}}
                     returnData = {{dataType}}.fromJson(json);
+                    if ~isempty(returnData)
+                        returnData = returnData.returnValue();
+                    end
+                    {{/isListContainer}}
+                    {{#isListContainer}}
+                    returnData = arrayfun(@(x) {{baseType}}.fromJson(x), json, 'UniformOutput', false);
                     {{/isListContainer}}
                 {{/dataType}}
             {{/responses}}
