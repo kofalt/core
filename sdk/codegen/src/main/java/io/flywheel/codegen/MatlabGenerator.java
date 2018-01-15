@@ -394,6 +394,11 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
     }
 
     @Override
+    public Map<String, Object> postProcessOperations(Map<String, Object> objs) {
+        return FlywheelCodegenSupport.postProcessOperations(objs, this);
+    }
+
+    @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
 

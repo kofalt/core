@@ -21,6 +21,9 @@ classdef {{classname}}
             {{/required}}
             {{/allParams}}
             {{/sortParamsByRequiredFlag}}
+            {{#vendorExtensions.x-sdk-download-file-param}}
+            % {{.}} - Destination file path
+            {{/vendorExtensions.x-sdk-download-file-param}}
             % returns: [{{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}none{{/returnType}}, status]
 
             x__inp = inputParser;
@@ -35,6 +38,10 @@ classdef {{classname}}
             {{/required}}
             {{/allParams}}
             {{/sortParamsByRequiredFlag}}
+            {{#vendorExtensions.x-sdk-download-file-param}}
+            addRequired(x__inp, '{{.}}');
+            {{/vendorExtensions.x-sdk-download-file-param}}
+            addParameter(x__inp, 'DumpResponseData', false);
             parse(x__inp, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin{:});
 
             % Path parameters
@@ -70,7 +77,7 @@ classdef {{classname}}
                 formParams = [formParams, '{{baseName}}', x__inp.Results.{{paramName}}];
                 {{/notFile}}
                 {{#isFile}}
-                files = [files, FileSpec.parametrize(x__inp.Results.{{paramName}})]
+                files = [files, FileSpec.parametrize(x__inp.Results.{{paramName}})];
                 {{/isFile}}
             end
             {{/formParams}}
@@ -103,6 +110,10 @@ classdef {{classname}}
             {{#responses}}
                 {{#dataType}}
                 case '{{code}}'
+                    if x__inp.Results.DumpResponseData
+                        x__respData = resp.getBodyAsString();
+                        disp(x__respData);
+                    end
                     json = ApiClient.getResponseJson(resp);
                     {{^isListContainer}}
                     returnData = {{dataType}}.fromJson(json);
@@ -114,6 +125,12 @@ classdef {{classname}}
                     returnData = arrayfun(@(x) {{baseType}}.fromJson(x), json, 'UniformOutput', false);
                     {{/isListContainer}}
                 {{/dataType}}
+                {{#vendorExtensions.x-sdk-download-file-param}}
+                case '{{code}}'
+                    destFile = x__inp.Results.{{.}};
+                    resp.saveResponseBodyToFile(destFile);
+                    returnData = destFile;
+                {{/vendorExtensions.x-sdk-download-file-param}}
             {{/responses}}
                 otherwise
                     returnData = [];
