@@ -1,9 +1,9 @@
 import bson
 import datetime
 import json
-import os.path
-import shutil
 import uuid
+
+import fs.path
 
 from .web import base
 from .web.errors import FileStoreException, FileFormException
@@ -76,7 +76,8 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
     # The vast majority of this function's wall-clock time is spent here.
     # Tempdir is deleted off disk once out of scope, so let's hold onto this reference.
-    form, tempdir = files.process_form(request)
+    file_processor = files.FileProcessor(config.get_item('persistent', 'data_path'), config.fs)
+    form = file_processor.process_form(request)
 
     if 'metadata' in form:
         try:
@@ -85,7 +86,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             raise FileStoreException('wrong format for field "metadata"')
 
     placer_class = strategy.value
-    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, access_logger)
+    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger)
     placer.check()
 
     # Browsers, when sending a multipart upload, will send files with field name "file" (if sinuglar)
@@ -103,19 +104,17 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Augment the cgi.FieldStorage with a variety of custom fields.
         # Not the best practice. Open to improvements.
         # These are presumbed to be required by every function later called with field as a parameter.
-        field.path	 = os.path.join(tempdir.name, field.filename)
-        if not os.path.exists(field.path):
-            tempdir_exists = os.path.exists(tempdir.name)
-            raise Exception("file {} does not exist, tmpdir {} exists: {}, files in tmpdir: {}".format(
+        field.path	 = field.filename
+        if not file_processor.temp_fs.exists(field.path):
+            #tempdir_exists = os.path.exists(tempdir.name)
+            raise Exception("file {} does not exist, files in tmpdir: {}".format(
                 field.path,
-                tempdir.name,
-                tempdir_exists,
-                tempdir_exists and os.listdir(tempdir.name),
+                file_processor.temp_fs.listdir('/'),
             ))
-        field.size = os.path.getsize(field.path)
-        field.hash = files.hash_file_formatted(field.path)
+        field.size = file_processor.temp_fs.getsize(field.path)
+        field.hash = file_processor.hash_file_formatted(field.path, file_processor.temp_fs)
         field.uuid = str(uuid.uuid4())
-        field.mimetype = util.guess_mimetype(field.filename) # TODO: does not honor metadata's mime type if any
+        field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 
         # create a file-attribute map commonly used elsewhere in the codebase.
@@ -123,7 +122,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         file_attrs = {
             '_id': field.uuid,
             'name':	 field.filename,
-            'modified': field.modified, #
+            'modified': field.modified,
             'size':	 field.size,
             'mimetype': field.mimetype,
             'hash': field.hash,
@@ -245,15 +244,14 @@ class Upload(base.RequestHandler):
         #   upload.clean_packfile_tokens
         #
         # It must be kept in sync between each instance.
-        basepath = config.get_item('persistent', 'data_path')
-        folder = os.path.join(basepath, 'tokens', 'packfile')
+        folder = fs.path.join('tokens', 'packfile')
 
-        util.mkdir_p(folder)
-        paths = os.listdir(folder)
+        util.mkdir_p(folder, config.fs)
+        paths = config.fs.listdir(folder)
         cleaned = 0
 
         for token in paths:
-            path = os.path.join(folder, token)
+            path = fs.path.join(folder, token)
 
             result = None
             try:
@@ -266,7 +264,7 @@ class Upload(base.RequestHandler):
 
             if result is None:
                 log.info('Cleaning expired token directory ' + token)
-                shutil.rmtree(path)
+                config.fs.removetree(path)
                 cleaned += 1
 
         return {
