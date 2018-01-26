@@ -40,6 +40,11 @@ def test_gear_add_versioning(default_payload, randstr, data_builder, as_root):
     assert r.ok
     assert sum(gear['gear']['name'] == gear_name for gear in r.json()) == 1
 
+    # list gears with ?all_versions=true, test gear name occurs twice
+    r = as_root.get('/gears', params={'fields': 'all', 'all_versions': 'true'})
+    assert r.ok
+    assert sum(gear['gear']['name'] == gear_name for gear in r.json()) == 2
+
     # try to create gear w/ same name and version (gear_version_2)
     r = as_root.post('/gears/' + gear_name, json=gear_payload)
     assert not r.ok

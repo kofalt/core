@@ -25,7 +25,7 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
         'job': {'gear_id': '000000000000000000000000',
                 'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
     })
-    assert r.status_code == 400
+    assert r.status_code == 404
 
     # Create job-based analysis
     r = as_admin.post('/sessions/' + session + '/analyses', json={

@@ -149,16 +149,16 @@ def eval_rule(rule, file_, container):
 
     return True
 
-def queue_job_legacy(algorithm_id, input_):
+def queue_job_legacy(gear_id, input_):
     """
     Tie together logic used from the no-manifest, single-file era.
     Takes a single FileReference instead of a map.
     """
 
-    gear = gears.get_gear_by_name(algorithm_id)
+    gear = gears.get_gear(gear_id)
 
     if gears.count_file_inputs(gear) != 1:
-        raise Exception("Legacy gear enqueue attempt of " + algorithm_id + " failed: must have exactly 1 file input in manifest")
+        raise Exception("Legacy gear enqueue attempt of " + gear_id + " failed: must have exactly 1 input in manifest")
 
     for x in gear['gear']['inputs'].keys():
         if gear['gear']['inputs'][x]['base'] == 'file':
@@ -168,7 +168,8 @@ def queue_job_legacy(algorithm_id, input_):
         input_name: input_
     }
 
-    job = Job(gear, inputs, tags=['auto', algorithm_id])
+    gear_tag = gear['gear']['name'] + '-' + gear_id
+    job = Job(gear, inputs, tags=['auto', gear_tag])
     return job
 
 def find_type_in_container(container, type_):
@@ -197,22 +198,26 @@ def create_potential_jobs(db, container, container_type, file_):
 
         if 'from_failed_job' not in file_ and eval_rule(rule, file_, container):
 
-            alg_name = rule['alg']
+            gear_id = rule['gear_id']
+            gear = gears.get_gear(gear_id)
+            gear_tag = gear['gear']['name'] + '-' + gear_id
 
             if rule.get('match') is None:
                 input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
-                job = queue_job_legacy(alg_name, input_)
+                job = queue_job_legacy(gear_id, input_)
             else:
                 inputs = { }
 
                 for input_name, match_type in rule['match'].iteritems():
                     match = find_type_in_container(container, match_type)
                     if match is None:
-                        raise Exception("No type " + match_type + " found for alg rule " + alg_name + " that should have been satisfied")
+                        raise Exception("No type " + match_type + " found for alg rule " + gear_tag + " that should have been satisfied")
                     inputs[input_name] = FileReference(type=container_type, id=str(container['_id']), name=match['name'])
 
-                gear = gears.get_gear_by_name(alg_name)
-                job = Job(gear, inputs, tags=['auto', alg_name])
+                job = Job(gear, inputs, tags=['auto', gear_tag])
+
+            if 'config' in rule:
+                job.config = rule['config']
 
             potential_jobs.append({
                 'job': job,
@@ -262,7 +267,7 @@ def create_jobs(db, container_before, container_after, container_type):
         job = Queue.enqueue_job(job_map, origin)
         job.insert()
 
-        spawned_jobs.append(pj['rule']['alg'])
+        spawned_jobs.append(pj['rule']['gear_id'])
 
     return spawned_jobs
 

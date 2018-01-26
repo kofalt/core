@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 52 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 53 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1760,6 +1760,25 @@ def upgrade_to_52():
 
     cursor = config.db.jobs.find()
     process_cursor(cursor, upgrade_job_to_52, context=gears)
+
+def upgrade_to_53():
+    """
+    Update rules to reference gears by id (`gear_id`) instead of name (`alg`)
+    """
+
+    cursor = config.db.command('aggregate', 'gears', pipeline=[
+        {'$sort': {'gear.name': 1,
+                   'created': -1}},
+        {'$group': {'_id': '$gear.name',
+                    'latest': {'$first': '$_id'}}}])
+    gear_name_to_id = {gear['_id']: str(gear['latest']) for gear in cursor['result']}
+
+    for rule in config.db.project_rules.find({'alg': {'$exists': True}}):
+        config.db.project_rules.update_one(
+            {'_id': rule['_id']},
+            {'$set': {'gear_id': gear_name_to_id[rule['alg']]},
+             '$unset': {'alg': True}})
+
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

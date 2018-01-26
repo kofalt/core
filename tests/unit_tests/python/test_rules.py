@@ -166,7 +166,7 @@ def test_eval_rule_any():
         ],
         'all': [],
         'not': [],
-        'alg': 'dcm2nii',
+        'gear_id': '000000000000000000000000',
     }
 
     file_ = {'name': 'hello.dcm', 'type': 'a'}
@@ -201,7 +201,7 @@ def test_eval_rule_all():
                 'value': '*.dcm',
             },
         ],
-        'alg': 'dcm2nii',
+        'gear_id': '000000000000000000000000',
     }
 
     file_ = {'name': 'hello.dcm', 'type': 'a'}
@@ -290,7 +290,7 @@ def test_eval_rule_any_all_not():
                 'value': 'non-image'
             }
         ],
-        'alg': 'dcm2nii',
+        'gear_id': '000000000000000000000000',
     }
 
     file_ = {'name': 'hello.dcm', 'type': 'a'}
