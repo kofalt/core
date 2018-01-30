@@ -150,7 +150,8 @@ public class RestUtils {
                     }
                     result.append(URIUtil.encodeQuery(parameters[i].toString()));
 
-                    if( parameters[i+1] != null ) {
+                    // If they specify null or the literal value true, don't add the equals
+                    if( parameters[i+1] != null && !Boolean.TRUE.equals(parameters[i+1]) ) {
                         result.append('=');
                         result.append(URIUtil.encodeQuery(parameters[i+1].toString()));
                     }

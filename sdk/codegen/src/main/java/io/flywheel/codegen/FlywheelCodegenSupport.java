@@ -33,7 +33,10 @@ public class FlywheelCodegenSupport {
 
     private static CodegenOperation createDownloadTicketOp(CodegenOperation orig, DefaultCodegen gen) {
         String operationId = (String)orig.vendorExtensions.get("x-sdk-download-ticket");
+        String getDownloadUrlId = makeDownloadUrlId(operationId);
+
         operationId = gen.toOperationId(operationId);
+        getDownloadUrlId = gen.toOperationId(getDownloadUrlId);
 
         orig.vendorExtensions.remove("x-sdk-download-ticket");
 
@@ -59,6 +62,7 @@ public class FlywheelCodegenSupport {
         newOp.produces = new ArrayList<>();
         newOp.produces.add(makeMediaType("application/json", false));
 
+        newOp.vendorExtensions.put("x-sdk-download-url", getDownloadUrlId);
 
         // And orig is the download operation
         orig.produces = new ArrayList<>();
@@ -86,6 +90,10 @@ public class FlywheelCodegenSupport {
         }
 
         return newOp;
+    }
+
+    private static String makeDownloadUrlId(String operationId) {
+        return operationId.replace("_ticket", "_url");
     }
 
 

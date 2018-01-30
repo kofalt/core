@@ -21,4 +21,5 @@ Gradle is used to build the various components of the SDK. Docker shortcuts are 
 * **x-sdk-positional** - Normally arguments to matlab models are named parameters - this will make the defined parameter positional instead.
 * **x-sdk-download-ticket** - Special casing for downloads, will produce both a normal download operation, and a get download url operation. 
 		The value of this field is the name of the get download url operation.
+* **x-sdk-download-url** - Will be set to the operationId for retrieving a download url via ticket.
 * **x-sdk-download-file-param** - Parameter name for destination file parameter for download operations.

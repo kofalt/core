@@ -9,7 +9,7 @@ classdef {{classname}}
         end
 
 {{#operation}}
-        function [returnData, status] = {{operationId}}(obj, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin)
+        function [returnData, resp] = {{operationId}}(obj, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin)
             % {{#summary}}{{{.}}}{{/summary}}{{^summary}}{{operationId}}{{/summary}}
             {{#sortParamsByRequiredFlag}}
             {{#allParams}}
@@ -24,7 +24,7 @@ classdef {{classname}}
             {{#vendorExtensions.x-sdk-download-file-param}}
             % {{.}} - Destination file path
             {{/vendorExtensions.x-sdk-download-file-param}}
-            % returns: [{{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}none{{/returnType}}, status]
+            % returns: [{{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}none{{/returnType}}, resp]
 
             x__inp = inputParser;
             x__inp.StructExpand = false;
