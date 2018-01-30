@@ -102,7 +102,7 @@ public class RestClient {
 
         client.executeMethod(request);
 
-        return new HttpMethodRestResponse(request);
+        return new HttpMethodRestResponse(url, request);
     }
 
     /**
@@ -158,7 +158,7 @@ public class RestClient {
 
         client.executeMethod(request);
 
-        return new HttpMethodRestResponse(request);
+        return new HttpMethodRestResponse(url, request);
     }
 
     /**

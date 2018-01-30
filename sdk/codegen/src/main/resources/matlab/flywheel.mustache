@@ -20,9 +20,22 @@ classdef Flywheel
         {{#apis}}
         {{#operations}}
         {{#operation}}
-        function [returnData, status] = {{operationId}}(obj, varargin)
-            [returnData, status] = obj.{{classVarName}}.{{operationId}}(varargin{:});
+        {{^vendorExtensions.x-sdk-download-url}}
+        function [returnData, resp] = {{operationId}}(obj, varargin)
+            [returnData, resp] = obj.{{classVarName}}.{{operationId}}(varargin{:});
         end
+        {{/vendorExtensions.x-sdk-download-url}}
+        {{! x-sdk-download-url is a special case where 
+        {{#vendorExtensions.x-sdk-download-url}}
+        function [returnData, resp] = {{.}}(obj, varargin)
+            [returnData, resp] = obj.{{classVarName}}.{{operationId}}(varargin{:}, 'ticket', true);
+            if ~isempty(returnData)
+                reqUrl = resp.getRequestUrl().toCharArray';
+                {{! Url will look like: ".../files/filename.txt?ticket" so just append the equals. }}
+                returnData = strcat(reqUrl, '=', returnData.ticket);
+            end
+        end
+        {{/vendorExtensions.x-sdk-download-url}}
         {{/operation}}
         {{/operations}}
         {{/apis}}

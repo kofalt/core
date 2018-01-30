@@ -14,13 +14,16 @@ public class HttpMethodRestResponse implements RestResponse {
 
     private static final String[] EMPTY_STRING_ARRAY = {};
 
+    private final String url;
     private final HttpMethod method;
 
     /**
      * Construct a RestResponse from HttpMethod
+     * @param url The requested url
      * @param method The http method, must not be null.
      */
-    public HttpMethodRestResponse(final HttpMethod method) {
+    public HttpMethodRestResponse(final String url, final HttpMethod method) {
+        this.url = url;
         this.method = method;
 
         if( this.method == null ) {
@@ -102,6 +105,11 @@ public class HttpMethodRestResponse implements RestResponse {
             result[i] = headers[i].getName();
         }
         return result;
+    }
+
+    @Override
+    public String getRequestUrl() {
+        return url;
     }
 
     private static void safeClose(Closeable c) {
