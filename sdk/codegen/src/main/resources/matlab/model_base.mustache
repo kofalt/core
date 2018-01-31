@@ -10,14 +10,14 @@ classdef ModelBase < matlab.mixin.CustomDisplay
         end
         function sref = subsref(obj, s)
             if s(1).type == '.'
-                sref = ModelBase.recursiveRef(obj, s);
+                sref = {{packageName}}.ModelBase.recursiveRef(obj, s);
             else
                 error('subsref', 'Not a supported subscripted reference')
             end
         end
         function obj = subsasgn(obj, s, val)
             if s(1).type == '.'
-                obj = ModelBase.recursiveAsgn(obj, s, val);
+                obj = {{packageName}}.ModelBase.recursiveAsgn(obj, s, val);
             else
                 error('subsasgn', 'Not a supported subscripted reference')
             end
@@ -31,32 +31,32 @@ classdef ModelBase < matlab.mixin.CustomDisplay
             else
                 subs = s(1).subs;
                 if s(1).type == '.'
-                    if isa(obj, 'ModelBase')
+                    if isa(obj, '{{packageName}}.ModelBase')
                         if isempty(obj.propMap_)
                             if isKey(obj.props_, subs)
-                                obj.props_(subs) = ModelBase.recursiveAsgn(obj.props_(subs), s(2:end), val);
+                                obj.props_(subs) = {{packageName}}.ModelBase.recursiveAsgn(obj.props_(subs), s(2:end), val);
                             else
                                 obj = builtin('subsasgn', obj, s, val);
                             end
                         else
                             if isKey(obj.propMap_, subs)
                                 propName = obj.propMap_(subs);
-                                obj.props_(propName) = ModelBase.recursiveAsgn(obj.props_(propName), s(2:end), val);
+                                obj.props_(propName) = {{packageName}}.ModelBase.recursiveAsgn(obj.props_(propName), s(2:end), val);
                             else
                                 error('subsasgn', 'No property ' + subs + ' exists for class ' + class(obj));
                             end
                         end
                     else
-                        obj.(subs) = ModelBase.recursiveAsgn(obj.(subs), s(2:end), val);
+                        obj.(subs) = {{packageName}}.ModelBase.recursiveAsgn(obj.(subs), s(2:end), val);
                     end
                 elseif s(1).type == '{}'
                     if length(subs) > 1
                         error('subsasgn', 'Not a supported subscript annotation')
                     end
-                    obj{subs{1}} = ModelBase.recursiveAsgn(obj{subs{1}}, s(2:end), val);
+                    obj{subs{1}} = {{packageName}}.ModelBase.recursiveAsgn(obj{subs{1}}, s(2:end), val);
                 else
                     for i = 1:length(subs)
-                        obj(subs{i}) = ModelBase.recursiveAsgn(obj(subs{i}), s(2:end), val);
+                        obj(subs{i}) = {{packageName}}.ModelBase.recursiveAsgn(obj(subs{i}), s(2:end), val);
                     end
                 end
             end
@@ -67,32 +67,32 @@ classdef ModelBase < matlab.mixin.CustomDisplay
             else
                 subs = s(1).subs;
                 if s(1).type == '.'
-                    if isa(obj, 'ModelBase')
+                    if isa(obj, '{{packageName}}.ModelBase')
                         if isempty(obj.propMap_)
                             if isKey(obj.props_, subs)
-                                result = ModelBase.recursiveRef(obj.props_(subs), s(2:end));
+                                result = {{packageName}}.ModelBase.recursiveRef(obj.props_(subs), s(2:end));
                             else
                                 result = builtin('subsref', obj, s);
                             end
                         else
                             if isKey(obj.propMap_, subs)
                                 propName = obj.propMap_(subs);
-                                result = ModelBase.recursiveRef(obj.props_(propName), s(2:end));
+                                result = {{packageName}}.ModelBase.recursiveRef(obj.props_(propName), s(2:end));
                             else
                                 result = builtin('subsref', obj, s);
                             end
                         end
                     else
-                        result = ModelBase.recursiveRef(obj.(subs), s(2:end));
+                        result = {{packageName}}.ModelBase.recursiveRef(obj.(subs), s(2:end));
                     end
                 elseif s(1).type == '{}'
                     if length(subs) > 1
                         error('subsref', 'Not a supported subscript annotation')
                     end
-                    result = ModelBase.recursiveRef(obj{subs{1}}, s(2:end));
+                    result = {{packageName}}.ModelBase.recursiveRef(obj{subs{1}}, s(2:end));
                 else
                     for i = 1:length(subs)
-                        result = ModelBase.recursiveRef(obj(subs{i}), s(2:end));
+                        result = {{packageName}}.ModelBase.recursiveRef(obj(subs{i}), s(2:end));
                     end
                 end
             end

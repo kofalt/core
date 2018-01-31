@@ -1,6 +1,6 @@
 {{#models}}
 {{#model}}
-classdef {{classname}} < ModelBase
+classdef {{classname}} < {{packageName}}.ModelBase
     % {{classname}}
     {{#description}}
     % {{{.}}}
@@ -25,7 +25,7 @@ classdef {{classname}} < ModelBase
     end
     methods
         function obj = {{classname}}(varargin)
-            obj@ModelBase({{classname}}.propertyMap);
+            obj@{{packageName}}.ModelBase({{modelPackage}}.{{classname}}.propertyMap);
 
             % Allow empty object creation
             if length(varargin)
@@ -82,7 +82,7 @@ classdef {{classname}} < ModelBase
                 {{/defaultValue}}
                 {{^defaultValue}}
                 {{^isListContainer}}
-                result('{{baseName}}') = {{complexType}}().toJson();
+                result('{{baseName}}') = {{modelPackage}}.{{complexType}}().toJson();
                 {{/isListContainer}}
                 {{#isListContainer}}
                 result('{{baseName}}') = [];
@@ -193,7 +193,7 @@ classdef {{classname}} < ModelBase
     end
     methods(Static)
         function obj = fromJson(json)
-            obj = {{classname}};
+            obj =  {{modelPackage}}.{{classname}};
             {{#vars}}
             if isfield(json, '{{vendorExtensions.x-matlab-baseName}}')
                 {{#isPrimitiveType}}
@@ -201,10 +201,10 @@ classdef {{classname}} < ModelBase
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
-                obj.props_('{{baseName}}') = {{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
+                obj.props_('{{baseName}}') = {{modelPackage}}.{{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
                 {{/isListContainer}}
                 {{#isListContainer}}
-                obj.props_('{{baseName}}') = arrayfun(@(x) {{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}}, 'UniformOutput', false);
+                obj.props_('{{baseName}}') = arrayfun(@(x)  {{modelPackage}}.{{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}}, 'UniformOutput', false);
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             end
@@ -219,10 +219,10 @@ classdef {{classname}} < ModelBase
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
-                obj.props_(name) = {{complexType}}.fromJson(json.(name));
+                obj.props_(name) =  {{modelPackage}}.{{complexType}}.fromJson(json.(name));
                 {{/isListContainer}}
                 {{#isListContainer}}
-                obj.props_(name) = arrayfun(@(x) {{complexType}}.fromJson(x), json.(name), 'UniformOutput', false);
+                obj.props_(name) = arrayfun(@(x)  {{modelPackage}}.{{complexType}}.fromJson(x), json.(name), 'UniformOutput', false);
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
                 {{/vendorExtensions.x-matlab-additionalProperties}}
@@ -235,17 +235,17 @@ classdef {{classname}} < ModelBase
         function obj = ensureIsInstance(obj)
             if ~isempty(obj)
                 % Realistically, we only convert structs
-                if ~isa(obj, '{{classname}}')
-                    obj = {{classname}}(obj);
+                if ~isa(obj, '{{modelPackage}}.{{classname}}')
+                    obj =  {{modelPackage}}.{{classname}}(obj);
                 end
                 {{#vars}}
                 if isKey(obj.props_, '{{baseName}}')
                     {{^isPrimitiveType}}
                     {{^isListContainer}}
-                    obj.props_('{{baseName}}') = {{complexType}}.ensureIsInstance(obj.props_('{{baseName}}'));
+                    obj.props_('{{baseName}}') =  {{modelPackage}}.{{complexType}}.ensureIsInstance(obj.props_('{{baseName}}'));
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    obj.props_('{{baseName}}') = ModelBase.cellmap(@(x) {{complexType}}.ensureIsInstance(x), obj.props_('{{baseName}}'));
+                    obj.props_('{{baseName}}') = ModelBase.cellmap(@(x)  {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_('{{baseName}}'));
                     {{/isListContainer}}
                     {{/isPrimitiveType}}
                 end
@@ -257,10 +257,10 @@ classdef {{classname}} < ModelBase
                 for i = 1:length(propKeys)
                     key = propKeys{i};
                     {{^isListContainer}}
-                    obj.props_(key) = {{complexType}}.ensureIsInstance(obj.props_(key));
+                    obj.props_(key) =  {{modelPackage}}.{{complexType}}.ensureIsInstance(obj.props_(key));
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    obj.props_(key) = ModelBase.cellmap(@(x) {{complexType}}.ensureIsInstance(x), obj.props_(key));
+                    obj.props_(key) = ModelBase.cellmap(@(x)  {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_(key));
                     {{/isListContainer}}
                 end
                 {{/isPrimitiveType}}

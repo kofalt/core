@@ -189,14 +189,16 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
             packageName = "swagger_client";
         }
 
+        final String packageFolder = "+" + packageName;
+
         // Base model file
-        supportingFiles.add(new SupportingFile("model_base.mustache", packageName, "ModelBase.m"));
+        supportingFiles.add(new SupportingFile("model_base.mustache", packageFolder, "ModelBase.m"));
         // FileSpec file
-        supportingFiles.add(new SupportingFile("file_spec.mustache", packageName, "FileSpec.m"));
+        supportingFiles.add(new SupportingFile("file_spec.mustache", packageFolder, "FileSpec.m"));
         // Api client file
-        supportingFiles.add(new SupportingFile("api_client.mustache", packageName, "ApiClient.m"));
+        supportingFiles.add(new SupportingFile("api_client.mustache", packageFolder, "ApiClient.m"));
         // Flywheel wrapper file
-        supportingFiles.add(new SupportingFile("flywheel.mustache", packageName, "Flywheel.m"));
+        supportingFiles.add(new SupportingFile("flywheel.mustache", packageFolder, "Flywheel.m"));
 
         modelPackage = packageName + "." + modelPackage;
         apiPackage = packageName + "." + apiPackage;
@@ -218,7 +220,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
      * instantiated
      */
     public String modelFileFolder() {
-        return outputFolder + "/" + modelPackage().replace('.', File.separatorChar);
+        return outputFolder + "/+" + modelPackage().replace(
+                ".", File.separator + "+");
     }
 
     /**
@@ -227,7 +230,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
      */
     @Override
     public String apiFileFolder() {
-        return outputFolder + "/" + apiPackage().replace('.', File.separatorChar);
+        return outputFolder + "/+" + apiPackage().replace(
+                ".", File.separator + "+");
     }
 
     /**

@@ -77,7 +77,7 @@ classdef {{classname}}
                 formParams = [formParams, '{{baseName}}', x__inp.Results.{{paramName}}];
                 {{/notFile}}
                 {{#isFile}}
-                files = [files, FileSpec.parametrize(x__inp.Results.{{paramName}})];
+                files = [files, {{packageName}}.FileSpec.parametrize(x__inp.Results.{{paramName}})];
                 {{/isFile}}
             end
             {{/formParams}}
@@ -89,13 +89,13 @@ classdef {{classname}}
             {{/isPrimitiveType}}
             {{^isPrimitiveType}}
             {{^isListContainer}}
-            body = {{baseType}}.ensureIsInstance(x__inp.Results.{{paramName}});
+            body = {{modelPackage}}.{{baseType}}.ensureIsInstance(x__inp.Results.{{paramName}});
             {{/isListContainer}}
             {{#isListContainer}}
-            body = BaseModel.cellmap(@(x) {{baseType}}.ensureIsInstance(x), x__inp.Results.{{paramName}});
+            body = BaseModel.cellmap(@(x) {{modelPackage}}.{{baseType}}.ensureIsInstance(x), x__inp.Results.{{paramName}});
             {{/isListContainer}}
             {{/isPrimitiveType}}
-            body = ApiClient.encodeJson(body.toJson());
+            body = {{packageName}}.ApiClient.encodeJson(body.toJson());
             {{/bodyParam}}
             {{^bodyParam}}
             body = {};
@@ -114,15 +114,15 @@ classdef {{classname}}
                         x__respData = resp.getBodyAsString();
                         disp(x__respData);
                     end
-                    json = ApiClient.getResponseJson(resp);
+                    json = {{packageName}}.ApiClient.getResponseJson(resp);
                     {{^isListContainer}}
-                    returnData = {{dataType}}.fromJson(json);
+                    returnData = {{modelPackage}}.{{dataType}}.fromJson(json);
                     if ~isempty(returnData)
                         returnData = returnData.returnValue();
                     end
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    returnData = arrayfun(@(x) {{baseType}}.fromJson(x), json, 'UniformOutput', false);
+                    returnData = arrayfun(@(x) {{modelPackage}}.{{baseType}}.fromJson(x), json, 'UniformOutput', false);
                     {{/isListContainer}}
                 {{/dataType}}
                 {{#vendorExtensions.x-sdk-download-file-param}}

@@ -17,7 +17,7 @@ classdef FileSpec
     methods
         function obj = FileSpec(varargin)
             if length(varargin) < 2
-                if isa(varargin{1}, 'FileSpec')
+                if isa(varargin{1}, '{{packageName}}.FileSpec')
                     obj = varargin{1};
                 else
                     obj.path = varargin{1};
@@ -47,8 +47,8 @@ classdef FileSpec
             if isempty(obj)
                param = {};
             else
-                if ~isa(obj, 'FileSpec')
-                    obj = FileSpec(obj);
+                if ~isa(obj, '{{packageName}}.FileSpec')
+                    obj = {{packageName}}.FileSpec(obj);
                 end
                 param = obj.toParam();
             end
