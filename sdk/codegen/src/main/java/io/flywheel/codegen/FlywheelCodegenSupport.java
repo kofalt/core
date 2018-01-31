@@ -1,10 +1,55 @@
 package io.flywheel.codegen;
 
 import io.swagger.codegen.*;
+import io.swagger.models.Operation;
+import io.swagger.models.Path;
+import io.swagger.models.Swagger;
 
 import java.util.*;
 
 public class FlywheelCodegenSupport {
+
+    public static void removeExtraOperationTags(Swagger swagger) {
+        Map<String,Path> paths = swagger.getPaths();
+        for( String path: paths.keySet() ) {
+            Path pathEntry = paths.get(path);
+            for(Operation operation: pathEntry.getOperations()) {
+                List<String> tags = operation.getTags();
+                if( tags != null && tags.size() > 1 ) {
+                    operation.setTags(Arrays.asList(tags.get(0)));
+                }
+            }
+        }
+    }
+
+    public static Map<String, Object> postProcessModels(Map<String, Object> objs, DefaultCodegen gen) {
+        ArrayList<Object> modelsArray = (ArrayList<Object>) objs.get("models");
+        Map<String, Object> models = (Map<String, Object>) modelsArray.get(0);
+        CodegenModel model = (CodegenModel) models.get("model");
+
+        final Map<String, String> typeMapping = gen.typeMapping();
+        if( typeMapping == null ) {
+            return objs;
+        }
+
+        // If the model includes a list of "x-sdk-include-empty" properties, then we need to
+        // push that to the individual properties. (If the properties reference other types then the
+        // vendorExtensions don't get picked up)
+        if( model.vendorExtensions != null && model.vendorExtensions.containsKey("x-sdk-include-empty") ) {
+            List<String> emptyProps = (List<String>)model.vendorExtensions.get("x-sdk-include-empty");
+            for( String propName: emptyProps ) {
+                CodegenProperty prop = findPropertyByName(model, propName);
+                if( prop != null ) {
+                    if( prop.vendorExtensions == null ) {
+                        prop.vendorExtensions = new HashMap<>();
+                    }
+                    prop.vendorExtensions.put("x-sdk-include-empty", true);
+                }
+            }
+        }
+
+        return objs;
+    }
 
     public static Map<String, Object> postProcessOperations(Map<String, Object> objs, DefaultCodegen gen) {
         Map<String, Object> operations = (Map<String, Object>)objs.get("operations");
@@ -272,4 +317,12 @@ public class FlywheelCodegenSupport {
         }
     }
 
+    private static CodegenProperty findPropertyByName(CodegenModel model, String property) {
+        for( CodegenProperty prop: model.allVars ) {
+            if( property.equals(prop.baseName) ) {
+                return prop;
+            }
+        }
+        return null;
+    }
 }

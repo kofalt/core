@@ -2,6 +2,7 @@ package io.flywheel.codegen;
 
 import io.swagger.codegen.*;
 import io.swagger.models.ModelImpl;
+import io.swagger.models.Swagger;
 import io.swagger.models.properties.*;
 import org.apache.commons.lang3.StringUtils;
 
@@ -394,8 +395,19 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
     }
 
     @Override
+    public void preprocessSwagger(Swagger swagger) {
+        FlywheelCodegenSupport.removeExtraOperationTags(swagger);
+    }
+
+    @Override
     public Map<String, Object> postProcessOperations(Map<String, Object> objs) {
         return FlywheelCodegenSupport.postProcessOperations(objs, this);
+    }
+
+    @Override
+    public Map<String, Object> postProcessModels(Map<String, Object> objs) {
+        objs = super.postProcessModels(objs);
+        return FlywheelCodegenSupport.postProcessModels(objs, this);
     }
 
     @Override
