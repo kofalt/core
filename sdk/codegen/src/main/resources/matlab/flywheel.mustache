@@ -25,7 +25,7 @@ classdef Flywheel
             [returnData, resp] = obj.{{classVarName}}.{{operationId}}(varargin{:});
         end
         {{/vendorExtensions.x-sdk-download-url}}
-        {{! x-sdk-download-url is a special case where 
+        {{! x-sdk-download-url is a special case where we need to construct and return a full url }}
         {{#vendorExtensions.x-sdk-download-url}}
         function [returnData, resp] = {{.}}(obj, varargin)
             [returnData, resp] = obj.{{classVarName}}.{{operationId}}(varargin{:}, 'ticket', true);

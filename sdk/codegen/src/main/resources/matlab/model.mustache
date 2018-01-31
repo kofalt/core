@@ -75,6 +75,20 @@ classdef {{classname}} < ModelBase
                 result('{{baseName}}') = cellfun(@(x) x.toJson(), obj.props_('{{baseName}}'), 'UniformOutput', false);
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
+            {{#vendorExtensions.x-sdk-include-empty}}
+            else
+                {{#defaultValue}}
+                result('{{baseName}}') = {{defaultValue}};
+                {{/defaultValue}}
+                {{^defaultValue}}
+                {{^isListContainer}}
+                result('{{baseName}}') = {{complexType}}().toJson();
+                {{/isListContainer}}
+                {{#isListContainer}}
+                result('{{baseName}}') = [];
+                {{/isListContainer}}
+                {{/defaultValue}}
+            {{/vendorExtensions.x-sdk-include-empty}}
             end
             {{/vars}}
             {{^vars}}
