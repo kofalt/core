@@ -53,6 +53,7 @@ task generateApi(dependsOn: ':matlab-swagger-codegen:jar') {
 		// Also have to re-specify the template dir because swagger isn't finding it from the classpath
 		config.setTemplateDir(templateDir)
 		config.setLang('matlab')
+		config.addAdditionalProperty("packageName", "flywheel")
 
 		new DefaultGenerator().opts(config.toClientOptInput()).generate()
 	}
@@ -84,9 +85,7 @@ task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi]
 		// Configure configuration.xml
 		configureXml(intDir + '/metadata/configuration.xml', { root -> 
 			root.javaClassPaths[0]?.appendNode('javaClassPath', [:], '/api/' + project(':rest-client').jar.archiveName) 
-			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/swagger_client')
-			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/swagger_client/api')
-			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/swagger_client/model')
+			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/')
 		})
 
 		// Configure core properties

@@ -9,10 +9,10 @@ classdef Flywheel
     end
     methods
         function obj = Flywheel(apiKey)
-            obj.apiClient = ApiClient(apiKey);
+            obj.apiClient = {{packageName}}.ApiClient(apiKey);
             {{#apiInfo}}
             {{#apis}}
-            obj.{{classVarName}} = {{classname}}(obj.apiClient);
+            obj.{{classVarName}} = {{apiPackage}}.{{classname}}(obj.apiClient);
             {{/apis}}
             {{/apiInfo}}
         end
