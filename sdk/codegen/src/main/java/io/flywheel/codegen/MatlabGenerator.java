@@ -405,13 +405,65 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
     @Override
     public Map<String, Object> postProcessOperations(Map<String, Object> objs) {
-        return FlywheelCodegenSupport.postProcessOperations(objs, this);
+        objs = FlywheelCodegenSupport.postProcessOperations(objs, this);
+
+        Map<String, Object> operations = (Map<String, Object>)objs.get("operations");
+        if( operations == null ) {
+            return objs;
+        }
+
+        // Create fixed-width names for documentation
+        int maxOperationIdLength = 0;
+
+        List<CodegenOperation> ops = (List<CodegenOperation>)operations.get("operation");
+        for( int i = 0; i < ops.size(); i++ ) {
+            CodegenOperation op = ops.get(i);
+
+            // Add a description from the first tag
+            if( i == 0 && !op.tags.isEmpty() ) {
+                operations.put("tag", op.tags.get(0));
+            }
+
+            if( op.operationId.length() > maxOperationIdLength ) {
+                maxOperationIdLength = op.operationId.length();
+            }
+        }
+
+        if( maxOperationIdLength > 0 ) {
+            final String fmt = "%1$-" + String.valueOf(maxOperationIdLength) + "s";
+            for (CodegenOperation op : ops) {
+                op.vendorExtensions.put("x-matlab-paddedOperationId", String.format(fmt, op.operationId));
+            }
+        }
+
+        return objs;
     }
 
     @Override
     public Map<String, Object> postProcessModels(Map<String, Object> objs) {
         objs = super.postProcessModels(objs);
-        return FlywheelCodegenSupport.postProcessModels(objs, this);
+        objs = FlywheelCodegenSupport.postProcessModels(objs, this);
+
+        ArrayList<Object> modelsArray = (ArrayList<Object>) objs.get("models");
+        Map<String, Object> models = (Map<String, Object>) modelsArray.get(0);
+        CodegenModel model = (CodegenModel) models.get("model");
+
+        // Create fixed-width names for documentation
+        int maxPropertyNameLength = 0;
+        for( CodegenProperty prop: model.allVars ) {
+            if( prop.name.length() > maxPropertyNameLength ) {
+                maxPropertyNameLength = prop.name.length();
+            }
+        }
+
+        if( maxPropertyNameLength > 0 ) {
+            final String fmt = "%1$-" + String.valueOf(maxPropertyNameLength) + "s";
+            for (CodegenProperty prop : model.allVars) {
+                prop.vendorExtensions.put("x-matlab-paddedName", String.format(fmt, prop.name));
+            }
+        }
+
+        return objs;
     }
 
     @Override
