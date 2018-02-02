@@ -1,7 +1,7 @@
 rootProject.name = 'swagger-codegen'
 include 'codegen', 'rest-client', 'python', 'matlab'
 
-project(':codegen').name = 'matlab-swagger-codegen'
+project(':codegen').name = 'custom-swagger-codegen'
 
 project(':rest-client').projectDir = file('src/java/rest_client')
 

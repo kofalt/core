@@ -1,7 +1,7 @@
 import io.swagger.codegen.config.CodegenConfigurator
 import io.swagger.codegen.DefaultGenerator
 
-def matlabCodegenJar = project(':matlab-swagger-codegen').jar.archivePath
+def customCodegenJar = project(':custom-swagger-codegen').jar.archivePath
 def templateDir = file('../../codegen/src/main/resources/matlab').path
 
 def toolboxDir = file('toolbox').path
@@ -35,7 +35,7 @@ def configureXml(path, fn) {
 	writer.close()
 }
 
-task generateApi(dependsOn: ':matlab-swagger-codegen:jar') {
+task generateApi(dependsOn: ':custom-swagger-codegen:jar') {
 	inputs.file(swaggerInputSpec)
 	outputs.dir(swaggerOutputDir)
 
@@ -44,7 +44,7 @@ task generateApi(dependsOn: ':matlab-swagger-codegen:jar') {
 		// It's not pretty, but I haven't found a better way to load our module at runtime
 		def scriptHandler = project.getBuildscript()
 		def loader = scriptHandler.getClassLoader()
-		def myLoader = new java.net.URLClassLoader([matlabCodegenJar.toURL()] as URL[], loader)
+		def myLoader = new java.net.URLClassLoader([customCodegenJar.toURL()] as URL[], loader)
 		Thread.currentThread().setContextClassLoader(myLoader)
 
 		def config = new CodegenConfigurator()

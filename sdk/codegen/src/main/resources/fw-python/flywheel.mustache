@@ -1,0 +1,66 @@
+# coding: utf-8
+
+# flake8: noqa
+
+{{>partial_header}}
+
+from __future__ import absolute_import
+
+{{#apiInfo}}
+
+from {{packageName}}.configuration import Configuration
+from {{packageName}}.api_client import  ApiClient
+import {{apiPackage}}
+
+def config_from_api_key(api_key):
+    parts = api_key.split(':')
+    if len(parts) < 2:
+        raise Exception('Invalid API key')
+
+    host = parts[0]
+    if len(parts) == 2:
+        key = parts[1]
+        port = '443'
+    else:
+        port = parts[1]
+        key = parts[-1]
+
+    config = Configuration()
+    config.host = 'https://{}:{}/api'.format(host, port)
+    config.api_key['Authorization'] = key
+    config.api_key_prefix['Authorization'] = 'scitran-user'
+    return config
+
+class Flywheel:
+    def __init__(self, api_key):
+        # Parse API Key and configure api_client
+        config = config_from_api_key(api_key)
+        self.api_client = ApiClient(config)
+        # Initialize Apis
+        {{#apis}}
+        self.{{classVarName}} = {{apiPackage}}.{{classname}}(self.api_client)
+        {{/apis}}
+    {{#apis}}
+    {{#operations}}
+    {{#operation}}
+
+    {{^vendorExtensions.x-sdk-download-url}}
+    def {{operationId}}(self, *args, **kwargs):
+        return self.{{classVarName}}.{{operationId}}(*args, **kwargs)
+    {{/vendorExtensions.x-sdk-download-url}}
+    {{! x-sdk-download-url is a special case where we need to construct and return a full url }}
+    {{#vendorExtensions.x-sdk-download-url}}
+    def {{.}}(obj, *args, **kwargs):
+        req_info = {}
+        kwargs['_request_out'] = req_info
+        data = self.{{classVarName}}.{{operationId}}(*args, **kwargs)
+        if data is not None:
+            data = req_info['url'] + '?ticket=' + data.ticket
+        return data
+    {{/vendorExtensions.x-sdk-download-url}}
+    {{/operation}}
+    {{/operations}}
+    {{/apis}}
+{{/apiInfo}}
+
+
