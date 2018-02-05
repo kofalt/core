@@ -10,7 +10,7 @@ import re  # noqa: F401
 import six
 
 from {{packageName}}.api_client import ApiClient
-
+import {{modelPackage}}
 
 {{#operations}}
 class {{classname}}(object):
@@ -26,7 +26,7 @@ class {{classname}}(object):
         self.api_client = api_client
 {{#operation}}
 
-    def {{operationId}}(self, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs):  # noqa: E501
+    def {{operationId}}(self, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}{{#vendorExtensions.x-sdk-download-file-param}}{{.}}, {{/vendorExtensions.x-sdk-download-file-param}}**kwargs):  # noqa: E501
         """{{#summary}}{{.}}{{/summary}}{{^summary}}{{operationId}}{{/summary}}  # noqa: E501
 
 {{#notes}}
@@ -46,11 +46,31 @@ class {{classname}}(object):
 {{#allParams}}
         :param {{dataType}} {{paramName}}:{{#description}} {{{description}}}{{/description}}{{#required}} (required){{/required}}{{#optional}}(optional){{/optional}}
 {{/allParams}}
+{{#vendorExtensions.x-sdk-download-file-param}}
+        :param str {{.}}: Destination file path
+{{/vendorExtensions.x-sdk-download-file-param}}
         :return: {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}None{{/returnType}}
                  If the method is called asynchronously,
                  returns the request thread.
         """
         kwargs['_return_http_data_only'] = True
+        {{#vendorExtensions.x-sdk-download-file-param}}
+        {{! File download implementation }}
+        kwargs['_preload_content'] = False
+        # Stream response to file
+        (resp) = self.{{operationId}}_with_http_info({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs)  # noqa: E501
+        if resp:
+            try:
+                with open({{.}}, 'wb') as out_file:
+                    while True:
+                        data = resp.read(65536)
+                        if not data:
+                            break
+                        out_file.write(data)
+            finally:
+                resp.release_conn()
+        {{/vendorExtensions.x-sdk-download-file-param}}
+        {{^vendorExtensions.x-sdk-download-file-param}}
         if kwargs.get('async'):
             return self.{{operationId}}_with_http_info({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs)  # noqa: E501
         else:
@@ -58,6 +78,7 @@ class {{classname}}(object):
             if data and hasattr(data, 'return_value'):
                 return data.return_value()
             return data
+        {{/vendorExtensions.x-sdk-download-file-param}}
 
 
     def {{operationId}}_with_http_info(self, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs):  # noqa: E501
@@ -90,6 +111,7 @@ class {{classname}}(object):
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
         all_params.append('_request_timeout')
+        all_params.append('_request_out')
 
         params = locals()
         for key, val in six.iteritems(params['kwargs']):
@@ -181,7 +203,17 @@ class {{classname}}(object):
         body_params = None
 {{#bodyParam}}
         if '{{paramName}}' in params:
+            {{#isPrimitiveType}}
             body_params = params['{{paramName}}']
+            {{/isPrimitiveType}}
+            {{^isPrimitiveType}}
+            {{#isContainer}}
+            body_params = params['{{paramName}}']
+            {{/isContainer}}
+            {{^isContainer}}
+            body_params = {{modelPackage}}.{{dataType}}.positional_to_model(params['{{paramName}}'])
+            {{/isContainer}}
+            {{/isPrimitiveType}}
 {{/bodyParam}}
         {{#hasProduces}}
         # HTTP header `Accept`
@@ -212,6 +244,7 @@ class {{classname}}(object):
             _return_http_data_only=params.get('_return_http_data_only'),
             _preload_content=params.get('_preload_content', True),
             _request_timeout=params.get('_request_timeout'),
+            _request_out=params.get('_request_out'),
             collection_formats=collection_formats)
 {{/operation}}
 {{/operations}}

@@ -1,0 +1,15 @@
+    def add_nodes_to_collection(self, collection_id, level, node_ids, **kwargs):
+        update = {
+            'contents': {
+                'operation': 'add',
+                'nodes': [ {'_id': id, 'level': level} for id in node_ids ]
+            }
+        }
+        return self.collections_api.modify_collection(collection_id, update, **kwargs)
+
+    def add_sessions_to_collection(self, collection_id, session_ids, **kwargs):
+        return self.add_nodes_to_collection(collection_id, 'session', session_ids, **kwargs)
+
+    def add_acquisitions_to_collection(self, collection_id, acquisition_ids, **kwargs):
+        return self.add_nodes_to_collection(collection_id, 'acquisition', acquisition_ids, **kwargs)
+

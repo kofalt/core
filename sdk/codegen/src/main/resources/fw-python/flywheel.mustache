@@ -50,9 +50,10 @@ class Flywheel:
     {{/vendorExtensions.x-sdk-download-url}}
     {{! x-sdk-download-url is a special case where we need to construct and return a full url }}
     {{#vendorExtensions.x-sdk-download-url}}
-    def {{.}}(obj, *args, **kwargs):
+    def {{.}}(self, *args, **kwargs):
         req_info = {}
         kwargs['_request_out'] = req_info
+        kwargs['ticket'] = ''
         data = self.{{classVarName}}.{{operationId}}(*args, **kwargs)
         if data is not None:
             data = req_info['url'] + '?ticket=' + data.ticket
@@ -61,6 +62,9 @@ class Flywheel:
     {{/operation}}
     {{/operations}}
     {{/apis}}
+
+{{>flywheel_methods}}
+
 {{/apiInfo}}
 
 

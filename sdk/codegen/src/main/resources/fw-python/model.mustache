@@ -175,7 +175,20 @@ class {{classname}}(object):
 
 {{/vars}}
 
+    @staticmethod
+    def positional_to_model(value):
+        """Converts a positional argument to a model value"""
+        {{#vendorExtensions.x-sdk-positional-param}}
+        if isinstance(value, (list, dict, {{classname}})):
+            return value
+        return {{classname}}({{.}}=value)
+        {{/vendorExtensions.x-sdk-positional-param}}
+        {{^vendorExtensions.x-sdk-positional-param}}
+        return value
+        {{/vendorExtensions.x-sdk-positional-param}}
+
     def return_value(self):
+        """Unwraps return value from model"""
         {{#vendorExtensions.x-sdk-return}}
         return self.{{.}}
         {{/vendorExtensions.x-sdk-return}}

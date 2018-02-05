@@ -285,7 +285,7 @@ class ApiClient(object):
                  body=None, post_params=None, files=None,
                  response_type=None, auth_settings=None, async=None,
                  _return_http_data_only=None, collection_formats=None,
-                 _preload_content=True, _request_timeout=None):
+                 _preload_content=True, _request_timeout=None, _request_out=None):
         """Makes the HTTP request (synchronous) and returns deserialized data.
 
         To make an async request, set the async parameter.
@@ -328,7 +328,7 @@ class ApiClient(object):
                                    body, post_params, files,
                                    response_type, auth_settings,
                                    _return_http_data_only, collection_formats,
-                                   _preload_content, _request_timeout)
+                                   _preload_content, _request_timeout, _request_out)
         else:
             thread = self.pool.apply_async(self.__call_api, (resource_path,
                                            method, path_params, query_params,
@@ -337,7 +337,7 @@ class ApiClient(object):
                                            response_type, auth_settings,
                                            _return_http_data_only,
                                            collection_formats,
-                                           _preload_content, _request_timeout))
+                                           _preload_content, _request_timeout, _request_out))
         return thread
 
     def request(self, method, url, query_params=None, headers=None,
