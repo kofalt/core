@@ -48,6 +48,13 @@ public class FlywheelCodegenSupport {
             }
         }
 
+        // Additionally, if a parameter has x-sdk-positional set to true, then set x-sdk-positional-param on model
+        for( CodegenProperty prop : model.allVars ) {
+            if( prop.vendorExtensions != null && prop.vendorExtensions.containsKey("x-sdk-positional") ) {
+                model.vendorExtensions.put("x-sdk-positional-param", prop.name);
+            }
+        }
+
         return objs;
     }
 
