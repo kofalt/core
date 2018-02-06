@@ -69,12 +69,17 @@ public class FlywheelCodegenSupport {
         int idx = 0;
         while( idx < size ) {
             CodegenOperation op = ops.get(idx);
-            if( op.vendorExtensions != null && op.vendorExtensions.containsKey("x-sdk-download-ticket") ) {
-                CodegenOperation newOp = createDownloadTicketOp(op, gen);
-                if( newOp != null ) {
-                    ops.add(idx+1, newOp);
-                    idx += 1;
-                    size +=1;
+            if( op.vendorExtensions != null ) {
+                if( op.vendorExtensions.containsKey("x-sdk-download-ticket") ) {
+                    CodegenOperation newOp = createDownloadTicketOp(op, gen);
+                    if (newOp != null) {
+                        ops.add(idx + 1, newOp);
+                        idx += 1;
+                        size += 1;
+                    }
+                } else if( op.vendorExtensions.containsKey("x-sdk-modify-info") ) {
+                    // Convert to an array of the 3 operations
+                    op.vendorExtensions.put("x-sdk-modify-info", makeModifyInfoWrappers(op.operationIdSnakeCase, gen));
                 }
             }
             ++idx;
@@ -148,6 +153,32 @@ public class FlywheelCodegenSupport {
         return operationId.replace("_ticket", "_url");
     }
 
+    private static List<Map<String, Object>> makeModifyInfoWrappers(String operationId, DefaultCodegen gen) {
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        // Set
+        String opId = operationId.replace("modify_", "set_");
+        Map<String, Object> detail = new HashMap<>();
+        detail.put("wrapperId", gen.toOperationId(opId));
+        detail.put("key", "set");
+        result.add(detail);
+
+        // Replace
+        opId = operationId.replace("modify_", "replace_");
+        detail = new HashMap<>();
+        detail.put("wrapperId", gen.toOperationId(opId));
+        detail.put("key", "replace");
+        result.add(detail);
+
+        // Delete
+        opId = operationId.replace("modify_", "delete_") + "_fields";
+        detail = new HashMap<>();
+        detail.put("wrapperId", gen.toOperationId(opId));
+        detail.put("key", "delete");
+        result.add(detail);
+
+        return result;
+    }
 
     // ugh
     private static CodegenOperation shallowCloneOperation(CodegenOperation orig) {
