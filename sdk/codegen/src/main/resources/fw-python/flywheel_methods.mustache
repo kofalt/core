@@ -13,3 +13,15 @@
     def add_acquisitions_to_collection(self, collection_id, acquisition_ids, **kwargs):
         return self.add_nodes_to_collection(collection_id, 'acquisition', acquisition_ids, **kwargs)
 
+    {{#apis}}
+    {{#operations}}
+    {{#operation}}
+    {{#vendorExtensions.x-sdk-modify-info}}
+    def {{wrapperId}}(self, {{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs):
+        body = { '{{key}}': body }
+        self.{{classVarName}}.{{operationId}}({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs)
+
+    {{/vendorExtensions.x-sdk-modify-info}}
+    {{/operation}}
+    {{/operations}}
+    {{/apis}}

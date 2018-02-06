@@ -18,6 +18,7 @@ class GroupsTestCases(SdkTestCase):
         saved_group = fw.get_group(group_id)
         self.assertEqual(group_id, saved_group.id)
         self.assertEqual(group_name, saved_group.label)
+        self.assertTimestampBeforeNow(saved_group.created)
         self.assertGreaterEqual(saved_group.modified, saved_group.created)
 
         # Get All
