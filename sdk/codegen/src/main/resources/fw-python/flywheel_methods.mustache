@@ -22,6 +22,19 @@
         self.{{classVarName}}.{{operationId}}({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs)
 
     {{/vendorExtensions.x-sdk-modify-info}}
+    {{#vendorExtensions.x-sdk-download-file-param}}
+    def {{operationId}}_as_data(self, {{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs):
+        kwargs['_return_http_data_only'] = True
+        kwargs['_preload_content'] = False
+        (resp) = self.{{classVarName}}.{{operationId}}_with_http_info({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs)
+        if resp:
+            try:
+                return resp.read()
+            finally:
+                resp.release_conn()
+        return None
+
+    {{/vendorExtensions.x-sdk-download-file-param}}
     {{/operation}}
     {{/operations}}
     {{/apis}}

@@ -93,9 +93,96 @@ class ProjectsTestCases(SdkTestCase):
         projects = fw.get_all_projects()
         self.assertNotIn(r_project, projects)
 
+    def test_project_files(self):
+        fw = self.fw
+        
+        project = flywheel.ProjectInput(label=self.rand_string(), group=self.group_id)
+        project_id = fw.add_project(project)
+
+        # Upload a file
+        poem = 'The ceremony of innocence is drowned;'
+        fw.upload_file_to_project(project_id, flywheel.FileSpec('yeats.txt', poem))
+
+        # Check that the file was added to the project
+        r_project = fw.get_project(project_id)
+        self.assertEqual(len(r_project.files), 1)
+        self.assertEqual(r_project.files[0].name, 'yeats.txt')
+        self.assertEqual(r_project.files[0].size, 37)
+        self.assertEqual(r_project.files[0].mimetype, 'text/plain')
+
+        # Download the file and check content
+        self.assertDownloadFileTextEquals(fw.download_file_from_project_as_data, project_id, 'yeats.txt', poem)
+        
+        # Test unauthorized download with ticket for the file
+        self.assertDownloadFileTextEqualsWithTicket(fw.get_project_download_url, project_id, 'yeats.txt', poem)
+
+        # Test file attributes
+        self.assertEqual(r_project.files[0].modality, None)
+        self.assertEqual(len(r_project.files[0].measurements), 0)
+        self.assertEqual(r_project.files[0].type, 'text')
+
+        resp = fw.modify_project_file(project_id, 'yeats.txt', flywheel.FileUpdate(
+            modality='modality',
+            measurements=['measurement'],
+            type='type'
+        ))
+
+        # Check that no jobs were triggered, and attrs were modified
+        self.assertEqual(resp.jobs_triggered, 0)
+
+        r_project = fw.get_project(project_id)
+        self.assertEqual(r_project.files[0].modality, "modality")
+        self.assertEqual(len(r_project.files[0].measurements), 1)
+        self.assertEqual(r_project.files[0].measurements[0], 'measurement')
+        self.assertEqual(r_project.files[0].type, 'type')
+
+        # Test file info
+        self.assertEmpty(r_project.files[0].info)
+        fw.replace_project_file_info(project_id, 'yeats.txt', {
+            'a': 1,
+            'b': 2,
+            'c': 3,
+            'd': 4
+        })
+
+        fw.set_project_file_info(project_id, 'yeats.txt', {
+            'c': 5
+        })
+
+        r_project = fw.get_project(project_id)
+        self.assertEqual(r_project.files[0].info['a'], 1)
+        self.assertEqual(r_project.files[0].info['b'], 2)
+        self.assertEqual(r_project.files[0].info['c'], 5)
+        self.assertEqual(r_project.files[0].info['d'], 4)
+    
+        fw.delete_project_file_info_fields(project_id, 'yeats.txt', ['c', 'd'])  
+        r_project = fw.get_project(project_id)
+        self.assertEqual(r_project.files[0].info['a'], 1)
+        self.assertEqual(r_project.files[0].info['b'], 2)
+        self.assertNotIn('c', r_project.files[0].info)
+        self.assertNotIn('d', r_project.files[0].info)
+
+        fw.replace_project_file_info(project_id, 'yeats.txt', {})
+        r_project = fw.get_project(project_id)
+        self.assertEmpty(r_project.files[0].info)
+
+        # Delete file
+        fw.delete_project_file(project_id, 'yeats.txt')
+        r_project = fw.get_project(project_id)
+        self.assertEmpty(r_project.files)
+
+        # Delete project
+        fw.delete_project(project_id)
+
+# TODO: Root mode tests
+
+
 def create_test_project():
-    group_id = SdkTestCase.rand_string_lower()
-    return SdkTestCase.fw.add_group(flywheel.GroupInput(group_id))
+    group_id = create_test_group()
+    return group_id, SdkTestCase.fw.add_project({
+        'group': group_id, 
+        'label': SdkTestCase.rand_string()
+    })
         
 
 
