@@ -1,6 +1,6 @@
 import unittest
 from sdk_test_case import SdkTestCase
-from test_groups import create_test_group
+from test_group import create_test_group
 
 import flywheel
 
