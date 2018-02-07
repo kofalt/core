@@ -59,17 +59,17 @@ class GearTestCases(SdkTestCase):
         gears = fw.get_all_gears()
         self.assertNotIn(r_gear, gears)
         
-def create_test_gear(self):
+def create_test_gear():
     #
     ## Do not modify the below gear document without checking the other callees!
     #
     gear = flywheel.Gear(
-        name=self.rand_string_lower(),
-        label=self.rand_string(),
-        description=self.rand_string(),
-        version=self.rand_string(),
-        author=self.rand_string(),
-        maintainer=self.rand_string(),
+        name=SdkTestCase.rand_string_lower(),
+        label=SdkTestCase.rand_string(),
+        description=SdkTestCase.rand_string(),
+        version=SdkTestCase.rand_string(),
+        author=SdkTestCase.rand_string(),
+        maintainer=SdkTestCase.rand_string(),
         license='Other',
         source='http://example.example',
         url='http://example.example',
@@ -86,7 +86,7 @@ def create_test_gear(self):
         gear=gear,
         exchange=flywheel.GearExchange(
             git_commit='aex',
-            rootfs_haaash='sha384:oy',
+            rootfs_hash='sha384:oy',
             rootfs_url='http://example.example'
         )
     )
