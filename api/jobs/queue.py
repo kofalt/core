@@ -11,10 +11,10 @@ from .. import config
 from .jobs import Job, Logs, JobTicket
 from .gears import get_gear, validate_gear_config, fill_gear_default_values
 from ..dao.containerutil import (
-    create_filereference_from_dictionary, create_containerreference_from_dictionary, 
+    create_filereference_from_dictionary, create_containerreference_from_dictionary,
     create_containerreference_from_filereference, FileReference
 )
-from .job_util import resolve_context_inputs 
+from .job_util import resolve_context_inputs
 from ..web.errors import InputValidationException
 
 
@@ -133,9 +133,9 @@ class Queue(object):
         return new_id
 
     @staticmethod
-    def enqueue_job(job_map, origin, perm_check_uid=None):
+    def enqueue_job(job_map, origin, create_job=False, perm_check_uid=None):
         """
-        Using a payload for a proposed job, creates and returns (but does not insert)
+        Using a payload for a proposed job, creates and returns(if create_job is True) (but does not insert)
         a Job object. This preperation includes:
           - confirms gear exists
           - validates config against gear manifest
@@ -173,7 +173,7 @@ class Queue(object):
                 raise InputValidationException('Job input {} is not listed in gear manifest'.format(x))
 
             input_map = job_map['inputs'][x]
-            
+
             if gear['gear']['inputs'][x]['base'] == 'file':
                 try:
                     inputs[x] = create_filereference_from_dictionary(input_map)
@@ -198,7 +198,7 @@ class Queue(object):
                 if isinstance(inputs[key], FileReference):
                     destination = create_containerreference_from_filereference(inputs[key])
                     break
-            
+
             if not destination:
                 raise InputValidationException('Must specify destination if gear has no inputs.')
 
@@ -276,8 +276,13 @@ class Queue(object):
 
         if gear_name not in tags:
             tags.append(gear_name)
+        if create_job:
+            job = Job(str(gear['_id']), inputs, destination=destination, tags=tags, config_=config_, now=now_flag, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
+            return job
+        return True
 
         job = Job(str(gear['_id']), inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
+
         job.insert()
         return job
 
