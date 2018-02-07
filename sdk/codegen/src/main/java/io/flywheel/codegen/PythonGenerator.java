@@ -43,6 +43,9 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
     public void processOpts() {
         super.processOpts();
 
+        // Filespec helper file
+        supportingFiles.add(new SupportingFile("file_spec.mustache", packageName, "file_spec.py"));
+
         // Flywheel wrapper file
         supportingFiles.add(new SupportingFile("flywheel.mustache", packageName, "flywheel.py"));
     }

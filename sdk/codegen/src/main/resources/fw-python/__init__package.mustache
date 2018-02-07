@@ -10,6 +10,7 @@ from __future__ import absolute_import
 {{#apiInfo}}{{#apis}}from {{apiPackage}}.{{classVarName}} import {{classname}}
 {{/apis}}{{/apiInfo}}
 # import ApiClient
+from {{packageName}}.file_spec import FileSpec
 from {{packageName}}.api_client import ApiClient
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.flywheel import Flywheel

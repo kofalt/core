@@ -38,6 +38,10 @@ class SdkTestCase(unittest.TestCase):
         if container is None or len(container) == 0:
             raise AssertionError('Expected a non-empty value, got: "' + str(container) + '" instead.')
 
+    def assertEmpty(self, container):
+        if container is not None and len(container) > 0:
+            raise AssertionError('Expected an empty value, got: "' + str(container) + '" instead.')
+
     def assertTimestampNear(self, value, expected, toleranceSec=5):
         d_allowed = timedelta(seconds=toleranceSec)
         d_actual = abs(expected - value)
@@ -61,4 +65,34 @@ class SdkTestCase(unittest.TestCase):
             expected = expected - timedelta(seconds=toleranceSec)
         if (expected - value) > TD_ZERO:
             raise AssertionError('Expected time ' + str(value) + ' to be after ' + str(expected))
+
+    def assertDownloadFileTextEquals(self, method, id, filename, expected):
+        content = method(id, filename)
+        self.assertIsNotNone(content)
+        content = content.decode('utf-8')
+
+        self.assertEqual(content, expected)
+
+    def assertDownloadFileTextEqualsWithTicket(self, method, id, filename, expected):
+        download_url = method(id, filename)
+        
+        self.assertIsNotNone(download_url)
+
+        resp = self.fw.api_client.rest_client.GET(download_url, _preload_content=False)
+        self.assertIsNotNone(resp)
+        try:
+            self.assertEqual(resp.status, 200)
+
+            content = resp.read()
+            self.assertIsNotNone(content)
+            
+            content = content.decode('utf-8')
+            
+            self.assertEqual(content, expected)
+        finally:
+            resp.release_conn()
+
+
+
+
         
