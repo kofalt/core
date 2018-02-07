@@ -140,74 +140,83 @@ def run(batch_job):
     """
 
     proposal = batch_job.get('proposal')
-    if not proposal or not 'jobs' in proposal:
+    if not proposal:
         raise APIStorageException('The batch job is not formatted correctly.')
-    proposed_jobs = proposal.get('jobs', [])
 
-    gear_id = batch_job['gear_id']
-    gear = gears.get_gear(gear_id)
-    gear_name = gear['gear']['name']
+    elif 'jobs' in proposal:
+        proposed_jobs = proposal.get('jobs', [])
 
-    config_ = batch_job.get('config')
-    origin = batch_job.get('origin')
-    tags = proposal.get('tags', [])
-    tags.append('batch')
+        gear_id = batch_job['gear_id']
+        gear = gears.get_gear(gear_id)
+        gear_name = gear['gear']['name']
 
-    if gear.get('category') == 'analysis':
-        analysis_base = proposal.get('analysis', {})
-        if not analysis_base.get('label'):
-            time_now = datetime.datetime.utcnow()
-            analysis_base['label'] = {'label': '{} {}'.format(gear_name, time_now)}
-        an_storage = AnalysisStorage()
-        acq_storage = AcquisitionStorage()
-
-    jobs = []
-    job_ids = []
-
-    job_defaults = {
-        'config':   config_,
-        'gear_id':  gear_id,
-        'tags':     tags,
-        'batch':    str(batch_job.get('_id')),
-        'inputs':   {}
-    }
-
-    for proposed_job in proposed_jobs:
-        job_map = copy.deepcopy(job_defaults)
-        if 'inputs' in proposed_job:
-            job_map['inputs'] = proposed_job['inputs']
-
-        if 'destination' not in proposed_job:
-            raise APIStorageException('Destination is required for all proposed jobs')
-        job_map['destination'] = proposed_job['destination']
+        config_ = batch_job.get('config')
+        origin = batch_job.get('origin')
+        tags = proposal.get('tags', [])
+        tags.append('batch')
 
         if gear.get('category') == 'analysis':
-            analysis = copy.deepcopy(analysis_base)
+            analysis_base = proposal.get('analysis', {})
+            if not analysis_base.get('label'):
+                time_now = datetime.datetime.utcnow()
+                analysis_base['label'] = {'label': '{} {}'.format(gear_name, time_now)}
+            an_storage = AnalysisStorage()
+            acq_storage = AcquisitionStorage()
 
-            # Create analysis
-            # NOTE: Batch destinations *MUST* be a session or acquisition
-            if job_map['destination']['type'] == 'acquisition':
-                acquisition_id = job_map['destination']['id']
-                session_id = acq_storage.get_container(acquisition_id, projection={'session': 1}).get('session')
-            else:
-                session_id = bson.ObjectId(job_map['destination']['id'])
+        jobs = []
+        job_ids = []
 
-            analysis['job'] = job_map
-            result = an_storage.create_el(analysis, 'sessions', session_id, origin, None) 
+        job_defaults = {
+            'config':   config_,
+            'gear_id':  gear_id,
+            'tags':     tags,
+            'batch':    str(batch_job.get('_id')),
+            'inputs':   {}
+        }
 
-            analysis = an_storage.get_el(result.inserted_id)
-            an_storage.inflate_job_info(analysis)
-            job = analysis.get('job')
-            job_id = bson.ObjectId(job.id_)
+        for proposed_job in proposed_jobs:
+            job_map = copy.deepcopy(job_defaults)
+            if 'inputs' in proposed_job:
+                job_map['inputs'] = proposed_job['inputs']
 
-        else:
+            if 'destination' not in proposed_job:
+                raise APIStorageException('Destination is required for all proposed jobs')
+            job_map['destination'] = proposed_job['destination']
 
-            job = Queue.enqueue_job(job_map, origin)
-            job_id = job.id_
+            if gear.get('category') == 'analysis':
+                analysis = copy.deepcopy(analysis_base)
 
+                # Create analysis
+                # NOTE: Batch destinations *MUST* be a session or acquisition
+                if job_map['destination']['type'] == 'acquisition':
+                    acquisition_id = job_map['destination']['id']
+                    session_id = acq_storage.get_container(acquisition_id, projection={'session': 1}).get('session')
+                else:
+                    session_id = bson.ObjectId(job_map['destination']['id'])
 
-        jobs.append(job)
-        job_ids.append(job_id)
+                analysis['job'] = job_map
+                result = an_storage.create_el(analysis, 'sessions', session_id, origin, None)
+
+                analysis = an_storage.get_el(result.inserted_id)
+                an_storage.inflate_job_info(analysis)
+                job = analysis.get('job')
+                job_id = bson.ObjectId(job.id_)
+    elif 'preconstructed_jobs' in proposal:
+        preconstructed_jobs = proposal.get('preconstructed_jobs')
+
+        # If Running a batch from already-constructed jobs
+        if preconstructed_jobs:
+            origin = batch_job.get('origin')
+            jobs = []
+            job_ids = []
+
+            for preconstructed_job in preconstructed_jobs:
+                job = Queue.enqueue_job(preconstructed_job, origin)
+                job_id = job.id_
+                jobs.append(job)
+                job_ids.append(job_id)
+    else:
+        raise APIStorageException('The batch job is not formatted correctly.')
 
     update(batch_job['_id'], {'state': 'running', 'jobs': job_ids})
     return jobs
