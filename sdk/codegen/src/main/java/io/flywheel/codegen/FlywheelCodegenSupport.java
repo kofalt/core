@@ -1,15 +1,42 @@
 package io.flywheel.codegen;
 
 import io.swagger.codegen.*;
+import io.swagger.models.Model;
 import io.swagger.models.Operation;
 import io.swagger.models.Path;
 import io.swagger.models.Swagger;
+import io.swagger.models.properties.Property;
 
 import java.util.*;
 
 public class FlywheelCodegenSupport {
 
-    public static void removeExtraOperationTags(Swagger swagger) {
+
+    public static void preprocessSwagger(Swagger swagger) {
+        preprocessSwaggerModels(swagger);
+        removeExtraOperationTags(swagger);
+    }
+
+    private static void preprocessSwaggerModels(Swagger swagger) {
+        Map<String, Model> models = swagger.getDefinitions();
+        for( String name : models.keySet() ) {
+            Model model = models.get(name);
+            Map<String, Object> vendorExtensions = model.getVendorExtensions();
+            if( vendorExtensions != null ) {
+                if( vendorExtensions.containsKey("x-sdk-ignore-properties") ) {
+                    List<String> ignoredProperties = (List<String>)(vendorExtensions.get("x-sdk-ignore-properties"));
+                    Map<String, Property> properties = model.getProperties();
+                    if( properties != null ) {
+                        for( String property: ignoredProperties ) {
+                            properties.remove(property);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void removeExtraOperationTags(Swagger swagger) {
         Map<String,Path> paths = swagger.getPaths();
         for( String path: paths.keySet() ) {
             Path pathEntry = paths.get(path);
@@ -36,11 +63,11 @@ public class FlywheelCodegenSupport {
         // push that to the individual properties. (If the properties reference other types then the
         // vendorExtensions don't get picked up)
         if( model.vendorExtensions != null && model.vendorExtensions.containsKey("x-sdk-include-empty") ) {
-            List<String> emptyProps = (List<String>)model.vendorExtensions.get("x-sdk-include-empty");
-            for( String propName: emptyProps ) {
+            List<String> emptyProps = (List<String>) model.vendorExtensions.get("x-sdk-include-empty");
+            for (String propName : emptyProps) {
                 CodegenProperty prop = findPropertyByName(model, propName);
-                if( prop != null ) {
-                    if( prop.vendorExtensions == null ) {
+                if (prop != null) {
+                    if (prop.vendorExtensions == null) {
                         prop.vendorExtensions = new HashMap<>();
                     }
                     prop.vendorExtensions.put("x-sdk-include-empty", true);

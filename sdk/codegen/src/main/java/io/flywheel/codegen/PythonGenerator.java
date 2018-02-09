@@ -14,14 +14,8 @@ import java.util.Map;
 
 public class PythonGenerator extends PythonClientCodegen implements CodegenConfig {
 
-    private static Map<String, String> propertySubstitutions;
-
     public PythonGenerator() {
         super();
-
-        propertySubstitutions = new HashMap<>();
-        propertySubstitutions.put("+", "plus");
-        propertySubstitutions.put("-", "minus");
     }
 
     @Override
@@ -52,7 +46,7 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
 
     @Override
     public void preprocessSwagger(Swagger swagger) {
-        FlywheelCodegenSupport.removeExtraOperationTags(swagger);
+        FlywheelCodegenSupport.preprocessSwagger(swagger);
     }
 
     @Override
@@ -65,14 +59,5 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
     public Map<String, Object> postProcessModels(Map<String, Object> objs) {
         objs = super.postProcessModels(objs);
         return FlywheelCodegenSupport.postProcessModels(objs, this);
-    }
-
-    @Override
-    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
-        super.postProcessModelProperty(model, property);
-
-        if( propertySubstitutions.containsKey(property.baseName) ) {
-            property.name = property.nameInCamelCase = propertySubstitutions.get(property.baseName);
-        }
     }
 }
