@@ -183,6 +183,10 @@ class {{classname}}(object):
         if '{{paramName}}' in params:
             query_params.append(('{{baseName}}', params['{{paramName}}'])){{#isListContainer}}  # noqa: E501
             collection_formats['{{baseName}}'] = '{{collectionFormat}}'{{/isListContainer}}  # noqa: E501
+        {{#vendorExtensions.x-sdk-default}}
+        else:
+            query_params.append(('{{baseName}}', '{{.}}'))
+        {{/vendorExtensions.x-sdk-default}}
 {{/queryParams}}
 
         header_params = {}

@@ -13,6 +13,9 @@
     def add_acquisitions_to_collection(self, collection_id, acquisition_ids, **kwargs):
         return self.add_nodes_to_collection(collection_id, 'acquisition', acquisition_ids, **kwargs)
 
+    def change_job_state(self, job_id, state):
+        return self.modify_job(job_id, { 'state': state })
+
     {{#apis}}
     {{#operations}}
     {{#operation}}
