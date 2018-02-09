@@ -31,7 +31,7 @@ class JobsTestCases(SdkTestCase):
             ),
 
             inputs={
-                'any-file': flywheel.JobInputsEntry(
+                'any-file': flywheel.FileReference(
                     id=self.acquisition_id,
                     type='acquisition',
                     name='yeats.txt'
