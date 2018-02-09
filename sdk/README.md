@@ -24,3 +24,5 @@ Gradle is used to build the various components of the SDK. Docker shortcuts are 
 * **x-sdk-download-url** - Will be set to the operationId for retrieving a download url via ticket.
 * **x-sdk-download-file-param** - Parameter name for destination file parameter for download operations.
 * **x-sdk-include-empty** - On a JSON definition - indicates that the following list of properties should be included on JSON even when empty.
+* **x-sdk-ignore-properties** - On a JSON schema includes a list of properties to exclude in codegen
+* **x-sdk-schema** - Overrides a schema with the definition provided

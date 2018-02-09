@@ -400,7 +400,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
     @Override
     public void preprocessSwagger(Swagger swagger) {
-        FlywheelCodegenSupport.removeExtraOperationTags(swagger);
+        FlywheelCodegenSupport.preprocessSwagger(swagger);
     }
 
     @Override
