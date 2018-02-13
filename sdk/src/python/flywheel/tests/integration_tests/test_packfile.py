@@ -50,6 +50,8 @@ class PackfileTestCases(SdkTestCase):
         self.assertEqual(resp.status_code, 200)
 
         for line in resp.iter_lines():
+            if six.PY3:
+                line = line.decode('utf-8')
             print('response line: ' + line)
 
         acquisitions = fw.get_session_acquisitions(self.session_id)
@@ -61,7 +63,7 @@ class PackfileTestCases(SdkTestCase):
         self.assertEqual(acquisitions[0].files[0].name, acquisition_label + '.zip')
 
         zip_data = fw.download_file_from_acquisition_as_data(acquisitions[0].id, acquisition_label + '.zip')
-        zip_file = zipfile.ZipFile(six.StringIO(zip_data))
+        zip_file = zipfile.ZipFile(six.BytesIO(zip_data))
 
         names = zip_file.namelist()
         self.assertIn(acquisition_label + '/yeats1.txt', names)
@@ -69,9 +71,12 @@ class PackfileTestCases(SdkTestCase):
 
         with zip_file.open(acquisition_label + '/yeats1.txt') as f:
             data = f.read()
+            if six.PY3:
+                data = data.decode('utf-8')
             self.assertEqual(data, poem1)
-
         with zip_file.open(acquisition_label + '/yeats2.txt') as f:
             data = f.read()
+            if six.PY3:
+                data = data.decode('utf-8')
             self.assertEqual(data, poem2)
         
