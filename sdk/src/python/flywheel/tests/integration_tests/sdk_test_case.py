@@ -81,16 +81,16 @@ class SdkTestCase(unittest.TestCase):
         resp = self.fw.api_client.rest_client.GET(download_url, _preload_content=False)
         self.assertIsNotNone(resp)
         try:
-            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.status_code, 200)
 
-            content = resp.read()
+            content = resp.content
             self.assertIsNotNone(content)
             
             content = content.decode('utf-8')
             
             self.assertEqual(content, expected)
         finally:
-            resp.release_conn()
+            resp.close()
 
 
 

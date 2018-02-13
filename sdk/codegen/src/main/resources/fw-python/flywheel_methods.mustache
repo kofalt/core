@@ -31,10 +31,7 @@
         kwargs['_preload_content'] = False
         (resp) = self.{{classVarName}}.{{operationId}}_with_http_info({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs)
         if resp:
-            try:
-                return resp.read()
-            finally:
-                resp.release_conn()
+            return resp.content
         return None
 
     {{/vendorExtensions.x-sdk-download-file-param}}
