@@ -98,8 +98,8 @@ class AnalysisTestCases(SdkTestCase):
         analyses = fw.get_analyses('groups', self.group_id, 'sessions')
         self.assertEqual(len(analyses), 2)
 
-        self.assertEqual(1, len(filter(lambda x: x.id == r_analysis.id, analyses)))
-        self.assertEqual(1, len(filter(lambda x: x.id == analysis_id2, analyses)))
+        self.assertEqual(1, len(list(filter(lambda x: x.id == r_analysis.id, analyses))))
+        self.assertEqual(1, len(list(filter(lambda x: x.id == analysis_id2, analyses))))
 
         # Get project level analyses in group (will be zero)
         analyses = fw.get_analyses('groups', self.group_id, 'projects')

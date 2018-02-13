@@ -21,6 +21,8 @@ from {{packageName}}.configuration import Configuration
 import {{modelPackage}}
 from {{packageName}} import rest, file_spec
 
+def is_file_obj(obj):
+    return (obj and hasattr(obj, 'read') and hasattr(obj, 'close'))
 
 class ApiClient(object):
     """Generic API client for Swagger client library builds.
@@ -203,7 +205,7 @@ class ApiClient(object):
                          for sub_obj in obj)
         elif isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
-        elif isinstance(obj, file):
+        elif is_file_obj(obj):
             return obj
 
         if isinstance(obj, dict):

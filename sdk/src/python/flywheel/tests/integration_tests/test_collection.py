@@ -69,14 +69,14 @@ class CollectionsTestCases(SdkTestCase):
         # Get sessions
         saved_sessions = fw.get_collection_sessions(collection_id)
         self.assertEqual(len(saved_sessions), 2)
-        self.assertEqual(len(filter(lambda x: x.id == session_id, saved_sessions)), 1)
-        self.assertEqual(len(filter(lambda x: x.id == session_id2, saved_sessions)), 1)
+        self.assertEqual(len(list(filter(lambda x: x.id == session_id, saved_sessions))), 1)
+        self.assertEqual(len(list(filter(lambda x: x.id == session_id2, saved_sessions))), 1)
 
         # Get acquisitions
         saved_acquisitions = fw.get_collection_acquisitions(collection_id)
         self.assertEqual(len(saved_acquisitions), 2)
-        self.assertEqual(len(filter(lambda x: x.id == acquisition_id, saved_acquisitions)), 1)
-        self.assertEqual(len(filter(lambda x: x.id == acquisition_id2, saved_acquisitions)), 1)
+        self.assertEqual(len(list(filter(lambda x: x.id == acquisition_id, saved_acquisitions))), 1)
+        self.assertEqual(len(list(filter(lambda x: x.id == acquisition_id2, saved_acquisitions))), 1)
 
         # Get session acquisitions
         saved_session_acquisitions = fw.get_collection_acquisitions(collection_id, session=session_id)
