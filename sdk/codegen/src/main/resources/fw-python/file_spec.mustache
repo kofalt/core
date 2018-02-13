@@ -13,9 +13,9 @@ class FileSpec:
     def to_file_tuple(self):
         if not self.contents:
             # TODO: Switch to library that supports file streaming
-            with open(self.name, 'rb') as f:
-                filename = os.path.basename(f.name)
-                filedata = f.read()
+            f = open(self.name, 'rb')
+            filename = os.path.basename(f.name)
+            filedata = f
         else:
             filename = self.name
             filedata = self.contents

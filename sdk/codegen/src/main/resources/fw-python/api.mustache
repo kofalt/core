@@ -62,13 +62,10 @@ class {{classname}}(object):
         if resp:
             try:
                 with open({{.}}, 'wb') as out_file:
-                    while True:
-                        data = resp.read(65536)
-                        if not data:
-                            break
-                        out_file.write(data)
+                    for chunk in resp.iter_content(chunk_size=65536):
+                        out_file.write(chunk)
             finally:
-                resp.release_conn()
+                resp.close()
         {{/vendorExtensions.x-sdk-download-file-param}}
         {{^vendorExtensions.x-sdk-download-file-param}}
         if kwargs.get('async'):

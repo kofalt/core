@@ -37,6 +37,8 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
     public void processOpts() {
         super.processOpts();
 
+        additionalProperties.put("requests", "true");
+
         // Filespec helper file
         supportingFiles.add(new SupportingFile("file_spec.mustache", packageName, "file_spec.py"));
 
