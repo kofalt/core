@@ -201,6 +201,15 @@ def run(batch_job):
                 an_storage.inflate_job_info(analysis)
                 job = analysis.get('job')
                 job_id = bson.ObjectId(job.id_)
+
+            else:
+                job = Queue.enqueue_job(job_map, origin)
+                job.insert()
+                job_id = job.id_
+
+            jobs.append(job)
+            job_ids.append(job_id)
+
     elif 'preconstructed_jobs' in proposal:
         preconstructed_jobs = proposal.get('preconstructed_jobs')
 
@@ -212,6 +221,7 @@ def run(batch_job):
 
             for preconstructed_job in preconstructed_jobs:
                 job = Queue.enqueue_job(preconstructed_job, origin)
+                job.insert()
                 job_id = job.id_
                 jobs.append(job)
                 job_ids.append(job_id)

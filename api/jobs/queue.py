@@ -132,10 +132,11 @@ class Queue(object):
 
         return new_id
 
+
     @staticmethod
-    def enqueue_job(job_map, origin, create_job=False, perm_check_uid=None):
+    def enqueue_job(job_map, origin, perm_check_uid=None):
         """
-        Using a payload for a proposed job, creates and returns(if create_job is True) (but does not insert)
+        Using a payload for a proposed job, creates and returns (but does not insert)
         a Job object. This preperation includes:
           - confirms gear exists
           - validates config against gear manifest
@@ -276,14 +277,9 @@ class Queue(object):
 
         if gear_name not in tags:
             tags.append(gear_name)
-        if create_job:
-            job = Job(str(gear['_id']), inputs, destination=destination, tags=tags, config_=config_, now=now_flag, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
-            return job
-        return True
 
         job = Job(str(gear['_id']), inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
 
-        job.insert()
         return job
 
     @staticmethod
