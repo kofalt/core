@@ -216,14 +216,10 @@ class ContainerReference(object):
 
     def __init__(self, type, id):
         type = singularize(type)
+        id = str(id)
 
         if type not in CONT_TYPES:
             raise Exception('Container type must be one of {}'.format(CONT_TYPES))
-
-        if not isinstance(type, basestring):
-            raise Exception('Container type must be of type str')
-        if not isinstance(id, basestring):
-            raise Exception('Container id must be of type str')
 
         self.type = type
         self.id = id

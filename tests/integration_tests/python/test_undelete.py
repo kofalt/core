@@ -33,7 +33,6 @@ def containers(data_builder, as_admin, file_form, api_db):
     assert as_admin.post('/acquisitions/' + ac_1_1_1 + '/files', files=file_form('f_1_1_1_1')).ok
     assert as_admin.post('/acquisitions/' + ac_1_1_1 + '/files', files=file_form('f_1_1_1_2')).ok
     assert as_admin.post('/acquisitions/' + ac_2_1_1 + '/files', files=file_form('f_2_1_1_1')).ok
-    assert as_admin.post('/acquisitions/' + ac_1_1_1 + '/files', files=file_form('f_1_1_1_1')).ok
 
     assert as_admin.delete('/sessions/' + s_1_1 + '/analyses/' + an_1_1_1).ok
     assert as_admin.delete('/collections/' + c_1_1_1).ok

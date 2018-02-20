@@ -49,6 +49,9 @@ class Placer(object):
         # A callable that allows the placer to log access information
         self.access_logger  = access_logger
 
+        # A list of files that have been ignored by save_file() because a file with the same name and hash already existed
+        self.ignored        = []
+
 
     def check(self):
         """
@@ -82,7 +85,7 @@ class Placer(object):
         if self.metadata == None:
             raise FileFormException('Metadata required')
 
-    def save_file(self, field=None, file_attrs=None):
+    def save_file(self, field=None, file_attrs=None, ignore_hash_replace=False):
         """
         Helper function that moves a file saved via a form field into our CAS.
         May trigger jobs, if applicable, so this should only be called once we're ready for that.
@@ -95,11 +98,38 @@ class Placer(object):
 
         # Update the DB
         if file_attrs is not None:
-            container_before, self.container = hierarchy.upsert_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger)
 
-            # Queue any jobs as a result of this upload, uploading to a gear will not make jobs though
-            if self.container_type != 'gear':
-                rules.create_jobs(config.db, container_before, self.container, self.container_type)
+            container_before, self.container, saved_state = hierarchy.upsert_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger, ignore_hash_replace=ignore_hash_replace)
+
+            # If this file was ignored because an existing file with the same name and hash existed on this project,
+            # add the file to the ignored list and move on
+            if saved_state == 'ignored':
+                self.ignored.append(file_attrs)
+
+            else:
+                self.saved.append(file_attrs)
+
+                # create_jobs handles files that have been replaced differently
+                replaced_files = []
+                if saved_state == 'replaced':
+                    replaced_files.append(containerutil.FileReference(self.container_type, self.id_, file_attrs['name']))
+
+                rules.create_jobs(config.db, container_before, self.container, self.container_type, replaced_files=replaced_files)
+
+    def update_file(self, file_attrs):
+        """
+        If no file object is available, only the metadata will be updated
+        """
+        container_before, container_after, saved_state = hierarchy.update_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger)
+        if saved_state == 'ignored':
+            self.ignored.append(file_attrs)
+
+        else:
+            self.container = container_after
+            rules.create_jobs(config.db, container_before, self.container, self.container_type)
+
+
+
 
     def recalc_session_compliance(self):
         if self.container_type in ['session', 'acquisition'] and self.id_:
@@ -123,7 +153,7 @@ class TargetedPlacer(Placer):
         if self.metadata:
             file_attrs.update(self.metadata)
         self.save_file(field, file_attrs)
-        self.saved.append(file_attrs)
+
 
     def finalize(self):
         self.recalc_session_compliance()
@@ -157,6 +187,8 @@ class UIDPlacer(Placer):
     metadata_schema = 'uidupload.json'
     create_hierarchy = staticmethod(hierarchy.upsert_top_down_hierarchy)
     match_type = 'uid'
+    ignore_hash_replace = False
+
 
     def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger):
         super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger)
@@ -202,21 +234,10 @@ class UIDPlacer(Placer):
         r_metadata  = target['metadata']
         file_attrs.update(r_metadata)
 
-        if container.level != 'subject':
-            self.container_type = container.level
-            self.id_            = container.id_
-            self.container      = container.container
-            self.save_file(field, file_attrs)
-        else:
-            if field is not None:
-                self.file_processor.store_temp_file(field.path, util.path_from_uuid(field.uuid))
-            if file_attrs is not None:
-                container.upsert_file(file_attrs)
-
-                # # Queue any jobs as a result of this upload
-                # rules.create_jobs(config.db, self.container, self.container_type, info)
-
-        self.saved.append(file_attrs)
+        self.container_type = container.level
+        self.id_            = container.id_
+        self.container      = container.container
+        self.save_file(field, file_attrs, ignore_hash_replace=self.ignore_hash_replace)
 
     def finalize(self):
         # Check that there is at least one file being uploaded
@@ -241,6 +262,7 @@ class UIDReaperPlacer(UIDPlacer):
     metadata_schema = 'uidupload.json'
     create_hierarchy = staticmethod(hierarchy.upsert_bottom_up_hierarchy)
     match_type = 'uid'
+    ignore_hash_replace = True
 
 
 class LabelPlacer(UIDPlacer):
@@ -254,6 +276,7 @@ class LabelPlacer(UIDPlacer):
     metadata_schema = 'labelupload.json'
     create_hierarchy = staticmethod(hierarchy.upsert_top_down_hierarchy)
     match_type = 'label'
+    ignore_hash_replace = False
 
 
 class UIDMatchPlacer(UIDPlacer):
@@ -264,6 +287,8 @@ class UIDMatchPlacer(UIDPlacer):
     metadata_schema = 'uidmatchupload.json'
     create_hierarchy = staticmethod(hierarchy.find_existing_hierarchy)
     match_type = 'uid'
+    ignore_hash_replace = False
+
 
 
 class EnginePlacer(Placer):
@@ -314,7 +339,6 @@ class EnginePlacer(Placer):
                 file_attrs['from_failed_job'] = True
 
         self.save_file(field, file_attrs)
-        self.saved.append(file_attrs)
 
     def finalize(self):
         job = None
@@ -334,9 +358,10 @@ class EnginePlacer(Placer):
             file_mds = self.metadata.get(self.container_type, {}).get('files', [])
             saved_file_names = [x.get('name') for x in self.saved]
             for file_md in file_mds:
+
+                # The job wants to update the metadata on this file
                 if file_md['name'] not in saved_file_names:
-                    self.save_file(None, file_md) # save file_attrs update only
-                    self.saved.append(file_md)
+                    self.update_file(file_md) # save file_attrs update only
 
             # Remove file metadata as it was already updated in process_file_field
             for k in self.metadata.keys():
@@ -778,8 +803,8 @@ class GearPlacer(Placer):
                                                'rootfs-url': 'INVALID',
                                                'rootfs-id': file_attrs['_id']}})
         # self.metadata['hash'] = file_attrs.get('hash')
+
         self.save_file(field)
-        self.saved.append(file_attrs)
         self.saved.append(self.metadata)
 
     def finalize(self):

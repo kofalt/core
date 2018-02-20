@@ -23,7 +23,8 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 53 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 54 # An int that is bumped when a new schema change is made
+
 
 def get_db_version():
 
@@ -1778,6 +1779,27 @@ def upgrade_to_53():
             {'_id': rule['_id']},
             {'$set': {'gear_id': gear_name_to_id[rule['alg']], 'auto_update': True},
              '$unset': {'alg': True}})
+
+def upgrade_to_54_closure(cont, cont_name):
+    """
+    Update all files in a collection that do not have a version
+    """
+    files = cont.get('files', [])
+    for f in files:
+        if 'version' not in f:
+            f['version'] = 1
+    config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
+    return True
+
+
+def upgrade_to_54():
+    """
+    Add initial file versioning to all files
+    """
+    for cont_name in ['projects', 'sessions', 'acquisitions', 'analyses', 'collections']:
+        cursor = config.db[cont_name].find({'files': { '$gt': [] }, 'files.version': {'$exists': False }})
+        process_cursor(cursor, upgrade_to_54_closure, context=cont_name)
+
 
 
 ###

@@ -220,7 +220,10 @@ class ContainerStorage(object):
 
 
     def _from_mongo(self, cont):
-        pass
+        # For now, don't return information about a file's previous version(s)
+        if cont:
+            for f in cont.get('files', []):
+                f.pop('other_versions', None)
 
     def _to_mongo(self, payload):
         pass

@@ -319,6 +319,7 @@ class SessionStorage(ContainerStorage):
             raise APINotFoundException('Could not find session {}'.format(session_id))
         if hard:
             # A "hard" flag will also recalc if session is tracked by a project template
+
             project = ProjectStorage().get_container(session['project'])
             project_has_template = bool(project.get('template'))
             if session.get('project_has_template', False) != project_has_template:
