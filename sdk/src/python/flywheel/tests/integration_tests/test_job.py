@@ -22,7 +22,7 @@ class JobsTestCases(SdkTestCase):
         fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
 
         tag = self.rand_string()
-        job = flywheel.JobInput(
+        job = flywheel.Job(
             gear_id=self.gear_id,
             
             destination=flywheel.JobDestination(
@@ -83,7 +83,7 @@ class JobsTestCases(SdkTestCase):
         fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
 
         tag = self.rand_string()
-        job = flywheel.JobInput(
+        job = flywheel.Job(
             gear_id=self.gear_id,
             
             destination=flywheel.JobDestination(

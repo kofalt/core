@@ -11,7 +11,7 @@ class GroupsTestCases(SdkTestCase):
         group_id = self.rand_string_lower()
         group_name = self.rand_string()
 
-        r_id = self.fw.add_group(flywheel.GroupInput(group_id,group_name))
+        r_id = self.fw.add_group(flywheel.Group(group_id,group_name))
         self.assertEqual(group_id, r_id)
 
         # Get
@@ -52,7 +52,7 @@ class GroupsTestCases(SdkTestCase):
 
 def create_test_group():
     group_id = SdkTestCase.rand_string_lower()
-    return SdkTestCase.fw.add_group(flywheel.GroupInput(group_id))
+    return SdkTestCase.fw.add_group(flywheel.Group(group_id))
         
 
 

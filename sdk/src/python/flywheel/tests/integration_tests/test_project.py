@@ -15,7 +15,7 @@ class ProjectsTestCases(SdkTestCase):
         fw = self.fw
         
         project_name = self.rand_string()
-        project = flywheel.ProjectInput(label=project_name, group=self.group_id, 
+        project = flywheel.Project(label=project_name, group=self.group_id, 
             description="This is a description", info = { 'some-key': 37 })
 
         # Add
@@ -42,7 +42,7 @@ class ProjectsTestCases(SdkTestCase):
 
         # Modify
         new_name = self.rand_string()
-        project_mod = flywheel.ProjectInput(label=new_name, info={'another-key': 52})
+        project_mod = flywheel.Project(label=new_name, info={'another-key': 52})
         fw.modify_project(project_id, project_mod)
 
         changed_project = fw.get_project(project_id)
@@ -96,7 +96,7 @@ class ProjectsTestCases(SdkTestCase):
     def test_project_files(self):
         fw = self.fw
         
-        project = flywheel.ProjectInput(label=self.rand_string(), group=self.group_id)
+        project = flywheel.Project(label=self.rand_string(), group=self.group_id)
         project_id = fw.add_project(project)
 
         # Upload a file
@@ -121,7 +121,7 @@ class ProjectsTestCases(SdkTestCase):
         self.assertEqual(len(r_project.files[0].measurements), 0)
         self.assertEqual(r_project.files[0].type, 'text')
 
-        resp = fw.modify_project_file(project_id, 'yeats.txt', flywheel.FileUpdate(
+        resp = fw.modify_project_file(project_id, 'yeats.txt', flywheel.FileEntry(
             modality='modality',
             measurements=['measurement'],
             type='type'

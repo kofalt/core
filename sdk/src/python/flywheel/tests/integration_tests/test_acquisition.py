@@ -16,7 +16,7 @@ class AcquisitionsTestCases(SdkTestCase):
         fw = self.fw
         
         acquisition_name = self.rand_string()
-        acquisition = flywheel.AcquisitionInput(label=acquisition_name, session=self.session_id) 
+        acquisition = flywheel.Acquisition(label=acquisition_name, session=self.session_id) 
 
         # Add
         acquisition_id = fw.add_acquisition(acquisition)
@@ -36,7 +36,7 @@ class AcquisitionsTestCases(SdkTestCase):
 
         # Modify
         new_name = self.rand_string()
-        acquisition_mod = flywheel.ProjectInput(label=new_name, info={'another-key': 52})
+        acquisition_mod = flywheel.Project(label=new_name, info={'another-key': 52})
         fw.modify_acquisition(acquisition_id, acquisition_mod)
 
         changed_acquisition = fw.get_acquisition(acquisition_id)
@@ -88,7 +88,7 @@ class AcquisitionsTestCases(SdkTestCase):
     def test_acquisition_files(self):
         fw = self.fw
         
-        acquisition = flywheel.AcquisitionInput(label=self.rand_string(), session=self.session_id)
+        acquisition = flywheel.Acquisition(label=self.rand_string(), session=self.session_id)
         acquisition_id = fw.add_acquisition(acquisition)
 
         # Upload a file
@@ -113,7 +113,7 @@ class AcquisitionsTestCases(SdkTestCase):
         self.assertEqual(len(r_acquisition.files[0].measurements), 0)
         self.assertEqual(r_acquisition.files[0].type, 'text')
 
-        resp = fw.modify_acquisition_file(acquisition_id, 'yeats.txt', flywheel.FileUpdate(
+        resp = fw.modify_acquisition_file(acquisition_id, 'yeats.txt', flywheel.FileEntry(
             modality='modality',
             measurements=['measurement'],
             type='type'

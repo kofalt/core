@@ -40,13 +40,13 @@ class UsersTestCases(SdkTestCase):
         user2 = self.fw.get_user(user.id)
         self.assertUserIsSane(user2)
 
-        self.assertNotIn('api_key', user2)
+        self.assertIsNone(user2['api_key'])
 
     def test_add_modify_delete_user(self):
         fw = self.fw
         email = self.rand_string() + '@' + self.rand_string() + '.io'
         
-        user = flywheel.UserInput(id=email, email=email, 
+        user = flywheel.User(id=email, email=email, 
             firstname=self.rand_string(), lastname=self.rand_string())
         
         # Add
@@ -55,7 +55,7 @@ class UsersTestCases(SdkTestCase):
 
         # Modify
         new_name = self.rand_string()
-        fw.modify_user(user_id, flywheel.UserInput(firstname=new_name))
+        fw.modify_user(user_id, flywheel.User(firstname=new_name))
 
         # Check
         compare = fw.get_user(user_id)
