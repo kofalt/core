@@ -12,15 +12,15 @@ class SessionsTestCases(SdkTestCase):
         self.fw.delete_project(self.project_id)
         self.fw.delete_group(self.group_id)
 
-    def test_projects(self):
+    def test_sessions(self):
         fw = self.fw
         
         session_name = self.rand_string()
-        session = flywheel.SessionInput(
+        session = flywheel.Session(
             label=session_name, 
             project=self.project_id, 
             info = { 'some-key': 37 },
-            subject = flywheel.SubjectInput(
+            subject = flywheel.Subject(
                 code = self.rand_string_lower(),
                 firstname = self.rand_string(),
                 lastname = self.rand_string(),
@@ -58,7 +58,7 @@ class SessionsTestCases(SdkTestCase):
 
         # Modify
         new_name = self.rand_string()
-        session_mod = flywheel.SessionInput(label=new_name)
+        session_mod = flywheel.Session(label=new_name)
         fw.modify_session(session_id, session_mod)
 
         changed_session = fw.get_session(session_id)
@@ -110,7 +110,7 @@ class SessionsTestCases(SdkTestCase):
     def test_session_files(self):
         fw = self.fw
         
-        session = flywheel.SessionInput(label=self.rand_string(), project=self.project_id) 
+        session = flywheel.Session(label=self.rand_string(), project=self.project_id) 
         session_id = fw.add_session(session)
 
         # Upload a file
@@ -135,7 +135,7 @@ class SessionsTestCases(SdkTestCase):
         self.assertEqual(len(r_session.files[0].measurements), 0)
         self.assertEqual(r_session.files[0].type, 'text')
 
-        resp = fw.modify_session_file(session_id, 'yeats.txt', flywheel.FileUpdate(
+        resp = fw.modify_session_file(session_id, 'yeats.txt', flywheel.FileEntry(
             modality='modality',
             measurements=['measurement'],
             type='type'
@@ -193,7 +193,7 @@ class SessionsTestCases(SdkTestCase):
         session.info = {}
         session.info_exists = info_exists
         session.analyses = None
-        session.subject = flywheel.SubjectOutputDefaultRequired(
+        session.subject = flywheel.Subject(
             id = session.subject.id,
             code = session.subject.code,
             info = {},

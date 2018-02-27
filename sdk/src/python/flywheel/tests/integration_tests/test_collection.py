@@ -24,7 +24,7 @@ class CollectionsTestCases(SdkTestCase):
         fw = self.fw
         
         collection_name = self.rand_string()
-        collection = flywheel.CollectionInput(label=collection_name, description=self.rand_string()) 
+        collection = flywheel.Collection(label=collection_name, description=self.rand_string()) 
 
         # Add
         self.collection_id = collection_id = fw.add_collection(collection)
@@ -90,7 +90,7 @@ class CollectionsTestCases(SdkTestCase):
 
         # Modify
         new_name = self.rand_string()
-        collection_mod = flywheel.CollectionInput(label=new_name)
+        collection_mod = flywheel.Collection(label=new_name)
         fw.modify_collection(collection_id, collection_mod)
 
         changed_collection = fw.get_collection(collection_id)
@@ -143,7 +143,7 @@ class CollectionsTestCases(SdkTestCase):
     def test_collection_files(self):
         fw = self.fw
         
-        collection = flywheel.CollectionInput(label=self.rand_string())
+        collection = flywheel.Collection(label=self.rand_string())
         self.collection_id = collection_id = fw.add_collection(collection)
 
         # Upload a file
@@ -168,7 +168,7 @@ class CollectionsTestCases(SdkTestCase):
         self.assertEqual(len(r_collection.files[0].measurements), 0)
         self.assertEqual(r_collection.files[0].type, 'text')
 
-        resp = fw.modify_collection_file(collection_id, 'yeats.txt', flywheel.FileUpdate(
+        resp = fw.modify_collection_file(collection_id, 'yeats.txt', flywheel.FileEntry(
             modality='modality',
             measurements=['measurement'],
             type='type'

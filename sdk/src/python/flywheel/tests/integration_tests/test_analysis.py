@@ -32,7 +32,7 @@ class AnalysisTestCases(SdkTestCase):
 
         tag = self.rand_string()
 
-        job = flywheel.JobInput(
+        job = flywheel.Job(
             gear_id=self.gear_id,
             inputs={
                 'any-file': file_ref
