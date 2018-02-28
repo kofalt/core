@@ -17,6 +17,11 @@ classdef ApiClient
         end
         function resp = callApi(obj, method, path, pathParams, queryParams, headers, body, postParams, files)
             resp = obj.restClient.callApi(method, path, pathParams, queryParams, headers, body, postParams, files);
+            statusCode = resp.getStatusCode();
+            if statusCode < 200 || statusCode > 299
+                reason = resp.getReasonPhrase().toCharArray';
+                throw(MException('ApiClient:apiException', '(%d) Reason: %s', statusCode, reason));
+            end
         end
     end
     methods(Static)
