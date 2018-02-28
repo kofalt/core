@@ -62,7 +62,12 @@ classdef {{classname}}
             pathParams = {};
             {{#pathParams}}
             if ~isempty(x__inp.Results.{{paramName}})
+                {{^isListContainer}}
                 pathParams = [pathParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+                {{/isListContainer}}
+                {{#isListContainer}}
+                pathParams = {{packageName}}.ApiClient.formatParamCollection(pathParams, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
+                {{/isListContainer}}
             end
             {{/pathParams}}
 
@@ -70,7 +75,12 @@ classdef {{classname}}
             queryParams = {};
             {{#queryParams}}
             if ~isempty(x__inp.Results.{{paramName}})
+                {{^isListContainer}}
                 queryParams = [queryParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+                {{/isListContainer}}
+                {{#isListContainer}}
+                queryParams = {{packageName}}.ApiClient.formatParamCollection(queryParams, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
+                {{/isListContainer}}
             end
             {{/queryParams}}
 
@@ -78,7 +88,12 @@ classdef {{classname}}
             headers = {};
             {{#headerParams}}
             if ~isempty(x__inp.Results.{{paramName}})
+                {{^isListContainer}}
                 headers = [headers, '{{baseName}}', x__inp.Results.{{paramName}}];
+                {{/isListContainer}}
+                {{#isListContainer}}
+                headers = {{packageName}}.ApiClient.formatParamCollection(headers, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
+                {{/isListContainer}}
             end
             {{/headerParams}}
 
@@ -88,7 +103,12 @@ classdef {{classname}}
             {{#formParams}}
             if ~isempty(x__inp.Results.{{paramName}})
                 {{#notFile}}
+                {{^isListContainer}}
                 formParams = [formParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+                {{/isListContainer}}
+                {{#isListContainer}}
+                formParams = {{packageName}}.ApiClient.formatParamCollection(formParams, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
+                {{/isListContainer}}
                 {{/notFile}}
                 {{#isFile}}
                 files = [files, {{packageName}}.FileSpec.parametrize(x__inp.Results.{{paramName}})];
