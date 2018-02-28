@@ -452,15 +452,11 @@ class ApiClient(object):
                 if not v:
                     continue
                 file_names = v if type(v) is list else [v]
-                for idx in range(len(file_names)):
-                    n = file_names[idx]
+                for n in file_names:
                     if not hasattr(n, 'to_file_tuple'):
                         n = file_spec.FileSpec(n)
-                    if len(file_names) > 1:
-                        param_name = k + str(idx+1)
-                    else:
-                        param_name = k
-                    params.append(tuple([param_name, n.to_file_tuple()]))
+
+                    params.append(tuple([k, n.to_file_tuple()]))
 
         return params
 
