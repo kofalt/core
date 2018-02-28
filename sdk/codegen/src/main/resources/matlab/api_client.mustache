@@ -32,5 +32,28 @@ classdef ApiClient
             body = resp.getBodyAsString().toCharArray';
             json = jsonread(body, struct('ReplacementStyle', 'hex'));
         end
+        function params = formatParamCollection(params, name, value, format)
+            if iscell(value)
+                if format == 'multi'
+                    for val = value
+                        params = [params, name, val];
+                    end
+                else
+                    switch format
+                        case 'ssv'
+                            delimiter = ' ';
+                        case 'tsv'
+                            delimiter = '\t';
+                        case 'pipes'
+                            delimiter = '|';
+                        otherwise
+                            delimiter = ',';
+                    end
+                    params = [params, name, strjoin(value, delimiter)];
+                end
+            else
+                params = [params, name, value];
+            end
+        end
     end
 end
