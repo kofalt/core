@@ -58,14 +58,14 @@ class {{classname}}(object):
         {{! File download implementation }}
         kwargs['_preload_content'] = False
         # Stream response to file
-        (resp) = self.{{operationId}}_with_http_info({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs)  # noqa: E501
-        if resp:
-            try:
-                with open({{.}}, 'wb') as out_file:
+        with open({{.}}, 'wb') as out_file:
+            (resp) = self.{{operationId}}_with_http_info({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs)  # noqa: E501
+            if resp:
+                try:
                     for chunk in resp.iter_content(chunk_size=65536):
                         out_file.write(chunk)
-            finally:
-                resp.close()
+                finally:
+                    resp.close()
         {{/vendorExtensions.x-sdk-download-file-param}}
         {{^vendorExtensions.x-sdk-download-file-param}}
         if kwargs.get('async'):

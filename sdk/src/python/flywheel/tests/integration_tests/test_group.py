@@ -49,6 +49,23 @@ class GroupsTestCases(SdkTestCase):
         groups = fw.get_all_groups()
         self.assertNotIn(r_group, groups)
 
+    def test_group_errors(self):
+        fw = self.fw
+
+        # Try to create group without label or id
+        try:
+            fw.add_group({})
+            self.fail('Expected ApiException creating invalid group!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 400)
+
+        # Try to get a group that doesn't exist
+        try:
+            fw.get_group('DOES_NOT_EXIST')
+            self.fail('Expected ApiException retrieving invalid group!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 404)
+
 
 def create_test_group():
     group_id = SdkTestCase.rand_string_lower()

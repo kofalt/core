@@ -50,7 +50,13 @@ class RESTClientObject(object):
         else:
             self.session.verify = configuration.verify_ssl
 
+        self.session.hooks['response'].append(self.response_hook)
+
         # TODO: Setup connection pool?
+
+    def response_hook(self, resp, *args, **kwargs):
+        if not 200 <= resp.status_code <= 299:
+            raise ApiException(http_resp=resp)
 
     def request(self, method, url, query_params=None, headers=None,
                 body=None, post_params=None, _preload_content=True,
@@ -152,11 +158,6 @@ class RESTClientObject(object):
             # log response body
             logger.debug("response body: %s", r.data)
 
-            if not 200 <= r.status <= 299:
-                raise ApiException(http_resp=r)
-        elif not 200 <= r.status_code <= 299:
-            raise ApiException(http_resp=RESTResponse(r))
-
         return r
 
     def GET(self, url, headers=None, query_params=None, _preload_content=True,
@@ -228,11 +229,17 @@ class RESTClientObject(object):
 class ApiException(Exception):
 
     def __init__(self, status=None, reason=None, http_resp=None):
-        if http_resp:
-            self.status = http_resp.status
+        if http_resp is not None:
+            self.status = http_resp.status_code
             self.reason = http_resp.reason
-            self.body = http_resp.data
-            self.headers = http_resp.getheaders()
+            try:
+                if six.PY3:
+                    self.body = http_resp.data.decode('utf8')
+                else:
+                    self.body = http_resp.data
+            except:
+                self.body = None
+            self.headers = http_resp.headers
         else:
             self.status = status
             self.reason = reason
