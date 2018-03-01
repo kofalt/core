@@ -188,6 +188,24 @@ class SessionsTestCases(SdkTestCase):
         # Delete session
         fw.delete_session(session_id)
 
+    def test_session_errors(self):
+        fw = self.fw
+
+        # Try to create session without project id
+        try:
+            session = flywheel.Session(label=self.rand_string())
+            session_id = fw.add_session(session)
+            self.fail('Expected ApiException creating invalid session!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 400)
+
+        # Try to get a session that doesn't exist
+        try:
+            fw.get_session('DOES_NOT_EXIST')
+            self.fail('Expected ApiException retrieving invalid session!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 404)
+
     def sanitize_for_collection(self, session, info_exists=True):
         # workaround: all-container endpoints skip some fields, single-container does not. this sets up the equality check 
         session.info = {}

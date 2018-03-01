@@ -166,6 +166,24 @@ class AcquisitionsTestCases(SdkTestCase):
         # Delete acquisition
         fw.delete_acquisition(acquisition_id)
 
+    def test_acquisition_errors(self):
+        fw = self.fw
+
+        # Try to create acquisition without session id
+        try:
+            acquisition = flywheel.Acquisition(label=self.rand_string())
+            acquisition_id = fw.add_acquisition(acquisition)
+            self.fail('Expected ApiException creating invalid acquisition!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 400)
+
+        # Try to get an acquisition that doesn't exist
+        try:
+            fw.get_acquisition('DOES_NOT_EXIST')
+            self.fail('Expected ApiException retrieving invalid acquisition!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 404)
+
     def sanitize_for_collection(self, acquisition, info_exists=True):
         # workaround: all-container endpoints skip some fields, single-container does not. this sets up the equality check 
         acquisition.info = {}

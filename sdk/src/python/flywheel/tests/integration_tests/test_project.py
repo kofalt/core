@@ -231,6 +231,23 @@ class ProjectsTestCases(SdkTestCase):
             # Always cleanup project
             self.fw_root.delete_project(project_id)
 
+    def test_project_errors(self):
+        fw = self.fw
+
+        # Try to create project without group id
+        try:
+            project = flywheel.Project(label=self.rand_string())
+            fw.add_project(project)
+            self.fail('Expected ApiException creating invalid project!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 400)
+
+        # Try to get a project that doesn't exist
+        try:
+            fw.get_project('DOES_NOT_EXIST')
+            self.fail('Expected ApiException retrieving invalid project!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 404)
 
 def create_test_project():
     group_id = create_test_group()
