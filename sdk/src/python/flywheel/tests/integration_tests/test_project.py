@@ -174,7 +174,62 @@ class ProjectsTestCases(SdkTestCase):
         # Delete project
         fw.delete_project(project_id)
 
-# TODO: Root mode tests
+    def test_create_project_in_root_mode(self):
+        fw = self.fw
+
+        group = fw.get_group(self.group_id)
+        
+        # Remove permissions from group
+        user_id = group.permissions[0].id
+        fw.delete_group_user_permission(self.group_id, user_id)
+
+        # Check that permission was removed successfully
+        group = fw.get_group(self.group_id)
+        self.assertEmpty(group.permissions)
+
+        # Assert that we get a 403 error attempting to create a project without permission
+        project_name = self.rand_string()
+        project = flywheel.Project(label=self.rand_string(), group=self.group_id)
+
+        try:
+            fw.add_project(project)
+            self.fail('Expected ApiException creating project!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 403)
+
+        # We shouldn't get an error in root mode
+        project_id = self.fw_root.add_project(project)
+        self.assertNotEmpty(project_id)
+      
+        try:
+            # Delete implicit permission from the project
+            fw.delete_project_user_permission(project_id, user_id)
+
+            # Should get a 403 error trying to retrieve the project
+            try:
+                fw.get_project(project_id)
+                self.fail('Expected ApiException retrieving project!')
+            except flywheel.ApiException as e:
+                self.assertEqual(e.status, 403)
+
+            # Should be able to retrieve as root
+            r_project = self.fw_root.get_project(project_id)
+            self.assertEqual(r_project.label, project.label)
+
+            # Should be in list retrieved as root
+            r_project.info = {}
+            r_project.info_exists = False 
+            r_project.analyses = None
+            projects = self.fw_root.get_all_projects()
+            self.assertIn(r_project, projects)
+
+            # Should not show up in normal list
+            projects = fw.get_all_projects()
+            self.assertNotIn(r_project, projects)
+
+        finally:
+            # Always cleanup project
+            self.fw_root.delete_project(project_id)
 
 
 def create_test_project():

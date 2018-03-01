@@ -32,10 +32,15 @@ def config_from_api_key(api_key):
     return config
 
 class Flywheel:
-    def __init__(self, api_key):
+    def __init__(self, api_key, root=False):
         # Parse API Key and configure api_client
         config = config_from_api_key(api_key)
         self.api_client = ApiClient(config)
+
+        # Root mode
+        if root:
+            self.api_client.set_default_query_param('root', 'true')
+
         # Initialize Apis
         {{#apis}}
         self.{{classVarName}} = {{apiPackage}}.{{classname}}(self.api_client)
