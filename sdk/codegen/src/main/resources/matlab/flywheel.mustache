@@ -38,8 +38,14 @@ classdef Flywheel
         {{/apiInfo}}
     end
     methods
-        function obj = Flywheel(apiKey)
+        function obj = Flywheel(apiKey, root)
             obj.apiClient = {{packageName}}.ApiClient(apiKey);
+
+            % Set root mode
+            if exist('root', 'var') && root
+                obj.apiClient.restClient.addDefaultParameter('root', 'true');
+            end
+
             {{#apiInfo}}
             {{#apis}}
             obj.{{classVarName}} = {{apiPackage}}.{{classname}}(obj.apiClient);
