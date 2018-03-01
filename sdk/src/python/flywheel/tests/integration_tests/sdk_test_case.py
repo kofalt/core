@@ -6,6 +6,7 @@ import unittest
 
 api_key = os.environ['SdkTestKey']
 FLYWHEEL_CLIENT=flywheel.Flywheel(api_key)
+ROOT_CLIENT=flywheel.Flywheel(api_key, root=True)
 
 HEX_DIGITS = '0123456789abcdef'
 TD_ZERO = timedelta()
@@ -17,6 +18,7 @@ def utcnow():
 
 class SdkTestCase(unittest.TestCase):
     fw = FLYWHEEL_CLIENT
+    fw_root = ROOT_CLIENT
 
     @classmethod
     def rand_string_lower(self, length=10):
