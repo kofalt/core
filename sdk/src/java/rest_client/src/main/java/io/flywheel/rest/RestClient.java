@@ -162,6 +162,15 @@ public class RestClient {
     }
 
     /**
+     * Add a query parameter to be set on every request.
+     * @param name The parameter name
+     * @param value The parameter value
+     */
+    public void addDefaultParameter(String name, String value) {
+        defaultParameters.put(name, value);
+    }
+
+    /**
      * Initializes method with the default headers, including authorization, and
      * sets the request entity, if a body is specified.
      * @param method The method instance
