@@ -25,13 +25,16 @@ task generateApi(dependsOn: ':custom-swagger-codegen:jar') {
 		config.setTemplateDir(templateDir)
 		config.setLang('fw-python')
 		config.addAdditionalProperty("packageName", "flywheel")
+		System.setProperty("apiTests", "false")
+		System.setProperty("modelTests", "false")
 
 		new DefaultGenerator().opts(config.toClientOptInput()).generate()
 	}
 }
 
+build.dependsOn generateApi
+
 clean.doFirst {
 	delete(swaggerOutputDir)
 }
 
-	

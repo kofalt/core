@@ -44,6 +44,10 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
 
         // Flywheel wrapper file
         supportingFiles.add(new SupportingFile("flywheel.mustache", packageName, "flywheel.py"));
+
+        // PIP Files
+        supportingFiles.add(new SupportingFile("LICENSE.mustache", "", "LICENSE.txt"));
+        supportingFiles.add(new SupportingFile("setup-cfg.mustache", "", "setup.cfg"));
     }
 
     @Override

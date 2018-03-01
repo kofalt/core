@@ -4,7 +4,7 @@
 
 from setuptools import setup, find_packages  # noqa: H301
 
-NAME = "{{{projectName}}}"
+NAME = "flywheel-sdk"
 VERSION = "{{packageVersion}}"
 {{#apiInfo}}
 {{#apis}}
@@ -31,13 +31,14 @@ REQUIRES.append("requests-toolbelt")
 setup(
     name=NAME,
     version=VERSION,
-    description="{{appName}}",
-    author_email="{{infoEmail}}",
+    description="Flywheel SDK",
+    author_email="support@flywheel.io",
     url="{{packageUrl}}",
-    keywords=["Swagger", "{{appName}}"],
+    keywords=["Swagger", "{{appName}}", "flywheel"],
     install_requires=REQUIRES,
     packages=find_packages(),
     include_package_data=True,
+    license="MIT",
     long_description="""\
     {{appDescription}}  # noqa: E501
     """
