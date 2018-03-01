@@ -25,6 +25,8 @@ task generateApi(dependsOn: ':custom-swagger-codegen:jar') {
 		config.setTemplateDir(templateDir)
 		config.setLang('fw-python')
 		config.addAdditionalProperty("packageName", "flywheel")
+		config.addAdditionalProperty("packageVersion", project.version)
+
 		System.setProperty("apiTests", "false")
 		System.setProperty("modelTests", "false")
 
