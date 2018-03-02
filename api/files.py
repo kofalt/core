@@ -16,8 +16,11 @@ from . import config, util
 DEFAULT_HASH_ALG = 'sha384'
 
 class FileProcessor(object):
-    def __init__(self, presistent_fs, local_tmp_fs=False):
-        self._tempdir_name = str(uuid.uuid4())
+    def __init__(self, presistent_fs, local_tmp_fs=False, tempdir_name=None):
+        if not tempdir_name:
+            self._tempdir_name = str(uuid.uuid4())
+        else:
+            self._tempdir_name = tempdir_name
         self._presistent_fs = presistent_fs
         self._presistent_fs.makedirs(fs.path.join('tmp', self._tempdir_name), recreate=True)
         if not local_tmp_fs:
