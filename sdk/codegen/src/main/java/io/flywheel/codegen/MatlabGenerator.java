@@ -51,7 +51,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
         importMapping.clear();
 
-        supportsInheritance = false;
+        supportsInheritance = true;
 
         // set the output folder here
         outputFolder = "generated-code/matlab";
@@ -461,6 +461,12 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
             for (CodegenProperty prop : model.allVars) {
                 prop.vendorExtensions.put("x-matlab-paddedName", String.format(fmt, prop.name));
             }
+        }
+
+        // Convert discriminator name
+        if( model.discriminator != null ) {
+            String matlabDiscriminator = makeValidMatlabNameHex(model.discriminator);
+            model.vendorExtensions.put("x-matlab-discriminator", matlabDiscriminator);
         }
 
         return objs;

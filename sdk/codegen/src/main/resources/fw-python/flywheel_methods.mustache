@@ -16,6 +16,12 @@
     def change_job_state(self, job_id, state):
         return self.modify_job(job_id, { 'state': state })
 
+    def resolve(self, path):
+        if not isinstance(path, list):
+            path = path.split('/')
+
+        return self.resolve_path(flywheel.ResolverInput(path=path))
+
     {{#apis}}
     {{#operations}}
     {{#operation}}

@@ -16,11 +16,16 @@ classdef {{classname}} < {{packageName}}.ModelBase
     properties (Constant)
         {{#hasVars}}
         propertyMap = containers.Map({ {{#vars}}'{{name}}'{{#hasMore}}, {{/hasMore}}{{/vars}} }, ...
-            { {{#vars}}'{{baseName}}'{{#hasMore}}, {{/hasMore}}{{/vars}} })
+            { {{#vars}}'{{baseName}}'{{#hasMore}}, {{/hasMore}}{{/vars}} });
         {{/hasVars}}
         {{^hasVars}}
         propertyMap = [];
         {{/hasVars}}
+        {{#discriminator}}
+
+        discriminatorValueClassMap = containers.Map({ {{#children}}'{{^vendorExtensions.x-discriminator-value}}{{name}}{{/vendorExtensions.x-discriminator-value}}{{#vendorExtensions.x-discriminator-value}}{{{.}}}{{/vendorExtensions.x-discriminator-value}}'{{^-last}}, {{/-last}}{{/children}} }, ...
+            { {{#children}}'{{modelPackage}}.{{classname}}.fromJson'{{^-last}}, {{/-last}}{{/children}} });
+        {{/discriminator}}
     end
     methods
         function obj = {{classname}}(varargin)
@@ -191,6 +196,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
         end
     end
     methods(Static)
+        {{^discriminator}}
         function obj = fromJson(json)
             obj =  {{modelPackage}}.{{classname}};
             {{#vars}}
@@ -203,7 +209,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 obj.props_('{{baseName}}') = {{modelPackage}}.{{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
                 {{/isListContainer}}
                 {{#isListContainer}}
-                obj.props_('{{baseName}}') = arrayfun(@(x)  {{modelPackage}}.{{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}}, 'UniformOutput', false);
+                obj.props_('{{baseName}}') = {{packageName}}.ModelBase.cellmap(@(x)  {{modelPackage}}.{{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}});
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             end
@@ -231,11 +237,22 @@ classdef {{classname}} < {{packageName}}.ModelBase
             end
             {{/vars}}
         end
+        {{/discriminator}}
+        {{#discriminator}}
+        function result = fromJson(json)
+            discriminatorValue = json.{{vendorExtensions.x-matlab-discriminator}};
+            if isKey({{modelPackage}}.{{classname}}.discriminatorValueClassMap, discriminatorValue)
+                result = feval({{modelPackage}}.{{classname}}.discriminatorValueClassMap(discriminatorValue), json);
+            else
+                result = [];
+            end
+        end
+        {{/discriminator}}
         function obj = ensureIsInstance(obj)
             if ~isempty(obj)
                 % Realistically, we only convert structs
                 if ~isa(obj, '{{modelPackage}}.{{classname}}')
-                    obj =  {{modelPackage}}.{{classname}}(obj);
+                    obj = {{modelPackage}}.{{classname}}(obj);
                 end
                 {{#vars}}
                 if isKey(obj.props_, '{{baseName}}')
@@ -244,7 +261,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                     obj.props_('{{baseName}}') =  {{modelPackage}}.{{complexType}}.ensureIsInstance(obj.props_('{{baseName}}'));
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    obj.props_('{{baseName}}') = ModelBase.cellmap(@(x)  {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_('{{baseName}}'));
+                    obj.props_('{{baseName}}') = {{packageName}}.ModelBase.cellmap(@(x) {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_('{{baseName}}'));
                     {{/isListContainer}}
                     {{/isPrimitiveType}}
                 end
@@ -259,7 +276,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                     obj.props_(key) =  {{modelPackage}}.{{complexType}}.ensureIsInstance(obj.props_(key));
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    obj.props_(key) = ModelBase.cellmap(@(x)  {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_(key));
+                    obj.props_(key) = {{packageName}}.ModelBase.cellmap(@(x) {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_(key));
                     {{/isListContainer}}
                 end
                 {{/isPrimitiveType}}
