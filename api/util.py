@@ -483,3 +483,8 @@ def origin_to_str(origin):
     if 'via' in origin:
         result += ' (via %s)' % origin_to_str(origin['via'])
     return result
+
+def add_node_type(request, result):
+    """Adds a 'node_type' property to result if fw_node_type is set in the request environment."""
+    if 'fw_node_type' in request.environ and isinstance(result, dict):
+        result['node_type'] = request.environ['fw_node_type']
