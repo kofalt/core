@@ -48,13 +48,14 @@ class ContainerStorage(object):
     Examples: projects, sessions, acquisitions and collections
     """
 
-    def __init__(self, cont_name, use_object_id=False, use_delete_tag=False, parent_cont_name=None, child_cont_name=None):
+    def __init__(self, cont_name, use_object_id=False, use_delete_tag=False, parent_cont_name=None, child_cont_name=None, list_projection=None):
         self.cont_name = cont_name
         self.parent_cont_name = parent_cont_name
         self.child_cont_name = child_cont_name
         self.use_object_id = use_object_id
         self.use_delete_tag = use_delete_tag
         self.dbc = config.db[cont_name]
+        self.list_projection = list_projection
 
     @classmethod
     def factory(cls, cont_name):
@@ -292,8 +293,7 @@ class ContainerStorage(object):
         self._from_mongo(cont)
         if fill_defaults:
             self._fill_default_values(cont)
-        if cont is not None and cont.get('files', []):
-            cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
+        self.filter_deleted_files(cont)
         return cont
 
     def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
@@ -324,8 +324,7 @@ class ContainerStorage(object):
         results = page['results']
 
         for cont in results:
-            if cont.get('files', []):
-                cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
+            self.filter_deleted_files(cont)
             self._from_mongo(cont)
             if fill_defaults:
                 self._fill_default_values(cont)
@@ -387,3 +386,20 @@ class ContainerStorage(object):
             update['$set']['modified'] = datetime.datetime.utcnow()
 
         return self.dbc.update_one(query, update)
+
+    def filter_deleted_files(self, cont):
+        """
+        Update container object, removing any files that are marked deleted.
+        """
+        if cont is not None and 'files' in cont:
+            cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
+
+
+    def get_list_projection(self):
+        """
+        Return a copy of the list projection to use with this container, or None.
+        It is safe to modify the returned copy.
+        """
+        if self.list_projection:
+            return self.list_projection.copy()
+        return None
