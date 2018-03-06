@@ -469,3 +469,8 @@ def parse_pagination_int_param(int_param):
         raise PaginationParseError('Invalid pagination int: {}'.format(e.message))
 
     return pagination_int
+
+def add_node_type(request, result):
+    """Adds a 'node_type' property to result if fw_node_type is set in the request environment."""
+    if 'fw_node_type' in request.environ and isinstance(result, dict):
+        result['node_type'] = request.environ['fw_node_type']
