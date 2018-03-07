@@ -296,7 +296,19 @@ class ContainerStorage(object):
         self.filter_deleted_files(cont)
         return cont
 
-    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
+        """
+        Get all elements matching query for this container.
+
+        Args:
+            query (dict): The query object, or None for all elements
+            user (dict): The user object, if filtering on permissions is desired, otherwise None
+            projection (dict): The optional projection to use for returned elements
+            fill_defaults (bool): Whether or not to populate the default values for returned elements. Default is False.
+            pagination (dict): The pagination options. Default is None.
+            **kwargs: Additional arguments to pass to the underlying find function
+
+        """
         if query is None:
             query = {}
         if user:
@@ -320,7 +332,9 @@ class ContainerStorage(object):
         else:
             replace_info_with_bool = False
 
-        page = dbutil.paginate_find(self.dbc, {'filter': query, 'projection': projection}, pagination)
+        kwargs['filter'] = query
+        kwargs['projection'] = projection
+        page = dbutil.paginate_find(self.DBC, kwargs, pagination)
         results = page['results']
 
         for cont in results:
