@@ -67,6 +67,56 @@ class ResolverTestCases(SdkTestCase):
         self.assertEqual(r_file.name, 'yeats.txt')
         self.assertEqual(r_file.size, len(poem))
 
+    def test_lookup(self):
+        fw = self.fw
+        group_id = self.group_id
+
+        # Resolve initial path so we have labels to use for lookup/compare
+        result = fw.resolve('{0}/<id:{1}>/<id:{2}>/<id:{3}>'.format(
+            group_id, self.project_id, self.session_id, self.acquisition_id))
+        self.assertEqual(4, len(result.path))
+        r_group = result.path[0]
+        r_project = result.path[1]
+        r_session = result.path[2]
+        r_acquisition = result.path[3]
+
+        # Upload file acquisition
+        poem = 'The Second Coming! Hardly are those words out'
+        fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
+
+        # Resolve group 
+        result = fw.lookup([group_id])
+        self.assertEqual(result.id, group_id)
+        self.assertEqual(result.label, r_group.label)
+
+        # Resolve project 
+        result = fw.lookup('{0}/{1}'.format(group_id, r_project.label))
+        self.assertEqual(result.id, self.project_id)
+        self.assertEqual(result.group, group_id)
+
+        # Resolve session (using id string)
+        result = fw.lookup('{0}/{1}/<id:{2}>'.format(group_id, r_project.label, self.session_id))
+        self.assertEqual(result.id, self.session_id)
+        self.assertEqual(result.label, r_session.label)
+        self.assertEqual(result.project, self.project_id)
+
+        # Resolve acquisition
+        result = fw.lookup([group_id, r_project.label, r_session.label, r_acquisition.label])
+        self.assertEqual(result.id, r_acquisition.id)
+        self.assertEqual(result.label, r_acquisition.label)
+        self.assertEqual(result.session, self.session_id)
+
+        self.assertEqual(len(result.files), 1)
+        r_file = result.files[0]
+        self.assertEqual(r_file.name, 'yeats.txt')
+        self.assertEqual(r_file.size, len(poem))
+
+        # Resolve acquisition file
+        result = fw.lookup([group_id, r_project.label, r_session.label, r_acquisition.label, 'yeats.txt'])
+        self.assertEqual(result.name, 'yeats.txt')
+        self.assertEqual(result.size, len(poem))
+
+
     def test_resolver_permissions(self):
         fw = self.fw
         group_id = self.group_id
