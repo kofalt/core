@@ -52,6 +52,12 @@
 
         return self.resolve_path(flywheel.ResolverInput(path=path))
 
+    def lookup(self, path):
+        if not isinstance(path, list):
+            path = path.split('/')
+
+        return self.lookup_path(flywheel.ResolverInput(path=path))
+
     {{#apis}}
     {{#operations}}
     {{#operation}}
