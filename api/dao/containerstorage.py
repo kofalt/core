@@ -450,7 +450,8 @@ class CollectionStorage(ContainerStorage):
 class AnalysisStorage(ContainerStorage):
 
     def __init__(self):
-        super(AnalysisStorage, self).__init__('analyses', use_object_id=True, use_delete_tag=True)
+        super(AnalysisStorage, self).__init__('analyses', use_object_id=True, use_delete_tag=True, 
+            list_projection={'info': 0, 'files.info': 0, 'tags': 0})
 
 
     def get_parent(self, _id, cont=None, projection=None):
@@ -469,13 +470,13 @@ class AnalysisStorage(ContainerStorage):
         return ps.get_parent_tree(cont['parent']['id'], add_self=True)
 
 
-    def get_analyses(self, query, parent_type, parent_id, inflate_job_info=False, **kwargs):
+    def get_analyses(self, query, parent_type, parent_id, inflate_job_info=False, projection=None, **kwargs):
         if query is None:
             query = {}
         query['parent.type'] = containerutil.singularize(parent_type)
         query['parent.id'] = bson.ObjectId(parent_id)
 
-        analyses = self.get_all_el(query, None, None, **kwargs)
+        analyses = self.get_all_el(query, None, projection, **kwargs)
         if inflate_job_info:
             for analysis in analyses:
                 self.inflate_job_info(analysis)
