@@ -129,6 +129,9 @@ class ContainerStorage(object):
             cont[containerutil.pluralize(self.child_cont_name)] = children
         return cont
 
+    def get_child_container_name(self):
+        return CHILD_MAP.get(self.cont_name)
+
     def get_children_legacy(self, _id, projection=None, uid=None):
         """
         A get_children method that returns sessions from the project level rather than subjects.
