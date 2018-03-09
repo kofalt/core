@@ -101,7 +101,7 @@ class ContainerHandler(base.RequestHandler):
             self.join_user_info([result])
 
         inflate_job_info = cont_name == 'sessions'
-        result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
+        result['analyses'] = AnalysisStorage().get_analyses(None, cont_name, _id, inflate_job_info)
 
         util.add_node_type(self.request, result)
 
@@ -226,7 +226,7 @@ class ContainerHandler(base.RequestHandler):
 
         permchecker(noop)('GET', cid)
 
-        analyses = AnalysisStorage().get_analyses('session', cont['_id'])
+        analyses = AnalysisStorage().get_analyses(None, 'session', cont['_id'])
         acquisitions = cont.get('acquisitions', [])
 
         if not acquisitions and not analyses:
