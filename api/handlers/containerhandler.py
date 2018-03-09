@@ -130,7 +130,7 @@ class ContainerHandler(base.RequestHandler):
 
         permchecker(noop)('GET', cid)
 
-        analyses = AnalysisStorage().get_analyses('session', cont['_id'])
+        analyses = AnalysisStorage().get_analyses(None, 'session', cont['_id'])
         acquisitions = cont.get('acquisitions', [])
 
         if not acquisitions and not analyses:
