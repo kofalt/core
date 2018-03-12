@@ -69,7 +69,7 @@ class GroupsTestCases(SdkTestCase):
 
 def create_test_group():
     group_id = SdkTestCase.rand_string_lower()
-    return SdkTestCase.fw.add_group(flywheel.Group(group_id))
+    return SdkTestCase.fw.add_group(flywheel.Group(group_id, label=SdkTestCase.rand_string()))
         
 
 
