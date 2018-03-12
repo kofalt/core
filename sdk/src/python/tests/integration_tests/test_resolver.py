@@ -1,8 +1,12 @@
 import unittest
 from sdk_test_case import SdkTestCase
 from test_acquisition import create_test_acquisition
+from test_gear import create_test_gear
 
 import flywheel
+
+def idz(s):
+    return '<id:{0}>'.format(s)
 
 class ResolverTestCases(SdkTestCase):
     def setUp(self):
@@ -15,6 +19,11 @@ class ResolverTestCases(SdkTestCase):
     def test_resolver(self):
         fw = self.fw
         group_id = self.group_id
+
+        # Create test gear
+        gear_id = create_test_gear()
+        gear = self.fw.get_gear(gear_id)
+        self.assertIsNotNone(gear)
 
         # Upload file acquisition
         poem = 'The Second Coming! Hardly are those words out'
@@ -67,54 +76,77 @@ class ResolverTestCases(SdkTestCase):
         self.assertEqual(r_file.name, 'yeats.txt')
         self.assertEqual(r_file.size, len(poem))
 
+        # TODO: Test Analyses
+
+        # Test resolve gears
+        result = fw.resolve('gears')
+        self.assertEmpty(result.path)
+        self.assertGreaterEqual(len(result.children), 1)
+        found = False
+        for child in result.children:
+            if child.id == gear_id:
+                found = True
+                break
+        self.assertTrue(found)
+
     def test_lookup(self):
         fw = self.fw
         group_id = self.group_id
 
-        # Resolve initial path so we have labels to use for lookup/compare
-        result = fw.resolve('{0}/<id:{1}>/<id:{2}>/<id:{3}>'.format(
-            group_id, self.project_id, self.session_id, self.acquisition_id))
-        self.assertEqual(4, len(result.path))
-        r_group = result.path[0]
-        r_project = result.path[1]
-        r_session = result.path[2]
-        r_acquisition = result.path[3]
+        # Get labels for everything
+        result = fw.resolve([group_id, idz(self.project_id), idz(self.session_id)])
+        self.assertEqual(3, len(result.path))
+        self.assertEqual(1, len(result.children))
+
+        group = result.path[0]
+        project = result.path[1]
+        session = result.path[2]
+        acquisition = result.children[0]
+
+        # Create test gear
+        gear_id = create_test_gear()
+        gear = self.fw.get_gear(gear_id)
+        self.assertIsNotNone(gear)
 
         # Upload file acquisition
         poem = 'The Second Coming! Hardly are those words out'
         fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
 
         # Resolve group 
-        result = fw.lookup([group_id])
-        self.assertEqual(result.id, group_id)
-        self.assertEqual(result.label, r_group.label)
+        r_group = fw.lookup([group_id])
+        self.assertEqual(r_group.id, group_id)
+        self.assertIsNotNone(r_group.label)
+        self.assertNotEmpty(r_group.permissions)
 
         # Resolve project 
-        result = fw.lookup('{0}/{1}'.format(group_id, r_project.label))
-        self.assertEqual(result.id, self.project_id)
-        self.assertEqual(result.group, group_id)
+        r_project = fw.lookup('{0}/{1}'.format(group_id, project.label))
+        self.assertEqual(r_project.id, self.project_id)
 
-        # Resolve session (using id string)
-        result = fw.lookup('{0}/{1}/<id:{2}>'.format(group_id, r_project.label, self.session_id))
-        self.assertEqual(result.id, self.session_id)
-        self.assertEqual(result.label, r_session.label)
-        self.assertEqual(result.project, self.project_id)
+        # Resolve session children (using id string)
+        r_session = fw.lookup('{0}/{1}/<id:{2}>'.format(group_id, project.label, self.session_id))
+        self.assertEqual(r_session.id, self.session_id)
 
-        # Resolve acquisition
-        result = fw.lookup([group_id, r_project.label, r_session.label, r_acquisition.label])
-        self.assertEqual(result.id, r_acquisition.id)
-        self.assertEqual(result.label, r_acquisition.label)
-        self.assertEqual(result.session, self.session_id)
+        # Resolve acquisition 
+        r_acquisition = fw.lookup([group_id, project.label, session.label, acquisition.label])
+        self.assertEqual(r_acquisition.id, self.acquisition_id)
 
-        self.assertEqual(len(result.files), 1)
-        r_file = result.files[0]
+        # Resolve acquisition file
+        r_file = fw.lookup([group_id, project.label, session.label, acquisition.label, 'files', 'yeats.txt'])
         self.assertEqual(r_file.name, 'yeats.txt')
         self.assertEqual(r_file.size, len(poem))
 
-        # Resolve acquisition file
-        result = fw.lookup([group_id, r_project.label, r_session.label, r_acquisition.label, 'yeats.txt'])
-        self.assertEqual(result.name, 'yeats.txt')
-        self.assertEqual(result.size, len(poem))
+        # Test not found
+        try:
+            fw.lookup('NOT-A-GROUP/NOT-A-PROJECT')
+            self.fail('Expected ApiException!')
+        except flywheel.ApiException as e:
+            self.assertEqual(e.status, 404)
+
+        # TODO: Test Analyses
+
+        # Test resolve gears
+        r_gear = fw.lookup(['gears', gear.gear.name])
+        self.assertEqual(r_gear.gear, gear.gear)
 
 
     def test_resolver_permissions(self):
