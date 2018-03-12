@@ -98,7 +98,7 @@ class ContainerHandler(base.RequestHandler):
         if not self.is_enabled('Slim-Containers'):
             result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
         self.handle_origin(result)
-        util.add_node_type(self.request, result)
+        util.add_container_type(self.request, result)
         return result
 
     def _filter_permissions(self, result, uid):

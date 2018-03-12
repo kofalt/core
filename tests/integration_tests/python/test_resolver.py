@@ -44,7 +44,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['path'] == []
-    assert child_in_result({'_id': group, 'node_type': 'group'}, result)
+    assert child_in_result({'_id': group, 'container_type': 'group'}, result)
 
     # try to resolve non-existent root/child
     r = as_admin.post('/resolve', json={'path': ['child']})
@@ -69,7 +69,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert path_in_result([group], result)
-    assert child_in_result({'_id': project, 'node_type': 'project'}, result)
+    assert child_in_result({'_id': project, 'container_type': 'project'}, result)
 
     # try to resolve non-existent root/group/child
     r = as_admin.post('/resolve', json={'path': [group, 'child']})
@@ -92,7 +92,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert path_in_result([group, project], result)
-    assert child_in_result({'name': project_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': project_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # resolve root/group/project (1 file, 1 session)
@@ -102,7 +102,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert path_in_result([group, project], result)
-    assert child_in_result({'_id': session, 'node_type': 'session'}, result)
+    assert child_in_result({'_id': session, 'container_type': 'session'}, result)
     assert len(result['children']) == 2
 
     # resolve root/group/project/files (1 file, 1 session)
@@ -110,7 +110,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert path_in_result([group, project], result)
-    assert child_in_result({'name': project_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': project_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # resolve root/group/project/file (old way)
@@ -151,7 +151,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session], result)
-    assert child_in_result({'name': session_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': session_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # resolve root/group/project/session (1 file, 1 acquisition)
@@ -161,7 +161,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session], result)
-    assert child_in_result({'_id': acquisition, 'node_type': 'acquisition'}, result)
+    assert child_in_result({'_id': acquisition, 'container_type': 'acquisition'}, result)
     assert len(result['children']) == 2
 
     # resolve root/group/project/session/file
@@ -193,7 +193,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session, acquisition], result)
-    assert child_in_result({'name': acquisition_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': acquisition_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # resolve root/group/project/session/acquisition/file
@@ -276,7 +276,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [group]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'group'
+    assert result['container_type'] == 'group'
     assert result['_id'] == group
 
     # try to lookup non-existent root/group/child
@@ -292,7 +292,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [group, project_label]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'project'
+    assert result['container_type'] == 'project'
     assert result['_id'] == project 
 
     # lookup root/group/project/file
@@ -303,7 +303,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [group, project_label, 'files', project_file]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'file'
+    assert result['container_type'] == 'file'
     assert result['name'] == project_file 
     assert 'mimetype' in result
     assert 'size' in result
@@ -321,7 +321,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [group, project_label, session_label]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'session'
+    assert result['container_type'] == 'session'
     assert result['_id'] == session
 
     # lookup root/group/project/session/file
@@ -332,7 +332,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [group, project_label, session_label, 'files', session_file]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'file'
+    assert result['container_type'] == 'file'
     assert result['name'] == session_file 
     assert 'mimetype' in result
     assert 'size' in result
@@ -348,7 +348,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [group, project_label, session_label, acquisition_label]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'acquisition'
+    assert result['container_type'] == 'acquisition'
     assert result['_id'] == acquisition 
 
     # lookup root/group/project/session/acquisition/file
@@ -359,7 +359,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [group, project_label, session_label, acquisition_label, 'files', acquisition_file]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'file'
+    assert result['container_type'] == 'file'
     assert result['name'] == acquisition_file
     assert 'mimetype' in result
     assert 'size' in result
@@ -368,14 +368,14 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': [idz(group), idz(project), idz(session), idz(acquisition)]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'acquisition'
+    assert result['container_type'] == 'acquisition'
     assert result['_id'] == acquisition 
 
     # lookup root/group/project/session/acquisition/file with id
     r = as_admin.post('/lookup', json={'path': [idz(group), idz(project), idz(session), idz(acquisition), 'files', acquisition_file]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'file'
+    assert result['container_type'] == 'file'
     assert result['name'] == acquisition_file
     assert 'mimetype' in result
     assert 'size' in result
@@ -405,7 +405,7 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['path'] == []
-    assert child_in_result({'_id': gear_id, 'node_type': 'gear'}, result)
+    assert child_in_result({'_id': gear_id, 'container_type': 'gear'}, result)
 
     # resolve gear (empty)
     r = as_admin.post('/resolve', json={'path': ['gears', gear_name]})
@@ -430,7 +430,7 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': ['gears', gear_name]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'gear'
+    assert result['container_type'] == 'gear'
     assert result['_id'] == gear_id 
     assert result['gear']['name'] == gear_name
 
@@ -438,7 +438,7 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': ['gears', idz(gear_id)]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'gear'
+    assert result['container_type'] == 'gear'
     assert result['_id'] == gear_id 
     assert result['gear']['name'] == gear_name
 
@@ -496,9 +496,9 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project], result)
-    assert child_in_result({'name': project_file, 'node_type': 'file'}, result)
-    assert child_in_result({'_id': session, 'node_type': 'session'}, result)
-    assert child_in_result({'_id': project_analysis, 'node_type': 'analysis'}, result)
+    assert child_in_result({'name': project_file, 'container_type': 'file'}, result)
+    assert child_in_result({'_id': session, 'container_type': 'session'}, result)
+    assert child_in_result({'_id': project_analysis, 'container_type': 'analysis'}, result)
     assert len(result['children']) == 3
 
     # resolve root/group/project/analysis
@@ -506,7 +506,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project], result)
-    assert child_in_result({'_id': project_analysis, 'node_type': 'analysis'}, result)
+    assert child_in_result({'_id': project_analysis, 'container_type': 'analysis'}, result)
     assert len(result['children']) == 1
 
     # resolve root/group/project/analysis/name
@@ -514,14 +514,14 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, project_analysis], result)
-    assert child_in_result({'name': analysis_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': analysis_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # lookup root/group/project/analysis/name
     r = as_admin.post('/lookup', json={'path': [group, project_label, 'analyses', project_analysis_name]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'analysis'
+    assert result['container_type'] == 'analysis'
     assert result['_id'] == project_analysis 
     assert len(result['files']) == 1
 
@@ -538,9 +538,9 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session], result)
-    assert child_in_result({'name': session_file, 'node_type': 'file'}, result)
-    assert child_in_result({'_id': acquisition, 'node_type': 'acquisition'}, result)
-    assert child_in_result({'_id': session_analysis, 'node_type': 'analysis'}, result)
+    assert child_in_result({'name': session_file, 'container_type': 'file'}, result)
+    assert child_in_result({'_id': acquisition, 'container_type': 'acquisition'}, result)
+    assert child_in_result({'_id': session_analysis, 'container_type': 'analysis'}, result)
     assert len(result['children']) == 3
 
     # resolve root/group/project/analysis/name
@@ -548,14 +548,14 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session, session_analysis], result)
-    assert child_in_result({'name': analysis_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': analysis_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # lookup root/group/project/analysis/name
     r = as_admin.post('/lookup', json={'path': [group, project_label, session_label, 'analyses', session_analysis_name]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'analysis'
+    assert result['container_type'] == 'analysis'
     assert result['_id'] == session_analysis 
     assert len(result['files']) == 1
 
@@ -572,8 +572,8 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session, acquisition], result)
-    assert child_in_result({'name': acquisition_file, 'node_type': 'file'}, result)
-    assert child_in_result({'_id': acq_analysis, 'node_type': 'analysis'}, result)
+    assert child_in_result({'name': acquisition_file, 'container_type': 'file'}, result)
+    assert child_in_result({'_id': acq_analysis, 'container_type': 'analysis'}, result)
     assert len(result['children']) == 2
 
     # resolve root/group/project/analysis/name
@@ -581,14 +581,14 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session, acquisition, acq_analysis], result)
-    assert child_in_result({'name': analysis_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': analysis_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # lookup root/group/project/analysis/name
     r = as_admin.post('/lookup', json={'path': [group, project_label, session_label, acquisition_label, 'analyses', acq_analysis_name]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'analysis'
+    assert result['container_type'] == 'analysis'
     assert result['_id'] == acq_analysis 
     assert len(result['files']) == 1
 
@@ -597,14 +597,14 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert path_in_result([group, project, session, acquisition, acq_analysis], result)
-    assert child_in_result({'name': analysis_file, 'node_type': 'file'}, result)
+    assert child_in_result({'name': analysis_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
     # lookup root/group/project/analysis/name
     r = as_admin.post('/lookup', json={'path': [group, project_label, idz(session), acquisition_label, 'analyses', idz(acq_analysis)]})
     result = r.json()
     assert r.ok
-    assert result['node_type'] == 'analysis'
+    assert result['container_type'] == 'analysis'
     assert result['_id'] == acq_analysis 
     assert len(result['files']) == 1
 

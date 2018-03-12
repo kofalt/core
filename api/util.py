@@ -484,7 +484,7 @@ def origin_to_str(origin):
         result += ' (via %s)' % origin_to_str(origin['via'])
     return result
 
-def add_node_type(request, result):
-    """Adds a 'node_type' property to result if fw_node_type is set in the request environment."""
-    if 'fw_node_type' in request.environ and isinstance(result, dict):
-        result['node_type'] = request.environ['fw_node_type']
+def add_container_type(request, result):
+    """Adds a 'container_type' property to result if fw_container_type is set in the request environment."""
+    if 'fw_container_type' in request.environ and isinstance(result, dict):
+        result['container_type'] = request.environ['fw_container_type']
