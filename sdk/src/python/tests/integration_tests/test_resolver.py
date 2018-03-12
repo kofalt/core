@@ -11,18 +11,22 @@ def idz(s):
 class ResolverTestCases(SdkTestCase):
     def setUp(self):
         self.group_id, self.project_id, self.session_id, self.acquisition_id = create_test_acquisition()
+        self.gear_id = None
 
     def tearDown(self):
         self.fw_root.delete_project(self.project_id)
         self.fw_root.delete_group(self.group_id)
+
+        if self.gear_id is not None:
+            self.fw.delete_gear(self.gear_id)
 
     def test_resolver(self):
         fw = self.fw
         group_id = self.group_id
 
         # Create test gear
-        gear_id = create_test_gear()
-        gear = self.fw.get_gear(gear_id)
+        self.gear_id = create_test_gear()
+        gear = self.fw.get_gear(self.gear_id)
         self.assertIsNotNone(gear)
 
         # Upload file acquisition
@@ -84,7 +88,7 @@ class ResolverTestCases(SdkTestCase):
         self.assertGreaterEqual(len(result.children), 1)
         found = False
         for child in result.children:
-            if child.id == gear_id:
+            if child.id == self.gear_id:
                 found = True
                 break
         self.assertTrue(found)
@@ -104,8 +108,8 @@ class ResolverTestCases(SdkTestCase):
         acquisition = result.children[0]
 
         # Create test gear
-        gear_id = create_test_gear()
-        gear = self.fw.get_gear(gear_id)
+        self.gear_id = create_test_gear()
+        gear = self.fw.get_gear(self.gear_id)
         self.assertIsNotNone(gear)
 
         # Upload file acquisition
