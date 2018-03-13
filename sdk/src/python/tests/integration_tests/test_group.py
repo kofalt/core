@@ -21,9 +21,17 @@ class GroupsTestCases(SdkTestCase):
         self.assertTimestampBeforeNow(saved_group.created)
         self.assertGreaterEqual(saved_group.modified, saved_group.created)
 
+        self.assertTrue(hasattr(saved_group, 'container_type'))
+        self.assertEqual(saved_group.container_type, 'group')
+
+        self.assertTrue(hasattr(saved_group, 'child_types'))
+        self.assertEqual(saved_group.child_types, ['projects'])
+
         # Get All
         groups = fw.get_all_groups()
         self.assertIn(saved_group, groups)
+
+        self.assertEqual(groups[0].container_type, 'group')
 
         # Modify
         new_name = self.rand_string()

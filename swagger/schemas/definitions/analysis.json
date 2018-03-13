@@ -91,7 +91,8 @@
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
 				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
 			},
-			"required":["_id", "label", "created", "modified"]
+			"required":["_id", "label", "created", "modified"],
+          	"x-sdk-container-mixin": "analysis-mixin"
 		},
 		"analysis-list-entry":{
 			"type":"object",
@@ -115,7 +116,8 @@
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
 				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
 			},
-			"required":["_id", "label", "created", "modified"]
+			"required":["_id", "label", "created", "modified"],
+          	"x-sdk-container-mixin": "analysis-mixin"
 		},
 		"analysis-files-create-ticket-output": {
 			"type":"object",

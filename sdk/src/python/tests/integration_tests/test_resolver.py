@@ -189,8 +189,9 @@ class ResolverTestCases(SdkTestCase):
         # Resolve project children
         result = self.fw_root.resolve('{0}/{1}'.format(group_id, r_project.label))
         self.assertEqual(len(result.path), 2)
-        self.assertEqual(result.path[0], r_group)
-        self.assertEqual(result.path[1], r_project)
+
+        self.assertEqual(result.path[0].to_dict(), r_group.to_dict())
+        self.assertEqual(result.path[1].to_dict(), r_project.to_dict())
 
         self.assertEqual(len(result.children), 1)
         r_session = result.children[0]

@@ -20,7 +20,8 @@
             "tags": {"$ref":"tag.json#/definitions/tag-list"}
           },
           "additionalProperties":false,
-          "x-sdk-model": "group"
+          "x-sdk-model": "group",
+          "x-sdk-container-mixin": "group-mixin"
         },
         "group-input":{
           "type": "object",
@@ -29,7 +30,8 @@
             "label": {"$ref": "#/definitions/label"}
           },
           "additionalProperties": false,
-          "x-sdk-model": "group"
+          "x-sdk-model": "group",
+          "x-sdk-container-mixin": "group-mixin"
         },
         "group-metadata-input": {
           "type": "object",
@@ -42,7 +44,8 @@
           "type": "object",
           "allOf": [{"$ref":"#/definitions/group"}],
           "required": ["permissions", "created","modified","_id"],
-          "x-sdk-model": "group"
+          "x-sdk-model": "group",
+          "x-sdk-container-mixin": "group-mixin"
         },
         "group-new-output": {
           "type": "object",
@@ -60,7 +63,8 @@
           "type": "object",
           "allOf": [{"$ref":"#/definitions/group"}],
           "required": ["_id"],
-          "x-sdk-model": "group"
+          "x-sdk-model": "group",
+          "x-sdk-container-mixin": "group-mixin"
         },
         "project-group-output-list":{
             "type":"array",

@@ -19,7 +19,16 @@ import six
 
 {{#models}}
 {{#model}}
+{{#vendorExtensions.x-sdk-container-mixin}}
+from .mixins import {{.}}
+{{/vendorExtensions.x-sdk-container-mixin}}
+
+{{#vendorExtensions.x-sdk-container-mixin}}
+class {{classname}}({{.}}):
+{{/vendorExtensions.x-sdk-container-mixin}}
+{{^vendorExtensions.x-sdk-container-mixin}}
 class {{classname}}(object):
+{{/vendorExtensions.x-sdk-container-mixin}}
 {{#allowableValues}}
 
     """

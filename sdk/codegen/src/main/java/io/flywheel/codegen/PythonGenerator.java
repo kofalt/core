@@ -48,6 +48,8 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
     public void processOpts() {
         super.processOpts();
 
+        final String modelFolder = modelPackage.replace('.', '/');
+
         additionalProperties.put("requests", "true");
 
         // Filespec helper file
@@ -58,6 +60,7 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
 
         // Other API files
         supportingFiles.add(new SupportingFile("view_builder.py", packageName, "view_builder.py"));
+        supportingFiles.add(new SupportingFile("model_mixins.mustache", modelFolder, "mixins.py"));
 
         // PIP Files
         supportingFiles.add(new SupportingFile("LICENSE.mustache", "", "LICENSE.txt"));

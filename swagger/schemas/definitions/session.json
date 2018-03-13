@@ -31,7 +31,8 @@
                 "weight":       {"$ref":"#/definitions/weight"}
             },
             "additionalProperties": false,
-            "x-sdk-model": "session"
+            "x-sdk-model": "session",
+            "x-sdk-container-mixin": "session-mixin"
         },
         "session-metadata-input": {
             "type": "object",
@@ -88,7 +89,8 @@
                 }
             },
             "additionalProperties": false,
-            "x-sdk-model": "session"
+            "x-sdk-model": "session",
+            "x-sdk-container-mixin": "session-mixin"
         },
         "session-jobs-output": {
             "type": "object",
