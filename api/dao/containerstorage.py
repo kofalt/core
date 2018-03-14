@@ -72,8 +72,7 @@ class UserStorage(ContainerStorage):
 
 class ProjectStorage(ContainerStorage):
     def __init__(self):
-        super(ProjectStorage,self).__init__('projects', use_object_id=True, use_delete_tag=True, parent_cont_name='group', child_cont_name='subject',
-            list_projection={'info': 0, 'files.info': 0})
+        super(ProjectStorage,self).__init__('projects', use_object_id=True, use_delete_tag=True, parent_cont_name='group', child_cont_name='subject')
 
     def create_el(self, payload):
         result = super(ProjectStorage, self).create_el(payload)
@@ -126,6 +125,9 @@ class ProjectStorage(ContainerStorage):
                     if changed:
                         changed_sessions.append(s['_id'])
         return changed_sessions
+
+    def get_list_projection(self):
+        return {'info': 0, 'files.info': 0}
 
     def cleanup_ancillary_data(self, _id):
         safe_cleanup_views(_id)
@@ -205,12 +207,7 @@ class SubjectStorage(ContainerStorage):
 class SessionStorage(ContainerStorage):
 
     def __init__(self):
-        super(SessionStorage,self).__init__('sessions', use_object_id=True, use_delete_tag=True, parent_cont_name='subject', child_cont_name='acquisition',
-            # Remove subject first/last from list view to better log access to this information
-            list_projection={'info': 0, 'analyses': 0, 'subject.firstname': 0,
-                'subject.lastname': 0, 'subject.sex': 0, 'subject.age': 0,
-                'subject.race': 0, 'subject.ethnicity': 0, 'subject.info': 0,
-                'files.info': 0, 'tags': 0})
+        super(SessionStorage,self).__init__('sessions', use_object_id=True, use_delete_tag=True, parent_cont_name='subject', child_cont_name='acquisition')
 
     def _fill_default_values(self, cont):
         cont = super(SessionStorage,self)._fill_default_values(cont)
@@ -373,12 +370,19 @@ class SessionStorage(ContainerStorage):
 
         return self.get_all_el(query, user, projection)
 
+    def get_list_projection(self):
+        # Remove subject first/last from list view to better log access to this information
+        return {'info': 0, 'analyses': 0, 'subject.firstname': 0,
+            'subject.lastname': 0, 'subject.sex': 0, 'subject.age': 0,
+            'subject.race': 0, 'subject.ethnicity': 0, 'subject.info': 0,
+            'files.info': 0, 'tags': 0}
+
+
 
 class AcquisitionStorage(ContainerStorage):
 
     def __init__(self):
-        super(AcquisitionStorage,self).__init__('acquisitions', use_object_id=True, use_delete_tag=True, parent_cont_name='session', child_cont_name=None,
-            list_projection={'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0})
+        super(AcquisitionStorage,self).__init__('acquisitions', use_object_id=True, use_delete_tag=True, parent_cont_name='session', child_cont_name=None)
 
     def create_el(self, payload):
         result = super(AcquisitionStorage, self).create_el(payload)
@@ -440,18 +444,23 @@ class AcquisitionStorage(ContainerStorage):
             query['collections'] = collection_id
         return self.get_all_el(query, user, projection)
 
+    def get_list_projection(self):
+        return {'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0}        
+
 
 class CollectionStorage(ContainerStorage):
 
     def __init__(self):
-        super(CollectionStorage, self).__init__('collections', use_object_id=True, use_delete_tag=True, list_projection={'info': 0})
+        super(CollectionStorage, self).__init__('collections', use_object_id=True, use_delete_tag=True)
+
+    def get_list_projection(self):
+        return {'info': 0}
 
 
 class AnalysisStorage(ContainerStorage):
 
     def __init__(self):
-        super(AnalysisStorage, self).__init__('analyses', use_object_id=True, use_delete_tag=True, 
-            list_projection={'info': 0, 'files.info': 0, 'tags': 0})
+        super(AnalysisStorage, self).__init__('analyses', use_object_id=True, use_delete_tag=True)
 
 
     def get_parent(self, _id, cont=None, projection=None):
@@ -585,6 +594,9 @@ class AnalysisStorage(ContainerStorage):
         analysis['job'] = job
         return analysis
 
+    def get_list_projection(self):
+        return {'info': 0, 'files.info': 0, 'tags': 0}
+
 def safe_cleanup_views(parent_id):
     """ Delete all data views belonging to the parent container, trapping any exceptions.
 
@@ -595,4 +607,3 @@ def safe_cleanup_views(parent_id):
         config.db.data_views.remove({'parent': str(parent_id)})
     except APIStorageException as e:
         log.warn('Unable to cleanup views for container {} - {}'.format(parent_id, e))
-
