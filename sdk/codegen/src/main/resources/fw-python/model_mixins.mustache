@@ -12,6 +12,14 @@ class ContainerMixin(object):
                 return fn(*args, **kwargs)
         return None
 
+    def _invoke_container_api(self, fmt, *args, **kwargs):
+        if self.__context:
+            fname = fmt.format(self.container_type)
+            fn = getattr(self.__context, fname, None)
+            if fn:
+                return fn(*args, **kwargs)
+        return None
+
     def resolve_children(self):
         children = []
         for child_type in getattr(self, 'child_types', []):
@@ -22,7 +30,43 @@ class ContainerMixin(object):
 
         return children
 
-class GroupMixin(ContainerMixin):
+class TagMethods(object):
+    def add_tag(self, tag):
+        return self._invoke_container_api('add_{0}_tag', self.id, tag)
+
+    def rename_tag(self, tag, new_tag):
+        return self._invoke_container_api('rename_{0}_tag', self.id, tag, new_tag)
+
+    def delete_tag(self, tag):
+        return self._invoke_container_api('delete_{0}_tag', self.id, tag)
+
+
+class PermissionMethods(object):
+    def add_permission(self, permission):
+        return self._invoke_container_api('add_{0}_permission', self.id, permission)
+
+    def update_permission(self, user_id, permission):
+        return self._invoke_container_api('modify_{0}_user_permission', self.id, user_id, permission)
+
+    def delete_permission(self, user_id):
+        return self._invoke_container_api('delete_{0}_user_permission', self.id, user_id)
+
+
+class FileMethods(object):
+    def upload_file(self, file):
+        return self._invoke_container_api('upload_file_to_{0}', self.id, file)
+
+    def download_file(self, file_name, dest_file):
+        return self._invoke_container_api('download_file_from_{0}', self.id, file_name, dest_file)
+
+    def get_download_url(self, file_name):
+        return self._invoke_container_api('get_{0}_download_url', self.id, file_name)
+
+    def get_file_data(self, file_name):
+        return self._invoke_container_api('download_file_from_{0}_as_data', self.id, file_name)
+
+
+class GroupMixin(ContainerMixin, TagMethods, PermissionMethods):
     @property
     def container_type(self):
         return 'group'
@@ -41,7 +85,7 @@ class GroupMixin(ContainerMixin):
         return self._invoke_api('get_group_projects', self.id)
 
 
-class ProjectMixin(ContainerMixin):
+class ProjectMixin(ContainerMixin, TagMethods, PermissionMethods, FileMethods):
     @property
     def container_type(self):
         return 'project'
@@ -69,7 +113,7 @@ class ProjectMixin(ContainerMixin):
         return self.files
 
 
-class SessionMixin(ContainerMixin):
+class SessionMixin(ContainerMixin, TagMethods, FileMethods):
     @property
     def container_type(self):
         return 'session'
@@ -103,7 +147,7 @@ class SessionMixin(ContainerMixin):
         return self.files
 
 
-class AcquisitionMixin(ContainerMixin):
+class AcquisitionMixin(ContainerMixin, TagMethods, FileMethods):
     @property
     def container_type(self):
         return 'acquisition'
@@ -128,7 +172,7 @@ class AcquisitionMixin(ContainerMixin):
         return self.files
 
 
-class AnalysisMixin(ContainerMixin):
+class AnalysisMixin(ContainerMixin, TagMethods, FileMethods):
     @property
     def container_type(self):
         return 'analysis'
