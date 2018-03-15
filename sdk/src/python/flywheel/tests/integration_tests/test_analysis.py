@@ -15,14 +15,12 @@ class AnalysisTestCases(SdkTestCase):
         self.fw.delete_group(self.group_id)
         self.fw.delete_gear(self.gear_id)
 
-    def test_analysiss(self):
+    def test_analysis(self):
         fw = self.fw
         
         # Upload to session
         poem = 'A gaze blank and pitiless as the sun,'
         fw.upload_file_to_session(self.session_id, flywheel.FileSpec('yeats.txt', poem))
-
-        analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string())
 
         file_ref = flywheel.FileReference(
             id=self.session_id,
@@ -39,9 +37,11 @@ class AnalysisTestCases(SdkTestCase):
             },
             tags=[tag]
         )
+        
+        analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), job=job)
 
         # Add
-        analysis_id = fw.add_session_analysis(self.session_id, flywheel.AnalysisJob(analysis, job))
+        analysis_id = fw.add_session_analysis(self.session_id, analysis)
         self.assertNotEmpty(analysis_id)
 
         session = fw.get_session(self.session_id)
@@ -49,13 +49,11 @@ class AnalysisTestCases(SdkTestCase):
 
         r_analysis = session.analyses[0]
         self.assertEqual(r_analysis.id, analysis_id)
-        self.assertNotEmpty(r_analysis.user)
         self.assertEqual(r_analysis.job.state, 'pending')
         self.assertTimestampBeforeNow(r_analysis.created)
         self.assertGreaterEqual(r_analysis.modified, r_analysis.created)
-        self.assertEqual(len(r_analysis.files), 1)
-        self.assertEqual(r_analysis.files[0].name, 'yeats.txt')
-        self.assertTrue(r_analysis.files[0].input)
+        self.assertEqual(len(r_analysis.inputs), 1)
+        self.assertEqual(r_analysis.inputs[0].name, 'yeats.txt')
 
         # Access analysis directly
         r_analysis2 = fw.get_analysis(analysis_id)
@@ -88,7 +86,7 @@ class AnalysisTestCases(SdkTestCase):
         self.assertGreaterEqual(r_analysis.notes[0].modified, r_analysis.notes[0].created)
 
         # Access multiple analyses
-        analysis_id2 = fw.add_session_analysis(self.session_id, flywheel.AnalysisJob(analysis, job))
+        analysis_id2 = fw.add_session_analysis(self.session_id, analysis)
         self.assertNotEmpty(analysis_id2)
 
         # Try getting analysis incorrectly

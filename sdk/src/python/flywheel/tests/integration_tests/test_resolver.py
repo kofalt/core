@@ -9,8 +9,8 @@ class ResolverTestCases(SdkTestCase):
         self.group_id, self.project_id, self.session_id, self.acquisition_id = create_test_acquisition()
 
     def tearDown(self):
-        self.fw.delete_project(self.project_id)
-        self.fw.delete_group(self.group_id)
+        self.fw_root.delete_project(self.project_id)
+        self.fw_root.delete_group(self.group_id)
 
     def test_resolver(self):
         fw = self.fw
