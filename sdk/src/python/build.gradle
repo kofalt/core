@@ -4,7 +4,7 @@ import io.swagger.codegen.DefaultGenerator
 def customCodegenJar = project(':custom-swagger-codegen').jar.archivePath
 def templateDir = file('../../codegen/src/main/resources/fw-python').path
 
-def swaggerOutputDir = file('flywheel/gen')
+def swaggerOutputDir = file('gen')
 
 task generateApi(dependsOn: ':custom-swagger-codegen:jar') {
 	inputs.file(swaggerInputSpec)

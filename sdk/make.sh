@@ -20,9 +20,9 @@ docker run --rm -it \
 	-v "${gradle_user_home}:/gradle" \
 	${GRADLE_CONTAINER} gradle --no-daemon clean build 
 
-# Containerized python container gen
+# Containerized python package gen
 docker run --rm -it \
-	-w /local/src/python/flywheel/gen \
+	-w /local/src/python/gen \
 	-u "$(id -u):$(id -g)" \
 	-v "${PROJECT_DIR}:/local" \
 	${PYTHON_CONTAINER} python setup.py bdist_wheel
