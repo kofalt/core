@@ -299,7 +299,7 @@ class EnginePlacer(Placer):
             file_mds = self.metadata.get(self.container_type, {}).get('files', [])
 
             for file_md in file_mds:
-                if os.path.basename(file_md['name']) == file_attrs['name']:
+                if file_md['name'] == file_attrs['name']:
                     file_attrs.update(file_md)
                     break
 
