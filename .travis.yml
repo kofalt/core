@@ -7,8 +7,6 @@ services:
 env:
   global:
   - DOCKER_DIR="$HOME/.cache/docker"
-  - secure: HhT1TdJcpqys8juVMw/DIZeK7oD4595TEKH5KlowH7MvwwFAUyQFb5W63F8dgk7elvRG+3fmga/m1JfXO+Iu7PVD912eiNDagW9aB3CEl3Z8zg+JUL8IjpMCkyKQDyJMnfOkrzdxdaqfOK+WmF+13f2qBu9Kc7wdXuzgHQrg4+0= # CI_REGISTRY_USER
-  - secure: hh7VDZnkxgl/vqHtS4IpXfIAckKpVQvoCzNW7fstr5Mcu8KNiCWIPgObBRm+m13aqpcFTMWQ6lT2kzORz2wWRbDeVhI1eGWOJswGNHPHZLO0Jaei6yfY2nY2mpxZbl+vdg00jkN64mi1ab3e++QgeLFruW0gyNefXX7E5L/mHTs= # CI_REGISTRY_PASS
 
 cache:
   directories:
@@ -40,13 +38,13 @@ after_success:
       bash <(curl -s https://codecov.io/bash) -cF python;
   fi
 - if [ "$TRAVIS_TAG" ]; then
-      docker tag core:dist scitran/core:$TRAVIS_TAG;
-      docker push scitran/core:$TRAVIS_TAG;
+      docker tag core:dist $DOCKER_HUB_ORG/$DOCKER_HUB_REPO:$TRAVIS_TAG;
+      docker push $DOCKER_HUB_ORG/$DOCKER_HUB_REPO:$TRAVIS_TAG;
       ./bin/push-docs.sh "$GIT_REMOTE" tags "$TRAVIS_TAG" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
   elif [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
       ./bin/push-docs.sh "$GIT_REMOTE" branches "$TRAVIS_BRANCH" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
   fi
 - if [ "$TRAVIS_EVENT_TYPE" == "push" -a "$TRAVIS_BRANCH" == "master" ]; then
-      docker tag core:dist scitran/core:latest;
-      docker push scitran/core:latest;
+      docker tag core:dist $DOCKER_HUB_ORG/$DOCKER_HUB_REPO:latest;
+      docker push $DOCKER_HUB_ORG/$DOCKER_HUB_REPO:latest;
   fi
