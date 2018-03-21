@@ -7,7 +7,7 @@ docker run --rm -it \
 	-w /local \
 	-v "${PWD}:/local" \
 	--net=host \
-	-e PYTHONPATH=/local/src/python/flywheel/gen \
+	-e PYTHONPATH=/local/src/python/gen \
 	-e SdkTestKey=${SdkTestKey} \
-	python:3.6 /bin/bash -c "cd src/python/flywheel/tests; pip install -r requirements.txt; /bin/bash"
+	python:3.6 /bin/bash -c "cd src/python/tests; pip install -r requirements.txt; /bin/bash"
 
