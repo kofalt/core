@@ -223,7 +223,14 @@ def create_test_session():
     group_id, project_id = create_test_project()
     return group_id, project_id, SdkTestCase.fw.add_session({
         'project': project_id, 
-        'label': SdkTestCase.rand_string()
+        'label': SdkTestCase.rand_string(),
+        'subject': {
+            'code': SdkTestCase.rand_string_lower(),
+            'firstname': SdkTestCase.rand_string(),
+            'lastname': SdkTestCase.rand_string(),
+            'sex': 'other',
+            'age': 57
+        }
     })
 
 

@@ -67,6 +67,25 @@
             },
             "additionalProperties":false,
             "required":["ticket"]            
+        },
+        "download-ticket-with-summary": {
+            "type": "object",
+            "properties": {
+                "ticket": {
+                    "type": "string",
+                    "description": "The ticket to use to perform the actual download"
+                },
+                "file_cnt": {
+                    "type": "integer",
+                    "description": "The number of files that will be included in the download"
+                },
+                "size": {
+                    "type": "integer",
+                    "description": "An estimated total number of bytes that will be downloaded"
+                }
+            },
+            "additionalProperties": false,
+            "required":["ticket", "file_cnt", "size"]
         }
     }
 }
