@@ -107,6 +107,9 @@ public class FlywheelCodegenSupport {
                 } else if( op.vendorExtensions.containsKey("x-sdk-modify-info") ) {
                     // Convert to an array of the 3 operations
                     op.vendorExtensions.put("x-sdk-modify-info", makeModifyInfoWrappers(op.operationIdSnakeCase, gen));
+                } else if( op.vendorExtensions.containsKey("x-sdk-download-file-param") ) {
+                    String paramName = op.vendorExtensions.get("x-sdk-download-file-param").toString();
+                    op.vendorExtensions.put("x-sdk-download-file-param", gen.toParamName(paramName));
                 }
             }
             ++idx;
