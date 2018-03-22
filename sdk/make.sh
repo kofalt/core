@@ -8,8 +8,12 @@ PYTHON_CONTAINER="python:2.7-alpine"
 
 # Containerized swagger code-gen
 PERSISTENT_DIR="${PROJECT_DIR}/persistent"
-gradle_user_home="${PERSISTENT_DIR}/gradle"
-mkdir -p "${PERSISTENT_DIR}/gradle"
+if [ "$GRADLE_CACHE" = "" ]; then
+	gradle_user_home="${PERSISTENT_DIR}/gradle"
+	mkdir -p "${PERSISTENT_DIR}/gradle"
+else
+	gradle_user_home="${GRADLE_CACHE}"
+fi
 
 # This will produce the matlab toolbox
 docker run --rm -it \
