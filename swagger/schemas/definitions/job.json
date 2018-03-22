@@ -62,10 +62,7 @@
           "type": ["string", "null"]
         }
       },
-      "required": [
-        "type",
-        "id"
-      ],
+      "required": [ "type" ],
       "additionalProperties":false
     },
     "job-log-statement": {
