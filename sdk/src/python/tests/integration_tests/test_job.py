@@ -68,6 +68,14 @@ class JobsTestCases(SdkTestCase):
         self.assertNotIn(tag, r_job.tags)
         self.assertIn(tag2, r_job.tags)
 
+        # Get session jobs
+        jobs = fw.get_session_jobs(self.session_id)
+        self.assertIsNotNone(jobs)
+        self.assertIsNotNone(jobs.jobs)
+        self.assertEqual(1, len(jobs.jobs))
+
+        self.assertIn(r_job, jobs.jobs)
+
         # Cancel
         job_mod = flywheel.Job(state='cancelled')
         fw.modify_job(job_id, job_mod)
