@@ -5,11 +5,13 @@ set -ev
 if [ -n "$TRAVIS_TAG" ]; then
 	DOC_VERSION="$TRAVIS_TAG"
 	SDK_VERSION="$TRAVIS_TAG"
+	SDK_DIR="tags/$TRAVIS_TAG"
 else 
 	# Use short commit ref, instead of $TRAVIS_COMMIT
 	COMMIT_REF="$(git rev-parse --short HEAD)"
 	DOC_VERSION="$TRAVIS_BRANCH/$COMMIT_REF"
 	SDK_VERSION="2.0.0.dev${TRAVIS_BUILD_NUMBER}"
+	SDK_DIR="branches/$TRAVIS_BRANCH"
 fi
 
 # Build Core
@@ -35,5 +37,8 @@ if [ "$BUILD_SDK" = "true" ]; then
 	cp swagger/build/swagger-codegen.json sdk/swagger.json
 	# Build SDK
 	sdk/make.sh $SDK_VERSION
+	# Copy artifacts
+	mkdir -p dist/sdk/$SDK_DIR
+	cp sdk/dist/* dist/sdk/$SDK_DIR
 fi
 
