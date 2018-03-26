@@ -15,6 +15,7 @@ RUN set -eux \
         numactl \
         python-dev \
         python-pip \
+        realpath \
     && rm -rf /var/lib/apt/lists/* \
     && pip install -qq --upgrade pip setuptools wheel \
     && export GNUPGHOME="$(mktemp -d)" \
@@ -40,7 +41,7 @@ RUN set -eux \
         /var/scitran/logs
 
 VOLUME ["/var/scitran/keys", "/var/scitran/data", "/var/scitran/logs"]
-WORKDIR /var/scitran/code/api
+WORKDIR /var/scitran
 
 COPY docker/uwsgi-entrypoint.sh /var/scitran/
 COPY docker/uwsgi-config.ini    /var/scitran/config/

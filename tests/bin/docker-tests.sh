@@ -72,6 +72,7 @@ main() {
     docker run --rm \
         --name core-test-cleanup \
         --volume $(pwd):/var/scitran/code/api \
+        --workdir /var/scitran/code/api \
         scitran/core:testing \
         sh -c "
             find . -type d -name __pycache__ -exec rm -rf {} \;;
@@ -92,6 +93,7 @@ main() {
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env SCITRAN_RUNTIME_COVERAGE=true \
         --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
+        --workdir /var/scitran/code/api \
         scitran/core:testing \
             uwsgi --ini /var/scitran/config/uwsgi-config.ini --http [::]:9000 \
             --processes 1 --threads 1 --enable-threads \
@@ -111,6 +113,7 @@ main() {
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://core-test-service:27017/scitran \
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-service:27017/logs \
+        --workdir /var/scitran/code/api \
         scitran/core:testing \
         $CORE_TEST_CMD
 }
@@ -135,6 +138,7 @@ clean_up() {
         docker run --rm \
             --name core-test-coverage \
             --volume $(pwd):/var/scitran/code/api \
+            --workdir /var/scitran/code/api \
             scitran/core:testing \
             sh -c '
                 coverage combine;

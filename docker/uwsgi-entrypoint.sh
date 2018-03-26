@@ -13,7 +13,7 @@ export SCITRAN_PERSISTENT_PATH=/var/scitran/data
 export SCITRAN_PERSISTENT_DATA_PATH=/var/scitran/data
 
 # Set RUNAS_USER based on the owner of the persistent data path.
-RUNAS_USER=$(stat -c '%U' $SCITRAN_PERSISTENT_DATA_PATH)
+RUNAS_USER=$(stat -c '%u' $SCITRAN_PERSISTENT_DATA_PATH)
 
 # Run $PRE_RUNAS_CMD as root if provided. Useful for things like JIT pip installs.
 [ -n "${PRE_RUNAS_CMD:-}" ] && eval $PRE_RUNAS_CMD
