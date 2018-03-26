@@ -1,7 +1,13 @@
 #!/bin/bash
 set -ev
 
-echo "BUILD_SDK is ${BUILD_SDK}"
+# Parse tag/branch
+if [ -n "$TRAVIS_TAG" ]; then
+	DOC_VERSION="$TRAVIS_TAG"
+else 
+	DOC_VERSION="$TRAVIS_BRANCH/$TRAVIS_COMMIT"
+fi
+SDK_VERSION="$TRAVIS_BRANCH"
 
 # Build Core
 test -f "$DOCKER_DIR/image.tar" && docker load -i "$DOCKER_DIR/image.tar" || true
@@ -18,7 +24,7 @@ if [ "$BUILD_SDK" = "false" ]; then
 fi
 
 # Build Swagger
-swagger/make.sh
+swagger/make.sh $DOC_VERSION
 
 # Optionally build SDK
 if [ "$BUILD_SDK" = "true" ]; then
