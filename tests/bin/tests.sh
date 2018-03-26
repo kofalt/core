@@ -44,20 +44,22 @@ main() {
                 ;;
             *)
                 log "Invalid argument: $1"
-                log "$USAGE" >&2
+                log "$USAGE"
                 exit 1
                 ;;
         esac
         shift
     done
 
-    log "Running unit tests ..."
-    py.test --cov=api --cov-report= tests/unit_tests/python $PYTEST_ARGS
+    log "INFO: Running unit tests ..."
+    py.test --exitfirst --cov=api --cov-report= tests/unit_tests/python $PYTEST_ARGS
 
-    log "Running integration tests ..."
-    py.test tests/integration_tests/python $PYTEST_ARGS
+    log "INFO: Running integration tests ..."
+    touch tests/running_integration
+    py.test --exitfirst tests/integration_tests/python $PYTEST_ARGS
+    rm tests/running_integration
 
-    log "Running pylint ..."
+    log "INFO: Running pylint ..."
     # TODO Enable Refactor and Convention reports
     # TODO Move --disable into rc
     pylint --rcfile=tests/.pylintrc --jobs=4 --reports=no --disable=C,R,W0312,W0141,W0110 api

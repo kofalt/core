@@ -120,8 +120,8 @@ clean_up() {
     local TEST_RESULT_CODE=$?
     set +e
 
-    log "INFO: Test return code = $TEST_RESULT_CODE"
     if [ "${TEST_RESULT_CODE}" = "0" ]; then
+        log "INFO: Test return code = $TEST_RESULT_CODE"
         log "INFO: Collecting coverage..."
 
         # Copy unit test coverage
@@ -142,9 +142,11 @@ clean_up() {
                 coverage html;
             '
     else
-        log "INFO: Printing container logs..."
-        docker logs core-test-service
-        log "ERROR: Test return code = $TEST_RESULT_CODE. Container logs printed above."
+        log "ERROR: Test return code = $TEST_RESULT_CODE"
+        if [ -f tests/running_integration ]; then
+            log "INFO: Tailing core logs..."
+            docker logs --tail 25 core-test-service
+        fi
     fi
 
     # Spin down core service
