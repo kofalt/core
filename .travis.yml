@@ -62,3 +62,15 @@ after_success:
       docker tag core:dist flywheel/core:$TRAVIS_TAG;
       docker push flywheel/core:$TRAVIS_TAG;
   fi
+
+deploy:
+  provider: gcs
+  access_key_id: $GCS_ACCESS_KEY_ID
+  secret_access_key: $GCS_SECRET_ACCESS_KEY
+  bucket: sdk-test
+  local-dir: dist
+  skip_cleanup: true
+  on:
+    repo: flywheel-io/core
+    all_branches: true
+    condition: $BUILD_SDK = true

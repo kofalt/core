@@ -34,3 +34,11 @@ docker run --rm -it \
 	-u "$(id -u):$(id -g)" \
 	-v "${PROJECT_DIR}:/local" \
 	${PYTHON_CONTAINER} python setup.py bdist_wheel
+
+# Copy distribution artifacts to ./dist/
+DIST_DIR=$PROJECT_DIR/dist
+rm -rf $DIST_DIR
+mkdir -p $DIST_DIR
+
+cp $PROJECT_DIR/src/python/gen/dist/*.whl $DIST_DIR
+cp $PROJECT_DIR/src/matlab/build/distributions/*.mltbx $DIST_DIR
