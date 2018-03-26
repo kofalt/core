@@ -1502,14 +1502,15 @@ def upgrade_to_45():
     """
 
     # Seed modality collection:
-    config.db.modalities.insert({
-        "_id": "MR",
-        "classification": {
-            "Contrast": ["B0", "B1", "T1", "T2", "T2*", "PD", "MT", "ASL", "Perfusion", "Diffusion", "Spectroscopy", "Susceptibility", "Velocity", "Fingerprinting"],
-            "Intent": ["Localizer", "Shim", "Calibration", "Fieldmap", "Structural", "Functional", "Non-Image"],
-            "Features": ["Quantitative", "Multi-Shell", "Multi-Echo", "Multi-Flip", "Multi-Band", "Steady-State", "3D", "Compressed-Sensing", "Eddy-Current-Corrected", "Fieldmap-Corrected", "Gradient-Unwarped", "Motion-Corrected", "Physio-Corrected", "Derived", "In-Plane"]
-        }
-    })
+    if not config.db.modalities.find({'_id': 'MR'}):
+        config.db.modalities.insert({
+            "_id": "MR",
+            "classification": {
+                "Contrast": ["B0", "B1", "T1", "T2", "T2*", "PD", "MT", "ASL", "Perfusion", "Diffusion", "Spectroscopy", "Susceptibility", "Velocity", "Fingerprinting"],
+                "Intent": ["Localizer", "Shim", "Calibration", "Fieldmap", "Structural", "Functional", "Non-Image"],
+                "Features": ["Quantitative", "Multi-Shell", "Multi-Echo", "Multi-Flip", "Multi-Band", "Steady-State", "3D", "Compressed-Sensing", "Eddy-Current-Corrected", "Fieldmap-Corrected", "Gradient-Unwarped", "Motion-Corrected", "Physio-Corrected", "Derived", "In-Plane"]
+            }
+        })
 
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
 
