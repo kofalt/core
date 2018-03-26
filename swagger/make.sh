@@ -1,6 +1,10 @@
 #!/bin/bash
 set -exo pipefail
 
+if [ "$#" -ge 1 ]; then
+	DOC_VERSION="-- --docs-version=$1"
+fi
+
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PERSISTENT_DIR="${PROJECT_DIR}/persistent"
 if [ "$NPM_CACHE" = "" ]; then
@@ -16,4 +20,4 @@ docker run --rm -it \
 	-v "${PROJECT_DIR}:/local" \
 	-v "${NPM_CACHE}:/npm" \
 	-e "npm_config_cache=/npm" \
-	${NODE_CONTAINER} /bin/sh -c "npm install && npm run build"
+	${NODE_CONTAINER} /bin/sh -c "npm install && npm run build $DOC_VERSION"

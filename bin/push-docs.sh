@@ -24,23 +24,6 @@ main() {
     BRANCH_NAME=$3
     COMMIT_MESSAGE=$4
 
-    # Determine version string
-    if [ "$DOCS_SUBDIR" == "branches" ]; then
-		COMMIT_REF="$(git rev-parse --short HEAD)"
-        DOC_VERSION="$BRANCH_NAME/$COMMIT_REF"
-    elif [ "$DOCS_SUBDIR" == "tags" ]; then
-        DOC_VERSION="$BRANCH_NAME"
-    else
-        print_usage
-    fi
-
-    # Build documentation
-	(
-    cd swagger
-    npm install
-    npm run build -- "--docs-version=$DOC_VERSION"
-	)
-
     # Copy documentation 
     if [ "$BRANCH_NAME" == "master" ]; then
         checkin_master
