@@ -1501,6 +1501,15 @@ def upgrade_to_45():
     Update classification for all files with existing measurements field
     """
 
+    # Seed modality collection:
+    config.db.modalities.insert({
+        "_id": "MR",
+        "classification": {
+            "Contrast": ["B0", "B1", "T1", "T2", "T2*", "PD", "MT", "ASL", "Perfusion", "Diffusion", "Spectroscopy", "Susceptibility", "Velocity", "Fingerprinting"],
+            "Intent": ["Localizer", "Shim", "Calibration", "Fieldmap", "Structural", "Functional", "Non-Image"],
+            "Features": ["Quantitative", "Multi-Shell", "Multi-Echo", "Multi-Flip", "Multi-Band", "Steady-State", "3D", "Compressed-Sensing", "Eddy-Current-Corrected", "Fieldmap-Corrected", "Gradient-Unwarped", "Motion-Corrected", "Physio-Corrected", "Derived", "In-Plane"]
+        }
+    })
 
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
 
