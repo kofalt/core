@@ -66,11 +66,10 @@ RUN set -eux \
 
 
 FROM base as testing
-ENV MONGO_MAJOR=3.2 \
-    MONGO_VERSION=3.2.9
+ENV MONGO_VERSION=3.2.9
 RUN set -eux \
     && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927 \
-    && echo "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/$MONGO_MAJOR multiverse" > /etc/apt/sources.list.d/mongodb-org-$MONGO_MAJOR.list \
+    && echo "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/${MONGO_VERSION%.*} multiverse" > /etc/apt/sources.list.d/mongodb-org-${MONGO_VERSION%.*}.list \
     && apt-get -yqq update \
     && apt-get -yqq install \
         mongodb-org=$MONGO_VERSION \

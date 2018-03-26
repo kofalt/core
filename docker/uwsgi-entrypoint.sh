@@ -5,7 +5,7 @@ set -eu
 # /etc/hosts is corrupted if it has lines starting with tab.
 # Exit to allow docker to restart.
 if grep -P "^\t" /etc/hosts; then
-    echo "Host mapping in /etc/hosts is buggy, fail contain start."
+    echo "Host mapping in /etc/hosts is buggy, fail container start."
     exit 1
 fi
 
