@@ -14,7 +14,13 @@ buildscript {
 
 allprojects {
 	group = 'io.flywheel'
-	version = '2.0.0-rc.2'
+	// Allow overriding the version by specifying
+	// gradle -PsdkVersion=<version> build
+	if( project.hasProperty('sdkVersion') ) {
+		version = project.sdkVersion
+	} else {
+		version = '0.0.1'
+	}
 }
 
 subprojects {

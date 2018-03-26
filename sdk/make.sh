@@ -6,6 +6,10 @@ PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 GRADLE_CONTAINER="gradle:4.5-jdk8-alpine"
 PYTHON_CONTAINER="python:2.7-alpine"
 
+if [ "$#" -ge 1 ]; then
+	SDK_VERSION="-PsdkVersion=$1"
+fi
+
 # Containerized swagger code-gen
 PERSISTENT_DIR="${PROJECT_DIR}/persistent"
 if [ "$GRADLE_CACHE" = "" ]; then
@@ -22,7 +26,7 @@ docker run --rm -it \
 	-e GRADLE_USER_HOME=/gradle \
 	-v "${PROJECT_DIR}:/local" \
 	-v "${gradle_user_home}:/gradle" \
-	${GRADLE_CONTAINER} gradle --no-daemon clean build 
+	${GRADLE_CONTAINER} gradle --no-daemon $SDK_VERSION clean build 
 
 # Containerized python package gen
 docker run --rm -it \
