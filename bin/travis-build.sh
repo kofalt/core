@@ -4,12 +4,13 @@ set -ev
 # Parse tag/branch
 if [ -n "$TRAVIS_TAG" ]; then
 	DOC_VERSION="$TRAVIS_TAG"
+	SDK_VERSION="$TRAVIS_TAG"
 else 
 	# Use short commit ref, instead of $TRAVIS_COMMIT
 	COMMIT_REF="$(git rev-parse --short HEAD)"
 	DOC_VERSION="$TRAVIS_BRANCH/$COMMIT_REF"
+	SDK_VERSION="2.0.0.dev${TRAVIS_BUILD_NUMBER}"
 fi
-SDK_VERSION="$TRAVIS_BRANCH"
 
 # Build Core
 test -f "$DOCKER_DIR/image.tar" && docker load -i "$DOCKER_DIR/image.tar" || true
