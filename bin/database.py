@@ -1361,7 +1361,6 @@ def upgrade_to_42():
         process_cursor(cursor, upgrade_to_42_closure, context=cont_name)
 
 
-<<<<<<< HEAD
 def upgrade_to_43_closure(analysis):
     inputs = [f for f in analysis['files'] if f.get('input')]
     outputs = [f for f in analysis['files'] if f.get('output')]

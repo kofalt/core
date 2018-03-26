@@ -261,7 +261,6 @@ class ContainerStorage(object):
         if recursive and r_payload is not None:
             containerutil.propagate_changes(self.cont_name, _id, {}, {'$set': util.mongo_dict(r_payload)})
 
-        config.log.warning(update)
         return self.dbc.update_one({'_id': _id}, update)
 
     def replace_el(self, _id, payload):

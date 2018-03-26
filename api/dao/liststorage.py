@@ -163,7 +163,7 @@ class FileStorage(ListStorage):
 
         return {
             'modified': 1,
-            'jobs_triggered': len(jobs_spawned)
+            'jobs_spawned': len(jobs_spawned)
         }
 
     def _delete_el(self, _id, query_params):
@@ -222,10 +222,23 @@ class FileStorage(ListStorage):
 
         result = self.dbc.update_one(query, update)
         self._update_session_compliance(_id)
-        return result
+
+        return {
+            'modified': result.modified_count,
+            'jobs_spawned': 0
+        }
 
 
     def modify_classification(self, _id, query_params, payload):
+        """
+        Apply a classification update for a file. The payload format is:
+        {
+            "add": {},
+            "delete": {},
+            "replace": {}
+        }
+        NOTE: add and/or delete OR replace can be specified, never both in the same payload
+        """
         container_before = self.get_container(_id)
         update = {'$set': {'modified': datetime.datetime.utcnow()}}
 
@@ -238,9 +251,6 @@ class FileStorage(ListStorage):
         add_payload = payload.get('add')
         delete_payload = payload.get('delete')
         replace_payload = payload.get('replace')
-
-        if (add_payload or delete_payload) and replace_payload is not None:
-            raise APIStorageException('Cannot add or delete AND replace classification fields.')
 
         if replace_payload is not None:
             replace_payload = check_and_format_classification(modality, replace_payload)
@@ -264,7 +274,6 @@ class FileStorage(ListStorage):
             if delete_payload:
                 delete_payload = check_and_format_classification(modality, delete_payload)
 
-                # TODO: Test to make sure $pull succeeds when key does not exist
                 d_update = copy.deepcopy(update)
                 d_update['$pullAll'] = {}
                 for k,v in delete_payload.iteritems():
@@ -273,7 +282,12 @@ class FileStorage(ListStorage):
                 self.dbc.update_one(query, d_update)
 
         self._update_session_compliance(_id)
-        self._create_jobs(container_before)
+        jobs_spawned = self._create_jobs(container_before)
+
+        return {
+            'modified': 1,
+            'jobs_spawned': len(jobs_spawned)
+        }
 
 
 

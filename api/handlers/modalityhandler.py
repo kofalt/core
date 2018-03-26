@@ -3,7 +3,7 @@ from .. import config
 from ..auth import require_login, require_admin
 from ..dao import containerstorage
 from ..web.errors import APINotFoundException, APIValidationException
-#from ..validators import validate_data
+from ..validators import validate_data
 
 log = config.log
 
@@ -25,9 +25,7 @@ class ModalityHandler(base.RequestHandler):
     @require_admin
     def post(self):
         payload = self.request.json_body
-        # Clean this up when validate_data method is fixed to use new schemas
-        # POST unnecessary, used to avoid run-time modification of schema
-        #validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
+        validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
 
         result = self.storage.create_el(payload)
         return {'_id': result.inserted_id}
@@ -35,9 +33,7 @@ class ModalityHandler(base.RequestHandler):
     @require_admin
     def put(self, modality_name):
         payload = self.request.json_body
-        # Clean this up when validate_data method is fixed to use new schemas
-        # POST unnecessary, used to avoid run-time modification of schema
-        #validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
+        validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
 
         result = self.storage.replace_el(modality_name, payload)
         if result.matched_count != 1:

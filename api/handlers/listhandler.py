@@ -543,9 +543,8 @@ class FileListHandler(ListHandler):
             result = storage.modify_info(_id, kwargs, payload)
         except APIStorageException as e:
             self.abort(400, e.message)
-        # abort if the query of the update wasn't able to find any matching documents
-        if result.matched_count == 0:
-            self.abort(404, 'Element not updated in list {} of container {} {}'.format(storage.list_name, storage.cont_name, _id))
+        return result
+
 
     def modify_classification(self, cont_name, list_name, **kwargs):
         _id = kwargs.pop('cid')
@@ -556,7 +555,7 @@ class FileListHandler(ListHandler):
         validators.validate_data(payload, 'classification-update.json', 'input', 'POST')
 
         permchecker(noop)('PUT', _id=_id, query_params=kwargs, payload=payload)
-        storage.modify_classification(_id, kwargs, payload)
+        return storage.modify_classification(_id, kwargs, payload)
 
 
     def post(self, cont_name, list_name, **kwargs):
@@ -577,6 +576,7 @@ class FileListHandler(ListHandler):
 
         result = permchecker(storage.exec_op)('PUT', _id=_id, query_params=kwargs, payload=payload)
         return result
+
 
     def delete(self, cont_name, list_name, **kwargs):
         # Overriding base class delete to audit action before completion

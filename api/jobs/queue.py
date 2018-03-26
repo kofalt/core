@@ -250,7 +250,7 @@ class Queue(object):
                 obj_projection['measurements'] = []
                 if obj_projection.get('classification'):
                     for v in obj_projection['classification'].itervalues():
-                        obj_projection.extend(v)
+                        obj_projection['measurements'].extend(v)
                 #
                 ###
 

@@ -138,7 +138,7 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
 
     ### RUN UPGRADE
 
-    database.upgrade_to_43()
+    database.upgrade_to_45()
 
     ####
 

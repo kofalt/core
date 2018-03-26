@@ -1,0 +1,12 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "Acquisition",
+    "type": "object",
+    "allOf": [{"$ref": "../definitions/modality.json#/definitions/modality-input"}],
+    "required": ["classification"],
+    "example": {
+        "classification": {
+            "Intent": ["Functional", "Diffusion"]
+        }
+    }
+}
