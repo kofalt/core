@@ -51,20 +51,15 @@ main() {
         shift
     done
 
-	pwd
-	log "Installing required packages..."
-	pip install -r src/python/tests/requirements.txt
-
 	log "Installing python wheel..."
-	pip install src/python/gen/dist/*.whl
+	pip install -qq src/python/gen/dist/*.whl
 
     log "Running integration tests ..."
     py.test src/python/tests/integration_tests $PYTEST_ARGS
 
     # log "Running pylint ..."
-    # TODO Enable Refactor and Convention reports
-    # TODO Move --disable into rc
-    # pylint --rcfile=tests/.pylintrc --jobs=4 --reports=no --disable=C,R,W0312,W0141,W0110 api
+	# Note: This runs clean as of being commented out, but takes around a minute to run...
+	# pylint --rcfile=src/python/tests/.pylintrc --jobs=4 --reports=no --disable=C,R,W0312,W0141,W0110 src/python/gen/flywheel
 
     # log "Running pep8 ..."
     # pep8 --max-line-length=150 --ignore=E402 api

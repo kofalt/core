@@ -9,7 +9,7 @@ USAGE="
 Usage:
     $0 [OPTION...] [-- PYTEST_ARGS...]
 
-Build scitran/core image and run tests in a Docker container.
+Build flywheel/core image and run tests in a Docker container.
 Also displays coverage report and saves HTML under htmlcov/
 
 Options:
@@ -18,7 +18,7 @@ Options:
     -B, --no-build        Skip rebuilding default Docker image
         --image IMAGE     Use custom Docker image
         --shell           Enter shell instead of running tests
-		--python VERSION  Use VERSION of python instead of 3.4
+		--python2         Use python2 image instead of python3
 
     -- PYTEST_ARGS      Arguments passed to py.test
 
@@ -30,7 +30,9 @@ main() {
     local DOCKER_IMAGE=
     local PYTEST_ARGS=
     local RUN_SHELL=
-	local PYTHON_VER=3.4
+	local DOCKER_TARGET=python3
+	local SDK_IMAGE=sdk:testing-python3
+	local BUILD_SDK_IMAGE=true
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -39,11 +41,12 @@ main() {
                 exit 0
                 ;;
             -B|--no-build)
-                DOCKER_IMAGE="scitran/core:testing"
+                DOCKER_IMAGE="core:testing"
+				BUILD_SDK_IMAGE=false
                 ;;
-			--python)
-				PYTHON_VER="$2"
-				shift
+			--python2)
+				DOCKER_TARGET=python2
+				SDK_IMAGE=sdk:testing-python2
 				;;
             --image)
                 DOCKER_IMAGE="$2"
@@ -68,11 +71,16 @@ main() {
 
     # Docker build
     if [ -z "${DOCKER_IMAGE}" ]; then
-        log "Building scitran/core:testing ..."
-        docker build -t scitran/core:testing ..
+        log "Building core:testing ..."
+        docker build -t core:testing ..
     else
-        docker tag "$DOCKER_IMAGE" "scitran/core:testing"
+        docker tag "$DOCKER_IMAGE" "core:testing"
     fi
+
+	if [ -n "${BUILD_SDK_IMAGE}" ]; then
+		log "Building ${SDK_IMAGE} ..."
+		docker build -t ${SDK_IMAGE} --target ${DOCKER_TARGET} .
+	fi
 
     trap clean_up EXIT
     docker network create ${TEST_PREFIX}
@@ -86,7 +94,7 @@ main() {
         --env PRE_RUNAS_CMD='[ "$1" = uwsgi ] && mongod > /dev/null 2>&1 &' \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
-        scitran/core:testing \
+        core:testing \
             uwsgi --ini /var/scitran/config/uwsgi-config.ini --http [::]:9000 \
             --processes 1 --threads 1 --enable-threads \
             --http-keepalive --so-keepalive --add-header "Connection: Keep-Alive" \
@@ -104,7 +112,7 @@ main() {
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://${TEST_PREFIX}-service:27017/scitran \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
 		-w /var/scitran/code/sdk \
-        python:$PYTHON_VER \
+        ${SDK_IMAGE} \
         $SDK_TEST_CMD
 }
 

@@ -19,10 +19,6 @@ test -f "$DOCKER_DIR/image.tar" && docker load -i "$DOCKER_DIR/image.tar" || tru
 docker build -t core:base --target base .
 docker build -t core:dist --target dist --build-arg VCS_BRANCH="$TRAVIS_BRANCH" --build-arg VCS_COMMIT="$TRAVIS_COMMIT" .
 docker build -t core:testing --target testing .
-docker save -o "$DOCKER_DIR/image.tar" \
-	$(docker history -q core:base | grep -v '<missing>') \
-	$(docker history -q core:dist | grep -v '<missing>') \
-	$(docker history -q core:testing | grep -v '<missing>')
 
 if [ "$BUILD_SDK" = "false" ]; then
 	./tests/bin/docker-tests.sh --image core:testing
@@ -39,13 +35,27 @@ if [ "$BUILD_SDK" = "true" ]; then
 	sdk/make.sh $SDK_VERSION
 
 	# Test SDK (Python 3.4)
-	sdk/scripts/docker-tests.sh --image core:testing --python 3.4
+	sdk/scripts/docker-tests.sh --image core:testing 
 
 	# Test SDK (Python 2.7)
-	sdk/scripts/docker-tests.sh --image core:testing --python 2.7
+	sdk/scripts/docker-tests.sh --image core:testing --python2
 
 	# Copy artifacts
 	mkdir -p dist/sdk/$SDK_DIR
 	cp sdk/dist/* dist/sdk/$SDK_DIR
+
+	# Save docker images
+	docker save -o "$DOCKER_DIR/image.tar" \
+		$(docker history -q core:base | grep -v '<missing>') \
+		$(docker history -q core:dist | grep -v '<missing>') \
+		$(docker history -q core:testing | grep -v '<missing>') \
+		$(docker history -q sdk:testing-python2 | grep -v '<missing>') \
+		$(docker history -q sdk:testing-python3 | grep -v '<missing>')
+else
+	# Save docker images
+	docker save -o "$DOCKER_DIR/image.tar" \
+		$(docker history -q core:base | grep -v '<missing>') \
+		$(docker history -q core:dist | grep -v '<missing>') \
+		$(docker history -q core:testing | grep -v '<missing>')
 fi
 
