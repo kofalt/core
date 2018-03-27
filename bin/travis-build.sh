@@ -37,6 +37,13 @@ if [ "$BUILD_SDK" = "true" ]; then
 	cp swagger/build/swagger-codegen.json sdk/swagger.json
 	# Build SDK
 	sdk/make.sh $SDK_VERSION
+
+	# Test SDK (Python 3.4)
+	sdk/scripts/docker-tests.sh --image core:testing --python 3.4
+
+	# Test SDK (Python 2.7)
+	sdk/scripts/docker-tests.sh --image core:testing --python 2.7
+
 	# Copy artifacts
 	mkdir -p dist/sdk/$SDK_DIR
 	cp sdk/dist/* dist/sdk/$SDK_DIR
