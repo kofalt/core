@@ -33,7 +33,7 @@ docker run --rm -it \
 	-w /local/src/python/gen \
 	-u "$(id -u):$(id -g)" \
 	-v "${PROJECT_DIR}:/local" \
-	${PYTHON_CONTAINER} python setup.py bdist_wheel
+	${PYTHON_CONTAINER} python setup.py -q bdist_wheel
 
 # Copy distribution artifacts to ./dist/
 DIST_DIR=$PROJECT_DIR/dist
