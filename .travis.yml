@@ -70,7 +70,8 @@ deploy:
   bucket: sdk-test
   local-dir: dist
   skip_cleanup: true
+  acl: public-read
   on:
     repo: flywheel-io/core
-    all_branches: true
+    tags: true
     condition: $BUILD_SDK = true
