@@ -47,7 +47,7 @@ class ApiClient(object):
     PRIMITIVE_TYPES = (float, bool, bytes, six.text_type) + six.integer_types
     NATIVE_TYPES_MAPPING = {
         'int': int,
-        'long': int if six.PY3 else long,  # noqa: F821
+        'long': int if six.PY3 else long,  # noqa: F821, pylint: disable=E0602
         'float': float,
         'str': str,
         'bool': bool,
@@ -71,6 +71,7 @@ class ApiClient(object):
         self.cookie = cookie
         # Set default User-Agent.
         self.user_agent = '{{#httpUserAgent}}{{{.}}}{{/httpUserAgent}}{{^httpUserAgent}}Swagger-Codegen/{{{packageVersion}}}/python{{/httpUserAgent}}'
+        self.last_response = None
 
     def __del__(self):
         self.pool.close()
@@ -267,12 +268,12 @@ class ApiClient(object):
 
         if type(klass) == str:
             if klass.startswith('list['):
-                sub_kls = re.match('list\[(.*)\]', klass).group(1)
+                sub_kls = re.match(r'list\[(.*)\]', klass).group(1)
                 return [self.__deserialize(sub_data, sub_kls)
                         for sub_data in data]
 
             if klass.startswith('dict('):
-                sub_kls = re.match('dict\(([^,]*), (.*)\)', klass).group(2)
+                sub_kls = re.match(r'dict\(([^,]*), (.*)\)', klass).group(2)
                 return {k: self.__deserialize(v, sub_kls)
                         for k, v in six.iteritems(data)}
 
@@ -296,7 +297,7 @@ class ApiClient(object):
     def call_api(self, resource_path, method,
                  path_params=None, query_params=None, header_params=None,
                  body=None, post_params=None, files=None,
-                 response_type=None, auth_settings=None, async=None,
+                 response_type=None, auth_settings=None, async=None, # pylint: disable=W0111
                  _return_http_data_only=None, collection_formats=None,
                  _preload_content=True, _request_timeout=None, _request_out=None):
         """Makes the HTTP request (synchronous) and returns deserialized data.
