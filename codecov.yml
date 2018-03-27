@@ -7,16 +7,16 @@ coverage:
     project: no
     patch:
       default:
-        enabled: yes
+        enabled: no
         # basic
         target: 100%  # we always want 100% coverage for new code
         threshold: null
-        base: pr 
+        base: pr
     changes:
       default:
         enabled: yes
         # basic
-        base: pr 
+        base: pr
 comment:
   layout: "diff"
   behavior: default

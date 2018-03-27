@@ -279,7 +279,7 @@ class SessionStorage(ContainerStorage):
             a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
             query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
 
-        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=False)
+        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults)
 
 
     def recalc_session_compliance(self, session_id, session=None, template=None, hard=False):
