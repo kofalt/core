@@ -55,6 +55,17 @@ main() {
     py.test --exitfirst --cov=api --cov-report= tests/unit_tests/python $PYTEST_ARGS
 
     log "INFO: Running integration tests ..."
+    if [ "${0##*/}" = "run-tests-ubuntu.sh" ]; then
+        # Temporary fly/fly backwards compatibility workaround
+        # TODO (Ambrus) Remove together with sh symlink
+        export SCITRAN_SITE_API_URL=http://localhost:9000/api
+        uwsgi --ini /var/scitran/config/uwsgi-config.ini --http [::]:9000 \
+            --processes 1 --threads 1 --enable-threads \
+            --http-keepalive --so-keepalive --add-header "Connection: Keep-Alive" \
+            --logformat '[%(ltime)] "%(method) %(uri) %(proto)" %(status) %(size) request_id=%(request_id)' \
+        &
+    fi
+
     touch tests/running_integration
     py.test --exitfirst tests/integration_tests/python $PYTEST_ARGS
     rm tests/running_integration
