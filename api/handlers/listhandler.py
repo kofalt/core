@@ -4,6 +4,7 @@ import copy
 import datetime
 import dateutil
 import json
+import re
 import uuid
 import zipfile
 
@@ -524,6 +525,9 @@ class FileListHandler(ListHandler):
 
     def get_info(self, cont_name, list_name, **kwargs):
         _id = kwargs['cid']
+        fregex = re.compile('.+[^/info]')
+        m = fregex.search(kwargs.pop('name'))
+        kwargs['name'] = m.group(0)
         filename = kwargs['name']
         result = super(FileListHandler,self).get(cont_name, list_name, **kwargs)
         self.log_user_access(AccessType.view_file, cont_name=cont_name, cont_id=_id, filename=filename)
@@ -532,6 +536,9 @@ class FileListHandler(ListHandler):
 
     def modify_info(self, cont_name, list_name, **kwargs):
         _id = kwargs.pop('cid')
+        fregex = re.compile('.+[^/info]')
+        m = fregex.search(kwargs.pop('name'))
+        kwargs['name'] = m.group(0)
         permchecker, storage, _, _, _ = self._initialize_request(cont_name, list_name, _id, query_params=kwargs)
 
         payload = self.request.json_body
