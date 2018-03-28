@@ -1420,6 +1420,25 @@ def upgrade_files_to_45(cont, cont_name):
     if there is no modality or the modality cannot be found in the modalities
     collection, all measurements are added to the custom key
     """
+    conversionTable = {
+        "anatomy_inplane":  {"Contrast":"T1", "Intent": "Structural", "Features": "In-Plane"},
+        "anatomy_ir":       {"Contrast":"T1", "Intent": "Structural"},
+        "anatomy_pd":       {"Contrast":"PD", "Intent": "Structural"},
+        "anatomy_t1w":      {"Contrast":"T1", "Intent": "Structural"},
+        "anatomy_t2w":      {"Contrast":"T2", "Intent": "Structural"},
+        "calibration":      {"Intent": "Calibration"},
+        "coil_survey":      {"Contrast": "B1", "Intent": "Calibration"},
+        "diffusion":        {"Contrast":"Diffusion", "Intent":"Structural"},
+        "diffusion_map":    {"Contrast": ["Diffusion", "Fieldmap"], "Intent": "Structural"},
+        "fieldmap":         {"Contrast": "B0", "Intent": "Fieldmap"},
+        "functional":       {"Contrast": "T2*", "Intent": "Functional"},
+        "functional_map":   {"Intent":"Functional", "Features":"Derived"},
+        "high_order_shim":  {"Intent": "Shim"},
+        "localizer":        {"Contrast":"T2", "Intent":"Localizer"},
+        "perfusion":        {"Contrast":"Perfusion", "Intent":"Structural"},
+        "spectroscopy":     {"Contrast":"Spectroscopy"},
+        "screenshot":       {"Intent":"Screenshot"}
+    }
 
     files = cont['files']
     for f in cont['files']:
@@ -1428,7 +1447,7 @@ def upgrade_files_to_45(cont, cont_name):
         modality_container = None
 
         if modality:
-            modality_container = config.db.modalities.find_one({'_id': modality})
+            modality_container = config.db.modalities.find_one({'_id': modality.upper()})
 
         if modality_container:
             classification = {}
@@ -1436,6 +1455,15 @@ def upgrade_files_to_45(cont, cont_name):
 
             for m in measurements:
                 found = False
+                if conversionTable.get(m):
+                    for k, v in conversionTable[m].iteritems():
+                        if isinstance(v, list):
+                            classification[k] = classification.get(k,[]) + v
+                        elif classification.get(k):
+                            classification[k].append(v)
+                        else:
+                            classification[k] = [v]
+                    continue
                 for k, v_array in m_class.iteritems():
                     for v in v_array:
                         if v.lower() == m.lower():
@@ -1450,6 +1478,8 @@ def upgrade_files_to_45(cont, cont_name):
                     else:
                         classification['Custom'] = [m]
 
+            for k, v_array in classification.iteritems():
+                classification[k] = list(set(v_array))
         else:
             classification = {'Custom': measurements}
 
@@ -1502,7 +1532,7 @@ def upgrade_to_45():
     """
 
     # Seed modality collection:
-    if not config.db.modalities.find({'_id': 'MR'}):
+    if not config.db.modalities.find_one({'_id': 'MR'}):
         config.db.modalities.insert({
             "_id": "MR",
             "classification": {
