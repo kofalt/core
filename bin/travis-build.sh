@@ -5,13 +5,11 @@ set -ev
 if [ -n "$TRAVIS_TAG" ]; then
 	DOC_VERSION="$TRAVIS_TAG"
 	SDK_VERSION="$TRAVIS_TAG"
-	SDK_DIR="tags/$TRAVIS_TAG"
 else 
 	# Use short commit ref, instead of $TRAVIS_COMMIT
 	COMMIT_REF="$(git rev-parse --short HEAD)"
 	DOC_VERSION="$TRAVIS_BRANCH/$COMMIT_REF"
 	SDK_VERSION="2.0.0.dev${TRAVIS_BUILD_NUMBER}"
-	SDK_DIR="branches/$TRAVIS_BRANCH"
 fi
 
 # Build Core
@@ -40,9 +38,11 @@ if [ "$BUILD_SDK" = "true" ]; then
 	# Test SDK (Python 2.7)
 	sdk/scripts/docker-tests.sh --image core:testing --python2
 
-	# Copy artifacts
-	mkdir -p dist/sdk/$SDK_DIR
-	cp sdk/dist/* dist/sdk/$SDK_DIR
+	# Copy artifacts (Tag builds only)
+	if [ -n "$TRAVIS_TAG" ]; then
+		mkdir -p dist/sdk/
+		cp sdk/dist/* dist/sdk/
+	fi
 
 	# Save docker images
 	docker save -o "$DOCKER_DIR/image.tar" \
