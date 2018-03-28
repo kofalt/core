@@ -11,7 +11,7 @@ Usage:
 
 Runs all tests (unit, integ and linting) if no options are provided.
 
-Assumes running in a scitran/core:testing container or that core and all
+Assumes running in a flywheel/core:testing container or that core and all
 of its dependencies are installed the same way as in the Dockerfile.
 
 Options:

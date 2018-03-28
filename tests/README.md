@@ -1,5 +1,5 @@
 ## Testing
-Build scitran-core and run automated tests in a docker container:
+Build flywheel/core and run automated tests in a docker container:
 ```
 ./tests/bin/docker-tests.sh
 ```

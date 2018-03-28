@@ -9,7 +9,7 @@ USAGE="
 Usage:
     $0 [OPTION...] [-- PYTEST_ARGS...]
 
-Build scitran/core image and run tests in a Docker container.
+Build flywheel/core image and run tests in a Docker container.
 Also displays coverage report and saves HTML under htmlcov/
 
 Options:
@@ -36,7 +36,7 @@ main() {
                 exit 0
                 ;;
             -B|--no-build)
-                DOCKER_IMAGE="scitran/core:testing"
+                DOCKER_IMAGE="flywheel/core:testing"
                 ;;
             --image)
                 DOCKER_IMAGE="$2"
@@ -61,10 +61,10 @@ main() {
 
     # Docker build
     if [ -z "${DOCKER_IMAGE}" ]; then
-        log "Building scitran/core:testing ..."
-        docker build -t scitran/core:testing .
+        log "Building flywheel/core:testing ..."
+        docker build -t flywheel/core:testing .
     else
-        docker tag "$DOCKER_IMAGE" "scitran/core:testing"
+        docker tag "$DOCKER_IMAGE" "flywheel/core:testing"
     fi
 
     log "Cleaning pyc and previous coverage results ..."
@@ -73,7 +73,7 @@ main() {
         --name core-test-cleanup \
         --volume $(pwd):/var/scitran/code/api \
         --workdir /var/scitran/code/api \
-        scitran/core:testing \
+        flywheel/core:testing \
         sh -c "
             find . -type d -name __pycache__ -exec rm -rf {} \;;
             find . -type f -name '*.pyc' -delete;
@@ -94,7 +94,7 @@ main() {
         --env SCITRAN_RUNTIME_COVERAGE=true \
         --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
         --workdir /var/scitran/code/api \
-        scitran/core:testing \
+        flywheel/core:testing \
             uwsgi --ini /var/scitran/config/uwsgi-config.ini --http [::]:9000 \
             --processes 1 --threads 1 --enable-threads \
             --http-keepalive --so-keepalive --add-header "Connection: Keep-Alive" \
@@ -114,7 +114,7 @@ main() {
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://core-test-service:27017/scitran \
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-service:27017/logs \
         --workdir /var/scitran/code/api \
-        scitran/core:testing \
+        flywheel/core:testing \
         $CORE_TEST_CMD
 }
 
@@ -139,7 +139,7 @@ clean_up() {
             --name core-test-coverage \
             --volume $(pwd):/var/scitran/code/api \
             --workdir /var/scitran/code/api \
-            scitran/core:testing \
+            flywheel/core:testing \
             sh -c '
                 coverage combine;
                 coverage report --skip-covered --show-missing;

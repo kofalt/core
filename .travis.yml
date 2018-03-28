@@ -46,19 +46,19 @@ after_success:
       fi
   fi
 
-# Tag and push scitran/core image (master >> :latest, tag >> :tag)
+# Tag and push flywheel/core image (master >> :latest, tag >> :tag)
 - if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
-      docker tag core:dist scitran/core:latest;
-      docker push scitran/core:latest;
+      docker tag core:dist flywheel/core:latest;
+      docker push flywheel/core:latest;
   fi
 - if [ -n "$TRAVIS_TAG" ]; then
-      docker tag core:dist scitran/core:$TRAVIS_TAG;
-      docker push scitran/core:$TRAVIS_TAG;
+      docker tag core:dist flywheel/core:$TRAVIS_TAG;
+      docker push flywheel/core:$TRAVIS_TAG;
   fi
 
 # Temporary: tag and push unit-improvements-backport-1-rebased, too
 # TODO (Ambrus) Remove before merge
 - if [ "$TRAVIS_BRANCH" == "unit-improvements-backport-1-rebased" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
-      docker tag core:dist scitran/core:refactor;
-      docker push scitran/core:refactor;
+      docker tag core:dist flywheel/core:refactor;
+      docker push flywheel/core:refactor;
   fi
