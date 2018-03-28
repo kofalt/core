@@ -19,11 +19,6 @@ cache:
   - $NPM_CACHE
   - $GRADLE_CACHE
 
-matrix:
-  fast_finish: true
-  allow_failures:
-    - env: BUILD_SDK=true
-
 before_install:
 - sudo apt-get update
 - sudo apt-get -y install docker-ce realpath
