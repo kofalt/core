@@ -189,3 +189,21 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     # try to resolve non-existent (also invalid) root/group/project/session/acquisition/file/child
     r = as_admin.post('/resolve', json={'path': [group, project_label, session_label, acquisition_label, acquisition_file, 'child']})
     assert r.status_code == 404
+
+    # try to resolve deleted containers/files
+    r = as_admin.delete('/projects/' + project)
+    assert r.ok
+
+    # Resolve group
+    r = as_admin.post('/resolve', json={'path': [group]})
+    assert r.ok
+    assert path_in_result([group], r.json())
+    assert result['children'] == []
+
+    # Resolve project 404
+    r = as_admin.post('/resolve', json={'path': [group, project]})
+    assert r.status_code == 404
+
+    # Resolve session 404
+    r = as_admin.post('/resolve', json={'path': [group, project, session]})
+    assert r.status_code == 404
