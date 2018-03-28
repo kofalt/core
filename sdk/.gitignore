@@ -6,6 +6,8 @@ dist/
 *.swp
 .gradle/
 .idea/
+cov_html/
+.coverage
 *.iml
 __pycache__/
 .pytest_cache/

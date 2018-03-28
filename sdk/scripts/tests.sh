@@ -55,7 +55,8 @@ main() {
 	pip install -qq src/python/gen/dist/*.whl
 
     log "Running integration tests ..."
-    py.test src/python/tests/integration_tests $PYTEST_ARGS
+    py.test --cov=flywheel --cov-report=html:cov_html --cov-report=term \
+		src/python/tests/integration_tests $PYTEST_ARGS
 
     # log "Running pylint ..."
 	# Note: This runs clean as of being commented out, but takes around a minute to run...
