@@ -52,7 +52,8 @@ main() {
     done
 
 	log "Installing python wheel..."
-	pip install -qq src/python/gen/dist/*.whl
+	cp src/python/gen/dist/*.whl /tmp/flywheel_sdk-1-py2.py3-none-any.whl
+	pip install -qq /tmp/flywheel_sdk-1-py2.py3-none-any.whl
 
     log "Running integration tests ..."
     py.test --cov=flywheel --cov-report=html:cov_html --cov-report=term \

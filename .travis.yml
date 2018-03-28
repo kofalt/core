@@ -69,4 +69,4 @@ deploy:
   on:
     repo: flywheel-io/core
     tags: true
-    condition: $BUILD_SDK = true
+    condition: $BUILD_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
