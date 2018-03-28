@@ -77,7 +77,7 @@ main() {
         docker tag "$DOCKER_IMAGE" "core:testing"
     fi
 
-	if [ -n "${BUILD_SDK_IMAGE}" ]; then
+	if [ "${BUILD_SDK_IMAGE}" = "true" ]; then
 		log "Building ${SDK_IMAGE} ..."
 		docker build -t ${SDK_IMAGE} --target ${DOCKER_TARGET} .
 	fi
