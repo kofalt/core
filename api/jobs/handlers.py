@@ -146,8 +146,8 @@ class GearHandler(base.RequestHandler):
 
         response['parents'] = [{'cont_type': singularize(p['cont_type']), '_id': p['_id'], 'label': p.get('label', '')} for p in parents]
 
-        files = add_suggest_info_to_files(gear, container.get('files', []))
-        response['files'] = [{'name': f['name'], 'suggested': f['suggested']} for f in files]
+        _files = add_suggest_info_to_files(gear, container.get('files', []))
+        response['files'] = [{'name': f['name'], 'suggested': f['suggested']} for f in _files]
 
         return response
 

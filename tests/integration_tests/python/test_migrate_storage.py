@@ -120,48 +120,48 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 @pytest.yield_fixture(scope='function')
 def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     # Create a project
-    project_id = data_builder.create_project()
+    session_id = data_builder.create_session()
 
     files = []
 
     # Create a CAS file
     file_name_1 = '%s.csv' % randstr()
     file_content_1 = randstr()
-    as_admin.post('/projects/' + project_id + '/files', files=file_form((file_name_1, file_content_1)))
+    as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))
 
-    file_info = api_db['projects'].find_one(
+    file_info = api_db['sessions'].find_one(
         {'files.name': file_name_1}
     )['files'][0]
     file_id_1 = file_info['_id']
     file_hash_1 = file_info['hash']
-    url_1 = '/projects/' + project_id + '/files/' + file_name_1
+    url_1 = '/sessions/' + session_id + '/files/' + file_name_1
 
-    api_db['projects'].find_one_and_update(
+    api_db['sessions'].find_one_and_update(
         {'files.name': file_name_1},
         {'$unset': {'files.$._id': ''}}
     )
 
     move_file_to_legacy(util.path_from_uuid(file_id_1), util.path_from_hash(file_hash_1))
-    files.append((project_id, file_name_1, url_1, util.path_from_hash(file_hash_1)))
+    files.append((session_id, file_name_1, url_1, util.path_from_hash(file_hash_1)))
     # Create an UUID file
     file_name_2 = '%s.csv' % randstr()
     file_content_2 = randstr()
-    as_admin.post('/projects/' + project_id + '/files', files=file_form((file_name_2, file_content_2)))
+    as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_2, file_content_2)))
 
-    file_info = api_db['projects'].find_one(
+    file_info = api_db['sessions'].find_one(
         {'files.name': file_name_2}
     )['files'][1]
     file_id_2 = file_info['_id']
-    url_2 = '/projects/' + project_id + '/files/' + file_name_2
+    url_2 = '/sessions/' + session_id + '/files/' + file_name_2
 
     move_file_to_legacy(util.path_from_uuid(file_id_2), util.path_from_uuid(file_id_2))
-    files.append((project_id, file_name_2, url_2, util.path_from_uuid(file_id_2)))
+    files.append((session_id, file_name_2, url_2, util.path_from_uuid(file_id_2)))
 
     yield files
 
     # Clean up, get the files
-    files = api_db['projects'].find_one(
-        {'_id': ObjectId(project_id)}
+    files = api_db['sessions'].find_one(
+        {'_id': ObjectId(session_id)}
     )['files']
     # Delete the files
     for f in files:
@@ -284,25 +284,25 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
         filter = args[1]
         update = args[2]
 
-        as_admin.post('/projects/' + project_id + '/files', files=file_form((file_name_1, 'new_content')))
+        as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, 'new_content')))
 
         return origin_find_one_and_update(self, filter, update)
 
 
     with mocker.mock_module.patch.object(pymongo.collection.Collection, 'find_one_and_update', mocked):
         # get file storing by hash in legacy storage
-        (project_id, file_name_1, url_1, file_path_1) = files_to_migrate[0]
+        (session_id, file_name_1, url_1, file_path_1) = files_to_migrate[0]
         # get ile storing by uuid in legacy storage
         (_, file_name_2, url_2, file_path_2) = files_to_migrate[1]
 
         # run the migration
         migrate_storage.migrate_containers()
 
-        file_1_id = api_db['projects'].find_one(
+        file_1_id = api_db['sessions'].find_one(
             {'files.name': file_name_1}
         )['files'][0]['_id']
 
-        file_2_id = api_db['projects'].find_one(
+        file_2_id = api_db['sessions'].find_one(
             {'files.name': file_name_2}
         )['files'][1]['_id']
 
@@ -316,7 +316,7 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     """Testing analysis migration"""
 
     # get file storing by hash in legacy storage
-    (project_id, file_name_1, url_1, file_path_1) = files_to_migrate[0]
+    (session_id, file_name_1, url_1, file_path_1) = files_to_migrate[0]
     # get ile storing by uuid in legacy storage
     (_, _,url_2, file_path_2) = files_to_migrate[1]
 
@@ -329,14 +329,14 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     gear = data_builder.create_gear(gear=gear_doc)
 
     # create project analysis (job) using project's file as input
-    r = as_admin.post('/projects/' + project_id + '/analyses', params={'job': 'true'}, json={
-        'analysis': {'label': 'test analysis job'},
+    r = as_admin.post('/sessions/' + session_id + '/analyses', json={
+        'label': 'test analysis job',
         'job': {
             'gear_id': gear,
             'inputs': {
                 'csv': {
-                    'type': 'projects',
-                    'id': project_id,
+                    'type': 'session',
+                    'id': session_id,
                     'name': file_name_1
                 }
             },
@@ -346,9 +346,9 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     assert r.ok
     analysis_id1 = r.json()['_id']
 
-    r = as_admin.get('/projects/' + project_id + '/analyses/' + analysis_id1)
+    r = as_admin.get('/sessions/' + session_id + '/analyses/' + analysis_id1)
     assert r.ok
-    analysis_files1 = '/projects/' + project_id + '/analyses/' + analysis_id1 + '/files'
+    analysis_files1 = '/sessions/' + session_id + '/analyses/' + analysis_id1 + '/files'
 
     # run the migration
     migrate_storage.migrate_containers()
@@ -383,11 +383,11 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     r = as_admin.get(analysis_files1 + '/' + file_name_1, params={'ticket': ticket})
     assert r.ok
 
-    r = as_admin.get('/projects/' + project_id + '/analyses/' + analysis_id1)
+    r = as_admin.get('/sessions/' + session_id + '/analyses/' + analysis_id1)
     assert r.ok
-    input_file_id = r.json()['files'][0]['_id']
+    input_file_id = r.json()['inputs'][0]['_id']
 
-    r = as_admin.get('/projects/' + project_id)
+    r = as_admin.get('/sessions/' + session_id)
     assert r.ok
     project_file_id = r.json()['files'][0]['_id']
 

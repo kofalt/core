@@ -140,8 +140,9 @@ def migrate_containers():
                                             ('acquisitions', 'files'),
                                             ('sessions', 'files'),
                                             ('sessions', 'subject.files'),
-                                            ('collections', 'files')])
-    analysis_files = get_containers_files([('analyses', 'files')])
+                                            ('collections', 'files'),
+                                            ('analyses', 'files')])
+    analysis_files = get_containers_files([('analyses', 'inputs')])
 
     for i, f in enumerate(analysis_files):
         match = [cf for cf in container_files if cf['fileinfo']['hash'] == f['fileinfo']['hash'] and cf['fileinfo'].get('_id')]
