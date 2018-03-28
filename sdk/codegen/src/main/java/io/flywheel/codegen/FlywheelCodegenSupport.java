@@ -190,6 +190,7 @@ public class FlywheelCodegenSupport {
         String opId = operationId.replace("modify_", "set_");
         Map<String, Object> detail = new HashMap<>();
         detail.put("wrapperId", gen.toOperationId(opId));
+        detail.put("summary", "Update info with the provided fields.");
         detail.put("key", "set");
         result.add(detail);
 
@@ -197,6 +198,7 @@ public class FlywheelCodegenSupport {
         opId = operationId.replace("modify_", "replace_");
         detail = new HashMap<>();
         detail.put("wrapperId", gen.toOperationId(opId));
+        detail.put("summary", "Entirely replace info with the provided fields.");
         detail.put("key", "replace");
         result.add(detail);
 
@@ -204,6 +206,7 @@ public class FlywheelCodegenSupport {
         opId = operationId.replace("modify_", "delete_") + "_fields";
         detail = new HashMap<>();
         detail.put("wrapperId", gen.toOperationId(opId));
+        detail.put("summary", "Delete the specified fields from info.");
         detail.put("key", "delete");
         result.add(detail);
 
