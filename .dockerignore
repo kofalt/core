@@ -1,15 +1,10 @@
-.git
+*
 
-# --- Below Should mirror .gitignore, without leading '/' --- #
-.DS_Store
-.*sw[op]
-*.py[co]
-*.egg-info
-persistent
-runtime
-bootstrap.json
-.cache
-.coverage*
-coverage.xml
-htmlcov
-node_modules
+!api
+!bin
+!docker
+!requirements.txt
+!setup.py
+!swagger/examples
+!swagger/schemas
+!tests/requirements.txt

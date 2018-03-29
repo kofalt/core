@@ -15,29 +15,18 @@ API documentation for branches and tags can be found at `https://flywheel-io.git
 
 ### [Contributing](https://github.com/flywheel-io/core/blob/master/CONTRIBUTING.md)
 
-### [Testing](https://github.com/flywheel-io/core/blob/master/TESTING.md)
+### [Testing](https://github.com/flywheel-io/core/blob/master/tests/README.md)
 
 ### [License](https://github.com/flywheel-io/core/blob/master/LICENSE)
 
 
 ### Usage
-**Currently Python 2 Only**
 
-#### OSX
 ```
-$ ./bin/run-dev-osx.sh --help
-```
-
-For the best experience, please upgrade to a recent version of bash.
-```
-brew install bash bash-completion
-sudo dscl . -create /Users/$(whoami) UserShell /usr/local/bin/bash
-```
-
-#### Ubuntu
-```
-mkvirtualenv scitran-core
-./bin/install-ubuntu.sh
-uwsgi --http :8080 --master --wsgi-file bin/api.wsgi -H $VIRTUAL_ENV \
-    --env SCITRAN_PERSISTENT_DB_URI="mongodb://localhost:27017/scitran-core"
+docker build -t flywheel/core .
+docker run \
+    -e PRE_RUNAS_CMD='mongod >/dev/null 2>&1 &' \
+    -e SCITRAN_CORE_DRONE_SECRET=secret \
+    -p 9000:9000 \
+    flywheel/core
 ```
