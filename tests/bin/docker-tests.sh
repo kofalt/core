@@ -144,6 +144,7 @@ clean_up() {
                 coverage combine;
                 coverage report --skip-covered --show-missing;
                 coverage html;
+                coverage xml;
             '
     else
         log "ERROR: Test return code = $TEST_RESULT_CODE"
