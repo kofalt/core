@@ -40,7 +40,10 @@ RUN set -eux \
         /var/scitran/keys \
         /var/scitran/logs
 
-VOLUME ["/var/scitran/keys", "/var/scitran/data", "/var/scitran/logs"]
+VOLUME /var/scitran/data
+VOLUME /var/scitran/keys
+VOLUME /var/scitran/logs
+
 WORKDIR /var/scitran
 
 COPY docker/uwsgi-entrypoint.sh /var/scitran/

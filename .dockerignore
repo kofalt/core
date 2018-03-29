@@ -2,8 +2,7 @@
 
 !api
 !bin
-!docker/uwsgi-config.ini
-!docker/uwsgi-entrypoint.sh
+!docker
 !requirements.txt
 !setup.py
 !swagger/examples
