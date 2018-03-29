@@ -58,10 +58,3 @@ after_success:
       docker tag core:dist flywheel/core:$TRAVIS_TAG;
       docker push flywheel/core:$TRAVIS_TAG;
   fi
-
-# Temporary: tag and push unit-improvements-backport-1-rebased, too
-# TODO (Ambrus) Remove before merge
-- if [ "$TRAVIS_BRANCH" == "unit-improvements-backport-1-rebased" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
-      docker tag core:dist flywheel/core:refactor;
-      docker push flywheel/core:refactor;
-  fi
