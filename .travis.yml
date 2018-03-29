@@ -61,8 +61,8 @@ after_success:
       bash <(curl -s https://codecov.io/bash) -c -X coveragepy -F python;
   fi
 
-# Build swagger docs and push them to gh-pages
-- if [ "$TRAVIS_EVENT_TYPE" == "push" ] || [ -n "$TRAVIS_TAG" ]; then
+# Build swagger docs and push them to gh-pages (Only for SDK builds)
+- if [ "$TRAVIS_EVENT_TYPE" == "push" ] || [ -n "$TRAVIS_TAG" ] && [ "$BUILD_SDK" == "true" ]; then
       git config --global user.email "travis@travis-ci.org";
       git config --global user.name "Travis CI";
       git config --global push.default simple;
