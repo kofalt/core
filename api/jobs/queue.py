@@ -11,6 +11,7 @@ from .. import config
 from .jobs import Job, Logs, JobTicket
 from .gears import get_gear, validate_gear_config, fill_gear_default_values
 from ..dao.containerutil import create_filereference_from_dictionary, create_containerreference_from_dictionary, create_containerreference_from_filereference
+from .job_util import resolve_context_inputs 
 from ..web.errors import InputValidationException
 
 
@@ -243,6 +244,9 @@ class Queue(object):
             else:
                 # Note: API key inputs should not be passed as input
                 raise Exception('Non-file input base type')
+
+        # Populate any context inputs for the gear
+        resolve_context_inputs(config_, gear, destination, perm_check_uid)
 
         gear_name = gear['gear']['name']
 
