@@ -128,7 +128,8 @@ def migrate_containers():
                                             ('acquisitions', 'files'),
                                             ('sessions', 'files'),
                                             ('sessions', 'subject.files'),
-                                            ('collections', 'files')])
+                                            ('collections', 'files'),
+                                            ('analyses', 'files')])
 
     for i, f in enumerate(container_files):
         migrate_file(f)
