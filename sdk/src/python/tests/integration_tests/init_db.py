@@ -2,9 +2,6 @@ import binascii
 import os
 import datetime
 
-import pymongo
-import requests
-
 SCITRAN_PERSISTENT_DB_URI = os.environ.get('SCITRAN_PERSISTENT_DB_URI')
 SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10)).decode('utf-8')
 
@@ -34,6 +31,10 @@ def create_user(db, _id, api_key, **kwargs):
     }, upsert=True)
 
 def init_db():
+    # Import on demand
+    import pymongo
+    import requests
+
     if not SCITRAN_PERSISTENT_DB_URI:
         raise Exception('Cannot initialize database without SCITRAN_PERSISTENT_DB_URI!')
 
