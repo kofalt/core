@@ -11,8 +11,22 @@ import io.swagger.models.properties.Property;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PythonGenerator extends PythonClientCodegen implements CodegenConfig {
+
+    private static final Pattern SIMPLE_SEMVER_RE = Pattern.compile("(?<semver>\\d+\\.\\d+\\.\\d+)"
+            + "(-(?<releaseId>[a-z]+)\\.(?<releaseNum>\\d+))");
+
+    private static Map<String, String> PYTHON_RELEASE_ID_MAP;
+    static {
+        PYTHON_RELEASE_ID_MAP = new HashMap<>();
+        PYTHON_RELEASE_ID_MAP.put("alpha", "a");
+        PYTHON_RELEASE_ID_MAP.put("beta", "b");
+        PYTHON_RELEASE_ID_MAP.put("dev", "dev");
+        PYTHON_RELEASE_ID_MAP.put("rc", "rc");
+    }
 
     public PythonGenerator() {
         super();
@@ -65,5 +79,25 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
     public Map<String, Object> postProcessModels(Map<String, Object> objs) {
         objs = super.postProcessModels(objs);
         return FlywheelCodegenSupport.postProcessModels(objs, this);
+    }
+
+    @Override
+    public void setPackageVersion(String packageVersion) {
+        Matcher m = SIMPLE_SEMVER_RE.matcher(packageVersion);
+        // Translate from semver to python package verison
+        // e.g. 2.1.1-beta.1 is 2.1.1b1
+        if( m.matches() ) {
+            String releaseId = m.group("releaseId");
+            String releaseNum = m.group("releaseNum");
+
+            if( releaseId != null && !releaseId.isEmpty() && releaseNum != null && !releaseNum.isEmpty() ) {
+                // Convert to python version
+                String pythonReleaseId = PYTHON_RELEASE_ID_MAP.get(releaseId);
+                if( pythonReleaseId != null ) {
+                    packageVersion = m.group("semver") + pythonReleaseId + releaseNum;
+                }
+            }
+        }
+        this.packageVersion = packageVersion;
     }
 }
