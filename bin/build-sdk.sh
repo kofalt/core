@@ -25,6 +25,6 @@ sdk/scripts/docker-tests.sh --image core:testing
 sdk/scripts/docker-tests.sh --image core:testing --python2
 
 # Copy artifacts
-mkdir -p dist/sdk/
-cp sdk/dist/* dist/sdk/
+mkdir -p dist/
+cp sdk/dist/* dist/
 
