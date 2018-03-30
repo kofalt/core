@@ -511,3 +511,99 @@ def test_analysis_job_creation_errors(data_builder, default_payload, as_admin, f
     })
     assert r.status_code == 400
     assert len(as_admin.get('/sessions/' + session).json().get('analyses', [])) == 0
+
+def test_job_context(data_builder, default_payload, as_admin, as_root, file_form):
+    # Dupe of test_queue.py
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'zip': {
+            'base': 'file'
+        },
+        'test_context_value': {
+            'base': 'context'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    project = data_builder.create_project()
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'zip': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    # add job without context value
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job1_id = r.json()['_id']
+
+    # get job
+    r = as_root.get('/jobs/' + job1_id)
+    assert r.ok
+    r_job = r.json()
+    r_inputs = r_job['config']['inputs']
+    assert 'test_context_value' in r_inputs
+    assert r_inputs['test_context_value']['base'] == 'context'
+    assert r_inputs['test_context_value']['found'] == False
+
+    # Set context at project level
+    r = as_admin.post('/projects/' + project + '/info', json={
+        'set': {
+            'test_context_value': 3,
+            'context': {
+                'test_context_value': 'project_context_value'
+            }
+        }
+    })
+    assert r.ok
+
+    # add job with project context value
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job2_id = r.json()['_id']
+
+    # get job
+    r = as_root.get('/jobs/' + job2_id)
+    assert r.ok
+    r_job = r.json()
+    r_inputs = r_job['config']['inputs']
+    assert 'test_context_value' in r_inputs
+    assert r_inputs['test_context_value']['base'] == 'context'
+    assert r_inputs['test_context_value']['found'] == True
+    assert r_inputs['test_context_value']['value'] == 'project_context_value'
+
+    # Override context at session level
+    r = as_admin.post('/sessions/' + session + '/info', json={
+        'set': {
+            'context': {
+                'test_context_value': {
+                    'session_value': 3
+                }
+            }
+        }
+    })
+    assert r.ok
+
+    # add job with session context value
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job3_id = r.json()['_id']
+
+    # get job
+    r = as_root.get('/jobs/' + job3_id)
+    assert r.ok
+    r_job = r.json()
+    r_inputs = r_job['config']['inputs']
+    assert 'test_context_value' in r_inputs
+    assert r_inputs['test_context_value']['base'] == 'context'
+    assert r_inputs['test_context_value']['found'] == True
+    assert r_inputs['test_context_value']['value'] == { 'session_value': 3 }
