@@ -91,6 +91,7 @@ deploy:
   file: dist/*
   skip_cleanup: true
   draft: true
+  name: $TRAVIS_TAG
   on:
     repo: flywheel-io/core
     tags: true
