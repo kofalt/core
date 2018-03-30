@@ -45,7 +45,7 @@ routing_regexes = {
     'fname': '.+',
 
     # Filename/info
-    'finfo': '.+/info$',
+    'finfo': '.+(?=/info)',
 
     # Filename/classification
     'fclass': '.+(?=/classification)'
@@ -290,6 +290,7 @@ endpoints = [
                 route('/packfile-start',                        FileListHandler, h='packfile_start',        m=['POST']),
                 route('/packfile',                              FileListHandler, h='packfile',              m=['POST']),
                 route('/packfile-end',                          FileListHandler, h='packfile_end'),
+
                 route('/<list_name:files>',                     FileListHandler,                            m=['POST']),
                 route('/<list_name:files>/<name:{finfo}>',      FileListHandler, h='get_info',              m=['GET']),
                 route('/<list_name:files>/<name:{finfo}>',      FileListHandler, h='modify_info',           m=['POST']),

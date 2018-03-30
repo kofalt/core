@@ -2,6 +2,7 @@ import bson
 import copy
 import datetime
 import dateutil
+import os
 import pymongo
 import uuid
 import zipfile
