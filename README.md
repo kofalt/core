@@ -7,6 +7,11 @@
 
 SciTran Core is a RESTful HTTP API, written in Python and backed by MongoDB. It is the central component of the [SciTran data management system](https://scitran.github.io). Its purpose is to enable scientific transparency through secure data management and reproducible processing.
 
+##### Versioning
+
+This project uses [Semantic Versioning 2.0.0](https://semver.org/#semantic-versioning-200). 
+Alpha, Beta and RC builds will use the pre-release tags `alpha`, `beta` and `rc`, respectively. (e.g. `2.1.0-alpha.1`)
+
 
 ### [Documentation](https://flywheel-io.github.io/core)
 
@@ -18,7 +23,6 @@ API documentation for branches and tags can be found at `https://flywheel-io.git
 ### [Testing](https://github.com/flywheel-io/core/blob/master/tests/README.md)
 
 ### [License](https://github.com/flywheel-io/core/blob/master/LICENSE)
-
 
 ### Usage
 
