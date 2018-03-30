@@ -51,17 +51,17 @@ main() {
         shift
     done
 
-	log "Installing python wheel..."
-	cp src/python/gen/dist/*.whl /tmp/flywheel_sdk-1-py2.py3-none-any.whl
-	pip install -qq /tmp/flywheel_sdk-1-py2.py3-none-any.whl
+    log "Installing python wheel..."
+    cp src/python/gen/dist/*.whl /tmp/flywheel_sdk-1-py2.py3-none-any.whl
+    pip install -qq /tmp/flywheel_sdk-1-py2.py3-none-any.whl
 
     log "Running integration tests ..."
     py.test --cov=flywheel --cov-report=html:cov_html --cov-report=term \
-		src/python/tests/integration_tests $PYTEST_ARGS
+        src/python/tests/integration_tests $PYTEST_ARGS
 
     # log "Running pylint ..."
-	# Note: This runs clean as of being commented out, but takes around a minute to run...
-	# pylint --rcfile=src/python/tests/.pylintrc --jobs=4 --reports=no --disable=C,R,W0312,W0141,W0110 src/python/gen/flywheel
+    # Note: This runs clean as of being commented out, but takes around a minute to run...
+    # pylint --rcfile=src/python/tests/.pylintrc --jobs=4 --reports=no --disable=C,R,W0312,W0141,W0110 src/python/gen/flywheel
 
     # log "Running pep8 ..."
     # pep8 --max-line-length=150 --ignore=E402 api

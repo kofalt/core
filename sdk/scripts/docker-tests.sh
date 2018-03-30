@@ -18,7 +18,7 @@ Options:
     -B, --no-build        Skip rebuilding default Docker image
         --image IMAGE     Use custom Docker image
         --shell           Enter shell instead of running tests
-		--python2         Use python2 image instead of python3
+        --python2         Use python2 image instead of python3
 
     -- PYTEST_ARGS      Arguments passed to py.test
 
@@ -30,9 +30,9 @@ main() {
     local DOCKER_IMAGE=
     local PYTEST_ARGS=
     local RUN_SHELL=
-	local DOCKER_TARGET=python3
-	local SDK_IMAGE=sdk:testing-python3
-	local BUILD_SDK_IMAGE=true
+    local DOCKER_TARGET=python3
+    local SDK_IMAGE=sdk:testing-python3
+    local BUILD_SDK_IMAGE=true
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -42,12 +42,12 @@ main() {
                 ;;
             -B|--no-build)
                 DOCKER_IMAGE="core:testing"
-				BUILD_SDK_IMAGE=false
+                BUILD_SDK_IMAGE=false
                 ;;
-			--python2)
-				DOCKER_TARGET=python2
-				SDK_IMAGE=sdk:testing-python2
-				;;
+            --python2)
+                DOCKER_TARGET=python2
+                SDK_IMAGE=sdk:testing-python2
+                ;;
             --image)
                 DOCKER_IMAGE="$2"
                 shift
@@ -77,10 +77,10 @@ main() {
         docker tag "$DOCKER_IMAGE" "core:testing"
     fi
 
-	if [ "${BUILD_SDK_IMAGE}" = "true" ]; then
-		log "Building ${SDK_IMAGE} ..."
-		docker build -t ${SDK_IMAGE} --target ${DOCKER_TARGET} .
-	fi
+    if [ "${BUILD_SDK_IMAGE}" = "true" ]; then
+        log "Building ${SDK_IMAGE} ..."
+        docker build -t ${SDK_IMAGE} --target ${DOCKER_TARGET} .
+    fi
 
     trap clean_up EXIT
     docker network create ${TEST_PREFIX}
@@ -107,11 +107,11 @@ main() {
     docker run -it \
         --name ${TEST_PREFIX}-runner \
         --network ${TEST_PREFIX} \
-		--volume $(pwd):/var/scitran/code/sdk \
+        --volume $(pwd):/var/scitran/code/sdk \
         --env SCITRAN_SITE_API_URL=http://${TEST_PREFIX}-service:9000/api \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://${TEST_PREFIX}-service:27017/scitran \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
-		-w /var/scitran/code/sdk \
+        -w /var/scitran/code/sdk \
         ${SDK_IMAGE} \
         $SDK_TEST_CMD
 }
