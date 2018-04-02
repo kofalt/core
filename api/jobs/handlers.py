@@ -9,6 +9,7 @@ from jsonschema import ValidationError
 from urlparse import urlparse
 
 from . import batch
+from .job_util import resolve_context_inputs
 from .. import config
 from .. import upload
 from .. import util
@@ -24,12 +25,16 @@ from ..web.encoder import pseudo_consistent_json_encode
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 from ..web.request import AccessType
 
-from .gears import validate_gear_config, get_gears, get_gear, get_invocation_schema, remove_gear, upsert_gear, get_gear_by_name, check_for_gear_insertion, add_suggest_info_to_files
+from .gears import (
+    validate_gear_config, get_gears, get_gear, get_invocation_schema, 
+    remove_gear, upsert_gear, get_gear_by_name, check_for_gear_insertion, 
+    add_suggest_info_to_files, count_file_inputs
+)
+
 from .jobs import Job, JobTicket, Logs
 from .batch import check_state, update
 from .queue import Queue
 from .rules import create_jobs, validate_regexes
-
 
 class GearsHandler(base.RequestHandler):
 
@@ -43,7 +48,7 @@ class GearsHandler(base.RequestHandler):
         filters = self.request.GET.getall('filter')
 
         if 'single_input' in filters:
-            gears = list(filter(lambda x: len(x["gear"]["inputs"].keys()) <= 1, gears))
+            gears = list(filter(lambda x: count_file_inputs(x) <= 1, gears))
 
         return gears
 
@@ -630,10 +635,12 @@ class BatchHandler(base.RequestHandler):
 
         # Determine if gear is no-input gear
         file_inputs = False
+        context_inputs = False
         for input_ in gear['gear'].get('inputs', {}).itervalues():
             if input_['base'] == 'file':
                 file_inputs = True
-                break
+            if input_['base'] == 'context':
+                context_inputs = True
 
         if not file_inputs:
             # Grab sessions rather than acquisitions
@@ -660,6 +667,12 @@ class BatchHandler(base.RequestHandler):
         if not perm_checked_conts:
             self.abort(403, 'User does not have write access to targets.')
 
+        # For superuser requests, don't check permissions when building context
+        if self.superuser_request:
+            context_uid = None
+        else:
+            context_uid = self.uid
+
         if not file_inputs:
             # All containers become matched destinations
 
@@ -669,7 +682,7 @@ class BatchHandler(base.RequestHandler):
 
         else:
             # Look for file matches in each acquisition
-            results = batch.find_matching_conts(gear, perm_checked_conts, 'acquisition')
+            results = batch.find_matching_conts(gear, perm_checked_conts, 'acquisition', context_inputs=context_inputs, uid=context_uid)
 
         matched = results['matched']
         batch_proposal = {}
@@ -685,14 +698,30 @@ class BatchHandler(base.RequestHandler):
                 'origin': self.origin,
                 'proposal': {
                     'analysis': analysis_data,
-                    'tags': tags
+                    'tags': tags,
+                    'jobs': []
                 }
             }
 
             if not file_inputs:
-                batch_proposal['proposal']['destinations'] = matched
+                # Resolve context inputs for container
+                for match in matched:
+                    job_map = {
+                        'inputs': {},
+                        'destination': match
+                    }
+
+                    if context_inputs:
+                        resolve_context_inputs(job_map, gear, match['type'], match['id'], context_uid)
+
+                    batch_proposal['proposal']['jobs'].append(job_map)
             else:
-                batch_proposal['proposal']['inputs'] = [c.pop('inputs') for c in matched]
+                # Convert from container + inputs to proposed job
+                for match in matched:
+                    batch_proposal['proposal']['jobs'].append({               
+                        'inputs': match.pop('inputs'),
+                        'destination': { 'id': str(match['session']), 'type': 'session'}
+                    })
 
             batch.insert(batch_proposal)
             batch_proposal.pop('proposal')

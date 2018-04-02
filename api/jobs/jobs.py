@@ -143,7 +143,10 @@ class Job(object):
 
             for i in d['inputs']:
                 inp = i.pop('input')
-                input_dict[inp] = create_filereference_from_dictionary(i)
+                if 'type' in i and 'name' in i:
+                    input_dict[inp] = create_filereference_from_dictionary(i)
+                else:
+                    input_dict[inp] = i
 
             d['inputs'] = input_dict
 
@@ -190,7 +193,8 @@ class Job(object):
 
         if d.get('inputs'):
             for x in d['inputs'].keys():
-                d['inputs'][x] = d['inputs'][x].__dict__
+                if not isinstance(d['inputs'][x], dict):
+                    d['inputs'][x] = d['inputs'][x].__dict__
         else:
             d.pop('inputs')
 
