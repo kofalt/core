@@ -6,7 +6,7 @@ import copy
 import datetime
 
 from .. import config
-from ..dao.containerstorage import AcquisitionStorage, AnalysisStorage
+from ..dao.containerstorage import AnalysisStorage
 from .jobs import Job
 from .queue import Queue
 from ..web.errors import APINotFoundException, APIStorageException

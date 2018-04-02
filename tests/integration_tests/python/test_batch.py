@@ -546,6 +546,10 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, as_ro
     assert 'test_context_value' in job2_inputs
     assert job2_inputs['test_context_value']['found'] == False
 
+    # try to cancel non-running batch
+    r = as_admin.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
     # Set context at project level
     r = as_admin.post('/projects/' + project + '/info', json={
         'set': {
@@ -593,6 +597,10 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, as_ro
     assert 'test_context_value' in job2_inputs
     assert job2_inputs['test_context_value']['found'] == True 
     assert job2_inputs['test_context_value']['value'] == 'project_context_value'
+
+    # test batch.state after calling run
+    r = as_admin.get('/batch/' + batch_id)
+    assert r.json()['state'] == 'running'
 
     # Cleanup
     r = as_root.delete('/gears/' + gear)
