@@ -835,6 +835,11 @@ def test_edit_file_info(data_builder, as_admin, file_form):
     }
 
 
+    r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
+    assert r.ok
+
+    premodified_time = r.json().get('modified')
+
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/info', json={
         'replace': file_info
     })
@@ -843,7 +848,8 @@ def test_edit_file_info(data_builder, as_admin, file_form):
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
     assert r.json()['info'] == file_info
-
+    postmodified_time = r.json().get('modified')
+    assert postmodified_time != premodified_time
 
     # Use 'set' to add new key
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/info', json={
