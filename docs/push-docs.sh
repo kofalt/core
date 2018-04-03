@@ -69,23 +69,23 @@ prune_branches() {
 
 # Copy docs to target folder
 copy_docs() {
-    target_dir=$1
+    dest_dir=$1
 
     # Ensure that target exists
-    mkdir -p "${target_dir}"
+    mkdir -p "${dest_dir}"
 
     # Remove old index.html if present
-    rm -f ${target_dir}/index.html
+    rm -f ${dest_dir}/index.html
 
     # Swagger
-    cp -R swagger/build/swagger-ui "${target_dir}/swagger"
+    cp -R swagger/build/swagger-ui "${dest_dir}/swagger"
 
     # Python docs
-    mkdir -p "${target_dir}/python"
-    cp sdk/src/python/gen/README.md "${target_dir}/python/index.md"
-    cp -R sdk/src/python/gen/docs "${target_dir}/python/docs"
+    mkdir -p "${dest_dir}/python"
+    cp sdk/src/python/gen/README.md "${dest_dir}/python/index.md"
+    cp -R sdk/src/python/gen/docs "${dest_dir}/python/docs"
 
-    cp -R sdk/src/python/sphinx/build "${target_dir}/python/sphinx"
+    cp -R sdk/src/python/sphinx/build "${dest_dir}/python/sphinx"
 }
 
 # Checkin documentation for a single branche

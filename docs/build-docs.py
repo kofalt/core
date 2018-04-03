@@ -73,6 +73,7 @@ if __name__ == '__main__':
     
     # Generate main template
     target_dir = os.path.join(GH_PAGES_DIR, args.target_dir)
+    log.info('Target directory is: %s', target_dir)
     gen_main_page(target_dir)
 
     # Generate branches and tags index
