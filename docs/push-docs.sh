@@ -14,6 +14,11 @@ cd "$( dirname "${BASH_SOURCE[0]}" )/.."
 #   branch_or_tag_name: The name of the tag or branch
 #   commit_message: The commit message
 
+# Source folders:
+#   python/sphinx src/python/sphinx/build/
+#   python/docs src/python/gen/README.md and src/python/gen/docs
+#   swagger/ swagger/build/swagger-ui/
+
 main() {
     if [ "$#" -ne 4 -o "$1" == "-h" ]; then
         print_usage
@@ -62,6 +67,27 @@ prune_branches() {
     fi
 }
 
+# Copy docs to target folder
+copy_docs() {
+    target_dir=$1
+
+    # Ensure that target exists
+    mkdir -p "${target_dir}"
+
+    # Remove old index.html if present
+    rm -f ${target_dir}/index.html
+
+    # Swagger
+    cp -R swagger/build/swagger-ui "${target_dir}/swagger"
+
+    # Python docs
+    mkdir -p "${target_dir}/python"
+    cp sdk/src/python/gen/README.md "${target_dir}/python/index.md"
+    cp -R sdk/src/python/gen/docs "${target_dir}/python/docs"
+
+    cp -R sdk/src/python/sphinx/build "${target_dir}/python/sphinx"
+}
+
 # Checkin documentation for a single branche
 # target_dir: The destination directory (e.g. branches/<branch_name>)
 checkin_branch() {
@@ -79,12 +105,17 @@ checkin_branch() {
 
         # Create target directory and copy files
         mkdir -p "gh-pages/${target_dir}"
-        cp -R swagger/build/swagger-ui/* "gh-pages/${target_dir}"
+        copy_docs "gh-pages/${target_dir}"
+        
+        # Build doc pages
+        docs/build-docs.sh "${target_dir}"
 
         cd gh-pages
 	    if [ "$(git status --porcelain)" ]; then
             # Add files
             git add "${target_dir}*"
+            git add branches/index.md
+            git add tags/index.md
 
             # Add any modified files, and push
             git commit --message "$COMMIT_MESSAGE" 
@@ -121,9 +152,12 @@ checkin_master() {
     prune_branches tags tags
 
     # Copy currently generated documentation into gh-pages
-    cp -R swagger/build/swagger-ui/* gh-pages/
-    cd gh-pages/
+    copy_docs gh-pages/
 
+    # Build doc pages
+    docs/build-docs.sh
+
+    cd gh-pages/
 	if [ "$(git status --porcelain)" ]; then
         # Checkout a new orphan branch
         git checkout --quiet --orphan gh-pages-new
