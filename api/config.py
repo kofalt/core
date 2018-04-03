@@ -65,7 +65,7 @@ DEFAULT_CONFIG = {
         'db_server_selection_timeout': '3000',
         'data_path': os.path.join(os.path.dirname(__file__), '../persistent/data'),
         'elasticsearch_host': 'localhost:9200',
-        'fs_url': 'osfs://' + os.path.join(os.path.dirname(__file__), '../persistent/data'),
+        'fs_url': None,
         'support_legacy_fs': True
     },
 }
@@ -111,6 +111,12 @@ __last_update = datetime.datetime.utcfromtimestamp(0)
 if not os.path.exists(__config['persistent']['data_path']):
     os.makedirs(__config['persistent']['data_path'])
 log.debug('Persistent data path: %s', __config['persistent']['data_path'])
+
+if not __config['persistent']['fs_url']:
+    _path = os.path.join(__config['persistent']['data_path'], '_v1')
+    if not os.path.exists(_path):
+        os.makedirs(_path)
+    __config['persistent']['fs_url'] = 'osfs://' + _path
 
 log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
 

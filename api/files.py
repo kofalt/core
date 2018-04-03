@@ -193,7 +193,7 @@ def get_valid_file(file_info):
     if file_uuid_path and config.fs.isfile(file_uuid_path):
         return file_uuid_path, config.fs
     else:
-        raise fs.errors.ResourceNotFound('File not found: %s', file_info['name'])
+        raise fs.errors.ResourceNotFound('File not found: %s' % file_info['name'])
 
 
 def get_signed_url(file_path, file_system, filename=None):
@@ -211,4 +211,4 @@ def get_fs_by_file_path(file_path):
     if config.fs.isfile(file_path):
         return config.fs
     else:
-        raise fs.errors.ResourceNotFound('File not found: %s', file_path)
+        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
