@@ -586,14 +586,14 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, as_ro
     # Check job configs for inputs
     jobs = r.json()
 
-    assert jobs[0]['config']['destination']['id'] == session
+    assert jobs[0]['config']['destination']['id'] == acquisition
     job1_inputs = jobs[0]['config']['inputs']
     assert 'test_context_value' in job1_inputs
     assert job1_inputs['test_context_value']['found'] == True 
     assert job1_inputs['test_context_value']['value'] == 'session_context_value'
 
     job2_inputs = jobs[1]['config']['inputs']
-    assert jobs[1]['config']['destination']['id'] == session2
+    assert jobs[1]['config']['destination']['id'] == acquisition2 
     assert 'test_context_value' in job2_inputs
     assert job2_inputs['test_context_value']['found'] == True 
     assert job2_inputs['test_context_value']['value'] == 'project_context_value'

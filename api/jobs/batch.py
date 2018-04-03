@@ -6,7 +6,7 @@ import copy
 import datetime
 
 from .. import config
-from ..dao.containerstorage import AnalysisStorage
+from ..dao.containerstorage import AcquisitionStorage, AnalysisStorage
 from .jobs import Job
 from .queue import Queue
 from ..web.errors import APINotFoundException, APIStorageException
@@ -159,6 +159,7 @@ def run(batch_job):
             time_now = datetime.datetime.utcnow()
             analysis_base['label'] = {'label': '{} {}'.format(gear_name, time_now)}
         an_storage = AnalysisStorage()
+        acq_storage = AcquisitionStorage()
 
     jobs = []
     job_ids = []
@@ -184,8 +185,13 @@ def run(batch_job):
             analysis = copy.deepcopy(analysis_base)
 
             # Create analysis
-            # NOTE: Batch destinations *MUST* be a session
-            session_id = bson.ObjectId(job_map['destination']['id'])
+            # NOTE: Batch destinations *MUST* be a session or acquisition
+            if job_map['destination']['type'] == 'acquisition':
+                acquisition_id = job_map['destination']['id']
+                session_id = acq_storage.get_container(acquisition_id, projection={'session': 1}).get('session')
+            else:
+                session_id = bson.ObjectId(job_map['destination']['id'])
+
             analysis['job'] = job_map
             result = an_storage.create_el(analysis, 'sessions', session_id, origin, None) 
 

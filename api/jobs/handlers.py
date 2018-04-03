@@ -720,7 +720,7 @@ class BatchHandler(base.RequestHandler):
                 for match in matched:
                     batch_proposal['proposal']['jobs'].append({               
                         'inputs': match.pop('inputs'),
-                        'destination': { 'id': str(match['session']), 'type': 'session'}
+                        'destination': { 'id': str(match['_id']), 'type': 'acquisition' }
                     })
 
             batch.insert(batch_proposal)
