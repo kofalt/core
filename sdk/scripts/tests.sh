@@ -51,6 +51,10 @@ main() {
         shift
     done
 
+    log "Installing required packages..."
+    pip install -qq --upgrade pip "pymongo>=3.6.0" "pylint>=1.8.3"
+    pip install -qq -r src/python/tests/requirements.txt
+
     log "Installing python wheel..."
     cp src/python/gen/dist/*.whl /tmp/flywheel_sdk-1-py2.py3-none-any.whl
     pip install -qq /tmp/flywheel_sdk-1-py2.py3-none-any.whl

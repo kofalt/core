@@ -30,9 +30,7 @@ main() {
     local DOCKER_IMAGE=
     local PYTEST_ARGS=
     local RUN_SHELL=
-    local DOCKER_TARGET=python3
-    local SDK_IMAGE=sdk:testing-python3
-    local BUILD_SDK_IMAGE=true
+    local SDK_IMAGE=python:3.4
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -45,8 +43,7 @@ main() {
                 BUILD_SDK_IMAGE=false
                 ;;
             --python2)
-                DOCKER_TARGET=python2
-                SDK_IMAGE=sdk:testing-python2
+                SDK_IMAGE=python:2.7
                 ;;
             --image)
                 DOCKER_IMAGE="$2"
@@ -75,11 +72,6 @@ main() {
         docker build -t core:testing ..
     else
         docker tag "$DOCKER_IMAGE" "core:testing"
-    fi
-
-    if [ "${BUILD_SDK_IMAGE}" = "true" ]; then
-        log "Building ${SDK_IMAGE} ..."
-        docker build -t ${SDK_IMAGE} --target ${DOCKER_TARGET} .
     fi
 
     trap clean_up EXIT

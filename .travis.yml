@@ -33,10 +33,6 @@ script:
   - docker build -t core:testing --target testing .
   - if [ "$BUILD_SDK" = "false" ]; then
         ./tests/bin/docker-tests.sh --image core:testing; 
-        docker save -o "$DOCKER_DIR/image.tar" 
-            $(docker history -q core:base | grep -v '<missing>') 
-            $(docker history -q core:dist | grep -v '<missing>') 
-            $(docker history -q core:testing | grep -v '<missing>'); 
     else
         if [ -n "$TRAVIS_TAG" ]; then
             DOC_VERSION="$TRAVIS_TAG"; 
@@ -47,13 +43,11 @@ script:
             SDK_VERSION="2.0.0.dev${TRAVIS_BUILD_NUMBER}"; 
         fi; 
         ./bin/build-sdk.sh $SDK_VERSION $DOC_VERSION; 
-        docker save -o "$DOCKER_DIR/image.tar"
-            $(docker history -q core:base | grep -v '<missing>') 
-            $(docker history -q core:dist | grep -v '<missing>') 
-            $(docker history -q core:testing | grep -v '<missing>')
-            $(docker history -q sdk:testing-python2 | grep -v '<missing>')
-            $(docker history -q sdk:testing-python3 | grep -v '<missing>');
     fi
+  - docker save -o "$DOCKER_DIR/image.tar" 
+        $(docker history -q core:base | grep -v '<missing>') 
+        $(docker history -q core:dist | grep -v '<missing>') 
+        $(docker history -q core:testing | grep -v '<missing>'); 
 
 after_success:
 # Code coverage report for all master commits and all pull requests
