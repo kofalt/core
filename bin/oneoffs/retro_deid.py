@@ -71,10 +71,11 @@ def main(*argv):
     progress = 0
     key = lambda ref: ref['hash']  # groupby requires sorted iterable using the same key
     for orig_hash, refs in itertools.groupby(sorted(references, key=key), key=key):
+        progress += 1
         refs = list(refs)
+        log.info('[%d/%d] %s', progress, hash_count, orig_hash)
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            progress += 1
-            log.info('[%d/%d] %s', progress, hash_count, orig_hash)
             orig_path = os.path.join(data_path, path_from_hash(orig_hash))
             temp_path = os.path.join(temp_dir, orig_hash)
             try:
@@ -85,7 +86,13 @@ def main(*argv):
                 continue
 
             loader = EFile if refs[0]['type'] == 'efile' else PFile
-            loader(temp_path, de_identify=True)
+            try:
+                loader(temp_path, de_identify=True)
+            except Exception as exc:
+                log.error('  %s', exc)
+                log.warning('  Cannot open/de-identify file - skipping')
+                continue
+
             deid_hash = hash_from_contents(temp_path)
 
             if deid_hash == orig_hash:
@@ -113,6 +120,8 @@ def main(*argv):
                                     {'_id': ref['cont_id']},
                                     {'$set': {file_group: cont[file_group]}})
                                 break
+                        else:
+                            log.warning('  Cannot find file with original hash in DB: it was replaced or removed.')
 
                 phi_paths.append(orig_path)
 
