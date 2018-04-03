@@ -146,23 +146,29 @@ def migrate_containers():
     analysis_files = get_containers_files([('analyses', 'inputs')])
 
     for i, f in enumerate(analysis_files):
-        match = [cf for cf in container_files if cf['fileinfo']['hash'] == f['fileinfo']['hash'] and cf['fileinfo'].get('_id')]
-        # The file is already migrated
-        if len(match) > 0 and not f['fileinfo'].get('_id'):
-            update_set = {
-                f['prefix'] + '.$.modified': match[0]['fileinfo']['modified'],
-                f['prefix'] + '.$._id': match[0]['fileinfo']['_id']
-            }
-            log.debug('update file in mongo: %s' % update_set)
-            # Update the file with the newly generated UUID
-            config.db[f['container']].find_one_and_update(
-                {'_id': f['container_id'],
-                 f['prefix'] + '.name': f['fileinfo']['name'],
-                 f['prefix'] + '.hash': f['fileinfo']['hash']},
-                {'$set': update_set}
-            )
-        else:
-            migrate_file(f)
+        try:
+            match = [cf for cf in container_files if cf['fileinfo']['hash'] == f['fileinfo']['hash'] and cf['fileinfo'].get('_id')]
+            # The file is already migrated
+            if len(match) > 0 and not f['fileinfo'].get('_id'):
+                update_set = {
+                    f['prefix'] + '.$.modified': match[0]['fileinfo']['modified'],
+                    f['prefix'] + '.$._id': match[0]['fileinfo']['_id']
+                }
+                log.debug('update file in mongo: %s' % update_set)
+                # Update the file with the newly generated UUID
+                config.db[f['container']].find_one_and_update(
+                    {'_id': f['container_id'],
+                     f['prefix'] + '.name': f['fileinfo']['name'],
+                     f['prefix'] + '.hash': f['fileinfo']['hash']},
+                    {'$set': update_set}
+                )
+            else:
+                migrate_file(f)
+        except Exception as e:
+            log.exception(e)
+            raise MigrationError('Wasn\'t able to migrate the \'%s\' '
+                                 'file in the \'%s\' container (container id: %s)' %
+                                 (f['fileinfo']['name'], f['container'], str(f['container_id'])), e)
         show_progress(i + 1, len(analysis_files))
 
 
