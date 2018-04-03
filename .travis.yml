@@ -62,9 +62,9 @@ after_success:
       git config --global push.default simple;
 
       if [ -z "$TRAVIS_TAG" ]; then
-          ./bin/push-docs.sh "$GIT_REMOTE" branches "$TRAVIS_BRANCH" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
+          ./docs/push-docs.sh "$GIT_REMOTE" branches "$TRAVIS_BRANCH" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
       else
-          ./bin/push-docs.sh "$GIT_REMOTE" tags "$TRAVIS_TAG" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
+          ./docs/push-docs.sh "$GIT_REMOTE" tags "$TRAVIS_TAG" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
       fi
   fi
 
