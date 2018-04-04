@@ -1,0 +1,40 @@
+buildscript {
+	ext {
+		swaggerVersion = '2.3.0'
+		swaggerInputSpec = file('swagger.json').path
+	}
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath "org.junit.platform:junit-platform-gradle-plugin:1.0.2"
+		classpath "io.swagger:swagger-codegen:$swaggerVersion"
+	}
+}
+
+allprojects {
+	group = 'io.flywheel'
+	// Allow overriding the version by specifying
+	// gradle -PsdkVersion=<version> build
+	if( project.hasProperty('sdkVersion') ) {
+		version = project.sdkVersion
+	} else {
+		version = '0.0.1'
+	}
+}
+
+subprojects {
+	apply plugin: 'java'
+
+	repositories {
+		mavenCentral()
+	}
+
+	dependencies {
+		compile "io.swagger:swagger-codegen:$swaggerVersion"
+
+		testCompile 'org.junit.jupiter:junit-jupiter-api:5.0.2'
+		testRuntime 'org.junit.jupiter:junit-jupiter-engine:5.0.2'
+	}
+}
+

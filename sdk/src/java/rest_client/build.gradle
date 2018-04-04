@@ -1,0 +1,13 @@
+apply plugin: 'org.junit.platform.gradle.plugin'
+
+dependencies {
+	compileOnly 'commons-httpclient:commons-httpclient:3.1'
+}
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+tasks.withType(JavaCompile) {
+	options.encoding = 'UTF-8'
+}
+
+

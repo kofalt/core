@@ -1,0 +1,135 @@
+import io.swagger.codegen.config.CodegenConfigurator
+import io.swagger.codegen.DefaultGenerator
+
+def customCodegenJar = project(':custom-swagger-codegen').jar.archivePath
+def templateDir = file('../../codegen/src/main/resources/matlab').path
+
+def toolboxDir = file('toolbox').path
+
+def intDir = file('build/intermediate').path
+def swaggerOutputDir = file('build/gen')
+def fsrootDir = intDir + '/fsroot'
+
+def dateToIso(date) {
+	return date.format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC"));
+}
+
+def configureXml(path, fn) {
+	def parser = new XmlParser(false, true)
+	def root = parser.parse(path)
+
+	fn(root)
+
+	def writer = new PrintWriter(new FileWriter(path)) 
+	writer.print('<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>')
+
+	// Printer that doesn't write newlines or whitespace
+	def printer = new XmlNodePrinter(writer, '') {
+		@Override
+		protected void printLineEnd(String comment) {
+			out.flush()
+		}
+	}
+	printer.preserveWhitespace = false
+	printer.print(root)
+	writer.close()
+}
+
+task generateApi(dependsOn: ':custom-swagger-codegen:jar') {
+	inputs.file(swaggerInputSpec)
+	outputs.dir(swaggerOutputDir)
+
+	doLast {
+		// Swagger uses ServiceLoader to load the list modules. This in turn relies on the context class loader
+		// It's not pretty, but I haven't found a better way to load our module at runtime
+		def scriptHandler = project.getBuildscript()
+		def loader = scriptHandler.getClassLoader()
+		def myLoader = new java.net.URLClassLoader([customCodegenJar.toURL()] as URL[], loader)
+		Thread.currentThread().setContextClassLoader(myLoader)
+
+		def config = new CodegenConfigurator()
+		config.setInputSpec(swaggerInputSpec)
+		config.setOutputDir(swaggerOutputDir.path)
+		// Also have to re-specify the template dir because swagger isn't finding it from the classpath
+		config.setTemplateDir(templateDir)
+		config.setLang('matlab')
+		config.addAdditionalProperty("packageName", "flywheel")
+
+		new DefaultGenerator().opts(config.toClientOptInput()).generate()
+	}
+}
+
+task copyRestApi(type: Copy, dependsOn: ':rest-client:jar') {
+	from project(':rest-client').jar.archivePath
+	into { fsrootDir + '/api' }
+}
+
+task copySwaggerApi(type: Copy, dependsOn: generateApi) {
+	from(swaggerOutputDir) {
+		include '**/*'
+		exclude '.swagger-codegen/**'
+		exclude '.swagger-codegen-ignore'
+	}
+	into { fsrootDir }
+}
+
+task copyToolboxFiles(type: Copy) {
+	from 'toolbox/' 
+	into { intDir }
+}
+
+task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi]) {
+	doLast {
+		def isoDate = dateToIso(new Date())
+
+		// Configure configuration.xml
+		configureXml(intDir + '/metadata/configuration.xml', { root -> 
+			root.javaClassPaths[0]?.appendNode('javaClassPath', [:], '/api/' + project(':rest-client').jar.archiveName) 
+			root.matlabPaths[0]?.appendNode('matlabPath', [:], '/')
+		})
+
+		// Configure core properties
+		configureXml(intDir + '/metadata/coreProperties.xml', { root ->
+			root.'cp:version'[0].value = "${project.version}"
+			root.'dcterms:created'[0].value = isoDate
+			root.'dcterms:modified'[0].value = isoDate
+		})
+
+		// Write filesystem manifest
+		configureXml(intDir + '/metadata/filesystemManifest.xml', { root ->
+			FileTree tree = fileTree(fsrootDir)
+			tree.visit{ element ->
+				if( !element.isDirectory() ) {
+					def f = element.getFile();
+					// Hardcoded permissions - would these ever change?
+					def modified = dateToIso(new Date(f.lastModified()))
+					root.appendNode('fileEntry', [
+						content: "/fsroot/$element.relativePath",
+						date: modified,
+						name: "/$element.relativePath",
+						permissions: '0644',
+						type: 'File'
+					])
+				}
+			}
+		})
+	}
+}
+
+task buildToolbox(type: Zip, dependsOn: configureToolbox) {
+	baseName = 'flywheel-sdk'
+	extension = 'mltbx'
+	from intDir
+}
+
+artifacts {
+	archives buildToolbox
+}
+
+clean.doFirst {
+	delete(swaggerOutputDir)
+	delete(fsrootDir)
+}
+
+	
+

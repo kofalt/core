@@ -1,0 +1,10 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf": [{"$ref": "../definitions/download.json#/definitions/download-ticket-with-summary"}],
+    "example": {
+    	"ticket": "579e97738120be2ada087feb",
+		"file_cnt": 3,
+		"size": 64523904
+    }
+}

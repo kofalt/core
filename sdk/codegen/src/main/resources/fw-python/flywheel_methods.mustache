@@ -1,0 +1,94 @@
+    def add_nodes_to_collection(self, collection_id, level, node_ids, **kwargs):
+        """Generic method to add a list of nodes to a collection.
+
+        :param str collection_id: (required) The id of the collection to update
+        :param str level: (required) The level of nodes to add (e.g. session or acquisition)
+        :param list[str] node_ids: (required) The list of node ids of type level to add
+        :return: None
+        """
+        update = {
+            'contents': {
+                'operation': 'add',
+                'nodes': [ {'_id': id, 'level': level} for id in node_ids ]
+            }
+        }
+        return self.collections_api.modify_collection(collection_id, update, **kwargs)
+
+    def add_sessions_to_collection(self, collection_id, session_ids, **kwargs):
+        """Add a list of sessions to a collection.
+
+        :param str collection_id: (required) The id of the collection to update
+        :param list[str] session_ids: (required) The list of session ids to add
+        :return: None
+        """
+        return self.add_nodes_to_collection(collection_id, 'session', session_ids, **kwargs)
+
+    def add_acquisitions_to_collection(self, collection_id, acquisition_ids, **kwargs):
+        """Add a list of acquisitions to a collection.
+
+        :param str collection_id: (required) The id of the collection to update
+        :param list[str] acquisition_ids: (required) The list of acquisition ids to add
+        :return: None
+        """
+        return self.add_nodes_to_collection(collection_id, 'acquisition', acquisition_ids, **kwargs)
+
+    def change_job_state(self, job_id, state):
+        """Change a job state.
+
+        :param str job_id: (required) The id of the job to modify
+        :param str state: (required) The new job state
+        :return: None
+        """
+        return self.modify_job(job_id, { 'state': state })
+
+    def resolve(self, path):
+        """Perform a path absed lookup of nodes in the Flywheel hierarchy.
+
+        :param str path: (required) The path to resolve
+        :return: ResolverOutput
+        """
+        if not isinstance(path, list):
+            path = path.split('/')
+
+        return self.resolve_path(flywheel.ResolverInput(path=path))
+
+    {{#apis}}
+    {{#operations}}
+    {{#operation}}
+    {{#vendorExtensions.x-sdk-modify-info}}
+    def {{wrapperId}}(self, {{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs):
+        """{{summary}}
+
+        {{#allParams}}
+        :param {{dataType}} {{paramName}}:{{#description}} {{{description}}}{{/description}}{{#required}} (required){{/required}}{{#optional}}(optional){{/optional}}
+        {{/allParams}}
+        :return: {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}None{{/returnType}}
+        """
+        body = { '{{key}}': body }
+        self.{{classVarName}}.{{operationId}}({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs)
+
+    {{/vendorExtensions.x-sdk-modify-info}}
+    {{#vendorExtensions.x-sdk-download-file-param}}
+    def {{operationId}}_as_data(self, {{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs):
+        """{{#summary}}{{.}}{{/summary}}{{^summary}}{{operationId}}{{/summary}}
+
+        {{#notes}}
+        {{{notes}}}
+        {{/notes}}
+
+        {{#allParams}}
+        :param {{dataType}} {{paramName}}:{{#description}} {{{description}}}{{/description}}{{#required}} (required){{/required}}{{#optional}}(optional){{/optional}}
+        {{/allParams}}
+        :return: The binary file data
+        """
+        kwargs['_return_http_data_only'] = True
+        kwargs['_preload_content'] = False
+        (resp) = self.{{classVarName}}.{{operationId}}_with_http_info({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}**kwargs)
+        if resp:
+            return resp.content
+        return None
+
+    {{/vendorExtensions.x-sdk-download-file-param}}
+    {{/operation}}
+    {{/operations}}
+    {{/apis}}
