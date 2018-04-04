@@ -22,6 +22,7 @@ cache:
 before_install:
 - sudo apt-get update
 - sudo apt-get -y install docker-ce realpath
+- gem install travis -v 1.8.8 --no-rdoc --no-ri
 - yes | docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASS
 
 install: true
@@ -74,14 +75,20 @@ after_success:
       docker tag core:testing flywheel/core:testing;
       docker push flywheel/core:latest;
       docker push flywheel/core:testing;
+      travis login --pro --no-interactive -g ${GITHUB_RELEASE_API_KEY};
+      bin/trigger_build.sh $(travis token --no-interactive --pro) $BUILD_SDK "flywheel-io%2Fcoreplus" $TRAVIS_BRANCH $TRAVIS_BRANCH $TRAVIS_TAG;
   fi
 - if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
       docker push flywheel/core:$TRAVIS_BRANCH.latest;
+      travis login --pro --no-interactive -g ${GITHUB_RELEASE_API_KEY};
+      bin/trigger_build.sh $(travis token --no-interactive --pro) $BUILD_SDK "flywheel-io%2Fcoreplus" $TRAVIS_BRANCH $TRAVIS_BRANCH $TRAVIS_TAG;
   fi
 - if [ -n "$TRAVIS_TAG" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_TAG;
       docker push flywheel/core:$TRAVIS_TAG;
+      travis login --pro --no-interactive -g ${GITHUB_RELEASE_API_KEY};
+      bin/trigger_build.sh $(travis token --no-interactive --pro) $BUILD_SDK "flywheel-io%2Fcoreplus" release $TRAVIS_BRANCH $TRAVIS_TAG;
   fi
 
 deploy:
