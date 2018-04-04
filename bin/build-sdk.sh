@@ -12,9 +12,6 @@ DOC_VERSION=$2
 # Build Swagger
 swagger/make.sh $DOC_VERSION
 
-# Copy swagger.json into place
-cp swagger/build/swagger-codegen.json sdk/swagger.json
-
 # Build SDK
 sdk/make.sh $SDK_VERSION
 
