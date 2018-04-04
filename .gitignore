@@ -8,7 +8,7 @@
 /htmlcov
 /persistent
 /runtime
-/tests/running_integration
+/tests/artifacts
 bootstrap.json
 coverage.xml
 endpoints.json

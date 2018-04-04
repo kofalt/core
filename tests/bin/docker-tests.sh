@@ -7,7 +7,7 @@ cd "$( dirname "$0" )/../.."
 
 USAGE="
 Usage:
-    $0 [OPTION...] [-- PYTEST_ARGS...]
+    $0 [OPTION...] [[--] TEST_ARGS...]
 
 Build flywheel/core image and run tests in a Docker container.
 Also displays coverage report and saves HTML under htmlcov/
@@ -17,16 +17,14 @@ Options:
 
     -B, --no-build      Skip rebuilding default Docker image
         --image IMAGE   Use custom Docker image
-        --shell         Enter shell instead of running tests
 
-    -- PYTEST_ARGS      Arguments passed to py.test
+    TEST_ARGS           Arguments passed to tests.sh
 
 "
 
 
 main() {
     local DOCKER_IMAGE=
-    local PYTEST_ARGS=
     local RUN_SHELL=
 
     while [ $# -gt 0 ]; do
@@ -42,18 +40,12 @@ main() {
                 DOCKER_IMAGE="$2"
                 shift
                 ;;
-            --shell)
-                RUN_SHELL=true
-                ;;
             --)
                 shift
-                PYTEST_ARGS="$@"
                 break
                 ;;
             *)
-                log "Invalid argument: $1"
-                log "$USAGE"
-                exit 1
+                break
                 ;;
         esac
         shift
@@ -78,10 +70,6 @@ main() {
         flywheel/core:testing \
         mongod
 
-    # Run core test cmd
-    local CORE_TEST_CMD
-    [ $RUN_SHELL ] && CORE_TEST_CMD=bash || \
-                      CORE_TEST_CMD="tests/bin/tests.sh -- $PYTEST_ARGS"
     docker run -it \
         --name core-test-core \
         --network core-test \
@@ -91,7 +79,7 @@ main() {
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-mongo:27017/logs \
         --workdir /var/scitran/code/api \
         flywheel/core:testing \
-        $CORE_TEST_CMD
+        tests/bin/tests.sh "$@"
 }
 
 
@@ -99,10 +87,12 @@ clean_up() {
     local TEST_RESULT_CODE=$?
     set +e
 
-    log "INFO: Saving test artifacts ..."
-    docker cp core-test-core:/var/scitran/code/api/htmlcov .
-    docker cp core-test-core:/var/scitran/code/api/coverage.xml .
-    docker cp core-test-core:/var/scitran/code/api/endpoints.json .
+    if [ $TEST_RESULT_CODE = 0 ] && [ -f tests/artifacts ]; then
+        log "INFO: Saving test artifacts ..."
+        docker cp core-test-core:/var/scitran/code/api/htmlcov .
+        docker cp core-test-core:/var/scitran/code/api/coverage.xml .
+        docker cp core-test-core:/var/scitran/code/api/endpoints.json .
+    fi
 
     log "INFO: Spinning down dependencies ..."
     docker rm --force --volumes core-test-core
