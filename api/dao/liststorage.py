@@ -211,9 +211,9 @@ class FileStorage(ListStorage):
         query[self.list_name] = {'$elemMatch': query_params}
 
         if not update.get('$set'):
-            update['$set'] = {'modified': datetime.datetime.utcnow()}
+            update['$set'] = {'files.$.modified': datetime.datetime.utcnow()}
         else:
-            update['$set']['modified'] = datetime.datetime.utcnow()
+            update['$set']['files.$.modified'] = datetime.datetime.utcnow()
 
         return self.dbc.update_one(query, update)
 
