@@ -22,6 +22,7 @@ cache:
 before_install:
 - sudo apt-get update
 - sudo apt-get -y install docker-ce realpath
+- gem install travis -v 1.8.8 --no-rdoc --no-ri
 - yes | docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASS
 
 install: true
@@ -82,6 +83,12 @@ after_success:
 - if [ -n "$TRAVIS_TAG" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_TAG;
       docker push flywheel/core:$TRAVIS_TAG;
+  fi
+- if [ "$TRAVIS_EVENT_TYPE" == "pull_request" ]; then
+    docker tag core:dist flywheel/core:$TRAVIS_PULL_REQUEST_BRANCH.latest;
+    docker push flywheel/core:$TRAVIS_PULL_REQUEST_BRANCH.latest;
+    travis login --pro --no-interactive -g ${GITHUB_RELEASE_API_KEY};
+    bin/trigger_build.sh $(travis token --no-interactive --pro) flywheel/core:$TRAVIS_PULL_REQUEST_BRANCH.latest "flywheel-io%2Finstaller";
   fi
 
 deploy:
