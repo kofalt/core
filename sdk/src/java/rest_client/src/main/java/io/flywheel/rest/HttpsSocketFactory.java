@@ -5,12 +5,14 @@ import org.apache.commons.httpclient.params.HttpConnectionParams;
 import org.apache.commons.httpclient.protocol.Protocol;
 import org.apache.commons.httpclient.protocol.ProtocolSocketFactory;
 
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.*;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
+import java.io.InputStream;
+import java.net.*;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,6 +40,52 @@ public class HttpsSocketFactory implements ProtocolSocketFactory {
             "TLS_RSA_WITH_AES_128_CBC_SHA256"
     };
 
+    private SSLContext sslContext = null;
+
+    private SSLContext getSSLContext() {
+        if (this.sslContext == null ) {
+            this.sslContext = createSSLContext();
+        }
+        return this.sslContext;
+    }
+
+    private KeyStore createKeystore() {
+        InputStream in = null;
+        try {
+            in = getClass().getResourceAsStream("/io/flywheel/rest/cacerts");
+            KeyStore ks = KeyStore.getInstance("JKS");
+            ks.load(in, null);
+            return ks;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            try {
+                in.close();
+            } catch( Exception e ) {}
+        }
+    }
+
+    private SSLContext createSSLContext() {
+        try {
+            KeyStore ks = createKeystore();
+            if( ks == null ) {
+                return null;
+            }
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+            tmf.init(ks);
+
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, tmf.getTrustManagers(), null);
+
+            return context;
+        } catch(Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     private HttpsSocketFactory(ProtocolSocketFactory baseFactory, String[] enabledProtocols) {
         if( baseFactory == null ) {
             throw new IllegalArgumentException("baseFactory is required!");
@@ -54,19 +102,52 @@ public class HttpsSocketFactory implements ProtocolSocketFactory {
 
     @Override
     public Socket createSocket(String s, int i, InetAddress inetAddress, int i1) throws IOException, UnknownHostException {
-        Socket result = baseFactory.createSocket(s, i, inetAddress, i1);
+        Socket result;
+        SSLContext context = this.getSSLContext();
+        if( context != null ) {
+            result = context.getSocketFactory().createSocket(s, i, inetAddress, i1);
+        } else {
+            result = baseFactory.createSocket(s, i, inetAddress, i1);
+        }
         return setProtocols(result);
     }
 
     @Override
     public Socket createSocket(String s, int i, InetAddress inetAddress, int i1, HttpConnectionParams httpConnectionParams) throws IOException, UnknownHostException, ConnectTimeoutException {
-        Socket result = baseFactory.createSocket(s, i, inetAddress, i1, httpConnectionParams);
-        return setProtocols(result);
+        if( httpConnectionParams == null ) {
+            throw new IllegalArgumentException("Parameters may not be null");
+        }
+        int timeout = httpConnectionParams.getConnectionTimeout();
+        Socket result;
+        SSLContext context = this.getSSLContext();
+        if( context != null ) {
+            if( timeout == 0 ) {
+                result = context.getSocketFactory().createSocket(s, i, inetAddress, i1);
+                setProtocols(result);
+            } else {
+                result = context.getSocketFactory().createSocket();
+                SocketAddress localaddr = new InetSocketAddress(inetAddress, i1);
+                SocketAddress remoteaddr = new InetSocketAddress(s, i);
+                setProtocols(result);
+                result.bind(localaddr);
+                result.connect(remoteaddr, timeout);
+            }
+        } else {
+            result = baseFactory.createSocket(s, i, inetAddress, i1, httpConnectionParams);
+            setProtocols(result);
+        }
+        return result;
     }
 
     @Override
     public Socket createSocket(String s, int i) throws IOException, UnknownHostException {
-        Socket result = baseFactory.createSocket(s, i);
+        Socket result;
+        SSLContext context = this.getSSLContext();
+        if( context != null ) {
+            result = context.getSocketFactory().createSocket(s, i);
+        } else {
+            result = baseFactory.createSocket(s, i);
+        }
         return setProtocols(result);
     }
 
