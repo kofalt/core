@@ -1430,7 +1430,7 @@ def upgrade_files_to_45(cont, cont_name):
         "coil_survey":      {"Contrast": "B1", "Intent": "Calibration"},
         "diffusion":        {"Contrast":"Diffusion", "Intent":"Structural"},
         "diffusion_map":    {"Contrast": ["Diffusion", "Fieldmap"], "Intent": "Structural"},
-        "fieldmap":         {"Contrast": "B0", "Intent": "Fieldmap"},
+        "field_map":         {"Contrast": "B0", "Intent": "Fieldmap"},
         "functional":       {"Contrast": "T2*", "Intent": "Functional"},
         "functional_map":   {"Intent":"Functional", "Features":"Derived"},
         "high_order_shim":  {"Intent": "Shim"},
@@ -1447,7 +1447,7 @@ def upgrade_files_to_45(cont, cont_name):
         modality_container = None
 
         if modality:
-            modality_container = config.db.modalities.find_one({'_id': modality.upper()})
+            modality_container = config.db.modalities.find_one({'_id': re.compile('^{}'.format(re.escape(modality)), re.IGNORECASE)})
 
         if modality_container:
             classification = {}
