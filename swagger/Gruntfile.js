@@ -91,7 +91,7 @@ module.exports = function(grunt) {
 		simplifySwagger: {
 			core: {
 				src: 'build/swagger-ui.json',
-				dst: 'build/swagger-codegen.json'
+				dst: '../sdk/swagger.json'
 			}
 		},
 

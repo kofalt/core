@@ -3,10 +3,8 @@ from datetime import datetime, timedelta
 import dateutil.tz
 import flywheel
 import unittest
-
-api_key = os.environ['SdkTestKey']
-FLYWHEEL_CLIENT=flywheel.Flywheel(api_key)
-ROOT_CLIENT=flywheel.Flywheel(api_key, root=True)
+from six.moves.urllib.parse import urlparse
+import init_db
 
 HEX_DIGITS = '0123456789abcdef'
 TD_ZERO = timedelta()
@@ -16,9 +14,28 @@ def utcnow():
     # datetime requires tzinfo for comparison
     return datetime.utcnow().replace(tzinfo=TZ_UTC)
 
+def make_clients():
+    api_key = None
+    if init_db.SCITRAN_PERSISTENT_DB_URI:
+        # Initialize database first
+        init_db.init_db()
+       
+        site_url = urlparse(os.environ['SCITRAN_SITE_API_URL'])
+        api_key = '{}:__force_insecure:{}'.format(site_url.netloc, init_db.SCITRAN_ADMIN_API_KEY)
+    else:
+        api_key = os.environ.get('SdkTestKey')
+
+    if not api_key:
+        print('Could not initialize test case, no api_key. Try setting the SdkTestKey environment variable!')
+        exit(1)
+
+    fw = flywheel.Flywheel(api_key)
+    fw_root = flywheel.Flywheel(api_key, root=True)
+
+    return fw, fw_root
+
 class SdkTestCase(unittest.TestCase):
-    fw = FLYWHEEL_CLIENT
-    fw_root = ROOT_CLIENT
+    fw, fw_root = make_clients()
 
     @classmethod
     def rand_string_lower(self, length=10):
@@ -93,8 +110,3 @@ class SdkTestCase(unittest.TestCase):
             self.assertEqual(content, expected)
         finally:
             resp.close()
-
-
-
-
-        

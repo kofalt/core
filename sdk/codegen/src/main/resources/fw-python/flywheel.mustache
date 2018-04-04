@@ -25,8 +25,13 @@ def config_from_api_key(api_key):
         port = parts[1]
         key = parts[-1]
 
+    if '__force_insecure' in parts:
+        scheme = 'http'
+    else:
+        scheme = 'https'
+
     config = Configuration()
-    config.host = 'https://{}:{}/api'.format(host, port)
+    config.host = '{}://{}:{}/api'.format(scheme, host, port)
     config.api_key['Authorization'] = key
     config.api_key_prefix['Authorization'] = 'scitran-user'
     return config
@@ -50,16 +55,47 @@ class Flywheel:
     {{#operation}}
 
     {{^vendorExtensions.x-sdk-download-url}}
-    def {{operationId}}(self, *args, **kwargs):
-        return self.{{classVarName}}.{{operationId}}(*args, **kwargs)
+    def {{operationId}}(self, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}{{#vendorExtensions.x-sdk-download-file-param}}{{.}}, {{/vendorExtensions.x-sdk-download-file-param}}**kwargs):  # noqa: E501
+        """{{#summary}}{{.}}{{/summary}}{{^summary}}{{operationId}}{{/summary}}
+
+        {{#notes}}
+        {{{notes}}}
+        {{/notes}}
+
+        {{#allParams}}
+        :param {{dataType}} {{paramName}}:{{#description}} {{{description}}}{{/description}}{{#required}} (required){{/required}}{{#optional}}(optional){{/optional}}
+        {{/allParams}}
+        {{#vendorExtensions.x-sdk-download-file-param}}
+        :param str {{.}}: Destination file path
+        {{/vendorExtensions.x-sdk-download-file-param}}
+        :param bool async: Perform the request asynchronously
+        :return: {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}None{{/returnType}}
+        """
+        return self.{{classVarName}}.{{operationId}}({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}{{#vendorExtensions.x-sdk-download-file-param}}{{.}}, {{/vendorExtensions.x-sdk-download-file-param}}**kwargs)
+
     {{/vendorExtensions.x-sdk-download-url}}
     {{! x-sdk-download-url is a special case where we need to construct and return a full url }}
     {{#vendorExtensions.x-sdk-download-url}}
-    def {{.}}(self, *args, **kwargs):
+    def {{.}}(self, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}{{#vendorExtensions.x-sdk-download-file-param}}{{.}}, {{/vendorExtensions.x-sdk-download-file-param}}**kwargs):  # noqa: E501
+        """{{#summary}}{{.}}{{/summary}}{{^summary}}{{operationId}}{{/summary}}
+
+        {{#notes}}
+        {{{notes}}}
+        {{/notes}}
+
+        {{#allParams}}
+        :param {{dataType}} {{paramName}}:{{#description}} {{{description}}}{{/description}}{{#required}} (required){{/required}}{{#optional}}(optional){{/optional}}
+        {{/allParams}}
+        {{#vendorExtensions.x-sdk-download-file-param}}
+        :param str {{.}}: Destination file path
+        {{/vendorExtensions.x-sdk-download-file-param}}
+        :param bool async: Perform the request asynchronously
+        :return: {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}None{{/returnType}}
+        """
         req_info = {}
         kwargs['_request_out'] = req_info
         kwargs['ticket'] = ''
-        data = self.{{classVarName}}.{{operationId}}(*args, **kwargs)
+        data = self.{{classVarName}}.{{operationId}}({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}{{#vendorExtensions.x-sdk-download-file-param}}{{.}}, {{/vendorExtensions.x-sdk-download-file-param}}**kwargs)
         if data is not None:
             data = req_info['url'] + '?ticket=' + data.ticket
         return data
