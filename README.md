@@ -15,8 +15,8 @@ Alpha, Beta and RC builds will use the pre-release tags `alpha`, `beta` and `rc`
 
 ### [Documentation](https://flywheel-io.github.io/core)
 
-API documentation for branches and tags can be found at `https://flywheel-io.github.io/core/branches/<branchname>` and
-`https://flywheel-io.github.io/core/tags/<tagname>`.
+* [Branches](https://flywheel-io.github.io/core/branches)
+* [Tags](https://flywheel-io.github.io/core/tags)
 
 ### [Contributing](https://github.com/flywheel-io/core/blob/master/CONTRIBUTING.md)
 

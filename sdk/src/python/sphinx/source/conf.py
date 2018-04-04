@@ -43,7 +43,6 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
-    'sphinx.ext.githubpages',
 ]
 
 autosummary_generate = True
