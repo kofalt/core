@@ -71,6 +71,12 @@ def get_gears_files():
     return _files
 
 
+def log_exception(e):
+    log.exception(e)
+    if hasattr(e, 'response'):
+        log.error(e.response.text)
+
+
 def migrate_file(f):
     try:
         file_id = f['fileinfo'].get('_id', '')
@@ -115,7 +121,7 @@ def migrate_file(f):
                 config.fs.remove(f_new_path)
 
     except Exception as e:
-        log.exception(e)
+        log_exception(e)
         raise MigrationError('Wasn\'t able to migrate the \'%s\' '
                              'file in the \'%s\' container (container id: %s)' %
                              (f['fileinfo']['name'], f['container'], str(f['container_id'])), e)
@@ -165,7 +171,7 @@ def migrate_containers():
             else:
                 migrate_file(f)
         except Exception as e:
-            log.exception(e)
+            log_exception(e)
             raise MigrationError('Wasn\'t able to migrate the \'%s\' '
                                  'file in the \'%s\' container (container id: %s)' %
                                  (f['fileinfo']['name'], f['container'], str(f['container_id'])), e)
@@ -216,7 +222,7 @@ def migrate_gears():
 
                 show_progress(i + 1, len(_files))
         except Exception as e:
-            log.exception(e)
+            log_exception(e)
             raise MigrationError('Wasn\'t able to migrate the \'%s\' gear (gear id: %s)' %
                                  (f['gear_name'], f['gear_id']), e)
 
