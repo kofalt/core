@@ -93,11 +93,11 @@ def find_matching_conts(gear, containers, container_type, context_inputs=False, 
             else:
                 # Create input map of file refs
                 inputs = {}
-                for input_name, files in suggestions.iteritems():
-                    if files[0]['base'] == 'file':
-                        inputs[input_name] = {'type': container_type, 'id': str(c['_id']), 'name': files[0]['name']}
+                for input_name, suggested_inputs in suggestions.iteritems():
+                    if suggested_inputs[0]['base'] == 'file':
+                        inputs[input_name] = {'type': container_type, 'id': str(c['_id']), 'name': suggested_inputs[0]['name']}
                     else:
-                        inputs[input_name] = files[0]
+                        inputs[input_name] = suggested_inputs[0]
                 c['inputs'] = inputs
                 matched_conts.append(c)
         else:

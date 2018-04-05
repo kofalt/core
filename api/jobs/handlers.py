@@ -465,7 +465,8 @@ class JobHandler(base.RequestHandler):
         if not self.superuser_request:
             if job.inputs is not None:
                 for x in job.inputs:
-                    job.inputs[x].check_access(self.uid, 'ro')
+                    if hasattr(job.inputs[x], 'check_access'):
+                        job.inputs[x].check_access(self.uid, 'ro')
                 # Unlike jobs-add, explicitly not checking write access to destination.
 
     def get_logs(self, _id):
@@ -514,7 +515,8 @@ class JobHandler(base.RequestHandler):
         # Permission check
         if not self.superuser_request:
             for x in j.inputs:
-                j.inputs[x].check_access(self.uid, 'ro')
+                if hasattr(j.inputs[x], 'check_access'):
+                    j.inputs[x].check_access(self.uid, 'ro')
             j.destination.check_access(self.uid, 'rw')
 
         new_id = Queue.retry(j, force=True)

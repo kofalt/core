@@ -200,7 +200,7 @@ class Queue(object):
         # Permission check
         if perm_check_uid:
             for x in inputs:
-                if isinstance(inputs[x], FileReference):
+                if hasattr(inputs[x], 'check_access'):
                     inputs[x].check_access(perm_check_uid, 'ro')
             destination.check_access(perm_check_uid, 'rw')
 
