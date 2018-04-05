@@ -1,9 +1,17 @@
 #!/usr/bin/env python
 """
 Retroactively de-identify EFiles, PFiles and PFile headers.
+
+* Should be run with the same UID as Core (adds de-identified files to storage).
+* Requires DB version 43 or above (analysis inputs under inputs key).
+* Scanning includes containers marked as 'deleted'.
+* Does not remove the (unreferenced) PHI files from storage.
+* Incompatible with the Object Storage branch (assumes local storage).
+
 """
 
 import argparse
+import datetime
 import hashlib
 import itertools
 import logging
@@ -27,9 +35,15 @@ log = logging.getLogger('retro.deid')
 def main(*argv):
     argv = argv or sys.argv[1:] or ['--help']
     args = parse_args(argv)
-    logging.basicConfig(datefmt='%Y-%m-%d %H:%M:%S',
-                        format='%(asctime)s %(levelname)4.4s %(message)s',
+    date_format = '%Y-%m-%d %H:%M:%S'
+    log_format = '%(asctime)s %(levelname)4.4s %(message)s'
+    logging.basicConfig(datefmt=date_format,
+                        format=log_format,
                         level=getattr(logging, args.log_level.upper()))
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    filehandler = logging.FileHandler('{}_retro_deid.log'.format(timestamp))
+    filehandler.setFormatter(logging.Formatter(fmt=log_format, datefmt=date_format))
+    log.addHandler(filehandler)
 
     if not any((args.efile, args.pfile, args.pfile_header)):
         log.info('No types selected, exiting.')
@@ -44,33 +58,44 @@ def main(*argv):
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
 
-    # Assuming related files can only be found in acquisitions and analyses
-    log.info('Scanning acquisitions and analyses for matching files in mongo...')
+    log.info('Scanning mongo for matching files...')
     references = []
-    for cont_type in ('acquisitions', 'analyses'):
+    for cont_type in ('projects', 'sessions', 'acquisitions', 'collections', 'analyses'):
         for cont in db[cont_type].find():  # Includes ones tagged as deleted
-            for file_group in ('files', 'inputs'):  # Analyses have inputs separately
-                for f in cont.get(file_group, []):
-                    for type_name, type_re in TYPE_RE.iteritems():
-                        if getattr(args, type_name) and type_re.match(f['name']):
-                            references.append({
-                                'cont_type': cont_type,
-                                'cont_id': cont['_id'],
-                                'file_group': file_group,
-                                'type': type_name,
-                                'name': f['name'],
-                                'hash': f['hash']})
+            for f in cont.get('inputs' if cont_type == 'analyses' else 'files', []):
+                for type_name, type_re in TYPE_RE.iteritems():
+                    if getattr(args, type_name) and type_re.match(f['name']):
+                        references.append({
+                            'cont_type': cont_type,
+                            'cont_id': cont['_id'],
+                            'type': type_name,
+                            'name': f['name'],
+                            'hash': f['hash']})
 
     if not references:
         log.info('No matching files found in mongo, exiting.')
         sys.exit(0)
 
+    key = lambda ref: ref['hash']
+    references.sort(key=key)
     hash_count = len(set(ref['hash'] for ref in references))
-    log.info('Processing %d unique files across %d mongo references...', hash_count, len(references))
+    log.info('Found %d unique files across %d mongo references.', hash_count, len(references))
+
+    scan_filename = timestamp + '_scan_files.txt'
+    log.info('Writing scan results to "%s"', scan_filename)
+    with open(scan_filename, 'w') as f:
+        f.write('# retro_deid.py {}\n'.format(' '.join(argv)))
+        f.write('\n'.join('{} {}/{}/{}'.format(ref['hash'], ref['cont_type'], ref['cont_id'], ref['name'])
+                          for ref in references))
+        f.write('\n')
+
+    if args.scan_only:
+        sys.exit(0)
+
+    log.info('De-identifying %d files...', hash_count)
     phi_paths = []
     progress = 0
-    key = lambda ref: ref['hash']  # groupby requires sorted iterable using the same key
-    for orig_hash, refs in itertools.groupby(sorted(references, key=key), key=key):
+    for orig_hash, refs in itertools.groupby(references, key=key):
         progress += 1
         refs = list(refs)
         log.info('[%d/%d] %s', progress, hash_count, orig_hash)
@@ -107,13 +132,13 @@ def main(*argv):
                     shutil.copy(temp_path, deid_path)
 
                 for ref in refs:
+                    file_group = 'inputs' if ref['cont_type'] == 'analyses' else 'files'
                     log.info('  Updating file hash and size in mongo for %s/%s/%s/%s',
-                             ref['cont_type'], ref['cont_id'], ref['file_group'], ref['name'])
+                             ref['cont_type'], ref['cont_id'], file_group, ref['name'])
                     if not args.dry_run:
                         cont = db[ref['cont_type']].find_one({'_id': ref['cont_id']})
-                        file_group = ref['file_group']
                         for f in cont.get(file_group, []):
-                            if f['hash'] == orig_hash:
+                            if f['name'] == ref['name'] and f['hash'] == orig_hash:
                                 f['hash'] = deid_hash
                                 f['size'] = os.path.getsize(deid_path)  # EFile size can change
                                 db[ref['cont_type']].update_one(
@@ -121,28 +146,32 @@ def main(*argv):
                                     {'$set': {file_group: cont[file_group]}})
                                 break
                         else:
-                            log.warning('  Cannot find file with original hash in DB: it was replaced or removed.')
+                            log.warning('  Cannot find file with original hash in mongo: it was replaced or removed.')
 
                 phi_paths.append(orig_path)
 
     if phi_paths:
-        log.info('Appending list of PHI files found on storage to "phi_files.txt"')
-        with open('phi_files.txt', 'a') as f:
+        phi_filename = timestamp + '_phi_paths.txt'
+        log.info('Writing list of PHI files found on storage to "%s"', phi_filename)
+        with open(phi_filename, 'w') as f:
             f.write('# retro_deid.py {}\n'.format(' '.join(argv)))
             f.write('\n'.join(sorted(phi_paths)))
             f.write('\n')
+    else:
+        log.info('No PHI files are referenced on storage from mongo.')
 
     log.info('Done.')
 
 
 def parse_args(argv):
     """Return parsed CLI arguments"""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('--efile', action='store_true', help='Include EFiles [false]')
     parser.add_argument('--pfile', action='store_true', help='Include PFiles [false]')
     parser.add_argument('--pfile-header', action='store_true', help='Include PFile headers [false]')
 
+    parser.add_argument('--scan-only', action='store_true', help='Print matching files and exit')
     parser.add_argument('--dry-run', action='store_true', help='Print what this script would do and exit')
     parser.add_argument('--log-level', default='info', metavar='PATH', help='log level [info]')
 
