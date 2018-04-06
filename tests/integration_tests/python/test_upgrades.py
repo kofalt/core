@@ -147,7 +147,7 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
     for c in containers:
         files = as_admin.get('/{}/{}'.format(c[0], c[1])).json()['files']
         for f in files:
-            assert f['classification'] == {'Custom': ['diffusion', 'functional']}
+            assert f['classification'] == {u'Contrast': [u'Diffusion', u'T2*'], u'Intent': [u'Functional', u'Structural']}
 
 
     # Ensure rules were updated
@@ -183,5 +183,3 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
     }
     for p in [t_project1, t_project2]:
         assert as_admin.get('/projects/' + p).json()['template'] == template_after
-
-

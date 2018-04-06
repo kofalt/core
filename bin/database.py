@@ -1448,6 +1448,9 @@ def upgrade_files_to_45(cont, cont_name):
 
         if modality:
             modality_container = config.db.modalities.find_one({'_id': re.compile('^{}'.format(re.escape(modality)), re.IGNORECASE)})
+        elif any([conversionTable.get(measurement) for measurement in measurements]):
+            f['modality'] = modality = 'MR'
+            modality_container = config.db.modalities.find_one({'_id': 'MR'})
 
         if modality_container:
             classification = {}
