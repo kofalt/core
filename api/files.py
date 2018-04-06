@@ -205,10 +205,16 @@ def get_signed_url(file_path, file_system, filename=None):
 
 
 def get_fs_by_file_path(file_path):
-    if config.support_legacy_fs and config.legacy_fs.isfile(file_path):
-        return config.legacy_fs
+    """
+    Attempt to serve file from current storage in config.
+
+    If file is not found (likely has not migrated yet) and the instance
+    still supports the legacy storage, attempt to serve from there.
+    """
 
     if config.fs.isfile(file_path):
         return config.fs
+    elif config.support_legacy_fs and config.legacy_fs.isfile(file_path):
+        return config.legacy_fs
     else:
         raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
