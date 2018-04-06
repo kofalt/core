@@ -19,7 +19,7 @@ def move_file_to_legacy(src, dst):
 
 @pytest.fixture(scope='function')
 def migrate_storage(mocker):
-    """Enable importing from `bin` and return `undelete.undelete`."""
+    """Enable importing from `bin` and return `migrate_storage`."""
     bin_path = os.path.join(os.getcwd(), 'bin', 'oneoffs')
     mocker.patch('sys.path', [bin_path] + sys.path)
     import migrate_storage
@@ -95,7 +95,6 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
         config.legacy_fs.makedirs(target_dir)
     fs.move.move_file(src_fs=config.fs, src_path=file_path,
                       dst_fs=config.legacy_fs, dst_path=file_path)
-
     gears.append((gear_id_2, file_path))
 
     yield gears
@@ -194,7 +193,7 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage):
     # download the file
     assert as_admin.get(url_2, params={'ticket': ticket}).ok
     # run the migration
-    migrate_storage.migrate_containers()
+    migrate_storage.main('--containers')
 
     # delete files from the legacy storage
     config.legacy_fs.remove(file_path_1)
@@ -228,8 +227,8 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage):
     # delete the file
     config.legacy_fs.remove(file_path_1)
 
-    with pytest.raises(migrate_storage.MigrationError):
-        migrate_storage.migrate_containers()
+    with pytest.raises(Exception):
+        migrate_storage.main('--containers')
 
     # clean up
     config.legacy_fs.remove(file_path_2)
@@ -246,7 +245,7 @@ def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
     assert as_admin.get('/gears/temp/' + gear_id_2).ok
 
     # run migration
-    migrate_storage.migrate_gears()
+    migrate_storage.main('--gears')
 
     # delete files from the legacy storage
     config.legacy_fs.remove(gear_file_path_1)
@@ -268,8 +267,8 @@ def test_migrate_gears_error(gears_to_migrate, migrate_storage):
     # delete the file
     config.legacy_fs.remove(gear_file_path_1)
 
-    with pytest.raises(migrate_storage.MigrationError):
-        migrate_storage.migrate_gears()
+    with pytest.raises(Exception):
+        migrate_storage.main('--gears')
 
     # clean up
     config.legacy_fs.remove(gear_file_path_2)
@@ -296,7 +295,7 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
         (_, file_name_2, url_2, file_path_2) = files_to_migrate[1]
 
         # run the migration
-        migrate_storage.migrate_containers()
+        migrate_storage.main('--containers')
 
         file_1_id = api_db['sessions'].find_one(
             {'files.name': file_name_1}
@@ -351,7 +350,7 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     analysis_files1 = '/sessions/' + session_id + '/analyses/' + analysis_id1 + '/files'
 
     # run the migration
-    migrate_storage.migrate_containers()
+    migrate_storage.main('--containers')
 
     # delete files from the legacy storage
     config.legacy_fs.remove(file_path_1)

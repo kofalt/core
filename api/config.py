@@ -113,7 +113,7 @@ if not os.path.exists(__config['persistent']['data_path']):
 log.debug('Persistent data path: %s', __config['persistent']['data_path'])
 
 if not __config['persistent']['fs_url']:
-    _path = os.path.join(__config['persistent']['data_path'], '_v1')
+    _path = os.path.join(__config['persistent']['data_path'], 'v1')
     if not os.path.exists(_path):
         os.makedirs(_path)
     __config['persistent']['fs_url'] = 'osfs://' + _path
