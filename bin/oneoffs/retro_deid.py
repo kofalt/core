@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 """
-Retroactively de-identify EFiles, PFiles and PFile headers.
+Retroactively de-identify EFiles, PFiles and PFile headers as follows:
 
-* Should be run with the same UID as Core (adds de-identified files to storage).
-* Requires DB version 43 or above (analysis inputs under inputs key).
-* Scanning includes containers marked as 'deleted'.
-* Does not remove the (unreferenced) PHI files from storage.
-* Incompatible with the Object Storage branch (assumes local storage).
+* Scan mongo for files matching the relevant name patterns (~extensions)
+* Iterate over file candidates on storage (skip one on error and continue):
+   * Copy each file to /tmp and de-identify it in place
+   * Calculate new hash and skip if unchanged (meaning it's already de-identified)
+   * Copy de-identified file from /tmp to storage
+   * Update de-identified file's hash in mongo (potentially on multiple mongo entries)
+* Write list of PHI files found on storage into a text file (no deletion)
 
 """
 
@@ -45,6 +47,10 @@ def main(*argv):
     filehandler.setFormatter(logging.Formatter(fmt=log_format, datefmt=date_format))
     log.addHandler(filehandler)
 
+    if 'SCITRAN_PERSISTENT_FS_URL' in os.environ:
+        log.critical('retro_deid.py is incompatible with object storage (SCITRAN_PERSISTENT_FS_URL)')
+        sys.exit(1)
+
     if not any((args.efile, args.pfile, args.pfile_header)):
         log.info('No types selected, exiting.')
         sys.exit(0)
@@ -58,11 +64,19 @@ def main(*argv):
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
 
-    log.info('Scanning mongo for matching files...')
+    user_desc = '{}:{}'.format(os.getuid(), os.getgid())
+    data_desc = '{}:{}'.format(os.stat(data_path).st_uid, os.stat(data_path).st_gid)
+    if user_desc != data_desc:
+        log.warning('Running as %s instead of %s (%s)', user_desc, data_desc, data_path)
+
+    version = (db.singletons.find_one({'_id': 'version'}) or {}).get('database', 0)
+    file_groups = {'analyses': 'files' if version < 43 else 'inputs'}
+
+    log.info('Scanning mongo for matching files (including deleted containers)...')
     references = []
     for cont_type in ('projects', 'sessions', 'acquisitions', 'collections', 'analyses'):
-        for cont in db[cont_type].find():  # Includes ones tagged as deleted
-            for f in cont.get('inputs' if cont_type == 'analyses' else 'files', []):
+        for cont in db[cont_type].find():
+            for f in cont.get(file_groups.get(cont_type, 'files'), []):
                 for type_name, type_re in TYPE_RE.iteritems():
                     if getattr(args, type_name) and type_re.match(f['name']):
                         references.append({
@@ -132,7 +146,7 @@ def main(*argv):
                     shutil.copy(temp_path, deid_path)
 
                 for ref in refs:
-                    file_group = 'inputs' if ref['cont_type'] == 'analyses' else 'files'
+                    file_group = file_groups.get(ref['cont_type'], 'files')
                     log.info('  Updating file hash and size in mongo for %s/%s/%s/%s',
                              ref['cont_type'], ref['cont_id'], file_group, ref['name'])
                     if not args.dry_run:
