@@ -13,13 +13,20 @@ def gear_in_path(name, id, result):
 def idz(s):
     return '<id:' + s + '>'
 
-def create_analysis(as_admin, file_form, container, c_id, label):
-    r = as_admin.post('/' + container + '/' + c_id + '/analyses', files=file_form(
-        'one.csv', meta={'label': label, 'inputs': [{'name': 'one.csv'}]}
-    ))
+def create_analysis(as_admin, file_form, container, c_id, label, inp_file):
+    # Create analysis
+    r = as_admin.post('/' + container + '/' + c_id + '/analyses', json={
+        'label': label,
+        'inputs': [{'type': container[:-1], 'id': c_id, 'name': inp_file}]
+    })
     assert r.ok
-    return r.json()['_id']
+    analysis = r.json()['_id']
 
+    # Manual upload
+    r = as_admin.post('/analyses/' + analysis + '/files', files=file_form('one.csv'))
+    assert r.ok
+
+    return analysis
 
 def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     # ROOT
@@ -466,7 +473,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
 
     project_analysis_name = 'test-project-analysis'
-    project_analysis = create_analysis(as_admin, file_form, 'projects', project, project_analysis_name) 
+    project_analysis = create_analysis(as_admin, file_form, 'projects', project, project_analysis_name, project_file) 
 
     # Create session
     session_label = 'test-resolve-analyses-session-label'
@@ -477,7 +484,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
 
     session_analysis_name = 'test-session-analysis'
-    session_analysis = create_analysis(as_admin, file_form, 'sessions', session, session_analysis_name) 
+    session_analysis = create_analysis(as_admin, file_form, 'sessions', session, session_analysis_name, session_file) 
 
     # Create acquisition
     acquisition_label = 'test-resolve-analyses-acquisition-label'
@@ -488,7 +495,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
 
     acq_analysis_name = 'test-acquisition-analysis'
-    acq_analysis = create_analysis(as_admin, file_form, 'acquisitions', acquisition, acq_analysis_name) 
+    acq_analysis = create_analysis(as_admin, file_form, 'acquisitions', acquisition, acq_analysis_name, acquisition_file) 
     
     # GROUP
     r = as_admin.post('/resolve', json={'path': [group, 'analyses']})

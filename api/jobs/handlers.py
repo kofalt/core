@@ -118,7 +118,7 @@ class GearHandler(base.RequestHandler):
         }
 
         if cont_name != 'analyses':
-            analyses = AnalysisStorage().get_analyses(cont_name, cid)
+            analyses = AnalysisStorage().get_analyses(None, cont_name, cid)
             response['children']['analyses'] = [{'cont_type': 'analysis', '_id': a['_id'], 'label': a.get('label', '')} for a in analyses]
 
         # Get collection context, if any
