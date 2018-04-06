@@ -189,6 +189,9 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
             packageName = "swagger_client";
         }
 
+        modelPackage = packageName + "." + modelPackage;
+        apiPackage = packageName + "." + apiPackage;
+
         final String packageFolder = "+" + packageName;
 
         // Base model file
@@ -200,8 +203,13 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         // Flywheel wrapper file
         supportingFiles.add(new SupportingFile("flywheel.mustache", packageFolder, "Flywheel.m"));
 
-        modelPackage = packageName + "." + modelPackage;
-        apiPackage = packageName + "." + apiPackage;
+        // Documentation Files
+        final String docFolder = "sphinx/source";
+        supportingFiles.add(new SupportingFile("doc_conf.mustache", docFolder, "conf.py"));
+        supportingFiles.add(new SupportingFile("doc_index.mustache", docFolder, "index.rst"));
+        supportingFiles.add(new SupportingFile("doc_package_index.mustache", docFolder,  packageName + ".rst"));
+        supportingFiles.add(new SupportingFile("doc_model.mustache", docFolder,  modelPackage + ".rst"));
+        supportingFiles.add(new SupportingFile("doc_api.mustache", docFolder,  apiPackage + ".rst"));
     }
 
     /**

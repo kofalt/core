@@ -27,11 +27,12 @@ docker run --rm -it \
 	-v "${PROJECT_DIR}:/local" \
 	-v "${gradle_user_home}:/gradle" \
 	${GRADLE_CONTAINER} gradle --no-daemon $SDK_VERSION clean build 
-# Containerized python package gen
+
+# Containerized python package and documentation gen
 docker run --rm -it \
-	-w /local/src/python \
+	-w /local/src \
 	-v "${PROJECT_DIR}:/local" \
-	${PYTHON_CONTAINER} ./build-python.sh
+	${PYTHON_CONTAINER} ./build-wheel-and-docs.sh
 
 # Copy distribution artifacts to ./dist/
 DIST_DIR=$PROJECT_DIR/dist

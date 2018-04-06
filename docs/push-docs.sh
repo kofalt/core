@@ -16,7 +16,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )/.."
 
 # Source folders:
 #   python/sphinx src/python/sphinx/build/
-#   python/docs src/python/gen/README.md and src/python/gen/docs
+#   python/matlab src/matlab/build/gen/sphinx/build
 #   swagger/ swagger/build/swagger-ui/
 
 main() {
@@ -81,11 +81,10 @@ copy_docs() {
     cp -R swagger/build/swagger-ui "${dest_dir}/swagger"
 
     # Python docs
-    mkdir -p "${dest_dir}/python"
-    cp sdk/src/python/gen/README.md "${dest_dir}/python/index.md"
-    cp -R sdk/src/python/gen/docs "${dest_dir}/python/docs"
+    cp -R sdk/src/python/sphinx/build "${dest_dir}/python"
 
-    cp -R sdk/src/python/sphinx/build "${dest_dir}/python/sphinx"
+    # Matlab docs
+    cp -R sdk/src/matlab/build/gen/sphinx/build "${dest_dir}/matlab"
 }
 
 # Checkin documentation for a single branche
