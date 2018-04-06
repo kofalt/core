@@ -63,7 +63,7 @@ def add_suggest_info_to_files(gear, files):
     schemas = {}
     for x in gear['gear']['inputs']:
         input_ = gear['gear']['inputs'][x]
-        if input_.get('base') != 'context':
+        if input_.get('base') == 'file':
             schema = gear_tools.isolate_file_invocation(invocation_schema, x)
             schemas[x] = Draft4Validator(schema)
 

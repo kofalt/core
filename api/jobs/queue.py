@@ -167,9 +167,14 @@ class Queue(object):
         # Translate maps to FileReferences
         inputs = {}
         for x in job_map.get('inputs', {}).keys():
+
+            # Ensure input is in gear manifest
+            if x not in gear['gear']['inputs']:
+                raise InputValidationException('Job input {} is not listed in gear manifest'.format(x))
+
             input_map = job_map['inputs'][x]
-            base = gear['gear'].get('inputs', {}).get(x, {}).get('base')
-            if base == 'file':
+            
+            if gear['gear']['inputs'][x]['base'] == 'file':
                 try:
                     inputs[x] = create_filereference_from_dictionary(input_map)
                 except KeyError:
@@ -228,11 +233,6 @@ class Queue(object):
         # So option #2 is potentially more convenient, but unintuitive and prone to user confusion.
 
         for x in inputs:
-
-            # Ensure input is in gear manifest
-            if x not in gear['gear']['inputs']:
-                raise InputValidationException('Job input {} is not listed in gear manifest'.format(x))
-
             input_type = gear['gear']['inputs'][x]['base']
             if input_type == 'file':
 
