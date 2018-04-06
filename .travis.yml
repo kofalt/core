@@ -79,14 +79,24 @@ after_success:
   fi
 
 deploy:
-  provider: releases
-  api_key: $GITHUB_RELEASE_API_KEY
-  file_glob: true
-  file: dist/*
-  skip_cleanup: true
-  draft: true
-  name: $TRAVIS_TAG
-  on:
-    repo: flywheel-io/core
-    tags: true
-    condition: $BUILD_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
+  # Create GitHub Release
+  - provider: releases
+    api_key: $GITHUB_RELEASE_API_KEY
+    file_glob: true
+    file: dist/*
+    skip_cleanup: true
+    draft: true
+    name: $TRAVIS_TAG
+    on:
+      repo: flywheel-io/core
+      tags: true
+      condition: $BUILD_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
+  # Deploy python wheel
+  - provider: script
+    script: bash $TRAVIS_BUILD_DIR/sdk/scripts/deploy-wheel.sh $PYPI_USER $PYPI_PASS
+    skip_cleanup: true
+    on:
+      repo: flywheel-io/core
+      tags: true
+      condition: $BUILD_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
+
