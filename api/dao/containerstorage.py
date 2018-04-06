@@ -271,14 +271,14 @@ class SessionStorage(ContainerStorage):
         return SubjectStorage().get_container(cont['subject']['_id'], projection=projection)
 
 
-    def get_all_el(self, query, user, projection, fill_defaults=False):
+    def get_all_el(self, query, user, projection, fill_defaults=False, **kwargs):
         """
         Override allows 'collections' key in the query, will transform into proper query for the caller and return results
         """
         if query and query.get('collections'):
             # Find acquisition ids in this collection, add to query
             collection_id = query.pop('collections')
-            a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
+            a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1}, **kwargs)
             query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
 
         return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults)
