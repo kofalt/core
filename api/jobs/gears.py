@@ -87,7 +87,7 @@ def suggest_for_files(gear, files, context=None):
                 suggested_inputs[x] = [{
                     'base': 'context',
                     'found': True,
-                    'value': context[x]
+                    'value': context[x]['value']
                 }]
             else:
                 suggested_inputs[x] = [{

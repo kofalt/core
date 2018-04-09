@@ -3,20 +3,28 @@ Job related utilities.
 """
 from ..auth import has_access
 from ..dao.basecontainerstorage import ContainerStorage
+from ..dao.containerutil import singularize
 
-def get_context_for_destination(cont_type, cont_id, uid):
+def get_context_for_destination(cont_type, cont_id, uid, storage=None, cont=None):
     """ Get gear run context for the given destination container.
     
     Arguments:
         cont_type (str): The destination container type.
         cont_id (str): The destination container id.
-        uid (str): The user id for permission checking
+        uid (str): The user id for permission checking.
+        storage (ContainerStorage): The optional container storage instance.
+        cont (dict): The optional container, if already found.
 
     Returns:
         dict: The context built from the container hierarchy
     """
-    storage = ContainerStorage.factory(cont_type)
-    cont = storage.get_container(cont_id)
+    if not storage:
+        storage = ContainerStorage.factory(cont_type)
+
+    if not cont:
+        cont = storage.get_container(cont_id)
+
+    cont['cont_type'] = storage.cont_name
     parent_tree = storage.get_parent_tree(cont_id, cont=cont)
 
     # This is a quick and dirty solution that walks top down, updating
@@ -29,8 +37,16 @@ def get_context_for_destination(cont_type, cont_id, uid):
 
     for parent in parent_tree:
         if not uid or has_access(uid, parent, 'ro'):
+            cont_type = singularize(parent['cont_type'])
             parent_context = parent.get('info', {}).get('context', {})
-            context.update(parent_context)
+
+            for key, value in parent_context.items():
+                context[key] = {
+                    'container_type': cont_type,
+                    'label': parent['label'],
+                    'id': parent['_id'],
+                    'value': value
+                }
 
     return context
 
@@ -58,7 +74,7 @@ def resolve_context_inputs(config, gear, cont_type, cont_id, uid, context=None):
                 config['inputs'][x] = {
                     'base': 'context',
                     'found': True,
-                    'value': context[x]
+                    'value': context[x]['value']
                 }
             else:
                 config['inputs'][x] = {

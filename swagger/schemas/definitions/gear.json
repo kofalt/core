@@ -82,22 +82,28 @@
             }
         },
         "gear-context-lookup-item": {
-        	"properties": {
-        		"found": {
-        			"type": "boolean",
-        			"description": "Was the context value found?"
-        		},
-        		"container_type": {
-        			"$ref": "container.json#/definitions/container-type"
-        		},
-        		"label": {
-        			"type": "string",
-        			"description": "Label of the container where the context value was found, if any."
-        		},
-        		"value": {
-        			"description": "The value if found. Valid IFF found is true. Can be null."
-        		}
-        	}
+            "properties": {
+                "found": {
+                    "type": "boolean",
+                    "description": "Was the context value found?"
+                },
+                "container_type": {
+                    "$ref": "container.json#/definitions/container-type"
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Id of the container where the context value was found, if any."
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Label of the container where the context value was found, if any."
+                },
+                "value": {
+                    "description": "The value if found. Valid IFF found is true. Can be null."
+                }
+            },
+            "required": [ "found" ],
+            "additionalProperties": false
         },
         "gear-context-lookup": {
             "description": "Describes a gear input",

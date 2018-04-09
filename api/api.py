@@ -153,6 +153,7 @@ endpoints = [
             route('/<:[^/]+>',                           GearHandler),
             route('/<:[^/]+>/invocation',                GearHandler, h='get_invocation'),
             route('/<:[^/]+>/suggest/<:{cname}|subjects>/<:[^/]+>', GearHandler, h='suggest'),
+            route('/<:[^/]+>/context/<:{cname}>/<:{cid}>', GearHandler, h='get_context', m=['GET']),
         ]),
 
         # Batch jobs

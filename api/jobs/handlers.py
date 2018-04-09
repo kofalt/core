@@ -9,7 +9,7 @@ from jsonschema import ValidationError
 from urlparse import urlparse
 
 from . import batch
-from .job_util import resolve_context_inputs
+from .job_util import resolve_context_inputs, get_context_for_destination
 from .. import config
 from .. import upload
 from .. import util
@@ -152,6 +152,37 @@ class GearHandler(base.RequestHandler):
 
         return response
 
+    @require_login
+    def get_context(self, _id, cont_name, cid):
+        """
+        Given a container reference, return the set of context values that are found,
+        along with container type and label.
+        """
+
+        # Do all actions that could result in a 404 first
+        gear = get_gear(_id)
+        if not gear:
+            raise APINotFoundException('Gear with id {} not found.'.format(_id))
+
+        storage = cs_factory(cont_name)
+        container = storage.get_container(cid)
+        if not self.user_is_admin and not has_access(self.uid, container, 'ro'):
+            raise APIPermissionException('User does not have access to container {}.'.format(cid))
+
+        # Only check permissions if the user is not admin
+        check_uid = None if self.user_is_admin else self.uid
+        context = get_context_for_destination(cont_name, cid, check_uid, storage=storage, cont=container)
+
+        result = {}
+        for name, inp in gear['gear']['inputs'].iteritems():
+            if inp['base'] == 'context':
+                if name in context:
+                    result[name] = context[name]
+                    result[name].update({'found': True})
+                else:
+                    result[name] = {'found': False}
+
+        return result
 
     @require_admin
     def upload(self): # pragma: no cover
