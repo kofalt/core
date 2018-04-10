@@ -140,24 +140,30 @@ def process_upload(request, strategy, container_type=None, id_=None, origin=None
     if placer.sse and not response:
         raise Exception("Programmer error: response required")
     elif placer.sse:
-        response.headers['Content-Type'] = 'text/event-stream; charset=utf-8'
-        response.headers['Connection']   = 'keep-alive'
+        # Returning a callable will bypass webapp2 processing and allow
+        # full control over the response.
+        def sse_handler(environ, start_response): # pylint: disable=unused-argument
+            write = start_response('200 OK', [
+                ('Content-Type', 'text/event-stream; charset=utf-8'),
+                ('Connection', 'keep-alive')
+            ])
 
-        # Instead of handing the iterator off to response.app_iter, send it ourselves.
-        # This prevents disconnections from leaving the API in a partially-complete state.
-        #
-        # Timing out between events or throwing an exception will result in undefinied behaviour.
-        # Right now, in our environment:
-        # - Timeouts may result in nginx-created 500 Bad Gateway HTML being added to the response.
-        # - Exceptions add some error json to the response, which is not SSE-sanitized.
+            # Instead of handing the iterator off to response.app_iter, send it ourselves.
+            # This prevents disconnections from leaving the API in a partially-complete state.
+            #
+            # Timing out between events or throwing an exception will result in undefinied behaviour.
+            # Right now, in our environment:
+            # - Timeouts may result in nginx-created 500 Bad Gateway HTML being added to the response.
+            # - Exceptions add some error json to the response, which is not SSE-sanitized.
+            for item in placer.finalize():
+                try:
+                    write(item)
+                except Exception: # pylint: disable=broad-except
+                    log.info('SSE upload progress failed to send; continuing')
 
-        for item in placer.finalize():
-            try:
-                response.write(item)
-            except Exception: # pylint: disable=broad-except
-                log.info('SSE upload progress failed to send; continuing')
+            return ''
 
-        return
+        return sse_handler
     else:
         return placer.finalize()
 
