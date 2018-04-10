@@ -79,7 +79,16 @@ task copyToolboxFiles(type: Copy) {
 	into { intDir }
 }
 
-task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi]) {
+task copyJSONio(type: Copy) {
+	from ('JSONio/') {
+		include 'jsonread.m*'
+		include 'jsonwrite.m'
+		include 'LICENSE'
+	}
+	into { fsrootDir + '/+jsonio' }
+}
+
+task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi, copyJSONio]) {
 	doLast {
 		def isoDate = dateToIso(new Date())
 
