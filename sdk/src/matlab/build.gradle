@@ -69,6 +69,7 @@ task copySwaggerApi(type: Copy, dependsOn: generateApi) {
 		include '**/*'
 		exclude '.swagger-codegen/**'
 		exclude '.swagger-codegen-ignore'
+		exclude 'sphinx/**'
 	}
 	into { fsrootDir }
 }
