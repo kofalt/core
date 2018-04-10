@@ -22,6 +22,19 @@ data = fw.download_file_from_project_as_data(project_id, filename)
 
 ### Matlab Notes
 
+In general any fields that were **snake_case** have been converted to **camelCase**.
+
+#### Search
+The `return_type` field on search requests has been renamed to `returnType`. e.g.
+
+```matlab
+# This search call
+results = fw.search(struct('return_type', 'project'));
+
+# would become
+results = fw.search(struct('returnType', 'project'));
+```
+
 #### Gears
 
 The following gear fields have been renamed as part of the model changes:
