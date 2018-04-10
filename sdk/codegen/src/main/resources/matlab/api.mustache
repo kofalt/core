@@ -81,6 +81,10 @@ classdef {{classname}}
                 {{#isListContainer}}
                 queryParams = {{packageName}}.ApiClient.formatParamCollection(queryParams, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
                 {{/isListContainer}}
+            {{#vendorExtensions.x-sdk-default}}
+            else
+                queryParams = [queryParams, '{{baseName}}', '{{.}}'];
+            {{/vendorExtensions.x-sdk-default}}
             end
             {{/queryParams}}
 
