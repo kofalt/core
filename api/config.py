@@ -106,6 +106,7 @@ __last_update = datetime.datetime.utcfromtimestamp(0)
 
 if not os.path.exists(__config['persistent']['data_path']):
     os.makedirs(__config['persistent']['data_path'])
+log.debug('Persistent data path: %s', __config['persistent']['data_path'])
 
 log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
 

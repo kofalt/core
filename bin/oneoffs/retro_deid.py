@@ -14,6 +14,7 @@ Retroactively de-identify EFiles, PFiles and PFile headers as follows:
 
 import argparse
 import datetime
+import gzip
 import hashlib
 import itertools
 import logging
@@ -28,7 +29,7 @@ import pymongo
 
 
 TYPE_RE = {'efile': re.compile(r'E\d{5}S\d{3}P\d{5}\.7$'),
-           'pfile': re.compile(r'(?P<aux>P\d{5})\.7$'),
+           'pfile': re.compile(r'(?P<aux>P\d{5})\.7\.gz$'),
            'pfile_header': re.compile(r'(?P<aux>P\d{5})\.7\.hdr$')}
 
 log = logging.getLogger('retro.deid')
@@ -59,7 +60,7 @@ def main(*argv):
              args.efile, args.pfile, args.pfile_header)
 
     db_uri = os.environ['SCITRAN_PERSISTENT_DB_URI']
-    data_path = os.environ['SCITRAN_PERSISTENT_DATA_PATH']
+    data_path = os.environ.get('SCITRAN_PERSISTENT_DATA_PATH', '/var/scitran/data')
     log.info('Using mongo URI: %s', db_uri)
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
@@ -124,6 +125,18 @@ def main(*argv):
                 log.warning('  Cannot copy file from storage - skipping')
                 continue
 
+            gzipped = refs[0]['name'].endswith('.gz')
+            if gzipped:
+                extracted_path = os.path.join(temp_dir, refs[0]['name']).replace('.gz', '')
+                try:
+                    with gzip.open(temp_path, 'rb') as f_in, open(extracted_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out, 2**30)
+                except (MemoryError, Exception) as exc:
+                    log.error('  %s', exc)
+                    log.warning('  Cannot extract file - skipping')
+                extracted_orig_hash = hash_from_contents(extracted_path)
+                temp_path = extracted_path
+
             loader = EFile if refs[0]['type'] == 'efile' else PFile
             try:
                 loader(temp_path, de_identify=True)
@@ -132,37 +145,53 @@ def main(*argv):
                 log.warning('  Cannot open/de-identify file - skipping')
                 continue
 
-            deid_hash = hash_from_contents(temp_path)
+            if gzipped:
+                extracted_deid_hash = hash_from_contents(temp_path)
+                if extracted_deid_hash == extracted_orig_hash:
+                    log.info('  File already de-identified - skipping')
+                    continue
 
-            if deid_hash == orig_hash:
-                log.info('  File already de-identified - skipping')
-
+                compressed_path = temp_path + '.gz'
+                try:
+                    with open(temp_path, 'rb') as f_in, gzip.open(compressed_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out, 2**30)
+                except (MemoryError, Exception) as exc:
+                    log.error('  %s', exc)
+                    log.warning('  Cannot compress file - skipping')
+                temp_path = compressed_path
+                deid_hash = hash_from_contents(temp_path)
             else:
-                log.info('  Adding de-identified file to storage: %s', deid_hash)
-                deid_path = os.path.join(data_path, path_from_hash(deid_hash))
+                deid_hash = hash_from_contents(temp_path)
+                if deid_hash == orig_hash:
+                    log.info('  File already de-identified - skipping')
+                    continue
+
+            log.info('  De-id hash: %s', deid_hash)
+            log.info('  Adding de-identified file to storage')
+            deid_path = os.path.join(data_path, path_from_hash(deid_hash))
+            if not args.dry_run:
+                if not os.path.isdir(os.path.dirname(deid_path)):
+                    os.makedirs(os.path.dirname(deid_path))
+                shutil.copy(temp_path, deid_path)
+
+            for ref in refs:
+                file_group = file_groups.get(ref['cont_type'], 'files')
+                log.info('  Updating file hash and size in mongo for %s/%s/%s/%s',
+                         ref['cont_type'], ref['cont_id'], file_group, ref['name'])
                 if not args.dry_run:
-                    if not os.path.isdir(os.path.dirname(deid_path)):
-                        os.makedirs(os.path.dirname(deid_path))
-                    shutil.copy(temp_path, deid_path)
+                    cont = db[ref['cont_type']].find_one({'_id': ref['cont_id']})
+                    for f in cont.get(file_group, []):
+                        if f['name'] == ref['name'] and f['hash'] == orig_hash:
+                            f['hash'] = deid_hash
+                            f['size'] = os.path.getsize(deid_path)  # EFile size can change
+                            db[ref['cont_type']].update_one(
+                                {'_id': ref['cont_id']},
+                                {'$set': {file_group: cont[file_group]}})
+                            break
+                    else:
+                        log.warning('  Cannot find file with original hash in mongo: it was replaced or removed.')
 
-                for ref in refs:
-                    file_group = file_groups.get(ref['cont_type'], 'files')
-                    log.info('  Updating file hash and size in mongo for %s/%s/%s/%s',
-                             ref['cont_type'], ref['cont_id'], file_group, ref['name'])
-                    if not args.dry_run:
-                        cont = db[ref['cont_type']].find_one({'_id': ref['cont_id']})
-                        for f in cont.get(file_group, []):
-                            if f['name'] == ref['name'] and f['hash'] == orig_hash:
-                                f['hash'] = deid_hash
-                                f['size'] = os.path.getsize(deid_path)  # EFile size can change
-                                db[ref['cont_type']].update_one(
-                                    {'_id': ref['cont_id']},
-                                    {'$set': {file_group: cont[file_group]}})
-                                break
-                        else:
-                            log.warning('  Cannot find file with original hash in mongo: it was replaced or removed.')
-
-                phi_paths.append(orig_path)
+            phi_paths.append(orig_path)
 
     if phi_paths:
         phi_filename = timestamp + '_phi_paths.txt'
@@ -172,7 +201,7 @@ def main(*argv):
             f.write('\n'.join(sorted(phi_paths)))
             f.write('\n')
     else:
-        log.info('No PHI files are referenced on storage from mongo.')
+        log.info('No matching PHI files are referenced on storage from mongo.')
 
     log.info('Done.')
 
@@ -200,9 +229,8 @@ def path_from_hash(file_hash):
     return os.path.join(hash_version, hash_alg, first_stanza, second_stanza, file_hash)
 
 
-def hash_from_contents(file_path, buffer_size=65536):
+def hash_from_contents(file_path, hash_alg='sha384', buffer_size=65536):
     """Return formatted file hash from contents"""
-    hash_version, hash_alg, _ = os.path.basename(file_path).split('-')
     hasher = hashlib.new(hash_alg)
     with open(file_path, 'rb') as f:
         while True:
