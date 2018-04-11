@@ -56,11 +56,13 @@ prune_branches() {
         (
         cd gh-pages
         for branch_dir in ${subdir}/*; do
-            branch_name="$(basename ${branch_dir})"
-            branch_exists="$(git ls-remote --${remote_types} ${GIT_REMOTE} ${branch_name} | wc -l)"
-            if [ "$branch_exists" -eq 0 ]; then
-                echo "Pruning branch: ${branch_name}"
-                git rm --quiet -rf "${branch_dir}"
+            if [ -d "${branch_dir}" ]; then
+                branch_name="$(basename ${branch_dir})"
+                branch_exists="$(git ls-remote --${remote_types} ${GIT_REMOTE} ${branch_name} | wc -l)"
+                if [ "$branch_exists" -eq 0 ]; then
+                    echo "Pruning branch: ${branch_name}"
+                    git rm --quiet -rf "${branch_dir}"
+                fi
             fi
         done
         )
@@ -74,8 +76,9 @@ copy_docs() {
     # Ensure that target exists
     mkdir -p "${dest_dir}"
 
-    # Remove old index.html if present
+    # Cleanup old docs, if necessary
     rm -f ${dest_dir}/index.html
+    rm -rf "${dest_dir}/swagger" "${dest_dir}/python" "${dest_dir}/matlab"
 
     # Swagger
     cp -R swagger/build/swagger-ui "${dest_dir}/swagger"
