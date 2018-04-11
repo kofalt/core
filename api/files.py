@@ -173,6 +173,16 @@ def guess_type_from_filename(filename):
 
 
 def get_valid_file(file_info):
+    """
+    Get the file path and the filesystem where the file exists.
+
+    First try to serve the file from the current filesystem and
+    if the file is not found (likely has not migrated yet) and the instance
+    still supports the legacy storage, attempt to serve from there.
+
+    :param file_info: dict, contains the _id and the hash of the file
+    :return: (<file's path>, <filesystem>)
+    """
     file_id = file_info.get('_id', '')
     file_hash = file_info.get('hash', '')
     file_uuid_path = None
@@ -184,16 +194,8 @@ def get_valid_file(file_info):
     if file_id:
         file_uuid_path = util.path_from_uuid(file_id)
 
-    if config.support_legacy_fs:
-        if file_hash_path and config.legacy_fs.isfile(file_hash_path):
-            return file_hash_path, config.legacy_fs
-        elif file_uuid_path and config.legacy_fs.isfile(file_uuid_path):
-            return file_uuid_path, config.legacy_fs
-
-    if file_uuid_path and config.fs.isfile(file_uuid_path):
-        return file_uuid_path, config.fs
-    else:
-        raise fs.errors.ResourceNotFound('File not found: %s' % file_info['name'])
+    file_path = file_uuid_path or file_hash_path
+    return file_path, get_fs_by_file_path(file_path)
 
 
 def get_signed_url(file_path, file_system, filename=None):
@@ -206,6 +208,7 @@ def get_signed_url(file_path, file_system, filename=None):
 
 def get_fs_by_file_path(file_path):
     """
+    Get the filesystem where the file exists by a valid file path.
     Attempt to serve file from current storage in config.
 
     If file is not found (likely has not migrated yet) and the instance
