@@ -105,6 +105,8 @@ classdef ModelBase < matlab.mixin.CustomDisplay
                 result = arrayfun(pred, list, 'UniformOutput', false);
             elseif iscell(list)
                 result = cellfun(pred, list, 'UniformOutput', false);
+            elseif isempty(list)
+                result = [];
             else
                 result = { pred(list) };
             end
