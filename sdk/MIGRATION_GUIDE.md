@@ -8,6 +8,11 @@ of the new models. See individual API doc strings for details.
 
 * The **searchRaw** method is no longer provided.
 
+#### Analyses
+
+The `get_analyses` method now requires all 3 arguments. If you wish to get analyses for a single container, use the
+`get_project_analyses` method instead (for example)
+
 ### Python Notes
 
 Downloading a file directly to memory is now supported, for example:

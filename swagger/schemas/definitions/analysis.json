@@ -79,6 +79,8 @@
 					}
 				},
 				"notes":       {"$ref":"note.json#/definitions/notes-list-output"},
+				"tags":        {"$ref":"tag.json#/definitions/tag-list"},
+				"info":        {"$ref":"container.json#/definitions/info"},
 				"description": {"$ref":"common.json#/definitions/description"},
 				"label":       {"$ref":"common.json#/definitions/label"},
 				"created":     {"$ref":"created-modified.json#/definitions/created"},

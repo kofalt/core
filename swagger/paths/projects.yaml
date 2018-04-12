@@ -270,6 +270,7 @@ $template_arguments:
   $template: templates/analysis-files.yaml
   arguments:
     filegroup: outputs
+    allow_upload: true
 /projects/{ProjectId}/analyses/{AnalysisId}/files/{Filename}:
   $template: templates/analysis-files-create-ticket-filename.yaml
   arguments:
