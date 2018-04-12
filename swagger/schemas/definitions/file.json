@@ -2,14 +2,21 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "definitions":{
         "_id":            { "type": "string" },
-        "name":           { "type": "string" },
-        "file-type":      { "type": "string" },
-        "mimetype":       { "type": "string" },
-        "modality":       { "type": ["string", "null"] },
-        "tags": {
-          "items": { "type": "string"},
-          "type": "array",
-          "uniqueItems": true
+        "name":           { 
+          "type": "string",
+          "description": "The name of the file on disk"
+        },
+        "file-type":      { 
+          "type": "string",
+          "description": "A descriptive file type (e.g. dicom, image, document, ...)"
+        },
+        "mimetype":       { 
+          "type": "string",
+          "description": "A MIME Content-Type of the file"
+        },
+        "modality":       { 
+          "type": ["string", "null"],
+          "description": "The type of instrument that originated the file (e.g. MR, CT, ...)"
         },
         "via": {
           "type":"object",
@@ -23,10 +30,22 @@
         "file-origin":{
             "type":"object",
             "properties":{
-                "id":     {"type":"string"},
-                "method": {"type":"string"},
-                "type":   {"type":"string"},
-                "name":   {"type":"string"},
+                "id":     {
+                  "type":"string",
+                  "description": "Database ID of joined name and method"
+                },
+                "method": {
+                  "type":"string",
+                  "description": "Method of file origin"
+                },
+                "type":   {
+                  "type":"string",
+                  "description": "Type of file origin (e.g. device, user, job)"
+                },
+                "name":   {
+                  "type":"string",
+                  "description": "Name of device, user or job that originated the file"
+                },
                 "via":    {"$ref":"#/definitions/via"}
             },
             "additionalProperties":false
@@ -34,9 +53,13 @@
         "hash":{
           "type":"string",
           "minLength":106,
-          "maxLength":106
+          "maxLength":106,
+          "description": "Cryptographic hash of the file"
         },
-        "size":{"type":"integer"},
+        "size":{
+          "type":"integer",
+          "description": "Size of the file, in bytes"
+        },
         "file-entry": {
           "type": "object",
           "properties": {
@@ -46,7 +69,7 @@
             "mimetype":       {"$ref":"#/definitions/mimetype"},
             "modality":       {"$ref":"#/definitions/modality"},
             "classification": {"$ref":"common.json#/definitions/classification"},
-            "tags":           {"$ref":"#/definitions/tags"},
+            "tags":           {"$ref":"tag.json#/definitions/tag-list"},
             "info":           {"$ref":"common.json#/definitions/info"},
             "origin":         {"$ref":"#/definitions/file-origin"},
             "hash":           {"$ref":"#/definitions/hash"},
@@ -56,7 +79,8 @@
             "info_exists":    {"type": "boolean"}
           },
           "additionalProperties": false,
-          "x-sdk-model": "file-entry"
+          "x-sdk-model": "file-entry",
+          "description": "A file description"
         },
         "file-input":{
             "type": "object",
@@ -66,7 +90,7 @@
               "mimetype":         {"$ref":"#/definitions/mimetype"},
               "modality":         {"$ref":"#/definitions/modality"},
               "classification":   {"$ref":"common.json#/definitions/classification"},
-              "tags":             {"$ref":"#/definitions/tags"},
+              "tags":             {"$ref":"tag.json#/definitions/tag-list"},
               "info":             {"$ref":"common.json#/definitions/info"}
           },
           "additionalProperties": false,

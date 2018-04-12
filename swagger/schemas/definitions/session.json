@@ -1,8 +1,10 @@
 {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "definitions":{
-        "operator":     {"type": "string"},
-        "project":      {"type": "string"},
+        "operator":     {
+            "type": "string",
+            "description": "The name of the operator"
+        },
         "project_has_template":{"type":"boolean"},
         "satisfies_template":{"type":"boolean"},
         "session-input":{
@@ -12,7 +14,7 @@
                 "public":       {"$ref":"container.json#/definitions/public"},
                 "label":        {"$ref":"common.json#/definitions/label"},
                 "info":         {"$ref":"container.json#/definitions/info"},
-                "project":      {"$ref":"#/definitions/project"},
+                "project":      {"$ref":"common.json#/definitions/objectid"},
                 "uid":          {"$ref":"container.json#/definitions/uid"},
                 "timestamp":    {"$ref":"container.json#/definitions/timestamp"},
                 "timezone":     {"$ref":"container.json#/definitions/timezone"},
@@ -48,7 +50,7 @@
                 "info":         {"$ref":"container.json#/definitions/info"},
                 "info_exists":  {"$ref":"container.json#/definitions/info_exists"},
                 "operator":     {"$ref":"#/definitions/operator"},
-                "project":      {"$ref":"#/definitions/project"},
+                "project":      {"$ref":"common.json#/definitions/objectid"},
                 "uid":          {"$ref":"container.json#/definitions/uid"},
                 "timestamp":    {"$ref":"container.json#/definitions/timestamp"},
                 "timezone":     {"$ref":"container.json#/definitions/timezone"},
