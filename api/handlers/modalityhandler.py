@@ -34,6 +34,8 @@ class ModalityHandler(base.RequestHandler):
     def put(self, modality_name):
         payload = self.request.json_body
         validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
+        if payload['_id'] != modality_name:
+            raise InputValidationException('Modality id in payload does not match id in uri')
 
         result = self.storage.replace_el(modality_name, payload)
         if result.matched_count != 1:

@@ -280,3 +280,96 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
     })
     assert r.status_code == 404
 
+    # Clean up modality
+    r = as_admin.delete('/modalities/' + modality1)
+    assert r.ok
+
+
+
+def test_classification_change_triggers_job(randstr, data_builder, as_admin, api_db, file_form):
+
+    ## SETUP gear, rule, file, modality
+
+    gear_name = randstr()
+    gear = data_builder.create_gear(gear={'name': gear_name, 'version': '0.0.1'})
+
+    # Add rule
+    rule = {
+        'alg': gear_name,
+        'name': 'classification-job-trigger-rule',
+        'any': [],
+        'all': [
+            {'type': 'file.classification', 'value': 'Localizer'},
+        ]
+    }
+
+    r = as_admin.post('/site/rules', json=rule)
+    assert r.ok
+    rule_id = r.json()['_id']
+
+    # Add modality information
+    payload = {
+        '_id': 'MR',
+        'classification': {
+            'Intent': ["Structural", "Functional", "Localizer"],
+            'Contrast': ["B0", "B1", "T1", "T2"]
+        }
+    }
+
+    r = as_admin.post('/modalities', json=payload)
+    assert r.ok
+    assert r.json()['_id'] == payload['_id']
+    modality1 = payload['_id']
+
+    # Add container and file
+    acquisition = data_builder.create_acquisition()
+    file_name = 'test_file.txt'
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(file_name))
+    assert r.ok
+
+    # Add modality to file
+    r = as_admin.put('/acquisitions/' + acquisition + '/files/' + file_name, json={
+        'modality': 'MR'
+    })
+
+    ## SETUP COMPLETE
+
+
+    # Test adding classification that doesn't trigger rule
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/' + file_name + '/classification', json={
+        'add': {'Intent': ['Functional']}
+    })
+    assert r.ok
+    assert r.json()['jobs_spawned'] == 0
+
+
+    # Test adding classification that does trigger rule
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/' + file_name + '/classification', json={
+        'add': {'Intent': ['Localizer']}
+    })
+    assert r.ok
+    assert r.json()['jobs_spawned'] == 1
+
+    # Test that job was created via rule
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 1
+    assert len(gear_jobs[0]['inputs']) == 1
+    assert gear_jobs[0]['inputs'][0]['name'] == file_name
+
+
+    ## CLEANUP
+
+    # Clean up modality
+    r = as_admin.delete('/modalities/' + modality1)
+    assert r.ok
+
+    # Clean up rule
+    r = as_admin.delete('/site/rules/' + rule_id)
+
+
+
+
+
+
+
+

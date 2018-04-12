@@ -72,7 +72,7 @@
     	"search-file-response": {
     		"type": "object",
     		"properties": {
-                "classification": {"$ref":"file.json#/definitions/classification"},
+                "classification": {"$ref":"common.json#/definitions/classification"},
                 "created":        {"$ref":"created-modified.json#/definitions/created"},
 	            "type":           {"$ref":"file.json#/definitions/file-type"},
 	            "name":           {"$ref":"file.json#/definitions/name"},

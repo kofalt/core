@@ -2,27 +2,11 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "definitions": {
-    "_id": {
-      "maxLength": 64,
-      "minLength": 2,
-      "pattern": "^[0-9a-zA-Z_-]*$"
-    },
-    "classification": {
-      "type": "object",
-      "patternProperties": {
-        "^[0-9a-zA-Z_-]*$":{
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "modality-input":{
+    "modality":{
         "type": "object",
         "properties": {
-          "_id":                {"$ref":"#/definitions/_id"},
-          "classification":    {"$ref":"#/definitions/classification"}
+          "_id":               {"$ref":"common.json#/definitions/string-id"},
+          "classification":    {"$ref":"common.json#/definitions/classification"}
         },
         "additionalProperties": false
     }
