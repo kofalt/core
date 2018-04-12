@@ -1412,7 +1412,7 @@ def upgrade_to_44():
 
 
 
-def upgrade_files_to_45(cont, cont_name):
+def upgrade_files_to_45(cont, context):
     """
     if the file has a modality, we try to find a matching classification
     key and value for each measurement in the modality's classification map
@@ -1421,40 +1421,39 @@ def upgrade_files_to_45(cont, cont_name):
     collection, all measurements are added to the custom key
     """
     conversionTable = {
-        "anatomy_inplane":  {"Contrast":"T1", "Intent": "Structural", "Features": "In-Plane"},
-        "anatomy_ir":       {"Contrast":"T1", "Intent": "Structural"},
-        "anatomy_pd":       {"Contrast":"PD", "Intent": "Structural"},
-        "anatomy_t1w":      {"Contrast":"T1", "Intent": "Structural"},
-        "anatomy_t2w":      {"Contrast":"T2", "Intent": "Structural"},
-        "calibration":      {"Intent": "Calibration"},
-        "coil_survey":      {"Contrast": "B1", "Intent": "Calibration"},
-        "diffusion":        {"Contrast":"Diffusion", "Intent":"Structural"},
-        "diffusion_map":    {"Contrast": ["Diffusion", "Fieldmap"], "Intent": "Structural"},
-        "field_map":         {"Contrast": "B0", "Intent": "Fieldmap"},
-        "functional":       {"Contrast": "T2*", "Intent": "Functional"},
-        "functional_map":   {"Intent":"Functional", "Features":"Derived"},
-        "high_order_shim":  {"Intent": "Shim"},
-        "localizer":        {"Contrast":"T2", "Intent":"Localizer"},
-        "perfusion":        {"Contrast":"Perfusion", "Intent":"Structural"},
-        "spectroscopy":     {"Contrast":"Spectroscopy"},
-        "screenshot":       {"Intent":"Screenshot"}
+        "anatomy_inplane":  { "Contrast": ["T1"],               "Intent": ["Structural"],    "Features": ["In-Plane"] },
+        "anatomy_ir":       {                                   "Intent": ["Structural"]                              },
+        "anatomy_pd":       { "Contrast": ["PD"],               "Intent": ["Structural"]                              },
+        "anatomy_t1w":      { "Contrast": ["T1"],               "Intent": ["Structural"]                              },
+        "anatomy_t2w":      { "Contrast": ["T2"],               "Intent": ["Structural"]                              },
+        "calibration":      {                                   "Intent": ["Calibration"]                             },
+        "coil_survey":      { "Contrast": ["B1"],               "Intent": ["Calibration"]                             },
+        "diffusion":        { "Contrast": ["Diffusion"],        "Intent": ["Structural"]                              },
+        "diffusion_map":    { "Contrast": ["Diffusion"],        "Intent": ["Structural"],     "Features": ["Derived"] },
+        "field_map":        { "Contrast": ["B0"],               "Intent": ["Fieldmap"]                                },
+        "functional":       { "Contrast": ["T2*"],              "Intent": ["Functional"]                              },
+        "functional_map":   {                                   "Intent": ["Functional"],     "Features": ["Derived"] },
+        "high_order_shim":  {                                   "Intent": ["Shim"]                                    },
+        "localizer":        { "Contrast": ["T2"],               "Intent": ["Localizer"]                               },
+        "perfusion":        { "Contrast": ["Perfusion"],                                                              },
+        "spectroscopy":     { "Contrast": ["Spectroscopy"]                                                            },
+        "screenshot":       {                                   "Intent": ["Screenshot"]                              }
     }
 
     files = cont['files']
+    mr_modality = context['mr_modality']
+    cont_name = context['cont_name']
+
     for f in cont['files']:
         modality = f.get('modality')
-        measurements = f['measurements']
-        modality_container = None
+        measurements = f.pop('measurements', None)
 
-        if modality:
-            modality_container = config.db.modalities.find_one({'_id': re.compile('^{}'.format(re.escape(modality)), re.IGNORECASE)})
-        elif any([conversionTable.get(measurement) for measurement in measurements]):
-            f['modality'] = modality = 'MR'
-            modality_container = config.db.modalities.find_one({'_id': 'MR'})
+        # If the file's modality is MR or if they have a measurement in the conversion table above, this is a special case
+        if (modality and modality.upper() == 'MR') or any([conversionTable.get(measurement) for measurement in measurements]):
 
-        if modality_container:
+            f['modality'] = modality = 'MR' # Ensure uppercase for storage
             classification = {}
-            m_class = modality_container.get('classifications', {})
+            m_class = mr_modaliy['classifications']
 
             for m in measurements:
                 found = False
@@ -1483,11 +1482,15 @@ def upgrade_files_to_45(cont, cont_name):
 
             for k, v_array in classification.iteritems():
                 classification[k] = list(set(v_array))
-        else:
-            classification = {'Custom': measurements}
 
-        f.pop('measurements')
-        f['classification'] = classification
+            f['classification'] = classification
+
+
+        # No matter what put the file's measurements in to the custom field if it has any
+        if measurements:
+            if not f.get('classification'):
+                f['classification'] = {}
+            f['classification']['Custom'] = measurements
 
 
     config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
@@ -1535,20 +1538,22 @@ def upgrade_to_45():
     """
 
     # Seed modality collection:
-    if not config.db.modalities.find_one({'_id': 'MR'}):
-        config.db.modalities.insert({
+    mr_modality = {
             "_id": "MR",
             "classification": {
                 "Contrast": ["B0", "B1", "T1", "T2", "T2*", "PD", "MT", "ASL", "Perfusion", "Diffusion", "Spectroscopy", "Susceptibility", "Velocity", "Fingerprinting"],
-                "Intent": ["Localizer", "Shim", "Calibration", "Fieldmap", "Structural", "Functional", "Non-Image"],
-                "Features": ["Quantitative", "Multi-Shell", "Multi-Echo", "Multi-Flip", "Multi-Band", "Steady-State", "3D", "Compressed-Sensing", "Eddy-Current-Corrected", "Fieldmap-Corrected", "Gradient-Unwarped", "Motion-Corrected", "Physio-Corrected", "Derived", "In-Plane"]
+                "Intent": ["Localizer", "Shim", "Calibration", "Fieldmap", "Structural", "Functional", "Screenshot", "Non-Image"],
+                "Features": ["Quantitative", "Multi-Shell", "Multi-Echo", "Multi-Flip", "Multi-Band", "Steady-State", "3D", "Compressed-Sensing", "Eddy-Current-Corrected", "Fieldmap-Corrected", "Gradient-Unwarped", "Motion-Corrected", "Physio-Corrected", "Derived", "In-Plane", "Phase", "Magnitude"]
             }
-        })
+        }
+    if not config.db.modalities.find_one({'_id': 'MR'}):
+        config.db.modalities.insert(mr_modality)
 
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
 
         cursor = config.db[cont_name].find({'files.measurements': {'$exists': True }})
-        process_cursor(cursor, upgrade_files_to_45, context=cont_name)
+        context = {'cont_name':cont_name, 'mr_modality':mr_modality}
+        process_cursor(cursor, upgrade_files_to_45, context=context)
 
 
     cursor = config.db.project_rules.find({'$or': [
