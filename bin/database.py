@@ -1453,33 +1453,24 @@ def upgrade_files_to_45(cont, context):
 
             f['modality'] = modality = 'MR' # Ensure uppercase for storage
             classification = {}
-            m_class = mr_modaliy['classifications']
+            m_class = mr_modality['classification']
 
             for m in measurements:
-                found = False
                 if conversionTable.get(m):
-                    for k, v in conversionTable[m].iteritems():
-                        if isinstance(v, list):
-                            classification[k] = classification.get(k,[]) + v
-                        elif classification.get(k):
-                            classification[k].append(v)
-                        else:
-                            classification[k] = [v]
-                    continue
-                for k, v_array in m_class.iteritems():
-                    for v in v_array:
-                        if v.lower() == m.lower():
-                            found = True
-                            if classification.get(k):
-                                classification[k].append(v)
-                            else:
-                                classification[k] = [v]
-                if not found:
-                    if classification.get('Custom'):
-                        classification['Custom'].append(m)
-                    else:
-                        classification['Custom'] = [m]
 
+                    # If the measurement is in the left side of the conversion table, apply those settings
+                    for k, v in conversionTable[m].iteritems():
+                        classification[k] = classification.get(k,[]) + v
+
+                else:
+                    # Otherwise try to find it's case insensitive match in MR's classification
+                    for k, v_array in m_class.iteritems():
+                        for v in v_array:
+                            if v.lower() == m.lower():
+                                classification[k] = classification.get(k,[]) + v
+
+
+            # Make sure every value is only in the list once
             for k, v_array in classification.iteritems():
                 classification[k] = list(set(v_array))
 
