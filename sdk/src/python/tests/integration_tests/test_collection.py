@@ -218,6 +218,45 @@ class CollectionsTestCases(SdkTestCase):
         r_collection = fw.get_collection(collection_id)
         self.assertEmpty(r_collection.files)
 
+    def test_collection_analysis(self):
+        fw = self.fw
+        
+        collection = flywheel.Collection(label=self.rand_string()) 
+
+        # Add
+        self.collection_id = collection_id = fw.add_collection(collection)
+        self.assertNotEmpty(collection_id)
+
+        poem = 'A shape with lion body and the head of a man,'
+        fw.upload_file_to_collection(collection_id, flywheel.FileSpec('yeats.txt', poem))
+
+        file_ref = flywheel.FileReference(
+            id=collection_id,
+            type='collection',
+            name='yeats.txt'
+        )
+
+        analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), inputs=[file_ref])
+
+        # Add
+        analysis_id = fw.add_collection_analysis(collection_id, analysis)
+        self.assertNotEmpty(analysis_id)
+
+        # Get the list of analyses in the collection
+        r_collection = fw.get_collection(collection_id)
+        self.assertEqual(len(r_collection.analyses), 1)
+        
+        r_analysis = r_collection.analyses[0]
+
+        self.assertEqual(r_analysis.id, analysis_id)
+        self.assertEmpty(r_analysis.job)
+
+        self.assertTimestampBeforeNow(r_analysis.created)
+        self.assertGreaterEqual(r_analysis.modified, r_analysis.created)
+
+        self.assertEqual(len(r_analysis.inputs), 1)
+        self.assertEqual(r_analysis.inputs[0].name, 'yeats.txt')
+
     def sanitize_for_collection(self, collection, info_exists=True):
         # workaround: all-container endpoints skip some fields, single-container does not. this sets up the equality check 
         collection.files = []

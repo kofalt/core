@@ -184,6 +184,45 @@ class AcquisitionsTestCases(SdkTestCase):
         except flywheel.ApiException as e:
             self.assertEqual(e.status, 404)
 
+    def test_acquisition_analysis(self):
+        fw = self.fw
+        
+        acquisition = flywheel.Acquisition(session=self.session_id, label=self.rand_string()) 
+
+        # Add
+        acquisition_id = fw.add_acquisition(acquisition)
+        self.assertNotEmpty(acquisition_id)
+
+        poem = 'Troubles my sight: a waste of desert sand;'
+        fw.upload_file_to_acquisition(acquisition_id, flywheel.FileSpec('yeats.txt', poem))
+
+        file_ref = flywheel.FileReference(
+            id=acquisition_id,
+            type='acquisition',
+            name='yeats.txt'
+        )
+
+        analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), inputs=[file_ref])
+
+        # Add
+        analysis_id = fw.add_acquisition_analysis(acquisition_id, analysis)
+        self.assertNotEmpty(analysis_id)
+
+        # Get the list of analyses in the acquisition
+        analyses = fw.get_acquisition_analyses(acquisition_id)
+        self.assertEqual(len(analyses), 1)
+        
+        r_analysis = analyses[0]
+
+        self.assertEqual(r_analysis.id, analysis_id)
+        self.assertEmpty(r_analysis.job)
+
+        self.assertTimestampBeforeNow(r_analysis.created)
+        self.assertGreaterEqual(r_analysis.modified, r_analysis.created)
+
+        self.assertEqual(len(r_analysis.inputs), 1)
+        self.assertEqual(r_analysis.inputs[0].name, 'yeats.txt')
+
     def sanitize_for_collection(self, acquisition, info_exists=True):
         # workaround: all-container endpoints skip some fields, single-container does not. this sets up the equality check 
         acquisition.info = {}
