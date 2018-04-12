@@ -75,6 +75,7 @@ main() {
         --network core-test \
         --volume $(pwd)/api:/var/scitran/code/api/api \
         --volume $(pwd)/tests:/var/scitran/code/api/tests \
+        --volume $(pwd)/swagger:/var/scitran/code/api/swagger \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://core-test-mongo:27017/scitran \
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-mongo:27017/logs \
         --workdir /var/scitran/code/api \
