@@ -614,8 +614,7 @@ def test_edit_file_attributes(data_builder, as_admin, file_form):
 
     payload = {
         'type': 'new type',
-        'modality': 'new modality',
-        'classification': {'custom': ['measurement']}
+        'modality': 'new_modality'
     }
 
     assert as_admin.put('/projects/' + project + '/files/' + file_name, json=payload).ok
@@ -625,7 +624,6 @@ def test_edit_file_attributes(data_builder, as_admin, file_form):
 
     file_object = r.json()
     assert file_object['type'] == payload['type']
-    assert file_object['classification'] == payload['classification']
     assert file_object['modality'] == payload['modality']
 
 

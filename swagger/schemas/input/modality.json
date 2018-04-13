@@ -3,7 +3,7 @@
     "title": "Modality",
     "type": "object",
     "allOf": [{"$ref": "../definitions/modality.json#/definitions/modality"}],
-    "required": ["classification", "_id"],
+    "required": ["classification"],
     "example": {
         "_id": "MR",
         "classification": {
