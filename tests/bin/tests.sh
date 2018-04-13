@@ -104,7 +104,7 @@ main() {
         coverage report --skip-covered --show-missing
 
         touch tests/artifacts
-        chown -R $(stat -c %u:%g tests) .
+        chown -R $(stat -c %u:%g .) .
     fi
 
     if [ "$LINT_TOGGLE" != false ]; then
