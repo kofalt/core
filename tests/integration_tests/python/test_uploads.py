@@ -713,7 +713,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
             'info': {'test': 'f1'}
         },
         {
-            'name': 'folderB/two.csv',
+            'name': '../folderB/two.csv',
             'type': 'engine type 1',
             'info': {'test': 'f1'}
         }
@@ -750,6 +750,9 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     a_timestamp = dateutil.parser.parse(a['timestamp'])
     m_timestamp = dateutil.parser.parse(metadata['acquisition']['timestamp'])
     assert a_timestamp == m_timestamp
+
+    # Change the metadata filename to its snaitized version
+    metadata['acquisition']['files'][2]['name'] = 'folderB/two.csv'
 
     for mf in metadata['acquisition']['files']:
         f = find_file_in_array(mf['name'], a['files'])
