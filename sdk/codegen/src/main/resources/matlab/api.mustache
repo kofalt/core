@@ -81,6 +81,10 @@ classdef {{classname}}
                 {{#isListContainer}}
                 queryParams = {{packageName}}.ApiClient.formatParamCollection(queryParams, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
                 {{/isListContainer}}
+            {{#vendorExtensions.x-sdk-default}}
+            else
+                queryParams = [queryParams, '{{baseName}}', '{{.}}'];
+            {{/vendorExtensions.x-sdk-default}}
             end
             {{/queryParams}}
 
@@ -126,7 +130,7 @@ classdef {{classname}}
             body = {{modelPackage}}.{{baseType}}.ensureIsInstance(x__inp.Results.{{paramName}});
             {{/isListContainer}}
             {{#isListContainer}}
-            body = BaseModel.cellmap(@(x) {{modelPackage}}.{{baseType}}.ensureIsInstance(x), x__inp.Results.{{paramName}});
+            body = {{packageName}}.ModelBase.cellmap(@(x) {{modelPackage}}.{{baseType}}.ensureIsInstance(x), x__inp.Results.{{paramName}});
             {{/isListContainer}}
             {{/isPrimitiveType}}
             body = {{packageName}}.ApiClient.encodeJson(body.toJson());
@@ -156,7 +160,7 @@ classdef {{classname}}
                     end
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    returnData = arrayfun(@(x) {{modelPackage}}.{{baseType}}.fromJson(x), json, 'UniformOutput', false);
+                    returnData = {{packageName}}.ModelBase.cellmap(@{{modelPackage}}.{{baseType}}.fromJson, json);
                     {{/isListContainer}}
                 {{/dataType}}
                 {{#vendorExtensions.x-sdk-download-file-param}}
