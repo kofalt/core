@@ -17,6 +17,17 @@ public class FlywheelCodegenSupport {
         removeExtraOperationTags(swagger);
     }
 
+    public static void removeSupportingFile(List<SupportingFile> supportingFiles, String name) {
+        Iterator<SupportingFile> itr = supportingFiles.iterator();
+        while(itr.hasNext()) {
+            SupportingFile file = itr.next();
+            if( file.templateFile.equals(name) ) {
+                itr.remove();
+                break;
+            }
+        }
+    }
+
     private static void preprocessSwaggerModels(Swagger swagger) {
         Map<String, Model> models = swagger.getDefinitions();
         for( String name : models.keySet() ) {
