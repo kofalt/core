@@ -206,9 +206,9 @@ FACET_QUERY = {
             "filter": {"term": {"container_type": "file"}},
             "aggs": {
 
-                "file.classification" : {
+                "file.classification_list" : {
                     "terms" : {
-                        "field" : "file.classification.raw",
+                        "field" : "file.classification_list.raw",
                         "size" : 15,
                         "missing": "null"
                     }
