@@ -4,6 +4,7 @@
         "classification-add-delete": {
             "type": "object",
             "properties": {
+                "modality": {"$ref":"file.json#/definitions/modality"},
                 "add":      {"$ref":"common.json#/definitions/classification"},
                 "delete":   {"$ref":"common.json#/definitions/classification"}
             },
@@ -12,6 +13,7 @@
         "classification-replace": {
             "type": "object",
             "properties": {
+                "modality": {"$ref":"file.json#/definitions/modality"},
                 "replace": {"type": "object"}
             },
             "additionalProperties": false

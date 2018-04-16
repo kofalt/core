@@ -5,7 +5,7 @@
         "name":           { "type": "string" },
         "file-type":      { "type": "string" },
         "mimetype":       { "type": "string" },
-        "modality":       { "type": "string" },
+        "modality":       { "type": ["string", "null"] },
         "tags": {
           "items": { "type": "string"},
           "type": "array",
@@ -44,21 +44,16 @@
             "name":           {"$ref":"#/definitions/name"},
             "type":           {"$ref":"#/definitions/file-type"},
             "mimetype":       {"$ref":"#/definitions/mimetype"},
-            "modality":       {
-                "oneOf":[
-                    {"$ref":"#/definitions/modality"},
-                    {"type":"null"}
-                ]
-            },
+            "modality":       {"$ref":"#/definitions/modality"},
             "classification": {"$ref":"common.json#/definitions/classification"},
-            "tags":        {"$ref":"#/definitions/tags"},
-            "info":        {"$ref":"common.json#/definitions/info"},
-            "origin":      {"$ref":"#/definitions/file-origin"},
-            "hash":        {"$ref":"#/definitions/hash"},
-            "created":     {"$ref":"created-modified.json#/definitions/created"},
-            "modified":    {"$ref":"created-modified.json#/definitions/modified"},
-            "size":        {"$ref":"#/definitions/size"},
-            "info_exists": {"type": "boolean"}
+            "tags":           {"$ref":"#/definitions/tags"},
+            "info":           {"$ref":"common.json#/definitions/info"},
+            "origin":         {"$ref":"#/definitions/file-origin"},
+            "hash":           {"$ref":"#/definitions/hash"},
+            "created":        {"$ref":"created-modified.json#/definitions/created"},
+            "modified":       {"$ref":"created-modified.json#/definitions/modified"},
+            "size":           {"$ref":"#/definitions/size"},
+            "info_exists":    {"type": "boolean"}
           },
           "additionalProperties": false,
           "x-sdk-model": "file-entry"

@@ -48,6 +48,13 @@ class ListStorage(object):
             projection = {self.list_name + '.$': 1, 'permissions': 1, 'public': 1}
         return self.dbc.find_one(query, projection)
 
+    def get_list_item(self, _id, query_params):
+        try:
+            return self.get_container(_id, query_params)[self.list_name][0]
+        except IndexError:
+            raise APINotFoundException('Could not find item in {}'.format(self.list_name))
+
+
     def exec_op(self, action, _id=None, query_params=None, payload=None, exclude_params=None):
         """
         Generic method to exec an operation.
@@ -233,6 +240,7 @@ class FileStorage(ListStorage):
         """
         Apply a classification update for a file. The payload format is:
         {
+            "modality": "" // Optionally set the modaily at the same time
             "add": {},
             "delete": {},
             "replace": {}
@@ -247,7 +255,12 @@ class FileStorage(ListStorage):
         query = {'_id': _id }
         query[self.list_name] = {'$elemMatch': query_params}
 
-        modality = self.get_container(_id)['files'][0].get('modality') #TODO: make this more reliable if the file isn't there
+        if 'modality' in payload:
+            modality = payload['modality']
+            update['$set'][self.list_name + '.$.modality'] = modality
+        else:
+            modality = self.get_list_item(_id, query_params)['modality']
+
         add_payload = payload.get('add')
         delete_payload = payload.get('delete')
         replace_payload = payload.get('replace')
