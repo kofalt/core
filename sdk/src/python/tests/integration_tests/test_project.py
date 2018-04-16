@@ -123,23 +123,51 @@ class ProjectsTestCases(SdkTestCase):
 
         # Test file attributes
         self.assertEqual(r_project.files[0].modality, None)
-        self.assertEqual(len(r_project.files[0].measurements), 0)
+        self.assertEmpty(r_project.files[0].classification)
         self.assertEqual(r_project.files[0].type, 'text')
 
         resp = fw.modify_project_file(project_id, 'yeats.txt', flywheel.FileEntry(
             modality='modality',
-            measurements=['measurement'],
             type='type'
         ))
 
         # Check that no jobs were triggered, and attrs were modified
-        self.assertEqual(resp.jobs_triggered, 0)
+        self.assertEqual(resp.jobs_spawned, 0)
 
         r_project = fw.get_project(project_id)
         self.assertEqual(r_project.files[0].modality, "modality")
-        self.assertEqual(len(r_project.files[0].measurements), 1)
-        self.assertEqual(r_project.files[0].measurements[0], 'measurement')
+        self.assertEmpty(r_project.files[0].classification)
         self.assertEqual(r_project.files[0].type, 'type')
+
+        # Test classifications
+        resp = fw.modify_project_file_classification(project_id, 'yeats.txt', {
+            'replace': {
+                'Custom': ['measurement1', 'measurement2'],
+            }
+        })
+        self.assertEqual(resp.modified, 1)
+        self.assertEqual(resp.jobs_spawned, 0)
+
+        r_project = fw.get_project(project_id)
+        self.assertEqual(r_project.files[0].classification, {
+            'Custom': ['measurement1', 'measurement2']
+        });
+
+        resp = fw.modify_project_file_classification(project_id, 'yeats.txt', {
+            'add': {
+                'Custom': ['HelloWorld'],
+            },
+            'delete': {
+                'Custom': ['measurement2']
+            }
+        })
+        self.assertEqual(resp.modified, 1)
+        self.assertEqual(resp.jobs_spawned, 0)
+
+        r_project = fw.get_project(project_id)
+        self.assertEqual(r_project.files[0].classification, {
+            'Custom': ['measurement1', 'HelloWorld'],
+        });
 
         # Test file info
         self.assertEmpty(r_project.files[0].info)
