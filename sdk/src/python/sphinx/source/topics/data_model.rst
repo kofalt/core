@@ -15,6 +15,8 @@ Data in a Flywheel system is organized in a tree-like hierarchy, as indicated in
 - :class:`flywheel.models.acquisition.Acquisition` - A set of one or more files, typically acquired as part of the same process, at the same time.
 - :class:`flywheel.models.analysis_output.AnalysisOutput` - A set of one or more derivative files from analyzing files after they have been acquired.
 
+.. _data-model-permissions:
+
 Permissions
 -----------
 Permissions in Flywheel are managed at the Group and Project level. Users that belong to a Group or a Project have a 
@@ -41,6 +43,8 @@ will not propagate to the project.
 
 	# Remove permission from a project
 	fw.delete_project_user_permission(project_id, 'justinehlert@flywheel.io')
+
+.. _data-model-containers:
 
 Containers
 ----------

@@ -7,6 +7,7 @@ Flywheel SDK Documentation
 
    topics/getting_started
    topics/data_model
+   topics/examples
    flywheel 
 
 
