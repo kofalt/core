@@ -36,7 +36,7 @@ In order to make API calls, you will need to create an instance of the Flywheel 
 .. code-block:: matlab
 
 	% Create client
-	fw = Flywheel('my-key')
+	fw = flywheel.Flywheel('my-key')
 
 Once you have a client instance, you can interact with the system. For instance, you could get information about yourself:
 
