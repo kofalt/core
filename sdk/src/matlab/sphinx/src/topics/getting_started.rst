@@ -27,7 +27,7 @@ API Key
 -------
 The SDK requires an API key. You can find and generate your key on the Flywheel profile page. It will look like this:
 
-.. image:: //static/images/api-key.png
+.. image:: //core/static/images/api-key.png
 
 Making API Calls
 ----------------
