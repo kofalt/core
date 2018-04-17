@@ -149,10 +149,8 @@ class SessionsTestCases(SdkTestCase):
         self.assertEqual(r_session.files[0].type, 'type')
 
         # Test classifications
-        resp = fw.modify_session_file_classification(session_id, 'yeats.txt', {
-            'replace': {
-                'Custom': ['measurement1', 'measurement2'],
-            }
+        resp = fw.replace_session_file_classification(session_id, 'yeats.txt', {
+            'Custom': ['measurement1', 'measurement2'],
         })
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
