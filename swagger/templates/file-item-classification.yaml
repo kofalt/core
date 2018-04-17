@@ -29,7 +29,7 @@ template: |
         in: body
         required: true
         schema:
-          $ref: schemas/input/classification_update.json
+          $ref: schemas/input/classification-update.json
     responses:
       '200':
         $ref: '#/responses/200:modified-with-count-and-jobs'
