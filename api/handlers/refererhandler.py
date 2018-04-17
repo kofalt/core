@@ -83,7 +83,7 @@ class AnalysesHandler(RefererHandler):
             self.input_validator(analysis, 'POST')
         except ValueError:
             # Legacy analysis - accept direct file uploads (inputs and outputs)
-            analysis = upload.process_upload(self.request, upload.Strategy.analysis, origin=self.origin)
+            analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin)
 
         uid = None if self.superuser_request else self.uid
         result = self.storage.create_el(analysis, cont_name, cid, self.origin, uid)
@@ -209,7 +209,7 @@ class AnalysesHandler(RefererHandler):
         elif analysis.get('files'):
             raise InputValidationException('Analysis already has outputs and does not allow repeated file uploads')
 
-        upload.process_upload(self.request, upload.Strategy.targeted_multi, container_type='analysis', id_=_id, origin=self.origin)
+        upload.process_upload(self.request, upload.Strategy.targeted_multi, self.log_user_access, container_type='analysis', id_=_id, origin=self.origin)
 
 
     def download(self, **kwargs):

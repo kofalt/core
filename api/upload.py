@@ -29,7 +29,7 @@ Strategy = util.Enum('Strategy', {
     'gear'           : pl.GearPlacer
 })
 
-def process_upload(request, strategy, container_type=None, id_=None, origin=None, context=None, response=None, metadata=None):
+def process_upload(request, strategy, access_logger, container_type=None, id_=None, origin=None, context=None, response=None, metadata=None):
     """
     Universal file upload entrypoint.
 
@@ -84,7 +84,7 @@ def process_upload(request, strategy, container_type=None, id_=None, origin=None
             raise FileStoreException('wrong format for field "metadata"')
 
     placer_class = strategy.value
-    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context)
+    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, access_logger)
     placer.check()
 
     # Browsers, when sending a multipart upload, will send files with field name "file" (if sinuglar)
@@ -191,7 +191,7 @@ class Upload(base.RequestHandler):
             strategy = Strategy.reaper
         else:
             self.abort(500, 'strategy {} not implemented'.format(strategy))
-        return process_upload(self.request, strategy, origin=self.origin, context=context)
+        return process_upload(self.request, strategy, self.log_user_access, origin=self.origin, context=context)
 
     def engine(self):
         """Handles file uploads from the engine"""
@@ -213,7 +213,7 @@ class Upload(base.RequestHandler):
             'job_ticket_id': self.get_param('job_ticket'),
         }
         strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
-        return process_upload(self.request, strategy, container_type=level, id_=cid, origin=self.origin, context=context)
+        return process_upload(self.request, strategy, self.log_user_access, container_type=level, id_=cid, origin=self.origin, context=context)
 
     def clean_packfile_tokens(self):
         """Clean up expired upload tokens and invalid token directories.
@@ -274,7 +274,7 @@ class Upload(base.RequestHandler):
         }
 
 def extract_file_fields(form):
-    """Returns a list of file fields in the form, handling multiple values""" 
+    """Returns a list of file fields in the form, handling multiple values"""
     result = []
     for fieldname in form:
         field = form[fieldname]

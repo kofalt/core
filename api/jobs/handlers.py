@@ -26,8 +26,8 @@ from ..web.errors import APIPermissionException, APINotFoundException, InputVali
 from ..web.request import AccessType
 
 from .gears import (
-    validate_gear_config, get_gears, get_gear, get_invocation_schema, 
-    remove_gear, upsert_gear, get_gear_by_name, check_for_gear_insertion, 
+    validate_gear_config, get_gears, get_gear, get_invocation_schema,
+    remove_gear, upsert_gear, get_gear_by_name, check_for_gear_insertion,
     add_suggest_info_to_files, count_file_inputs
 )
 
@@ -186,7 +186,7 @@ class GearHandler(base.RequestHandler):
 
     @require_admin
     def upload(self): # pragma: no cover
-        r = upload.process_upload(self.request, upload.Strategy.gear, container_type='gear', origin=self.origin, metadata=self.request.headers.get('metadata'))
+        r = upload.process_upload(self.request, upload.Strategy.gear, self.log_user_access, container_type='gear', origin=self.origin, metadata=self.request.headers.get('metadata'))
         gear_id = upsert_gear(r[1])
 
         config.db.gears.update_one({'_id': gear_id}, {'$set': {
@@ -751,7 +751,7 @@ class BatchHandler(base.RequestHandler):
             else:
                 # Convert from container + inputs to proposed job
                 for match in matched:
-                    batch_proposal['proposal']['jobs'].append({               
+                    batch_proposal['proposal']['jobs'].append({
                         'inputs': match.pop('inputs'),
                         'destination': { 'id': str(match['_id']), 'type': 'acquisition' }
                     })
