@@ -8,6 +8,9 @@
 
 
 # -- Project information -----------------------------------------------------
+import os
+import sys
+import sphinx_rtd_theme
 
 project = 'Flywheel SDK'
 copyright = '2018 Flywheel All rights reserved'
@@ -18,6 +21,8 @@ version = ''
 # The full version, including alpha/beta/rc tags
 release = ''
 
+ext_path = os.path.abspath('../../sphinx-ext')
+sys.path.append(ext_path)
 
 # -- General configuration ---------------------------------------------------
 
@@ -29,7 +34,8 @@ release = ''
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinxcontrib.matlab'
+    'sphinxcontrib.matlab',
+    'statichtml'
 ]
 
 primary_domain = 'mat'
@@ -90,6 +96,7 @@ html_static_path = []
 #
 # html_sidebars = {}
 
+html_copy_source = False
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -146,3 +153,8 @@ texinfo_documents = [
     author, 'FlywheelSDK', 'One line description of project.',
     'Miscellaneous'),
 ]
+
+# -- Extension configuration -------------------------------------------------
+
+statichtml_path = '/theme/sphinx_rtd/{}'.format(sphinx_rtd_theme.__version__)
+

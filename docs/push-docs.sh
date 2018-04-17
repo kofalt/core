@@ -84,10 +84,22 @@ copy_docs() {
     cp -R swagger/build/swagger-ui "${dest_dir}/swagger"
 
     # Python docs
+    cp -R sdk/src/python/sphinx/build/theme gh-pages/
     cp -R sdk/src/python/sphinx/build "${dest_dir}/python"
 
     # Matlab docs
     cp -R sdk/src/matlab/build/gen/sphinx/build "${dest_dir}/matlab"
+
+    # Cleanup sphinx folders
+    rm -r "${dest_dir}/matlab/theme"
+    rm -r "${dest_dir}/matlab/.doctrees"
+    rm -r "${dest_dir}/matlab/.buildinfo"
+    rm -r "${dest_dir}/matlab/objects.inv"
+
+    rm -r "${dest_dir}/python/theme"
+    rm -r "${dest_dir}/python/.doctrees"
+    rm -r "${dest_dir}/python/.buildinfo"
+    rm -r "${dest_dir}/python/objects.inv"
 }
 
 # Checkin documentation for a single branche
@@ -118,6 +130,7 @@ checkin_branch() {
             git add "${target_dir}*"
             git add branches/index.md
             git add tags/index.md
+            git add theme/*
 
             # Add any modified files, and push
             git commit --message "$COMMIT_MESSAGE" 
