@@ -31,6 +31,7 @@ Making API Calls
 In order to make API calls, you will need to create an instance of the Flywheel client:
 
 .. code-block:: python
+
 	# import flywheel package
 	import flywheel
 
@@ -43,6 +44,8 @@ Once you have a client instance, you can interact with the system. For instance,
 
 	self = fw.get_current_user()
 	print('I am %s %s' % (self.firstname, self.lastname))
+
+.. _dealing-with-files:
 
 Dealing with Files
 ------------------
@@ -67,3 +70,46 @@ When downloading, you specify the destination file, or you can download directly
 
 	# Download file contents directly to memory
 	data = fw.download_file_from_project_as_data(project_id, 'hello.txt')
+
+Object IDs
+----------
+With the exception of Groups, all containers and objects within Flywheel are referenced using Unique IDs.
+Groups are the only object that have a human-readable id (e.g. ``flywheel``).
+
+Finding the ID of an object when you are only familiar with the label can be difficult. One method that may 
+help is the :meth:`flywheel.flywheel.Flywheel.resolve` method.
+
+Resolve takes a path (by label) to an object in the system, and if found, returns the full path to that object,
+along with children. For example, to find the ID of the project labeled ``Anxiety Study`` that belongs to the ``flywheel`` 
+group, I would call resolve with: ``'flywheel/Anxiety Study'``:
+
+.. code-block:: python
+
+	# Resolve project by id
+	result = fw.resolve('flywheel/Anxiety Study')
+
+	# Extract the resolved project id
+	project_id = result.path[-1].id
+
+	# Print the ids and labels of the path elements
+	for el in result.path:
+		print('%s: %s' % (el.label, el.id))
+
+	# Print the children of project:
+	for el in result.children:
+		print('%s: %s' % (el.label, el.id))
+
+Handling Exceptions
+-------------------
+When an error is encountered while accessing an endpoint, an :class:`flywheel.rest.ApiException` is thrown. 
+The ApiException will typically have a ``status`` which is the HTTP Status Code (e.g. 404) and a ``reason`` 
+(e.g. Not Found).
+
+For example:
+
+.. code-block:: python
+
+	try:
+	  project = fw.get_project('NON_EXISTENT_ID')
+	except flywheel.ApiException as e:
+	  print('API Error: %d -- %s' % (e.status, e.reason))

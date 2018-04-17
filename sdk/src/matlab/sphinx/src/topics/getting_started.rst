@@ -54,6 +54,8 @@ You can query the client or objects returned by api calls for additional informa
 	help(fw); % Display available functions
 	disp(self); % Print the properties in the 'self' object
 
+.. _dealing-with-files:
+
 Dealing with Files
 ------------------
 Often times you'll find yourself wanting to upload or download file data to one of Flywheel's containers. When uploading,
@@ -74,3 +76,48 @@ When downloading, you specify the destination file:
 
 	% Download file to /tmp/hello.txt
 	fw.downloadFileFromProject(projectId, 'hello.txt', '/tmp/hello.txt');
+
+Object IDs
+----------
+With the exception of Groups, all containers and objects within Flywheel are referenced using Unique IDs.
+Groups are the only object that have a human-readable id (e.g. ``flywheel``).
+
+Finding the ID of an object when you are only familiar with the label can be difficult. One method that may 
+help is the :meth:`flywheel.Flywheel.resolve` method.
+
+Resolve takes a path (by label) to an object in the system, and if found, returns the full path to that object,
+along with children. For example, to find the ID of the project labeled ``Anxiety Study`` that belongs to the ``flywheel`` 
+group, I would call resolve with: ``'flywheel/Anxiety Study'``:
+
+.. code-block:: matlab
+
+	# Resolve project by id
+	result = fw.resolve('flywheel/Anxiety Study');
+
+	# Extract the resolved project id
+	projectId = result.path{2}.id
+
+	# Print the ids and labels of the path elements
+	for idx = 1:numel(result.path)
+	  fprintf('%s: %s\n', result.path{idx}.label, result.path{idx}.id);
+	end
+
+	# Print the children of project:
+	for idx = 1:numel(result.children)
+	  fprintf('%s: %s\n', result.children{idx}.label, result.children{idx}.id);
+	end
+
+Handling Exceptions
+-------------------
+When an error is encountered while accessing an endpoint, an exception is thrown. The exception message 
+will have more details.
+
+For example:
+
+.. code-block:: python
+
+	try
+	  project = fw.getProject('NON_EXISTENT_ID');
+	catch ME
+	  fprintf('API Error: %s\n', ME.message);
+	end
