@@ -272,6 +272,29 @@ def test_access_log_succeeds(data_builder, as_admin, log_db):
 
 
     ###
+    # Test file replacement is logged
+    ###
+
+    log_records_count_before = log_db.access_log.count({})
+
+    # Replace existing file
+    r = as_admin.post('/projects/' + project + '/files', files={
+        'file': (file_name, 'different-content')
+    })
+    assert r.ok
+
+    log_records_count_after = log_db.access_log.count({})
+    assert log_records_count_before+1 == log_records_count_after
+
+    most_recent_log = log_db.access_log.find({}).sort([('_id', -1)]).limit(1)[0]
+
+    assert most_recent_log['context']['project']['id'] == project
+    assert most_recent_log['context']['file']['name'] == file_name
+    assert most_recent_log['access_type'] == AccessType.replace_file.value
+    assert most_recent_log['origin']['id'] == 'admin@user.com'
+
+
+    ###
     # Test file delete is logged
     ###
 

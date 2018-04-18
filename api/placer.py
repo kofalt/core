@@ -28,7 +28,7 @@ class Placer(object):
     Interface for a placer, which knows how to process files and place them where they belong - on disk and database.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context):
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger):
         self.container_type = container_type
         self.container      = container
         self.id_            = id_
@@ -46,6 +46,9 @@ class Placer(object):
 
         # A list of files that have been saved via save_file() usually returned by finalize()
         self.saved          = []
+
+        # A callable that allows the placer to log access information
+        self.access_logger  = access_logger
 
 
     def check(self):
@@ -94,7 +97,7 @@ class Placer(object):
 
         # Update the DB
         if file_attrs is not None:
-            container_before, self.container = hierarchy.upsert_fileinfo(self.container_type, self.id_, file_attrs)
+            container_before, self.container = hierarchy.upsert_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger)
 
             # Queue any jobs as a result of this upload, uploading to a gear will not make jobs though
             if self.container_type != 'gear':
@@ -157,8 +160,8 @@ class UIDPlacer(Placer):
     create_hierarchy = staticmethod(hierarchy.upsert_top_down_hierarchy)
     match_type = 'uid'
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context):
-        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger):
+        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger)
         self.metadata_for_file = {}
         self.session_id = None
         self.count = 0
@@ -370,8 +373,8 @@ class TokenPlacer(Placer):
     Intended for use with a token that tracks where the files will be stored.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context):
-        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger):
+        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger)
 
         self.paths  =   []
         self.folder =   None
@@ -409,8 +412,8 @@ class PackfilePlacer(Placer):
     A placer that can accept N files, save them into a zip archive, and place the result on an acquisition.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context):
-        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger):
+        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger)
 
         # This endpoint is an SSE endpoint
         self.sse            = True

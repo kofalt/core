@@ -548,7 +548,7 @@ class FileListHandler(ListHandler):
         permchecker, _, _, _, _ = self._initialize_request(containerutil.pluralize(cont_name), list_name, _id)
         permchecker(noop)('POST', _id=_id)
 
-        return upload.process_upload(self.request, upload.Strategy.targeted, container_type=containerutil.singularize(cont_name), id_=_id, origin=self.origin)
+        return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, container_type=containerutil.singularize(cont_name), id_=_id, origin=self.origin)
 
     @validators.verify_payload_exists
     def put(self, cont_name, list_name, **kwargs):
@@ -672,7 +672,7 @@ class FileListHandler(ListHandler):
         token_id = self.request.GET.get('token')
         self._check_packfile_token(project_id, token_id)
 
-        return upload.process_upload(self.request, upload.Strategy.token, origin=self.origin, context={'token': token_id})
+        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id})
 
     def packfile_end(self, **kwargs):
         """
@@ -686,4 +686,4 @@ class FileListHandler(ListHandler):
         # Because this is an SSE endpoint, there is no form-post. Instead, read JSON data from request param
         metadata = json.loads(self.request.GET.get('metadata'))
 
-        return upload.process_upload(self.request, upload.Strategy.packfile, origin=self.origin, context={'token': token_id}, response=self.response, metadata=metadata)
+        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id}, response=self.response, metadata=metadata)
