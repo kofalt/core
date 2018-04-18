@@ -3,7 +3,6 @@ set -exo pipefail
 
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-JSONIO_COMMIT="87b0d2a7baeef94b6072345b65159aab5f881c90"
 GRADLE_CONTAINER="gradle:4.5-jdk8-alpine"
 PYTHON_CONTAINER="python:3.4"
 
@@ -13,13 +12,13 @@ fi
 
 # Clone JSONio
 if [ ! -d "src/matlab/JSONio" ]; then
-    git clone https://github.com/gllmflndn/JSONio src/matlab/JSONio
+    git clone https://github.com/flywheel-io/JSONio src/matlab/JSONio
 fi
 
-# Checkout JSONio commit
+# Checkout latest JSONio commit
 (
     cd src/matlab/JSONio
-    git checkout $JSONIO_COMMIT
+    git pull
 )
 
 # Containerized swagger code-gen
