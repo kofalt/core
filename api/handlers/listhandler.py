@@ -442,7 +442,10 @@ class FileListHandler(ListHandler):
 
         # Authenticated or ticketed download request
         else:
-            signed_url = files.get_signed_url(file_path, file_system, filename=filename)
+            signed_url = files.get_signed_url(file_path, file_system,
+                                              filename=filename,
+                                              attachment=(not self.is_true('view')),
+                                              response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
             if signed_url:
                 self.redirect(signed_url)
             else:
