@@ -54,6 +54,7 @@ classdef {{classname}}
             {{/sortParamsByRequiredFlag}}
             {{#vendorExtensions.x-sdk-download-file-param}}
             addRequired(x__inp, '{{.}}');
+            addParameter(x__inp, 'OutputType', 'double');
             {{/vendorExtensions.x-sdk-download-file-param}}
             addParameter(x__inp, 'DumpResponseData', false);
             parse(x__inp, {{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}varargin{:});
@@ -166,8 +167,12 @@ classdef {{classname}}
                 {{#vendorExtensions.x-sdk-download-file-param}}
                 case '{{code}}'
                     destFile = x__inp.Results.{{.}};
-                    resp.saveResponseBodyToFile(destFile);
-                    returnData = destFile;
+                    if ~isempty(destFile)
+                        resp.saveResponseBodyToFile(destFile);
+                        returnData = destFile;
+                    else
+                        returnData = resp.getBodyData(x__inp.Results.OutputType);
+                    end
                 {{/vendorExtensions.x-sdk-download-file-param}}
             {{/responses}}
                 otherwise
