@@ -1,8 +1,8 @@
 %% Test methods in Flywheel.m
 % Setup
 % Before running this script, ensure the toolbox is installed
-%   set SdkTestKey environment variable as user API key
-%       ex: setenv('SdkTestKey', APIKEY)
+%   make sure you set SdkTestKey environment variable as user API key
+%       for example: setenv('SdkTestKey', APIKEY)
 
 % Create string to be used in testdrive
 testString = '123235jakhf7sadf7v';
@@ -66,14 +66,15 @@ projects = fw.getAllProjects();
 assert(~isempty(projects), errMsg)
 
 fw.uploadFileToProject(projectId, filename);
-fw.downloadFileFromProject(projectId, filename, '/tmp/download.txt');
+projectDownloadFile = fullfile(tempdir, 'download.txt');
+fw.downloadFileFromProject(projectId, filename, projectDownloadFile);
 
 project = fw.getProject(projectId);
 assert(strcmp(project.tags{1},'blue'), errMsg)
 assert(strcmp(project.label,'testdrive'), errMsg)
 assert(strcmp(project.notes{1}.text, 'This is a note'), errMsg)
 assert(strcmp(project.files{1}.name, filename), errMsg)
-s = dir('/tmp/download.txt');
+s = dir(projectDownloadFile);
 assert(project.files{1}.size == s.bytes, errMsg)
 
 projectDownloadUrl = fw.getProjectDownloadUrl(projectId, filename);
@@ -95,14 +96,15 @@ sessions = fw.getAllSessions();
 assert(~isempty(sessions), errMsg)
 
 fw.uploadFileToSession(sessionId, filename);
-fw.downloadFileFromSession(sessionId, filename, '/tmp/download2.txt');
+sessionDownloadFile = fullfile(tempdir, 'download2.txt');
+fw.downloadFileFromSession(sessionId, filename, sessionDownloadFile);
 
 session = fw.getSession(sessionId);
 assert(strcmp(session.tags{1}, 'blue'), errMsg)
 assert(strcmp(session.label, 'testdrive'), errMsg)
 assert(strcmp(session.notes{1}.text, 'This is a note'), errMsg)
 assert(strcmp(session.files{1}.name, filename), errMsg)
-s = dir('/tmp/download2.txt');
+s = dir(sessionDownloadFile);
 assert(session.files{1}.size == s.bytes, errMsg)
 
 sessionDownloadUrl = fw.getSessionDownloadUrl(sessionId, filename);
@@ -124,14 +126,15 @@ acqs = fw.getAllAcquisitions();
 assert(~isempty(acqs), errMsg)
 
 fw.uploadFileToAcquisition(acqId, filename);
-fw.downloadFileFromAcquisition(acqId, filename, '/tmp/download3.txt');
+acquisitionDownloadFile = fullfile(tempdir, 'download3.txt');
+fw.downloadFileFromAcquisition(acqId, filename, acquisitionDownloadFile);
 
 acq = fw.getAcquisition(acqId);
 assert(strcmp(acq.tags{1},'blue'), errMsg)
 assert(strcmp(acq.label,'testdrive'), errMsg)
 assert(strcmp(acq.notes{1}.text, 'This is a note'), errMsg)
 assert(strcmp(acq.files{1}.name, filename), errMsg)
-s = dir('/tmp/download3.txt');
+s = dir(acquisitionDownloadFile);
 assert(acq.files{1}.size == s.bytes, errMsg)
 
 acqDownloadUrl = fw.getAcquisitionDownloadUrl(acqId, filename);
