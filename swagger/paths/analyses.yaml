@@ -47,6 +47,20 @@ $template_arguments:
     resource: analysis
     parameter: AnalysisId
 
+
+# ===== Notes =====
+/analyses/{AnalysisId}/notes:
+  $template: templates/notes.yaml
+  arguments:
+    resource: analysis
+    parameter: AnalysisId
+/analyses/{AnalysisId}/notes/{NoteId}:
+  $template: templates/notes-note.yaml
+  arguments:
+    resource: analysis
+    parameter: AnalysisId
+
+
 /{ContainerName}/{ContainerId}/{SubcontainerName}/analyses:
   parameters:
     - name: ContainerName
