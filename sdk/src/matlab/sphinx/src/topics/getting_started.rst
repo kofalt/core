@@ -70,12 +70,28 @@ you can either specify the path to the input file, or you can specify some in-me
 	fileSpec = flywheel.FileSpec('hello.txt', 'Hello World!\n', 'text/plain');
 	fw.uploadFileToProject(projectId, fileSpec);
 
-When downloading, you specify the destination file:
+	% Some endpoints allow multiple file uploads:
+	fw.uploadOutputToAnalysis(analysisId, {'/tmp/hello1.txt', '/tmp/hello2.txt'});
+
+When downloading, you specify the destination file, or you can download directly to memory.
+Supported ``OutputType`` values are:
+	- ``int8``
+	- ``int16``
+	- ``int32``
+	- ``int64``
+	- ``double`` (default)
+	- ``char``
 
 .. code-block:: matlab
 
 	% Download file to /tmp/hello.txt
 	fw.downloadFileFromProject(projectId, 'hello.txt', '/tmp/hello.txt');
+
+	% Download file directly to memory as an array of doubles
+	data = fw.downloadFileFromProjectAsData(projectId, 'hello.txt');
+
+	% Download file directly to memory as a char cell array
+	data = fw.downloadFileFromProjectAsData(projecgtId, 'hello.txt', 'OutputType', 'char');
 
 Object IDs
 ----------
