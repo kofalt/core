@@ -261,7 +261,14 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
     })
     assert r.status_code == 422
 
-    # Update modality and classification at the same time
+    # Attempt to make an addition and modify classification at the same time
+    r = as_admin.post('/projects/' + project + '/files/' + file_name + '/classification', json={
+        'modality': modality1,
+        'add': {'Intent': ['Functional']}
+    })
+    assert r.status_code == 400
+
+    # Update modality and replace classification at the same time
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/classification', json={
         'modality': modality1,
         'replace': file_cls
@@ -272,6 +279,27 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
     assert r.ok
     assert r.json()['classification'] == file_cls
     assert r.json()['modality'] == modality1
+
+
+    # Attempt to set modality to null and update non-custom fields
+    r = as_admin.post('/projects/' + project + '/files/' + file_name + '/classification', json={
+        'modality': None,
+        'replace': file_cls
+    })
+    assert r.status_code == 422
+
+    # Set modality to null and update non-custom fields
+    file_cls = {'Custom': ['Allowable']}
+    r = as_admin.post('/projects/' + project + '/files/' + file_name + '/classification', json={
+        'modality': None,
+        'replace': file_cls
+    })
+    assert r.ok
+
+    r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
+    assert r.ok
+    assert r.json()['classification'] == file_cls
+    assert r.json()['modality'] == None
 
 
     # Attempt to add to nonexistent file
