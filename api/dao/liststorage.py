@@ -149,6 +149,15 @@ class FileStorage(ListStorage):
                 ))
 
         mod_elem = {}
+
+        if 'modality' in payload:
+            # Check to see if they are setting a new modality. If so, clear everything but the custom fields
+            file_ = self.get_list_item(_id, query_params)
+            if file_.get('modality') and file_['modality'] != payload['modality'] and file_.get('classification'):
+                payload['classification'] = {}
+                if file_['classification'].get('Custom'):
+                    payload['classification'] = {'Custom': file_['classification']['Custom']}
+
         for k,v in payload.items():
             mod_elem[self.list_name + '.$.' + k] = v
         query = {'_id': _id }

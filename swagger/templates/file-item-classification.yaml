@@ -20,6 +20,7 @@ template: |
       name: FileName
   post:
     summary: Update classification for a particular file.
+    description: If replacing a file's classification, the modality can optionally be modified as well.
     operationId: modify_{{resource}}_file_classification
     x-sdk-modify-classification: true
     tags:
