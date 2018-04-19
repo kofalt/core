@@ -143,7 +143,6 @@ class AcquisitionsTestCases(SdkTestCase):
         });
 
         resp = fw.modify_acquisition_file_classification(acquisition_id, 'yeats.txt', {
-            'modality': 'modality',
             'add': {
                 'Custom': ['HelloWorld'],
             },
@@ -155,7 +154,6 @@ class AcquisitionsTestCases(SdkTestCase):
         self.assertEqual(resp.jobs_spawned, 0)
 
         r_acquisition = fw.get_acquisition(acquisition_id)
-        self.assertEqual(r_acquisition.files[0].modality, 'modality')
         self.assertEqual(r_acquisition.files[0].classification, {
             'Custom': ['measurement1', 'HelloWorld'],
         });
