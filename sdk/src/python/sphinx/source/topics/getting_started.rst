@@ -80,7 +80,7 @@ With the exception of Groups, all containers and objects within Flywheel are ref
 Groups are the only object that have a human-readable id (e.g. ``flywheel``).
 
 Finding the ID of an object when you are only familiar with the label can be difficult. One method that may 
-help is the :meth:`flywheel.flywheel.Flywheel.resolve` method.
+help is the :meth:`flywheel.Flywheel.resolve` method.
 
 Resolve takes a path (by label) to an object in the system, and if found, returns the full path to that object,
 along with children. For example, to find the ID of the project labeled ``Anxiety Study`` that belongs to the ``flywheel`` 
