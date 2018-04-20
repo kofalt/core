@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions":{
+    "file-filter-spec": {
+      "type": "object",
+      "properties": {
+          "value": { 
+            "type": "string",
+            "description": "The pattern or regular expression to match"
+          },
+          "regex": { 
+            "type": "boolean",
+            "description": "Whether or not this filter is a pattern or regular expression match"
+          } 
+      },
+      "required": ["value"],
+      "additionalProperties": false,
+      "description": "Specifies either a pattern match or regular expression match string filter"
+    },
+    "file-spec": {
+      "type": "object",
+      "properties": {
+        "container": { "$ref": "container.json#/definitions/container-type" },
+        "filter": { "$ref": "#/definitions/file-filter-spec" },
+        "zipMember": { "$ref": "#/definitions/file-filter-spec" },
+        "format": {
+          "type": "string",
+          "enum": ["csv", "tsv", "json"],
+          "description": "The expected data file format, default is auto-detect"
+        },
+        "formatOptions": {
+          "type": "object"
+        },
+        "columns": {
+          "type": "array",
+          "items": {"$ref":"#/definitions/column-spec"}
+        }
+      },
+      "required": ["filter"],
+      "additionalProperties": false,
+      "description": "Specifies a file to be processed, including filename matching and parsing options"
+    },
+    "column-spec": {
+      "type": "object",
+      "properties": {
+        "src": {
+          "type": "string",
+          "description": "The source property in the format of {container}.{field}"
+        },
+        "dst": {
+          "type": "string",
+          "description": "The optional destination property name"
+        }
+      },
+      "required": ["src"],
+      "additionalProperties": false,
+      "description": "Describe a column that should belong to the view"
+    },
+    "missing-data-strategy": {
+      "type": "string",
+      "enum": [ "none", "drop-row" ],
+      "description": "What to do if missing data are encountered. Default is none, which is to say replace with an empty or null value.",
+      "x-comment": "Eventually it may make sense to add a sentinel value option. Other strategies are difficult due to streaming nature of views."
+    },
+    "data-view-input": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": "string",
+          "description": "The parent container id"
+        },
+        "label": {"$ref": "common.json#/definitions/label"},
+        "columns": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/column-spec"},
+          "minItems": 1
+        },
+        "fileSpec": {"$ref": "#/definitions/file-spec"},
+        "includeIds": {
+          "type": "boolean",
+          "description": "Whether or not to include container id fields. Default is true"
+        },
+        "includeLabels": {
+          "type": "boolean",
+          "description": "Whether or not to include container label fields. Default is true"
+        },
+        "missingDataStrategy": { "$ref": "#/definitions/missing-data-strategy" }
+      },
+      "description": "Specifies a flattened view of the flywheel hierarchy, possibly including files.",
+      "additionalProperties": false,
+      "x-sdk-model": "data-view"
+    },
+    "data-view-output": {
+      "type": "object",
+      "properties": {
+        "_id": {"$ref": "common.json#/definitions/objectid"},
+        "label": {"$ref": "common.json#/definitions/label"},
+        "permissions":  {"$ref":"permission.json#/definitions/permission-output-list"},
+        "columns": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/column-spec"},
+          "minItems": 1
+        },
+        "fileSpec": {"$ref": "#/definitions/file-spec"},
+        "includeIds": {
+          "type": "boolean",
+          "description": "Whether or not to include container id fields. Default is true"
+        },
+        "includeLabels": {
+          "type": "boolean",
+          "description": "Whether or not to include container label fields. Default is true"
+        },
+        "missingDataStrategy": { "$ref": "#/definitions/missing-data-strategy" }
+      },
+      "description": "Specifies a flattened view of the flywheel hierarchy, possibly including files.",
+      "additionalProperties": false,
+      "x-sdk-model": "data-view"
+    }
+  }
+}

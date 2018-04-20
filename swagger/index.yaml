@@ -42,6 +42,8 @@ tags:
     description: Site-wide reports
   - name: batch
     description: Batch job operations
+  - name: views
+    description: Data view operations
   - name: default
 
 paths:
@@ -73,7 +75,7 @@ paths:
     - paths/site-rules.yaml
     - paths/dataexplorer.yaml
     - paths/resolver.yaml
-
+    - paths/data-views.yaml
 
 securityDefinitions:
   ApiKey:
