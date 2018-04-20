@@ -6,7 +6,7 @@ import zipfile
 
 def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     project = data_builder.create_project(label='project1')
-    session = data_builder.create_session(label='session1', project=project)
+    session = data_builder.create_session(label='session/1', project=project)
     session2 = data_builder.create_session(label='session1', project=project)
     session3 = data_builder.create_session(label='session1', project=project)
     acquisition = data_builder.create_acquisition(session=session)

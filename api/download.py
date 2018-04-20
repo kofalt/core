@@ -254,7 +254,7 @@ class Download(base.RequestHandler):
 
         path = ''
         if not path and container.get('label'):
-            path = container['label']
+            path = container['label'].replace('/',':')
         if not path and container.get('timestamp'):
             timezone = container.get('timezone')
             if timezone:
