@@ -1,0 +1,21 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type":"array",
+    "items":{
+        "allOf":[{"$ref":"../definitions/data-view.json#/definitions/data-view-output"}],
+        "required":["_id", "label", "columns"]
+    },
+    "example": [{
+    	"_id": "5ada553f620be23aa6ae1799",
+        "label": "Subject census",
+        "permissions": [{
+        	"_id": "justinehlert@flywheel.io",
+        	"access": "admin"
+        }],
+        "columns": [
+            { "src": "subject.code", "dst": "subject" },
+            { "src": "subject.age" },
+            { "src": "subject.sex" }
+        ]
+    }]
+}
