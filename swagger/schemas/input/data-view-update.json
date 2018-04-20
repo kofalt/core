@@ -1,0 +1,13 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type":"object",
+    "allOf":[{"$ref":"../definitions/data-view.json#/definitions/data-view-input"}],
+    "example": {
+        "label": "Subject census",
+        "columns": [
+            { "src": "subject.code", "dst": "subject" },
+            { "src": "subject.age" },
+            { "src": "subject.sex" }
+        ]
+    }
+}
