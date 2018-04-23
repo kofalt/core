@@ -68,14 +68,12 @@ after_success:
       fi
   fi
 
-# Tag and push flywheel/core image (master >> :latest, tag >> :tag)
+# Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
 - if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
       docker tag core:dist flywheel/core:latest;
+      docker tag core:testing flywheel/core:testing;
       docker push flywheel/core:latest;
-  fi
-- if [ "$TRAVIS_BRANCH" == "generic-storage" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
-      docker tag core:dist flywheel/core:generic-storage.latest;
-      docker push flywheel/core:generic-storage.latest;
+      docker push flywheel/core:testing;
   fi
 - if [ -n "$TRAVIS_TAG" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_TAG;
