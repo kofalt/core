@@ -37,17 +37,16 @@
     parameters:
       - name: body
         in: body
-        description: ''
+        required: true
+        description: 'Set of jobs to be run as a batch'
         schema:
           type: array
-          # Schema file does not exist
-          # $ref: schemas/input/batch-insert.json
+          $ref: schemas/input/propose-batch-jobs.json
     responses:
       '200':
-        description: ''
-        # Schema file does not exist
-        # schema:
-          # $ref: schemas/output/batch-insert.json
+        description: 'The batch proposal object that was created'
+        schema:
+          $ref: schemas/output/batch-proposal.json
 
 
 /batch/{BatchId}:

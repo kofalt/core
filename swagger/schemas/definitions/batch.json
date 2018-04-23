@@ -44,9 +44,9 @@
         "matched": { "$ref": "#/definitions/matched-container-list" },
         "not_matched": { "$ref": "#/definitions/matched-container-list" },
 
-        "improper_permissions": { 
-          "type": "array", 
-          "items": {"$ref":"container.json#/definitions/_id"} 
+        "improper_permissions": {
+          "type": "array",
+          "items": {"$ref":"container.json#/definitions/_id"}
         },
 
         "created":{"$ref":"created-modified.json#/definitions/created"},
@@ -64,6 +64,16 @@
         "targets": {
           "type": "array",
           "items": {"$ref":"container.json#/definitions/container-reference"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "batch-jobs-proposal-input":{
+      "type": "object",
+      "properties": {
+        "jobs":{
+          "type": "array",
+          "items": {"$ref":"job.json#/definitions/job-input"}
         }
       },
       "additionalProperties": false
