@@ -26,7 +26,7 @@
 	    	},
 	    	"required": ["return_type"]
     	},
-        "saved-search":{
+        "save-search":{
             "type":       "object",
             "properties": {
                 "label":        {"$ref":"common.json#/definitions/label"},
@@ -38,7 +38,7 @@
                 "permissions":{
                   "type":"array",
                   "items":{"$ref":"permission.json#/definitions/permission-output-default-required"}
-                },
+                }
             },
             "additionalProperties": false
         },

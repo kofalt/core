@@ -3,13 +3,9 @@
     "type":"array",
     "items":{
         "type":"object",
-        "allOf":[{"$ref":"../definitions/acquisition.json#/definitions/save-search"}],
+        "allOf":[{"$ref":"../definitions/search.json#/definitions/save-search"}],
         "required":[
-<<<<<<< HEAD:swagger/schemas/output/save-search-list.json
-            "search", "label"
-=======
-            "_id", "label"
->>>>>>> 1f6b8c4b... permission RAML test and stringifies filters in mongo:raml/schemas/output/search-list.json
+            "search", "_id", "label"
         ]
     }
 }
