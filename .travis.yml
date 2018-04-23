@@ -73,7 +73,10 @@ after_success:
       docker tag core:dist flywheel/core:latest;
       docker tag core:testing flywheel/core:testing;
       docker push flywheel/core:latest;
-      docker push flywheel/core:testing;
+  fi
+- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
+      docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
+      docker push flywheel/core:$TRAVIS_BRANCH.latest;
   fi
 - if [ -n "$TRAVIS_TAG" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_TAG;
