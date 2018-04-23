@@ -84,7 +84,11 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             metadata = json.loads(form['metadata'].value)
         except Exception:
             raise FileStoreException('wrong format for field "metadata"')
-        for f in metadata.get(container_type, {}).get('files', []):
+        if isinstance(metadata, dict):
+            for f in metadata.get(container_type, {}).get('files', []):
+                f['name'] = util.sanitize_path(f['name'])
+        elif isinstance(metadata, list):
+            for f in metadata:
                 f['name'] = util.sanitize_path(f['name'])
 
     placer_class = strategy.value
