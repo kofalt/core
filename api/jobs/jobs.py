@@ -362,11 +362,12 @@ class Job(object):
             for input_name in self.inputs.keys():
                 i = self.inputs[input_name]
 
-                r['inputs'].append({
-                    'type': 'scitran',
-                    'uri': i.file_uri(i.name),
-                    'location': '/flywheel/v0/input/' + input_name,
-                })
+                if hasattr(i, 'file_uri'):
+                    r['inputs'].append({
+                        'type': 'scitran',
+                        'uri': i.file_uri(i.name),
+                        'location': '/flywheel/v0/input/' + input_name,
+                    })
 
         # Log job origin if provided
         if self.id_:
