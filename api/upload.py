@@ -131,7 +131,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
             'type': None,
             'modality': None,
-            'measurements': [],
+            'classification': {},
             'tags': [],
             'info': {}
         }

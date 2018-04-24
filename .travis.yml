@@ -83,6 +83,11 @@ after_success:
       docker tag core:dist flywheel/core:$TRAVIS_TAG;
       docker push flywheel/core:$TRAVIS_TAG;
   fi
+# TODO: Remove before merging branch classification-edit
+- if [ "$TRAVIS_BRANCH" == "classification-edit" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
+      docker tag core:dist flywheel/core:classification-edit.latest;
+      docker push flywheel/core:classification-edit.latest;
+  fi
 
 deploy:
   # Create GitHub Release

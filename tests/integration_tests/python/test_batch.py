@@ -401,7 +401,7 @@ def test_no_input_context_batch(data_builder, default_payload, as_admin, as_root
     }
 
     r = as_root.post('/gears/' + gear_name, json=gear_doc)
-    assert r.ok 
+    assert r.ok
     gear = r.json()['_id']
 
     # create a batch w/o inputs targeting sessions
@@ -470,13 +470,13 @@ def test_no_input_context_batch(data_builder, default_payload, as_admin, as_root
     assert jobs[0]['config']['destination']['id'] == session
     job1_inputs = jobs[0]['config']['inputs']
     assert 'test_context_value' in job1_inputs
-    assert job1_inputs['test_context_value']['found'] == True 
+    assert job1_inputs['test_context_value']['found'] == True
     assert job1_inputs['test_context_value']['value'] == 'session_context_value'
 
     job2_inputs = jobs[1]['config']['inputs']
     assert jobs[1]['config']['destination']['id'] == session2
     assert 'test_context_value' in job2_inputs
-    assert job2_inputs['test_context_value']['found'] == True 
+    assert job2_inputs['test_context_value']['found'] == True
     assert job2_inputs['test_context_value']['value'] == 'project_context_value'
 
     # Cleanup
@@ -513,7 +513,7 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, as_ro
     }
 
     r = as_root.post('/gears/' + gear_name, json=gear_doc)
-    assert r.ok 
+    assert r.ok
     gear = r.json()['_id']
 
     # create a batch w/o inputs targeting sessions
@@ -589,13 +589,13 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, as_ro
     assert jobs[0]['config']['destination']['id'] == acquisition
     job1_inputs = jobs[0]['config']['inputs']
     assert 'test_context_value' in job1_inputs
-    assert job1_inputs['test_context_value']['found'] == True 
+    assert job1_inputs['test_context_value']['found'] == True
     assert job1_inputs['test_context_value']['value'] == 'session_context_value'
 
     job2_inputs = jobs[1]['config']['inputs']
-    assert jobs[1]['config']['destination']['id'] == acquisition2 
+    assert jobs[1]['config']['destination']['id'] == acquisition2
     assert 'test_context_value' in job2_inputs
-    assert job2_inputs['test_context_value']['found'] == True 
+    assert job2_inputs['test_context_value']['found'] == True
     assert job2_inputs['test_context_value']['value'] == 'project_context_value'
 
     # test batch.state after calling run

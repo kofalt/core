@@ -5,12 +5,7 @@
         "name":           { "type": "string" },
         "file-type":      { "type": "string" },
         "mimetype":       { "type": "string" },
-        "modality":       { "type": "string" },
-        "measurements": {
-          "items": { "type": "string"},
-          "type": "array",
-          "uniqueItems": true
-        },
+        "modality":       { "type": ["string", "null"] },
         "tags": {
           "items": { "type": "string"},
           "type": "array",
@@ -37,7 +32,7 @@
             "additionalProperties":false
         },
         "hash":{
-          "type":"string", 
+          "type":"string",
           "minLength":106,
           "maxLength":106
         },
@@ -49,21 +44,16 @@
             "name":           {"$ref":"#/definitions/name"},
             "type":           {"$ref":"#/definitions/file-type"},
             "mimetype":       {"$ref":"#/definitions/mimetype"},
-            "modality":       {
-                "oneOf":[
-                    {"$ref":"#/definitions/modality"},
-                    {"type":"null"}
-                ]
-            },
-            "measurements": {"$ref":"#/definitions/measurements"},
-            "tags":        {"$ref":"#/definitions/tags"},
-            "info":        {"$ref":"common.json#/definitions/info"},
-            "origin":      {"$ref":"#/definitions/file-origin"},
-            "hash":        {"$ref":"#/definitions/hash"},
-            "created":     {"$ref":"created-modified.json#/definitions/created"},
-            "modified":    {"$ref":"created-modified.json#/definitions/modified"},
-            "size":        {"$ref":"#/definitions/size"},
-            "info_exists": {"type": "boolean"}
+            "modality":       {"$ref":"#/definitions/modality"},
+            "classification": {"$ref":"common.json#/definitions/classification"},
+            "tags":           {"$ref":"#/definitions/tags"},
+            "info":           {"$ref":"common.json#/definitions/info"},
+            "origin":         {"$ref":"#/definitions/file-origin"},
+            "hash":           {"$ref":"#/definitions/hash"},
+            "created":        {"$ref":"created-modified.json#/definitions/created"},
+            "modified":       {"$ref":"created-modified.json#/definitions/modified"},
+            "size":           {"$ref":"#/definitions/size"},
+            "info_exists":    {"type": "boolean"}
           },
           "additionalProperties": false,
           "x-sdk-model": "file-entry"
@@ -71,13 +61,13 @@
         "file-input":{
             "type": "object",
             "properties": {
-              "name":           {"$ref":"#/definitions/name"},
-              "type":           {"$ref":"#/definitions/file-type"},
-              "mimetype":       {"$ref":"#/definitions/mimetype"},
-              "modality":       {"$ref":"#/definitions/modality"},
-              "measurements":   {"$ref":"#/definitions/measurements"},
-              "tags":           {"$ref":"#/definitions/tags"},
-              "info":           {"$ref":"common.json#/definitions/info"}
+              "name":             {"$ref":"#/definitions/name"},
+              "type":             {"$ref":"#/definitions/file-type"},
+              "mimetype":         {"$ref":"#/definitions/mimetype"},
+              "modality":         {"$ref":"#/definitions/modality"},
+              "classification":   {"$ref":"common.json#/definitions/classification"},
+              "tags":             {"$ref":"#/definitions/tags"},
+              "info":             {"$ref":"common.json#/definitions/info"}
           },
           "additionalProperties": false,
           "x-sdk-model": "file-entry"
@@ -85,10 +75,8 @@
         "file-update":{
             "type": "object",
             "properties": {
-              "type":           {"$ref":"#/definitions/file-type"},
-              "modality":       {"$ref":"#/definitions/modality"},
-              "measurements":   {"$ref":"#/definitions/measurements"}
-          },
+              "type":             {"$ref":"#/definitions/file-type"},
+              "modality":         {"$ref":"#/definitions/modality"}          },
           "additionalProperties": false,
           "x-sdk-model": "file-entry"
         },
@@ -108,6 +96,6 @@
           "required": [ "type", "id", "name" ],
           "additionalProperties":false,
           "description": "A reference to an individual file in a container, by type, id and name"
-        }    
+        }
     }
 }

@@ -110,23 +110,53 @@ class AcquisitionsTestCases(SdkTestCase):
 
         # Test file attributes
         self.assertEqual(r_acquisition.files[0].modality, None)
-        self.assertEqual(len(r_acquisition.files[0].measurements), 0)
+        self.assertEmpty(r_acquisition.files[0].classification)
         self.assertEqual(r_acquisition.files[0].type, 'text')
 
         resp = fw.modify_acquisition_file(acquisition_id, 'yeats.txt', flywheel.FileEntry(
             modality='modality',
-            measurements=['measurement'],
             type='type'
         ))
 
         # Check that no jobs were triggered, and attrs were modified
-        self.assertEqual(resp.jobs_triggered, 0)
+        self.assertEqual(resp.jobs_spawned, 0)
 
         r_acquisition = fw.get_acquisition(acquisition_id)
         self.assertEqual(r_acquisition.files[0].modality, "modality")
-        self.assertEqual(len(r_acquisition.files[0].measurements), 1)
-        self.assertEqual(r_acquisition.files[0].measurements[0], 'measurement')
+        self.assertEmpty(r_acquisition.files[0].classification)
         self.assertEqual(r_acquisition.files[0].type, 'type')
+
+        # Test classifications
+        resp = fw.modify_acquisition_file_classification(acquisition_id, 'yeats.txt', {
+            'modality': 'modality2',
+            'replace': {
+                'Custom': ['measurement1', 'measurement2'],
+            }
+        })
+        self.assertEqual(resp.modified, 1)
+        self.assertEqual(resp.jobs_spawned, 0)
+
+        r_acquisition = fw.get_acquisition(acquisition_id)
+        self.assertEqual(r_acquisition.files[0].modality, 'modality2')
+        self.assertEqual(r_acquisition.files[0].classification, {
+            'Custom': ['measurement1', 'measurement2']
+        });
+
+        resp = fw.modify_acquisition_file_classification(acquisition_id, 'yeats.txt', {
+            'add': {
+                'Custom': ['HelloWorld'],
+            },
+            'delete': {
+                'Custom': ['measurement2']
+            }
+        })
+        self.assertEqual(resp.modified, 1)
+        self.assertEqual(resp.jobs_spawned, 0)
+
+        r_acquisition = fw.get_acquisition(acquisition_id)
+        self.assertEqual(r_acquisition.files[0].classification, {
+            'Custom': ['measurement1', 'HelloWorld'],
+        });
 
         # Test file info
         self.assertEmpty(r_acquisition.files[0].info)

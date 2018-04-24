@@ -37,7 +37,7 @@
                     "items": {"$ref": "file.json#/definitions/file-input"}
                 }
             },
-            "additionalProperties": false            
+            "additionalProperties": false
         },
         "session-output":{
             "type": "object",
@@ -56,7 +56,7 @@
                 "created":      {"$ref":"created-modified.json#/definitions/created"},
                 "modified":     {"$ref":"created-modified.json#/definitions/modified"},
                 "permissions":  {"$ref":"permission.json#/definitions/permission-output-list"},
-                "group":                {"$ref":"common.json#/definitions/string-id"},
+                "group":                {"$ref":"common.json#/definitions/lowercase-string-id"},
                 "project_has_template": {"$ref":"#/definitions/project_has_template"},
                 "satisfies_template":   {"$ref":"#/definitions/satisfies_template"},
                 "files":{
@@ -89,7 +89,7 @@
                     }
                 }
             },
-            "additionalProperties":false            
+            "additionalProperties":false
         },
         "session-template-recalc-output": {
             "type": "object",
@@ -102,7 +102,7 @@
                 }
             },
             "additionalProperties":false,
-            "required":["sessions_changed"]            
+            "required":["sessions_changed"]
         }
     }
 }
