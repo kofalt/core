@@ -75,6 +75,7 @@ you can either specify the path to the input file, or you can specify some in-me
 
 When downloading, you specify the destination file, or you can download directly to memory.
 Supported ``OutputType`` values are:
+
 	- ``int8``
 	- ``int16``
 	- ``int32``

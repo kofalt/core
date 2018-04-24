@@ -90,6 +90,9 @@ copy_docs() {
     # Matlab docs
     cp -R sdk/src/matlab/build/gen/sphinx/build "${dest_dir}/matlab"
 
+    # Static files
+    cp -R docs/static gh-pages/
+
     # Cleanup sphinx folders
     rm -r "${dest_dir}/matlab/theme"
     rm -r "${dest_dir}/matlab/.doctrees"
@@ -131,6 +134,7 @@ checkin_branch() {
             git add branches/index.md
             git add tags/index.md
             git add theme/*
+            git add static/*
 
             # Add any modified files, and push
             git commit --message "$COMMIT_MESSAGE" 
