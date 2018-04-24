@@ -5,7 +5,10 @@ import json
 import logging
 import os
 
-import pip
+try:
+    from pip import main as pipmain
+except:
+    from pip._internal import main as pipmain
 
 SRC_DIR = os.path.abspath(os.path.dirname(__file__))
 TMPL_DIR = os.path.join(SRC_DIR, 'tmpl')
@@ -69,7 +72,7 @@ if __name__ == '__main__':
 
     # Install required packages
     log.info('Installing required packages...')
-    pip.main(['install', '-qq', '-r', os.path.join(SRC_DIR, 'requirements.txt')])
+    pipmain(['install', '-qq', '-r', os.path.join(SRC_DIR, 'requirements.txt')])
     
     # Generate main template
     target_dir = os.path.join(GH_PAGES_DIR, args.target_dir)
