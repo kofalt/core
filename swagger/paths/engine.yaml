@@ -39,15 +39,16 @@
             $ref: examples/file_info_list.json
     parameters:
       - name: body
-        in: body
-        required: true
+        in: formData
+        type: string
         description: >
           Object encoded as a JSON string.
 
           It is **required** and used **only** when the ``upload_ticket`` parameter is used.
-
-        schema:
-          $ref: schemas/input/signedurlmetadata.json
+          See ``schemas/input/signedurlmetadata.json`` for the format of the json payload.
+      - in: formData
+        name: formData
+        type: string
       - required: true
         description: Which level to store files in
         enum:
