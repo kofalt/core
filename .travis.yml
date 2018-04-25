@@ -65,8 +65,6 @@ after_success:
 
       if [ -z "$TRAVIS_TAG" ]; then
           ./docs/push-docs.sh "$GIT_REMOTE" branches "$TRAVIS_BRANCH" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
-      else
-          ./docs/push-docs.sh "$GIT_REMOTE" tags "$TRAVIS_TAG" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
       fi
   fi
 
