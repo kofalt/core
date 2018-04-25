@@ -38,7 +38,8 @@ RUN set -eux \
         /var/scitran/config \
         /var/scitran/data \
         /var/scitran/keys \
-        /var/scitran/logs
+        /var/scitran/logs \
+        /var/scitran/docs
 
 VOLUME /var/scitran/data
 VOLUME /var/scitran/keys
@@ -91,3 +92,8 @@ RUN set -eux \
     && pip install -qq --ignore-installed --requirement /var/scitran/code/api/tests/requirements.txt
 
 COPY --from=dist /var/scitran /var/scitran
+
+
+FROM dist as docs
+
+COPY docs /var/scitran/docs
