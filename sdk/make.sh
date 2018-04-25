@@ -1,6 +1,8 @@
 #!/bin/bash
 set -exo pipefail
 
+. bin/copy_docs.sh
+
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 GRADLE_CONTAINER="gradle:4.5-jdk8-alpine"
@@ -52,3 +54,9 @@ mkdir -p $DIST_DIR
 
 cp $PROJECT_DIR/src/python/gen/dist/*.whl $DIST_DIR
 cp $PROJECT_DIR/src/matlab/build/distributions/*.mltbx $DIST_DIR
+
+DOCS_DIR=$PROJECT_DIR/docs
+rm -rf $DOCS_DIR
+mkdir -p $DOCS_DIR
+
+copy_sdk_docs ${DOCS_DIR}
