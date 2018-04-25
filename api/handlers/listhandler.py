@@ -354,7 +354,7 @@ class FileListHandler(ListHandler):
     This class implements a more specific logic for list of files as the api needs to interact with the filesystem.
     """
 
-    def _create_ticket(self):
+    def _create_upload_ticket(self):
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
         filename = payload.get('filename', None)
@@ -373,7 +373,7 @@ class FileListHandler(ListHandler):
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'upload_url': signed_url}
 
-    def _check_ticket(self, ticket_id, _id, filename):
+    def _check_download_ticket(self, ticket_id, _id, filename):
         ticket = config.db.downloads.find_one({'_id': ticket_id})
         if not ticket:
             self.abort(404, 'no such ticket')
@@ -420,7 +420,7 @@ class FileListHandler(ListHandler):
         ticket_id = self.get_param('ticket')
         ticket = None
         if ticket_id:
-            ticket = self._check_ticket(ticket_id, _id, filename)
+            ticket = self._check_download_ticket(ticket_id, _id, filename)
             if not self.origin.get('id'):
                 # If we don't have an origin with this request, use the ticket's origin
                 self.origin = ticket.get('origin')
@@ -602,7 +602,7 @@ class FileListHandler(ListHandler):
 
         # Request for upload ticket
         if self.get_param('ticket') == '':
-            return self._create_ticket()
+            return self._create_upload_ticket()
 
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('ticket')

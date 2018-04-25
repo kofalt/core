@@ -3,15 +3,33 @@
     summary: Upload a list of file fields.
     description: |
       ### Default behavior:
-       >Uploads a list of file fields sent as file1, file2, etc to an existing
+      > Uploads a list of file fields sent as file1, file2, etc to an existing
         container and updates fields of the files, the container and it's
         parents as specified in the metadata fileformfield using the
         engine placer class
 
+      > A non-file form field called "metadata" is also required, which must be
+        a string containing JSON.
+
+      > See ``api/schemas/input/enginemetadata.json`` for the format of this metadata.
+
       ### When ``level`` is ``analysis``:
       > Uploads a list of files to an existing analysis object, marking
         all files as ``output=true`` using the job-based analyses placer
-        class.  See schemas/input/analysis.json
+        class.
+
+      > A non-file form field called "metadata" is also required, which must be
+        a string containing JSON.
+
+      > See ``api/schemas/input/analysis.json`` for the format of this metadata.
+
+      ### Signed URL upload with ``upload_ticket``
+      > Upload a single file directly to the storage backend. The workflow is the following:
+
+        - Send a request with an empty ``?upload_ticket=`` query parameter to get an upload ticket and URL
+        - Upload the file using a PUT request to the upload URL
+        - Once done, send a POST request to this endpoint with the upload ticket to finalize the upload.
+        The file will be placed into the DB via this POST request.
     operationId: engine_upload
     responses:
       '200':
@@ -22,15 +40,14 @@
     parameters:
       - name: body
         in: body
-        required: true        
+        required: true
         description: >
           Object encoded as a JSON string.
 
-          By default JSON must match the specified enginemetadata.json schema
+          It is **required** and used **only** when the ``upload_ticket`` parameter is used.
 
-          If ``level`` is ``analysis``, JSON must match AnalysisUploadMetadata schema
         schema:
-          $ref: schemas/input/enginemetadata.json
+          $ref: schemas/input/signedurlmetadata.json
       - required: true
         description: Which level to store files in
         enum:
@@ -51,3 +68,8 @@
         in: query
         name: job
         required: true
+      - name: upload_ticket
+        description: Use empty value to get a ticket, and provide the ticket id to finalize the upload
+        type: string
+        in: query
+        required: false

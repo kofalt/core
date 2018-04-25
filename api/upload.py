@@ -196,7 +196,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
 class Upload(base.RequestHandler):
 
-    def _create_ticket(self):
+    def _create_upload_ticket(self):
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
         filename = payload.get('filename', None)
@@ -215,12 +215,12 @@ class Upload(base.RequestHandler):
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'upload_url': signed_url}
 
-    def _check_ticket(self, ticket_id):
+    def _check_upload_ticket(self, ticket_id):
         ticket = config.db.uploads.find_one({'_id': ticket_id})
         if not ticket:
             self.abort(404, 'no such ticket')
         if ticket['ip'] != self.request.client_addr:
-            self.abort(400, 'ticket not for this resource or source IP')
+            self.abort(403, 'ticket not for this resource or source IP')
         return ticket
 
     def upload(self, strategy):
@@ -234,23 +234,17 @@ class Upload(base.RequestHandler):
         if strategy in ['label', 'uid', 'uid-match', 'reaper']:
             strategy = strategy.replace('-', '')
             strategy = getattr(Strategy, strategy)
-        else:
-            self.abort(500, 'strategy {} not implemented'.format(strategy))
 
         context = {'uid': self.uid if not self.superuser_request else None}
 
         # Request for upload ticket
         if self.get_param('ticket') == '':
-            return self._create_ticket()
+            return self._create_upload_ticket()
 
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('ticket')
         if ticket_id:
-            ticket = self._check_ticket(ticket_id)
-            if not self.origin.get('id'):
-                # If we don't have an origin with this request, use the ticket's origin
-                self.origin = ticket.get('origin')
-
+            ticket = self._check_upload_ticket(ticket_id)
             file_fields = [
                 util.dotdict({
                     'filename': ticket['filename']
@@ -284,27 +278,23 @@ class Upload(base.RequestHandler):
         }
 
         # Request for upload ticket
-        if self.get_param('ticket') == '':
-            return self._create_ticket()
+        if self.get_param('upload_ticket') == '':
+            return self._create_upload_ticket()
 
         # Check ticket id and skip permissions check if it clears
-        ticket_id = self.get_param('ticket')
+        ticket_id = self.get_param('upload_ticket')
         if ticket_id:
-            ticket = self._check_ticket(ticket_id)
-            if not self.origin.get('id'):
-                # If we don't have an origin with this request, use the ticket's origin
-                self.origin = ticket.get('origin')
-
+            ticket = self._check_upload_ticket(ticket_id)
             file_fields = [
                 util.dotdict({
                     'filename': ticket['filename']
                 })
             ]
 
-            if level is not 'analysis':
-                return process_upload(self.request, Strategy.engine, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
-                                      context=context, file_fields=file_fields, tempdir=ticket['tempdir'],
-                                      container_type=level, id_=cid)
+            strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
+            return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
+                                  context=context, file_fields=file_fields, tempdir=ticket['tempdir'],
+                                  container_type=level, id_=cid)
 
         else:
             strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine

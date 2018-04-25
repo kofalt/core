@@ -2,6 +2,7 @@ import binascii
 import bson
 import copy
 import datetime
+import json
 import logging
 import os
 
@@ -85,6 +86,26 @@ def config(app):
     # NOTE the config fixture is session scoped (consider parallel tests)
     # NOTE use dict notation for assignment (eg `config['key'] = 'v'` - AttrDict limitation)
     return attrdict.AttrDict(api.config.__config)
+
+
+@pytest.fixture(scope='session')
+def file_form():
+
+    def file_form(*files, **kwargs):
+        """Return multipart/form-data for file upload requests"""
+        data = {}
+        for i, file_ in enumerate(files):
+            if isinstance(file_, str):
+                file_ = (file_, 'test\ndata\n')
+            data['file' + str(i + 1)] = file_
+        if len(files) == 1:
+            data['file'] = data.pop('file1')
+        meta = kwargs.pop('meta', None)
+        if meta:
+            data['metadata'] = ('', json.dumps(meta))
+        return data
+
+    return file_form
 
 
 @pytest.fixture(scope='module')

@@ -1,0 +1,23 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "definitions": {
+        "signed-url-metadata-input": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "anyOf": [
+                        {"$ref":"analysis.json#/definitions/analysis-input-any"},
+                        {"$ref": "enginemetadata.json#/definitions/engine-upload-input"},
+                        {"$ref": "enginemetadata.json#/definitions/label-upload-input"},
+                        {"$ref": "enginemetadata.json#/definitions/uid-upload-input"},
+                        {"$ref": "enginemetadata.json#/definitions/uid-match-upload-input"}
+                    ]
+                },
+                "filename": {
+                  "type": ["string", "null"]
+                }
+            },
+            "required": ["metadata", "filename"]
+        }
+    }
+}
