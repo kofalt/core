@@ -20,6 +20,7 @@ from .handlers.userhandler              import UserHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
+from .data_views.handlers               import DataViewHandler
 from .web.base                          import RequestHandler
 from . import config
 
@@ -327,6 +328,9 @@ endpoints = [
 
         # Metrics
         route('/metrics', MetricsHandler, m=['GET']),
+
+        # Data views
+        route('/views/data', DataViewHandler, h='execute_adhoc', m=['POST']),
 
         # Misc (to be cleaned up later)
 
