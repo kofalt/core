@@ -44,6 +44,8 @@ script:
         fi;
         ./bin/build-sdk.sh $SDK_VERSION $DOC_VERSION;
     fi
+  - docker build -t core:docs --target docs .
+  - docker tag core:docs core:dist
   - docker save -o "$DOCKER_DIR/image.tar"
         $(docker history -q core:base | grep -v '<missing>')
         $(docker history -q core:dist | grep -v '<missing>')
