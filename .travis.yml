@@ -43,8 +43,8 @@ script:
             SDK_VERSION="2.0.0.dev${TRAVIS_BUILD_NUMBER}";
         fi;
         ./bin/build-sdk.sh $SDK_VERSION $DOC_VERSION;
-        docker build -t core:docs --target docs .
-        docker tag core:docs core:dist
+        docker build -t core:docs --target docs .;
+        docker tag core:docs core:dist;
     fi
   - docker save -o "$DOCKER_DIR/image.tar"
         $(docker history -q core:base | grep -v '<missing>')
