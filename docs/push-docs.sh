@@ -10,7 +10,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )/.."
 # Environment Variables:
 # Args: <remote> (branches|tags) <branch_or_tag_name> <commit_message>
 #   remote: The git remote url
-#   branch_or_tag: Whether docs should go into the branches or tags subdirectory 
+#   branch_or_tag: Whether docs should go into the branches or tags subdirectory
 #   branch_or_tag_name: The name of the tag or branch
 #   commit_message: The commit message
 
@@ -29,7 +29,7 @@ main() {
     BRANCH_NAME=$3
     COMMIT_MESSAGE=$4
 
-    # Copy documentation 
+    # Copy documentation
     if [ "$BRANCH_NAME" == "master" ]; then
         checkin_master "$DOCS_SUBDIR/$BRANCH_NAME"
     else
@@ -136,10 +136,10 @@ checkin_branch() {
             git add static/*
 
             # Add any modified files, and push
-            git commit --message "$COMMIT_MESSAGE" 
+            git commit --message "$COMMIT_MESSAGE"
 
             # Push to remote repo
-            git push --quiet 
+            git push --quiet
         else
             echo "No changes to commit"
         fi
@@ -186,7 +186,7 @@ checkin_master() {
         git add *
         # Commit
         git commit --quiet --message "$COMMIT_MESSAGE"
-        # Force push to gh-pages 
+        # Force push to gh-pages
         git push --quiet --force --set-upstream origin gh-pages-new:gh-pages
     else
         echo "No changes to commit"
