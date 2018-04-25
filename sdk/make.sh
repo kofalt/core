@@ -37,7 +37,7 @@ docker run --rm -it \
     -e GRADLE_USER_HOME=/gradle \
     -v "${PROJECT_DIR}:/local" \
     -v "${gradle_user_home}:/gradle" \
-    ${GRADLE_CONTAINER} gradle --no-daemon $SDK_VERSION clean build 
+    ${GRADLE_CONTAINER} gradle --no-daemon $SDK_VERSION clean build
 
 # Containerized python package and documentation gen
 docker run --rm -it \
