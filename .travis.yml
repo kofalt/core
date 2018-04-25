@@ -43,9 +43,9 @@ script:
             SDK_VERSION="2.0.0.dev${TRAVIS_BUILD_NUMBER}";
         fi;
         ./bin/build-sdk.sh $SDK_VERSION $DOC_VERSION;
+        docker build -t core:docs --target docs .
+        docker tag core:docs core:dist
     fi
-  - docker build -t core:docs --target docs .
-  - docker tag core:docs core:dist
   - docker save -o "$DOCKER_DIR/image.tar"
         $(docker history -q core:base | grep -v '<missing>')
         $(docker history -q core:dist | grep -v '<missing>')
@@ -71,13 +71,13 @@ after_success:
   fi
 
 # Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
-- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
+- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "BUILD_SDK" == "true" ]; then
       docker tag core:dist flywheel/core:latest;
       docker tag core:testing flywheel/core:testing;
       docker push flywheel/core:latest;
       docker push flywheel/core:testing;
   fi
-- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
+- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "BUILD_SDK" == "true" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
       docker push flywheel/core:$TRAVIS_BRANCH.latest;
   fi

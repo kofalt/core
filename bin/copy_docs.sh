@@ -6,7 +6,7 @@ copy_sdk_docs() {
     mkdir -p "${dest_dir}"
 
     # Cleanup old docs, if necessary
-    rm -rf "${dest_dir}/swagger"
+    rm -rf "${dest_dir}/python" "${dest_dir}/matlab"
 
     # Python docs
     cp -R sdk/src/python/sphinx/build "${dest_dir}/python"

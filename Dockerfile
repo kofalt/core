@@ -95,5 +95,4 @@ COPY --from=dist /var/scitran /var/scitran
 
 
 FROM dist as docs
-
-COPY docs /var/scitran/docs
+COPY docs_gen /var/scitran/docs

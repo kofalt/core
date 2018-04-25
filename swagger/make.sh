@@ -24,4 +24,5 @@ docker run --rm -it \
 	-e "npm_config_cache=/npm" \
 	${NODE_CONTAINER} /bin/sh -c "npm install && npm run build $DOC_VERSION"
 
-copy_swagger_docs ${PROJECT_DIR}/docs
+DOCS_DIR=docs_gen
+copy_swagger_docs ${DOCS_DIR}
