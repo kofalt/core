@@ -722,7 +722,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     # engine upload
     r = as_root.post('/engine',
         params={'level': 'acquisition', 'id': acquisition, 'job': job},
-        files=file_form('one.csv', 'folderA/two.csv', 'folderB/two.csv', meta=metadata)
+        files=file_form('one.csv', 'folderA/two.csv', '../folderB/two.csv', meta=metadata)
     )
     assert r.ok
 

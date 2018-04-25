@@ -122,6 +122,8 @@ def get_single_file_field_storage(file_system):
         def make_file(self, binary=None):
 
             self.hasher = hashlib.new(DEFAULT_HASH_ALG)
+            # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
+            self.filename = util.sanitize_path(self.filename)
             if not isinstance(self.filename, unicode):
                 self.filename = six.u(self.filename)
             # If the filepath doesn't exist, make it
