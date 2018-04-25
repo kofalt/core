@@ -1435,6 +1435,7 @@ def upgrade_files_to_45(cont, context):
         "functional_map":   {                                   "Intent": ["Functional"],     "Features": ["Derived"] },
         "high_order_shim":  {                                   "Intent": ["Shim"]                                    },
         "localizer":        { "Contrast": ["T2"],               "Intent": ["Localizer"]                               },
+        "non-image":        {                                   "Intent": ["Non-Image"]                               },
         "perfusion":        { "Contrast": ["Perfusion"],                                                              },
         "spectroscopy":     { "Contrast": ["Spectroscopy"]                                                            },
         "screenshot":       {                                   "Intent": ["Screenshot"]                              }
@@ -1467,7 +1468,7 @@ def upgrade_files_to_45(cont, context):
                     for k, v_array in m_class.iteritems():
                         for v in v_array:
                             if v.lower() == m.lower():
-                                classification[k] = classification.get(k,[]).append(v)
+                                classification[k] = classification.get(k,[]) + [v]
 
 
             # Make sure every value is only in the list once
