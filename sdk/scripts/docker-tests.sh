@@ -77,6 +77,12 @@ main() {
     trap clean_up EXIT
     docker network create ${TEST_PREFIX}
 
+    # Copy the Generated SDK from the core:sdk_build image
+    mkdir -p src/matlab/build
+    docker run --name sdk_container core:sdk_build /bin/true
+    docker cp sdk_container:/local/src/python/gen src/python/gen
+    docker cp sdk_container:/local/src/matlab/build/gen src/matlab/build/gen
+    docker rm sdk_container
     # Launch core test service (includes mongo)
     docker run -d \
         --name ${TEST_PREFIX}-service \

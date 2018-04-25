@@ -1,3 +1,34 @@
+FROM node:9-alpine as swagger
+WORKDIR /local
+COPY swagger ./swagger/
+COPY sdk ./sdk/
+WORKDIR /local/swagger
+ENV npm_config_cache=/npm
+ARG DOC_VERSION=0.0.1
+RUN npm install && npm run build -- --docs-version=$DOC_VERSION
+
+
+FROM gradle:4.5-jdk8-alpine as gradle
+WORKDIR /local
+ENV GRADLE_USER_HOME=/gradle
+USER root
+RUN apk update && apk add git
+RUN git clone https://github.com/flywheel-io/JSONio src/matlab/JSONio && cd src/matlab/JSONio && git pull
+COPY sdk .
+COPY --from=swagger /local/sdk/swagger.json /local/swagger.json
+ARG SDK_VERSION=0.0.1
+RUN gradle --no-daemon -PsdkVersion=$SDK_VERSION clean build
+
+
+FROM python:3.4 as sdk_build
+COPY sdk/src /local/src
+WORKDIR /local/src
+COPY --from=gradle /local/src/python/gen /local/src/python/gen
+COPY --from=gradle /local/src/python/sphinx /local/src/python/sphinx
+COPY --from=gradle /local/src/matlab/build/gen /local/src/matlab/build/gen
+RUN ./build-wheel-and-docs.sh
+
+
 FROM ubuntu:14.04 as base
 ENV TERM=xterm
 RUN set -eux \
@@ -38,7 +69,8 @@ RUN set -eux \
         /var/scitran/config \
         /var/scitran/data \
         /var/scitran/keys \
-        /var/scitran/logs
+        /var/scitran/logs \
+        /var/scitran/docs
 
 VOLUME /var/scitran/data
 VOLUME /var/scitran/keys
@@ -69,6 +101,9 @@ RUN echo $API_VERSION > /var/scitran/code/api/api_version.txt
 RUN set -eux \
     && /var/scitran/code/api/bin/build_info.sh $VCS_BRANCH $VCS_COMMIT > /var/scitran/version.json \
     && cat /var/scitran/version.json
+COPY --from=sdk_build /local/src/python/sphinx/build /var/scitran/docs/python
+COPY --from=sdk_build /local/src/matlab/build/gen/sphinx/build /var/scitran/docs/matlab
+COPY --from=swagger /local/swagger/build/swagger-ui /var/scitran/docs/swagger
 
 
 FROM base as testing

@@ -73,6 +73,21 @@ prune_branches() {
 copy_docs() {
     dest_dir=$1
 
+    # The documentation is generated during docker build; so we need to copy out to
+    # the place that this script assumes
+    mkdir -p swagger/build/swagger-ui
+    docker run --name swagger_container core:swagger /bin/true
+    docker cp swagger_container:/local/swagger/build/swagger-ui/. swagger/build/swagger-ui
+    docker rm swagger_container
+
+    mkdir -p sdk/src/python/sphinx/build/static
+    mkdir -p sdk/src/matlab/build/gen/sphinx/build
+    docker run --name sdk_container core:sdk_build /bin/true
+    docker cp sdk_container:/local/src/python/sphinx/build/static/. sdk/src/python/sphinx/build/static
+    docker cp sdk_container:/local/src/python/sphinx/build/. sdk/src/python/sphinx/build
+    docker cp sdk_container:/local/src/matlab/build/gen/sphinx/build/. sdk/src/matlab/build/gen/sphinx/build
+    docker rm sdk_container
+
     # Ensure that target exists
     mkdir -p "${dest_dir}"
 
@@ -123,7 +138,7 @@ checkin_branch() {
         # Create target directory and copy files
         mkdir -p "gh-pages/${target_dir}"
         copy_docs "gh-pages/${target_dir}"
-        
+
         # Build doc pages
         docs/build-docs.sh "${target_dir}"
 
