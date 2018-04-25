@@ -10,19 +10,21 @@
             7. Process files, producing output. 
             
 """
-import re
-import fnmatch
-import json
 import bson
+import collections
+import fnmatch
+import re
 
 from pprint import pprint
 
-from .. import config
+from .. import config, files
 from ..auth import has_access
 from ..dao import containerutil
 from ..dao.basecontainerstorage import ContainerStorage, CHILD_MAP
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
-from ..web.encoder import custom_json_serializer
+
+from .json_formatter import JsonFormatter
+from .csv_reader import CsvFileReader
 
 # TODO: subjects belong here once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
@@ -43,11 +45,34 @@ def get_child_cont_type(cont_type):
     # TODO: Replace with ContainerStorage.child_cont_name
     return CHILD_MAP.get(containerutil.pluralize(cont_type))
 
+def extract_property(name, obj):
+    path = name.split('.')
+    for path_el in path:
+        if isinstance(obj, collections.Sequence):
+            try:
+                obj = obj[int(path_el)]
+            except IndexError:
+                obj = None
+            except ValueError:
+                obj = None
+        elif isinstance(obj, collections.Mapping):
+            obj = obj.get(path_el, None)
+        else:
+            obj = getattr(obj, path_el, None)
+
+        if obj is None:
+            break
+
+    return obj
+
 def file_filter_to_regex(filter_spec):
-    val = filter_spec['value']
-    if filter_spec.get('regex', False):
-        val = fnmatch.translate(val)
-    return { '$regex': val, '$options': 'i' }
+    try:
+        val = filter_spec['value']
+        if not filter_spec.get('regex', False):
+            val = fnmatch.translate(val)
+        return re.compile(val, re.I)
+    except re.error:
+        raise InputValidationException('Invalid filter spec: {}'.format(filter_spec['value']))
 
 class DataView(object):
     """Executes data view queries against the database."""
@@ -60,14 +85,22 @@ class DataView(object):
 
         # The file container, or None
         self._file_container = None
+        
+        # The file filter, or None
+        self._file_filter = None
+
         if self._file_spec:
             self._file_container = containerutil.singularize(self._file_spec['container'])
+            self._file_filter = file_filter_to_regex(self._file_spec['filter'])
 
         # Contains the initial hierarchy tree for the target container
         self._tree = None
 
-        # TODO: Should become output formatter
-        self._format = None
+        # The initial context, built from the hierarchy tree
+        self._context = {}
+
+        # Output formatter instance
+        self._formatter = None
 
         # Whether or not this query contains potential PHI
         self._phi_access = False
@@ -95,7 +128,8 @@ class DataView(object):
             output_format (str): The expected output format (e.g. json)
             uid (str): The user id to use when checking container permissions.        
         """
-        self._format = output_format
+        if output_format == 'json':
+            self._formatter = JsonFormatter()
 
         container_id = normalize_id(container_id)
 
@@ -119,6 +153,10 @@ class DataView(object):
         for cont in self._tree:
             if not has_access(uid, cont, 'ro'):
                 raise APIPermissionException('User {} does not have read access to {} {}'.format(uid, cont['cont_type'], cont['_id']))
+
+            # Also build the context as we go
+            cont_type = containerutil.singularize(cont['cont_type'])
+            self._context[cont_type] = cont
 
         # Build the pipeline query
         self.determine_fetch_containers()
@@ -208,7 +246,7 @@ class DataView(object):
         return projection
 
     def get_content_type(self):
-        return 'application/json; charset=utf-8'
+        return self._formatter.get_content_type()
 
     def build_pipeline(self):
         cont_type = self._tree[-1]['cont_type']
@@ -249,20 +287,68 @@ class DataView(object):
         self._pipeline = pipeline
         self._start_collection = start_collection
 
+    def extract_column_values(self, context, obj):
+        for cont_type, cont in obj.items():
+            if cont_type not in self._column_map:
+                continue
+
+            for src, dst, _idx in self._column_map[cont_type]:
+                key = '{}.{}'.format(cont_type, src)
+                context[dst] = extract_property(key, obj)
+
     def execute(self, write_fn):
+        # Initialize the formatter
+        self._formatter.initialize(write_fn, self._column_map)
+
         cursor = config.db.get_collection(self._start_collection).aggregate(self._pipeline)
-        #result = json.dumps(cursor, default=custom_json_serializer)
-        #write_fn(result)
-        # Flatten data into key-value pairs
-        # Process files
-        write_fn('[')
-        first = True
+
+        # Extract as many values as possible into parent_context
+        parent_context = {}
+        self.extract_column_values(parent_context, self._context)
+
         for row in cursor:
-            if not first:
-                write_fn(',')
-            write_fn(json.dumps(row, default=custom_json_serializer))
-            first = False
-        write_fn(']')
+            cont_files = row.pop('files', None)
+
+            # make a copy of context and update from row
+            context = parent_context.copy()
+            self.extract_column_values(context, row)
+
+            # Find the first matching, non-deleted file
+            if self._file_spec is not None:
+                self.process_files(context, cont_files)
+            else:
+                self._formatter.write_row(context)
+
+        self._formatter.finalize()
+
+    def process_files(self, context, cont_files):
+        matched_file = None
+
+        # Find a matching, not-deleted file
+        for f in cont_files:
+            if 'deleted' in f:
+                continue
+            if self._file_filter.match(f['name']):
+                matched_file = f
+                break
+
+        if matched_file:
+            # Open file and pass to file reader
+            reader = CsvFileReader()
+            file_path, file_system = files.get_valid_file(matched_file)
+            print('Open file: {}'.format(file_path))
+            with file_system.open(file_path, 'r') as f:
+                reader.initialize(f, self._file_spec.get('formatOptions'))
+                for row in reader:
+                    row_context = context.copy()
+                    row_context.update(row)
+
+                    self._formatter.write_row(row_context)
+
+        else:
+            #TODO: Invoke missing data handler, possibly defer this row
+            self._formatter.write_row(context)
+
 
 
 
