@@ -1472,7 +1472,10 @@ def upgrade_files_to_45(cont, context):
 
             # Make sure every value is only in the list once
             for k, v_array in classification.iteritems():
-                classification[k] = list(set(v_array))
+                if v_array is not None:
+                    classification[k] = list(set(v_array))
+                else:
+                    logging.info('Classification key has None array, classification is {}'.format(classification))
 
             f['classification'] = classification
 
