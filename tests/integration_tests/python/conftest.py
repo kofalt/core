@@ -32,7 +32,8 @@ def bootstrap_users(as_drone):
     data_builder = DataBuilder(as_drone)
     data_builder.create_user(_id='admin@user.com', api_key=SCITRAN_ADMIN_API_KEY, root=True)
     data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
-    return data_builder
+    yield data_builder
+    data_builder.teardown()
 
 
 @pytest.fixture(scope='session')
