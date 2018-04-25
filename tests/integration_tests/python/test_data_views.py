@@ -27,8 +27,8 @@ def test_adhoc_data_view(data_builder, file_form, as_admin, as_user):
     }
 
     project = data_builder.create_project(label='test-project')
-    session1 = data_builder.create_session(project=project, subject={'code': '1001'}, label='ses-01')
-    session2 = data_builder.create_session(project=project, subject={'code': '1002'}, label='ses-01')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
     acquisition2 = data_builder.create_acquisition(session=session2, label='scout')
     
