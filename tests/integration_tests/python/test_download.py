@@ -73,7 +73,7 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
             found_second_session = True
         if 'session1_1' in str(tarinfo.name):
             found_third_session = True
-        if 'session:1' in str(tarinfo.name):
+        if 'session_1' in str(tarinfo.name):
             found_fourth_session = True
     assert found_second_session
     assert found_third_session
