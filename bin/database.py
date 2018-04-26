@@ -1492,9 +1492,9 @@ def upgrade_files_to_45(cont, context):
 def upgrade_rules_to_45(rule):
 
     def adjust_type(r):
-        if r['type'] == 'file.measurement':
+        if r['type'] == 'file.measurements':
             r['type'] = 'file.classification'
-        elif r['type'] == 'container.has-measurement':
+        elif r['type'] == 'container.has-measurements':
             r['type'] = 'container.has-classification'
 
     for r in rule.get('any', []):
@@ -1549,8 +1549,8 @@ def upgrade_to_45():
 
 
     cursor = config.db.project_rules.find({'$or': [
-        {'all.type': {'$in': ['file.measurement', 'container.has-measurement']}},
-        {'any.type': {'$in': ['file.measurement', 'container.has-measurement']}}
+        {'all.type': {'$in': ['file.measurements', 'container.has-measurements']}},
+        {'any.type': {'$in': ['file.measurements', 'container.has-measurements']}}
     ]})
 
     process_cursor(cursor, upgrade_rules_to_45)

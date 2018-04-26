@@ -100,12 +100,12 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
 
     rule = {
         'all' : [
-            {'type' : 'file.measurement', 'value' : 'diffusion'},
-            {'type' : 'container.has-measurement', 'value' : 'tests', 'regex': True}
+            {'type' : 'file.measurements', 'value' : 'diffusion'},
+            {'type' : 'container.has-measurements', 'value' : 'tests', 'regex': True}
         ],
         'any' : [
-            {'type' : 'file.measurement', 'value' : 'diffusion'},
-            {'type' : 'container.has-measurement', 'value' : 'tests', 'regex': True}
+            {'type' : 'file.measurements', 'value' : 'diffusion'},
+            {'type' : 'container.has-measurements', 'value' : 'tests', 'regex': True}
         ],
         'name' : 'Run dcm2niix on dicom',
         'alg' : 'dcm2niix',
