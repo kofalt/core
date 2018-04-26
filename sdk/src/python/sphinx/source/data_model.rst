@@ -5,7 +5,7 @@ Hierarchy
 ---------
 Data in a Flywheel system is organized in a tree-like hierarchy, as indicated in the following diagram.
 
-.. image:: //core/static/images/data-model.png
+.. image:: /../../../static/images/data-model.png
 
 - :class:`flywheel.models.user.User` - An authorized entity, usually referenced by email address.
 - :class:`flywheel.models.group.Group` - A grouping of users and projects.

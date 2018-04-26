@@ -5,9 +5,9 @@ Flywheel SDK Documentation
    :maxdepth: 2
    :caption: Contents:
 
-   topics/getting_started
-   topics/data_model
-   topics/examples
+   getting_started
+   data_model
+   examples
    flywheel 
 
 

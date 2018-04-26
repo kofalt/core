@@ -170,8 +170,8 @@ texinfo_documents = [
 
 # -- Extension configuration -------------------------------------------------
 
-statichtml_path = 'theme/sphinx_rtd/{}'.format(sphinx_rtd_theme.__version__)
-statichtml_prefix = '/core/'
+statichtml_path = 'static/theme/sphinx_rtd/{}'.format(sphinx_rtd_theme.__version__)
+statichtml_prefix = '../../../'
 
 # Ignore docs for some of the scaffold methods/attributes
 ignored_members = [ 'positional_to_model', 'return_value', 'attribute_map', 'rattribute_map', 'swagger_types' ]

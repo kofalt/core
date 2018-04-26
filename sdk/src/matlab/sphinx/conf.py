@@ -156,6 +156,6 @@ texinfo_documents = [
 
 # -- Extension configuration -------------------------------------------------
 
-statichtml_path = 'theme/sphinx_rtd/{}'.format(sphinx_rtd_theme.__version__)
-statichtml_prefix = '/core/'
+statichtml_path = 'static/theme/sphinx_rtd/{}'.format(sphinx_rtd_theme.__version__)
+statichtml_prefix = '../../../'
 
