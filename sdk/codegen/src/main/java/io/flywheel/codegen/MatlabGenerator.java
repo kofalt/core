@@ -205,11 +205,11 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
         // Documentation Files
         final String docFolder = "sphinx/source";
-        supportingFiles.add(new SupportingFile("doc_conf.mustache", docFolder, "conf.py"));
-        supportingFiles.add(new SupportingFile("doc_index.mustache", docFolder, "index.rst"));
-        supportingFiles.add(new SupportingFile("doc_package_index.mustache", docFolder,  packageName + ".rst"));
-        supportingFiles.add(new SupportingFile("doc_model.mustache", docFolder,  modelPackage + ".rst"));
-        supportingFiles.add(new SupportingFile("doc_api.mustache", docFolder,  apiPackage + ".rst"));
+        supportingFiles.add(new SupportingFile("doc/conf.mustache", docFolder, "conf.py"));
+        supportingFiles.add(new SupportingFile("doc/index.mustache", docFolder, "index.rst"));
+        supportingFiles.add(new SupportingFile("doc/package_index.mustache", docFolder,  packageName + ".rst"));
+        supportingFiles.add(new SupportingFile("doc/model.mustache", docFolder,  modelPackage + ".rst"));
+        supportingFiles.add(new SupportingFile("doc/api.mustache", docFolder,  apiPackage + ".rst"));
     }
 
     /**

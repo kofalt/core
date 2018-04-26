@@ -12,6 +12,9 @@ of the new models. See individual API doc strings for details.
 The `get_analyses` method now requires all 3 arguments. If you wish to get analyses for a single container, use the
 `get_project_analyses` method instead (for example)
 
+In addition, `upload_file_to_analysis` and `upload_files_to_analysis` have been replaced with `upload_output_to_analysis` which
+supports one more more files.
+
 #### Search Notes:
 In the previous version of the SDK, you could limit the search results by specifying a `limit` field in the SearchQuery. That has
 changed in this version, where you can now pass a `size` parameter to the search function to set the search results limit.

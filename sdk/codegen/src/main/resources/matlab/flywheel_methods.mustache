@@ -21,13 +21,14 @@
             [returnData, resp] = obj.resolvePath(flywheel.model.ResolverInput('path', split(path, '/')), varargin{:});
         end
 
+    {{#apiInfo}}
     {{#apis}}
     {{#operations}}
     {{#operation}}
     {{#vendorExtensions.x-sdk-modify-wrapper}}
-        function [returnData, resp] = {{wrapperId}}(obj, {{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}, varargin)
-            body = struct( 'key', body );
-            [returnData, resp] = obj.{{classVarName}}.{{operationId}}({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}, varargin{:});
+        function [returnData, resp] = {{wrapperId}}(obj, {{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}varargin)
+            body = struct( '{{key}}', body );
+            [returnData, resp] = obj.{{classVarName}}.{{operationId}}({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}varargin{:});
         end
 
     {{/vendorExtensions.x-sdk-modify-wrapper}}
@@ -40,3 +41,4 @@
     {{/operation}}
     {{/operations}}
     {{/apis}}
+    {{/apiInfo}}

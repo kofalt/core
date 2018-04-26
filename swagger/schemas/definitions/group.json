@@ -6,7 +6,8 @@
             "minLength": 1,
             "pattern": "^[0-9A-Za-z][0-9A-Za-z .@_-]{0,30}[0-9A-Za-z]$",
             "title": "label",
-            "type": "string"
+            "type": "string",
+            "description": "The group label"
         },
         "group": {
           "type": "object",
@@ -16,12 +17,7 @@
             "permissions": {"$ref": "permission.json#/definitions/permission-output-list"},
             "created": {"$ref":"created-modified.json#/definitions/created"},
             "modified": {"$ref":"created-modified.json#/definitions/modified"},
-            "tags": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
+            "tags": {"$ref":"tag.json#/definitions/tag-list"}
           },
           "additionalProperties":false,
           "x-sdk-model": "group"
