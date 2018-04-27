@@ -25,6 +25,7 @@ from ..web.errors import APIPermissionException, APINotFoundException, InputVali
 
 from .json_formatter import JsonFormatter
 from .csv_reader import CsvFileReader
+from .hierarchy_aggregator import HierarchyAggregator, AggregationStage
 
 # TODO: subjects belong here once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
@@ -96,6 +97,9 @@ class DataView(object):
         # Whether or not this query contains potential PHI
         self._phi_access = False
 
+        # The set of accessed subjects
+        self._accessed_subjects = set()
+
         # The original file spec, if there was one
         self._file_spec = desc.get('fileSpec', None)
 
@@ -129,10 +133,7 @@ class DataView(object):
         self._column_map = {}
 
         # The constructed aggregation pipeline
-        self._pipeline = []
-
-        # The name of the collection where aggregation starts
-        self._start_collection = None
+        self._aggregator = None
 
     def prepare(self, container_id, output_format, uid):
         """ Prepare the data view execution by looking up container_id and checking permissions.
@@ -171,6 +172,12 @@ class DataView(object):
 
             # Also build the context as we go
             cont_type = containerutil.singularize(cont['cont_type'])
+
+            if cont_type == 'session':
+                subject = cont.get('subject', {}).get('code')
+                if subject:
+                    self._accessed_subjects.add(subject)
+
             self._context[cont_type] = cont
 
         # Build the pipeline query
@@ -246,32 +253,6 @@ class DataView(object):
 
             self._column_map[container].append((src, dst, idx))
 
-    def create_projection(self, container, fields, sort_keys, prefix=''):
-        container_id = '_ids.' + container
-        sort_id = '_sortkeys.' + container
-        projection = {
-            '_id': 0,
-            container_id: '$_id',
-            sort_id: '$created'
-        }
-        if fields:
-            projection.update(fields)
-        if prefix:
-            prefix = container + '.'
-        for src, _dst, _idx in self._column_map.get(container, []):
-            field = '{}.{}'.format(container, src)
-            projection[field] = '${}{}'.format(prefix, src)
-            fields[field] = 1
-
-        # TODO: Should become if 'subject' then '$code' 
-        if container == 'session':
-            projection[SUBJECT_CODE_KEY] = '$subject.code'
-            fields[SUBJECT_CODE_KEY] = 1
-
-        fields[container_id] = 1
-        sort_keys[sort_id] = 1
-        return projection
-
     def get_content_type(self):
         return self._formatter.get_content_type()
 
@@ -279,44 +260,34 @@ class DataView(object):
         cont_type = self._tree[-1]['cont_type']
         cont_id = self._tree[-1]['_id']
 
-        start_collection = None 
-
         # Determine the total depth
-        pipeline = []
-        fields = {}
-        sort_keys = collections.OrderedDict()
+        aggregator = HierarchyAggregator()
         for idx in range(len(self._tree), len(self._containers)):
-            key_name = containerutil.singularize(cont_type)
             child_cont_type = get_child_cont_type(cont_type)
             child_cont_type_singular = containerutil.singularize(child_cont_type)
 
-            # First stage is $match
-            if not pipeline:
-                start_collection = child_cont_type
-                pipeline.append({'$match': { key_name: cont_id }})
-                pipeline.append({'$project': self.create_projection(child_cont_type_singular, fields, sort_keys)})
-            else:
-                pipeline.append({'$lookup': {
-                    'from': child_cont_type,
-                    'localField': '_ids.{}'.format(key_name),
-                    'foreignField': key_name,
-                    'as': child_cont_type_singular
-                }})
-                pipeline.append({'$unwind': '$' + child_cont_type_singular})
-                projection = self.create_projection(child_cont_type_singular, fields, sort_keys, prefix=True)
-                # Add files to projection
-                if child_cont_type_singular == self._file_container:
-                    projection['files'] = '${}.files'.format(child_cont_type_singular)
-                pipeline.append({'$project': projection})
+            if not aggregator.stages:
+                # Setup initial filtering
+                key_name = containerutil.singularize(cont_type)
+                aggregator.filter_spec = { key_name: cont_id }
 
+            stage = AggregationStage(child_cont_type)
+            for src, _dst, _idx in self._column_map.get(child_cont_type_singular, []):
+                stage.fields.append(src)
+
+            # TODO: Should become if 'subject' then '$code' 
+            if child_cont_type == 'sessions':
+                stage.fields.append( (SUBJECT_CODE_KEY, 'subject.code') )
+
+            if child_cont_type_singular == self._file_container:
+                stage.fields.append( ('files', 'files') )
+
+            aggregator.stages.append(stage) 
+
+            # Advance cont_type
             cont_type = child_cont_type
 
-        if sort_keys:
-            pipeline.append({'$sort': sort_keys})
-
-        pprint(pipeline)
-        self._pipeline = pipeline
-        self._start_collection = start_collection
+        self._aggregator = aggregator
 
     def extract_column_values(self, context, obj):
         for cont_type, cont in obj.items():
@@ -331,18 +302,16 @@ class DataView(object):
         # Initialize the formatter
         self._formatter.initialize(write_fn, self._column_map)
 
-        rows = list(config.db.get_collection(self._start_collection).aggregate(self._pipeline))
+        rows = self._aggregator.execute()
         # Access logging
         if self._phi_access:
-            accessed_subjects = set()
-
             for row in rows:
                 pprint(row)
                 subject = row.pop(SUBJECT_CODE_KEY, None)
                 if subject:
-                    accessed_subjects.add(subject)
+                    self._accessed_subjects.add(subject)
 
-            print('TODO: Log PHI access for subjects {}'.format(', '.join(accessed_subjects)))
+            print('TODO: Log PHI access for subjects {}'.format(', '.join(self._accessed_subjects)))
 
         # Extract as many values as possible into parent_context
         parent_context = {}
