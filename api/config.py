@@ -246,7 +246,7 @@ def get_version():
         with open('/var/scitran/api_version.txt') as f:
             api_version = f.read()
             version_object['release'] = api_version
-    except Exception:
+    except IOError:
         version_object['release'] = ''
 
     return version_object
