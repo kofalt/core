@@ -86,9 +86,15 @@ def test_config_version(as_user, api_db):
     assert r.status_code == 404
     api_db.singletons.insert_one({"_id":"version","database":3})
 
+    try:
+        with open('/var/scitran/api_version.txt') as f:
+            api_version = f.read()
+    except IOError:
+        api_version = ''
+
     # get database schema version
     r = as_user.get('/version')
     assert r.ok
     assert r.json()['database'] == 3
-    assert r.json()['release'] == ''
+    assert r.json()['release'] == api_version
     api_db.singletons.find_one_and_delete({'_id':'version'})
