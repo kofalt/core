@@ -132,12 +132,15 @@ def get_single_file_field_storage(file_system):
         bufsize = 2 ** 20
 
         def make_file(self, binary=None):
-            # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
 
-            self.filename = fs.path.basename(self.filename)
             self.hasher = hashlib.new(DEFAULT_HASH_ALG)
+            # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
+            self.filename = util.sanitize_path(self.filename)
             if not isinstance(self.filename, unicode):
                 self.filename = six.u(self.filename)
+            # If the filepath doesn't exist, make it
+            if not file_system.exists(os.path.dirname(self.filename)) and self.filename:
+                file_system.makedirs(os.path.dirname(self.filename))
             self.open_file = file_system.open(self.filename, 'wb')
             return self.open_file
 

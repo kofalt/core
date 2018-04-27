@@ -789,6 +789,7 @@ def test_edit_container_info(data_builder, as_admin, as_user):
 def test_edit_file_info(data_builder, as_admin, file_form):
     project = data_builder.create_project()
     file_name = 'test_file.txt'
+    file_name_fwd = 'test/file.txt'
 
 
     # Assert getting file info 404s properly
@@ -799,8 +800,14 @@ def test_edit_file_info(data_builder, as_admin, file_form):
 
     r = as_admin.post('/projects/' + project + '/files', files=file_form(file_name))
     assert r.ok
+    r = as_admin.post('/projects/' + project + '/files', files=file_form(file_name_fwd))
+    assert r.ok
 
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
+    assert r.ok
+    assert r.json()['info'] == {}
+
+    r = as_admin.get('/projects/' + project + '/files/' + file_name_fwd + '/info')
     assert r.ok
     assert r.json()['info'] == {}
 
@@ -844,11 +851,23 @@ def test_edit_file_info(data_builder, as_admin, file_form):
     })
     assert r.ok
 
+    r = as_admin.post('/projects/' + project + '/files/' + file_name_fwd + '/info', json={
+        'replace': file_info
+    })
+    assert r.ok
+
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
     assert r.json()['info'] == file_info
+
     postmodified_time = r.json().get('modified')
     assert postmodified_time != premodified_time
+
+
+    r = as_admin.get('/projects/' + project + '/files/' + file_name_fwd + '/info')
+    assert r.ok
+    assert r.json()['info'] == file_info
+
 
     # Use 'set' to add new key
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/info', json={
@@ -1386,4 +1405,3 @@ def test_container_delete_tag(data_builder, default_payload, as_root, as_admin, 
 
     # test that the (now) empty group can be deleted
     assert as_root.delete('/groups/' + group).ok
-

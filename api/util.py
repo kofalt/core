@@ -179,6 +179,14 @@ def sanitize_string_to_filename(value):
     keepcharacters = (' ', '.', '_', '-')
     return "".join([c for c in value if c.isalnum() or c in keepcharacters]).rstrip()
 
+def sanitize_path(filepath):
+    """
+    Ensures that a path does not attempt to leave a directory,
+    i.e. ../place/I/should/not/be is not allowed so it gets converted to
+    place/I/should/not/be
+    """
+    return os.path.normpath('/'+filepath).lstrip('/')
+
 def humanize_validation_error(val_err):
     """
     Takes a jsonschema.ValidationError, returns a human-friendly string
