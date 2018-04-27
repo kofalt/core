@@ -76,7 +76,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
     # The vast majority of this function's wall-clock time is spent here.
     # Tempdir is deleted off disk once out of scope, so let's hold onto this reference.
-    file_processor = files.FileProcessor(config.get_item('persistent', 'data_path'), config.fs)
+    file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token))
     form = file_processor.process_form(request)
 
     if 'metadata' in form:
