@@ -2,6 +2,7 @@
 *.py[co]
 .*sw[op]
 .cache
+.pytest_cache
 .DS_Store
 /.coverage*
 /.pytest_cache
