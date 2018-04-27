@@ -64,7 +64,7 @@ RUN set -eux \
 
 ARG VCS_BRANCH=NULL
 ARG VCS_COMMIT=NULL
-ARG API_VERSION=NULL
+ARG API_VERSION=''
 RUN echo $API_VERSION > /var/scitran/api_version.txt
 RUN set -eux \
     && /var/scitran/code/api/bin/build_info.sh $VCS_BRANCH $VCS_COMMIT > /var/scitran/version.json \
