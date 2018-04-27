@@ -13,7 +13,8 @@ from ..auth import listauth, always_ok
 from ..dao import noop
 from ..dao import liststorage
 from ..dao import containerutil
-from ..web.errors import APIStorageException, APIPermissionException
+from ..dao import containerstorage
+from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException
 from ..web.request import AccessType
 
 
@@ -208,8 +209,13 @@ class PermissionsListHandler(ListHandler):
     """
     def post(self, cont_name, list_name, **kwargs):
         _id = kwargs.get('cid')
-        result = super(PermissionsListHandler, self).post(cont_name, list_name, **kwargs)
+
         payload = self.request.json_body
+        user_ids = [user['_id'] for user in containerstorage.ContainerStorage('users', use_object_id=False).get_all_el({}, None, None)]
+        if payload.get('_id') not in user_ids:
+            raise APIUnknownUserException('Cannot add permission for unknown user {}'.format(payload.get('_id')))
+
+        result = super(PermissionsListHandler, self).post(cont_name, list_name, **kwargs)
 
         if cont_name == 'groups' and self.request.params.get('propagate') =='true':
             self._propagate_permissions(cont_name, _id, query={'permissions._id' : payload['_id']}, update={'$set': {'permissions.$.access': payload['access']}})
