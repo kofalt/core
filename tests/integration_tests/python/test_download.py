@@ -9,9 +9,11 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     session = data_builder.create_session(label='session1', project=project)
     session2 = data_builder.create_session(label='session1', project=project)
     session3 = data_builder.create_session(label='session1', project=project)
+    session4 = data_builder.create_session(label='session/1', project=project)
     acquisition = data_builder.create_acquisition(session=session)
     acquisition2 = data_builder.create_acquisition(session=session2)
     acquisition3 = data_builder.create_acquisition(session=session3)
+    acquisition4 = data_builder.create_acquisition(session=session4)
 
     # upload the same file to each container created and use different tags to
     # facilitate download filter tests:
@@ -24,6 +26,9 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
         file_name, meta={'name': file_name, 'type': 'csv'}))
 
     as_admin.post('/acquisitions/' + acquisition3 + '/files', files=file_form(
+        'test.txt', meta={'name': file_name, 'type': 'text'}))
+
+    as_admin.post('/acquisitions/' + acquisition4 + '/files', files=file_form(
         'test.txt', meta={'name': file_name, 'type': 'text'}))
 
     as_admin.post('/sessions/' + session + '/files', files=file_form(
@@ -61,15 +66,18 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     # Verify a single file in tar with correct file name
     found_second_session = False
     found_third_session = False
+    found_fourth_session = False
     for tarinfo in tar:
         assert os.path.basename(tarinfo.name) == file_name
         if 'session1_0' in str(tarinfo.name):
             found_second_session = True
         if 'session1_1' in str(tarinfo.name):
             found_third_session = True
+        if 'session1_2' in str(tarinfo.name):
+            found_fourth_session = True
     assert found_second_session
     assert found_third_session
-
+    assert found_fourth_session
     tar.close()
 
     # Download one session with many acquisitions and make sure they are in the same subject folder
