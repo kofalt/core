@@ -1,4 +1,5 @@
 import datetime
+import os
 
 
 def test_roothandler(as_public):
@@ -82,12 +83,13 @@ def test_devicehandler(as_user, as_root, as_drone, api_db):
 
 def test_config_version(as_user, api_db):
     # get database version when no version document exists, It hasn;t been set yet in the tests
+    api_version_filename = '/var/scitran/api_version.txt'
     r = as_user.get('/version')
     assert r.status_code == 404
     api_db.singletons.insert_one({"_id":"version","database":3})
 
     try:
-        with open('/var/scitran/api_version.txt') as f:
+        with open(api_version_filename) as f:
             api_version = f.read()
     except IOError:
         api_version = ''
@@ -97,4 +99,16 @@ def test_config_version(as_user, api_db):
     assert r.ok
     assert r.json()['database'] == 3
     assert r.json()['release'] == api_version
+
+    # Check api version when api_version.txt does not exist
+    try:
+        os.remove(api_version_filename)
+    except OSError:
+        pass
+
+    r = as_user.get('/version')
+    assert r.ok
+    assert r.json()['database'] == 3
+    assert r.json()['release'] == ''
+
     api_db.singletons.find_one_and_delete({'_id':'version'})
