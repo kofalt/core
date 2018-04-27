@@ -90,4 +90,5 @@ def test_config_version(as_user, api_db):
     r = as_user.get('/version')
     assert r.ok
     assert r.json()['database'] == 3
+    assert r.json()['release'] == ''
     api_db.singletons.find_one_and_delete({'_id':'version'})

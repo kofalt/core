@@ -238,7 +238,19 @@ def get_public_config():
     }
 
 def get_version():
-    return db.singletons.find_one({'_id': 'version'})
+    version_object = db.singletons.find_one({'_id': 'version'})
+    if not version_object:
+        return version_object
+
+    try:
+        with open('/var/scitran/api_version.txt') as f:
+            api_version = f.read()
+            version_object['release'] = api_version
+    except Exception:
+        version_object['release'] = ''
+
+    return version_object
+
 
 def get_item(outer, inner):
     return get_config()[outer][inner]
