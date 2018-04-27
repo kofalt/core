@@ -11,8 +11,6 @@
             
 """
 import bson
-import collections
-import fnmatch
 import re
 
 from pprint import pprint
@@ -26,6 +24,7 @@ from ..web.errors import APIPermissionException, APINotFoundException, InputVali
 from .json_formatter import JsonFormatter
 from .csv_reader import CsvFileReader
 from .hierarchy_aggregator import HierarchyAggregator, AggregationStage
+from .util import extract_json_property, file_filter_to_regex
 
 # TODO: subjects belong here once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
@@ -59,34 +58,6 @@ def is_phi_field(cont_type, src):
 
     return False
 
-def extract_property(name, obj):
-    path = name.split('.')
-    for path_el in path:
-        if isinstance(obj, collections.Sequence):
-            try:
-                obj = obj[int(path_el)]
-            except IndexError:
-                obj = None
-            except ValueError:
-                obj = None
-        elif isinstance(obj, collections.Mapping):
-            obj = obj.get(path_el, None)
-        else:
-            obj = getattr(obj, path_el, None)
-
-        if obj is None:
-            break
-
-    return obj
-
-def file_filter_to_regex(filter_spec):
-    try:
-        val = filter_spec['value']
-        if not filter_spec.get('regex', False):
-            val = fnmatch.translate(val)
-        return re.compile(val, re.I)
-    except re.error:
-        raise InputValidationException('Invalid filter spec: {}'.format(filter_spec['value']))
 
 class DataView(object):
     """Executes data view queries against the database."""
@@ -296,7 +267,7 @@ class DataView(object):
 
             for src, dst, _idx in self._column_map[cont_type]:
                 key = '{}.{}'.format(cont_type, src)
-                context[dst] = extract_property(key, obj)
+                context[dst] = extract_json_property(key, obj)
 
     def execute(self, write_fn):
         # Initialize the formatter
@@ -348,7 +319,7 @@ class DataView(object):
             reader = CsvFileReader()
             file_path, file_system = files.get_valid_file(matched_file)
             with file_system.open(file_path, 'r') as f:
-                # Determine file columns
+                # Determine file columns if not specified
                 reader.initialize(f, self._file_spec.get('formatOptions'))
                 for row in reader:
                     row_context = context.copy()
