@@ -159,7 +159,7 @@ class ContainerNode(Node):
         self.files = files
         self.use_id = use_id        
         self.analyses = analyses
-        self.child_name = self.storage.get_child_container_name()
+        self.child_name = self.storage.get_child_container_name_legacy()
 
     def next(self, path_in, path_out, id_only):
         use_id, criterion = self.parse_criterion(path_in)

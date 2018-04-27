@@ -454,7 +454,7 @@ class CollectionStorage(ContainerStorage):
         super(CollectionStorage, self).__init__('collections', use_object_id=True, use_delete_tag=True)
 
     def get_list_projection(self):
-        return {'info': 0}
+        return {'info': 0, 'files.info': 0}
 
 
 class AnalysisStorage(ContainerStorage):
