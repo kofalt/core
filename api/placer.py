@@ -380,7 +380,7 @@ class TokenPlacer(Placer):
         # It must be kept in sync between each instance.
         self.folder = fs.path.join('tokens', 'packfile', token)
 
-        util.mkdir_p(self.folder, config.fs)
+        util.mkdir_p(self.folder, config.local_fs)
 
     def process_file_field(self, field, file_attrs):
         self.saved.append(file_attrs)
@@ -389,7 +389,7 @@ class TokenPlacer(Placer):
     def finalize(self):
         for path in self.paths:
             dest = fs.path.join(self.folder, path)
-            self.file_processor.store_temp_file(path, dest)
+            self.file_processor.store_temp_file(path, dest, dst_fs=config.local_fs)
         self.recalc_session_compliance()
         return self.saved
 
@@ -438,7 +438,7 @@ class PackfilePlacer(Placer):
         self.folder = fs.path.join('tokens', 'packfile', token)
 
         try:
-            config.fs.isdir(self.folder)
+            config.local_fs.isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
 
@@ -498,7 +498,7 @@ class PackfilePlacer(Placer):
 
     def finalize(self):
 
-        paths = self.file_processor.persistent_fs.listdir(self.folder)
+        paths = config.local_fs.listdir(self.folder)
         total = len(paths)
 
         # Write all files to zip
@@ -507,10 +507,10 @@ class PackfilePlacer(Placer):
             full_path = fs.path.join(self.folder, path)
 
             # Set the file's mtime & atime.
-            self.file_processor.persistent_fs.settimes(full_path, self.ziptime, self.ziptime)
+            config.local_fs.settimes(full_path, self.ziptime, self.ziptime)
 
             # Place file into the zip folder we created before
-            with self.file_processor.persistent_fs.open(full_path, 'rb') as f:
+            with config.local_fs.open(full_path, 'rb') as f:
                 self.zip_.writestr(fs.path.join(self.dir_, path), f.read())
 
             # Report progress
@@ -523,7 +523,7 @@ class PackfilePlacer(Placer):
         self.zip_.close()
 
         # Remove the folder created by TokenPlacer
-        self.file_processor.persistent_fs.removetree(self.folder)
+        config.local_fs.removetree(self.folder)
 
         # Lookup uid on token
         token  = self.context['token']

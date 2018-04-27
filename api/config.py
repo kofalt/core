@@ -264,5 +264,5 @@ def get_auth(auth_type):
 
 # Storage configuration
 fs = open_fs(__config['persistent']['fs_url'])
-legacy_fs = open_fs('osfs://' + __config['persistent']['data_path'])
+local_fs = open_fs('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']
