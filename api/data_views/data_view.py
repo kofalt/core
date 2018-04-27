@@ -30,6 +30,9 @@ from .csv_reader import CsvFileReader
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
 
+# Key in the pipeline that is always populated with the subject code
+SUBJECT_CODE_KEY = '_subject_code'
+
 def normalize_id(val):
     if re.match('^[a-f\d]{24}$', val):
         return bson.ObjectId(val)
@@ -44,6 +47,16 @@ def label_column(cont_type):
 def get_child_cont_type(cont_type):
     # TODO: Replace with ContainerStorage.child_cont_name
     return CHILD_MAP.get(containerutil.pluralize(cont_type))
+
+def is_phi_field(cont_type, src):
+    next_part = src.split('.')[0]
+    if cont_type == 'subject':
+        if next_part not in ['_id', 'code']:
+            return True
+    elif next_part in ['subject', 'info']:
+        return True
+
+    return False
 
 def extract_property(name, obj):
     path = name.split('.')
@@ -80,6 +93,9 @@ class DataView(object):
         # The original data view description
         self.desc = desc
 
+        # Whether or not this query contains potential PHI
+        self._phi_access = False
+
         # The original file spec, if there was one
         self._file_spec = desc.get('fileSpec', None)
 
@@ -92,6 +108,7 @@ class DataView(object):
         if self._file_spec:
             self._file_container = containerutil.singularize(self._file_spec['container'])
             self._file_filter = file_filter_to_regex(self._file_spec['filter'])
+            self._phi_access = True # Any file access should be logged
 
         # Contains the initial hierarchy tree for the target container
         self._tree = None
@@ -101,9 +118,6 @@ class DataView(object):
 
         # Output formatter instance
         self._formatter = None
-
-        # Whether or not this query contains potential PHI
-        self._phi_access = False
 
         # The list of containers that will be queried as part of the pipeline
         self._containers = []
@@ -143,10 +157,11 @@ class DataView(object):
             raise APINotFoundException('Could not resolve container: {}'.format(container_id))
         cont_type, search_results = result[0] # First returned collection
 
-        # Get the container tree (minus group)
+        # Get the container tree (minus group, and subjec)
+        # TODO: Allow subjects once formalized
         storage = ContainerStorage.factory(cont_type)
         self._tree = storage.get_parent_tree(container_id, cont=search_results[0], add_self=True)
-        self._tree.pop()
+        self._tree = [cont for cont in self._tree if cont['cont_type'] not in ['subjects', 'groups']]
         self._tree.reverse()
 
         # Check permissions
@@ -170,6 +185,10 @@ class DataView(object):
             src = col['src']
             dst = col.get('dst', src)
             container, field = src.split('.', 1)
+
+            # Any subject fields (other than _id, or code) and any info fields are considered PHI
+            if not self._phi_access and is_phi_field(container, src):
+                self._phi_access = True
 
             if container == 'subject':
                 container = 'session'
@@ -227,13 +246,13 @@ class DataView(object):
 
             self._column_map[container].append((src, dst, idx))
 
-        pprint(self._column_map)
-
-    def create_projection(self, container, fields, prefix=''):
-        container_id = container + '_id'
+    def create_projection(self, container, fields, sort_keys, prefix=''):
+        container_id = '_ids.' + container
+        sort_id = '_sortkeys.' + container
         projection = {
             '_id': 0,
-            container_id: '$_id'
+            container_id: '$_id',
+            sort_id: '$created'
         }
         if fields:
             projection.update(fields)
@@ -243,6 +262,14 @@ class DataView(object):
             field = '{}.{}'.format(container, src)
             projection[field] = '${}{}'.format(prefix, src)
             fields[field] = 1
+
+        # TODO: Should become if 'subject' then '$code' 
+        if container == 'session':
+            projection[SUBJECT_CODE_KEY] = '$subject.code'
+            fields[SUBJECT_CODE_KEY] = 1
+
+        fields[container_id] = 1
+        sort_keys[sort_id] = 1
         return projection
 
     def get_content_type(self):
@@ -257,6 +284,7 @@ class DataView(object):
         # Determine the total depth
         pipeline = []
         fields = {}
+        sort_keys = collections.OrderedDict()
         for idx in range(len(self._tree), len(self._containers)):
             key_name = containerutil.singularize(cont_type)
             child_cont_type = get_child_cont_type(cont_type)
@@ -266,22 +294,25 @@ class DataView(object):
             if not pipeline:
                 start_collection = child_cont_type
                 pipeline.append({'$match': { key_name: cont_id }})
-                pipeline.append({'$project': self.create_projection(child_cont_type_singular, fields)})
+                pipeline.append({'$project': self.create_projection(child_cont_type_singular, fields, sort_keys)})
             else:
                 pipeline.append({'$lookup': {
                     'from': child_cont_type,
-                    'localField': '{}_id'.format(key_name),
+                    'localField': '_ids.{}'.format(key_name),
                     'foreignField': key_name,
                     'as': child_cont_type_singular
                 }})
                 pipeline.append({'$unwind': '$' + child_cont_type_singular})
-                projection = self.create_projection(child_cont_type_singular, fields, prefix=True)
+                projection = self.create_projection(child_cont_type_singular, fields, sort_keys, prefix=True)
                 # Add files to projection
                 if child_cont_type_singular == self._file_container:
                     projection['files'] = '${}.files'.format(child_cont_type_singular)
                 pipeline.append({'$project': projection})
 
             cont_type = child_cont_type
+
+        if sort_keys:
+            pipeline.append({'$sort': sort_keys})
 
         pprint(pipeline)
         self._pipeline = pipeline
@@ -300,13 +331,24 @@ class DataView(object):
         # Initialize the formatter
         self._formatter.initialize(write_fn, self._column_map)
 
-        cursor = config.db.get_collection(self._start_collection).aggregate(self._pipeline)
+        rows = list(config.db.get_collection(self._start_collection).aggregate(self._pipeline))
+        # Access logging
+        if self._phi_access:
+            accessed_subjects = set()
+
+            for row in rows:
+                pprint(row)
+                subject = row.pop(SUBJECT_CODE_KEY, None)
+                if subject:
+                    accessed_subjects.add(subject)
+
+            print('TODO: Log PHI access for subjects {}'.format(', '.join(accessed_subjects)))
 
         # Extract as many values as possible into parent_context
         parent_context = {}
         self.extract_column_values(parent_context, self._context)
 
-        for row in cursor:
+        for row in rows:
             cont_files = row.pop('files', None)
 
             # make a copy of context and update from row
@@ -336,15 +378,14 @@ class DataView(object):
             # Open file and pass to file reader
             reader = CsvFileReader()
             file_path, file_system = files.get_valid_file(matched_file)
-            print('Open file: {}'.format(file_path))
             with file_system.open(file_path, 'r') as f:
+                # Determine file columns
                 reader.initialize(f, self._file_spec.get('formatOptions'))
                 for row in reader:
                     row_context = context.copy()
                     row_context.update(row)
 
                     self._formatter.write_row(row_context)
-
         else:
             #TODO: Invoke missing data handler, possibly defer this row
             self._formatter.write_row(context)
