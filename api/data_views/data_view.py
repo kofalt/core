@@ -21,6 +21,7 @@ from ..dao import containerutil
 from ..dao.basecontainerstorage import ContainerStorage, CHILD_MAP
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 
+from .access_logger import create_access_logger
 from .json_formatter import JsonFormatter
 from .csv_reader import CsvFileReader
 from .hierarchy_aggregator import HierarchyAggregator, AggregationStage
@@ -48,28 +49,14 @@ def get_child_cont_type(cont_type):
     # TODO: Replace with ContainerStorage.child_cont_name
     return CHILD_MAP.get(containerutil.pluralize(cont_type))
 
-def is_phi_field(cont_type, src):
-    next_part = src.split('.')[0]
-    if cont_type == 'subject':
-        if next_part not in ['_id', 'code']:
-            return True
-    elif next_part in ['subject', 'info']:
-        return True
-
-    return False
-
-
 class DataView(object):
     """Executes data view queries against the database."""
     def __init__(self, desc):
         # The original data view description
         self.desc = desc
 
-        # Whether or not this query contains potential PHI
-        self._phi_access = False
-
-        # The set of accessed subjects
-        self._accessed_subjects = set()
+        # The access logger
+        self._access_log = create_access_logger()
 
         # The original file spec, if there was one
         self._file_spec = desc.get('fileSpec', None)
@@ -83,7 +70,7 @@ class DataView(object):
         if self._file_spec:
             self._file_container = containerutil.singularize(self._file_spec['container'])
             self._file_filter = file_filter_to_regex(self._file_spec['filter'])
-            self._phi_access = True # Any file access should be logged
+            self._access_log.set_file_container(self._file_container)
 
         # Contains the initial hierarchy tree for the target container
         self._tree = None
@@ -133,6 +120,10 @@ class DataView(object):
         # TODO: Allow subjects once formalized
         storage = ContainerStorage.factory(cont_type)
         self._tree = storage.get_parent_tree(container_id, cont=search_results[0], add_self=True)
+
+        # Set access log initial context
+        self._access_log.create_context(self._tree)
+        
         self._tree = [cont for cont in self._tree if cont['cont_type'] not in ['subjects', 'groups']]
         self._tree.reverse()
 
@@ -143,11 +134,6 @@ class DataView(object):
 
             # Also build the context as we go
             cont_type = containerutil.singularize(cont['cont_type'])
-
-            if cont_type == 'session':
-                subject = cont.get('subject', {}).get('code')
-                if subject:
-                    self._accessed_subjects.add(subject)
 
             self._context[cont_type] = cont
 
@@ -164,9 +150,9 @@ class DataView(object):
             dst = col.get('dst', src)
             container, field = src.split('.', 1)
 
-            # Any subject fields (other than _id, or code) and any info fields are considered PHI
-            if not self._phi_access and is_phi_field(container, src):
-                self._phi_access = True
+            # Any subject fields and any info fields are considered PHI
+            if self._access_log.is_phi_field(container, field):
+                self._access_log.add_container(container)
 
             if container == 'subject':
                 container = 'session'
@@ -269,27 +255,24 @@ class DataView(object):
                 key = '{}.{}'.format(cont_type, src)
                 context[dst] = extract_json_property(key, obj)
 
-    def execute(self, write_fn):
+    def execute(self, request, origin, write_fn):
         # Initialize the formatter
         self._formatter.initialize(write_fn, self._column_map)
 
-        rows = self._aggregator.execute()
-        # Access logging
-        if self._phi_access:
-            for row in rows:
-                pprint(row)
-                subject = row.pop(SUBJECT_CODE_KEY, None)
-                if subject:
-                    self._accessed_subjects.add(subject)
+        # Execute the aggregation query
+        cursor = self._aggregator.execute()
 
-            print('TODO: Log PHI access for subjects {}'.format(', '.join(self._accessed_subjects)))
-
-        # Extract as many values as possible into parent_context
         parent_context = {}
         self.extract_column_values(parent_context, self._context)
 
-        for row in rows:
+        # Build context values
+        rows = []
+        for row in cursor:
+            # Build context, match file, and perform access log
             cont_files = row.pop('files', None)
+
+            # Log context
+            meta = row.pop('_meta', None)
 
             # make a copy of context and update from row
             context = parent_context.copy()
@@ -297,38 +280,51 @@ class DataView(object):
 
             # Find the first matching, non-deleted file
             if self._file_spec is not None:
-                self.process_files(context, cont_files)
+                file_entry = self.match_file(cont_files)
+                filename = file_entry['name']
+            else:
+                file_entry = None
+                filename = None
+
+            # Add access log entries for this context/file
+            self._access_log.add_entries(meta, filename)
+
+            rows.append( (context, file_entry) )
+
+        # Write all of the access logs. If this fails, abort the request (allow exception to pass through)
+        self._access_log.write_logs(request, origin)
+
+        # Extract as many values as possible into parent_context
+        for context, file_entry in rows:
+            if file_entry:
+                self.process_file(context, file_entry)
             else:
                 self._formatter.write_row(context)
-
+            
         self._formatter.finalize()
-
-    def process_files(self, context, cont_files):
-        matched_file = None
-
+    
+    def match_file(self, files):
         # Find a matching, not-deleted file
-        for f in cont_files:
+        for f in files:
             if 'deleted' in f:
                 continue
             if self._file_filter.match(f['name']):
-                matched_file = f
-                break
+                return f
 
-        if matched_file:
-            # Open file and pass to file reader
-            reader = CsvFileReader()
-            file_path, file_system = files.get_valid_file(matched_file)
-            with file_system.open(file_path, 'r') as f:
-                # Determine file columns if not specified
-                reader.initialize(f, self._file_spec.get('formatOptions'))
-                for row in reader:
-                    row_context = context.copy()
-                    row_context.update(row)
+        return None
 
-                    self._formatter.write_row(row_context)
-        else:
-            #TODO: Invoke missing data handler, possibly defer this row
-            self._formatter.write_row(context)
+    def process_file(self, context, file_entry):
+        # Open file and pass to file reader
+        reader = CsvFileReader()
+        file_path, file_system = files.get_valid_file(file_entry)
+        with file_system.open(file_path, 'r') as f:
+            # Determine file columns if not specified
+            reader.initialize(f, self._file_spec.get('formatOptions'))
+            for row in reader:
+                row_context = context.copy()
+                row_context.update(row)
+
+                self._formatter.write_row(row_context)
 
 
 
