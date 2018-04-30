@@ -67,6 +67,9 @@ class DataView(object):
         # The file filter, or None
         self._file_filter = None
 
+        # The file columns, or None
+        self._file_columns = None
+
         if self._file_spec:
             self._file_container = containerutil.singularize(self._file_spec['container'])
             self._file_filter = file_filter_to_regex(self._file_spec['filter'])
@@ -89,6 +92,9 @@ class DataView(object):
 
         # A map of container to columns for that container that includes column indexes
         self._column_map = {}
+
+        # The ordered set of columns
+        self._flat_columns = []
 
         # The constructed aggregation pipeline
         self._aggregator = None
@@ -208,7 +214,24 @@ class DataView(object):
             if container not in self._column_map:
                 self._column_map[container] = []
 
-            self._column_map[container].append((src, dst, idx))
+            self._column_map[container].append((src, dst))
+            self._flat_columns.append(dst)
+
+    def initialize_file_columns(self, reader):
+        # file_data is a special column for file rows
+        cols = self._file_spec.get('columns')
+        if not cols:
+            cols = [{'src': x} for x in reader.get_columns()]
+
+        self._file_columns = []
+        for i in range(len(cols)):
+            col = cols[i]
+
+            src = col['src']
+            dst = col.get('dst', src)
+
+            self._file_columns.append((src, dst))
+            self._flat_columns.append(dst)
 
     def get_content_type(self):
         return self._formatter.get_content_type()
@@ -229,7 +252,7 @@ class DataView(object):
                 aggregator.filter_spec = { key_name: cont_id }
 
             stage = AggregationStage(child_cont_type)
-            for src, _dst, _idx in self._column_map.get(child_cont_type_singular, []):
+            for src, _dst in self._column_map.get(child_cont_type_singular, []):
                 stage.fields.append(src)
 
             # TODO: Should become if 'subject' then '$code' 
@@ -251,14 +274,12 @@ class DataView(object):
             if cont_type not in self._column_map:
                 continue
 
-            for src, dst, _idx in self._column_map[cont_type]:
+            for src, dst in self._column_map[cont_type]:
                 key = '{}.{}'.format(cont_type, src)
+                # TODO: Handle missing column
                 context[dst] = extract_json_property(key, obj)
 
     def execute(self, request, origin, write_fn):
-        # Initialize the formatter
-        self._formatter.initialize(write_fn, self._column_map)
-
         # Execute the aggregation query
         cursor = self._aggregator.execute()
 
@@ -294,12 +315,24 @@ class DataView(object):
         # Write all of the access logs. If this fails, abort the request (allow exception to pass through)
         self._access_log.write_logs(request, origin)
 
+        # Initialize the formatter for non-files
+        if not self._file_spec:
+            self._formatter.initialize(write_fn, self._flat_columns)
+
         # Extract as many values as possible into parent_context
+        rows_missing_files = []
         for context, file_entry in rows:
-            if file_entry:
-                self.process_file(context, file_entry)
+            if self._file_spec:
+                if file_entry:
+                    self.process_file(context, file_entry, write_fn)
+                else:
+                    rows_missing_files.append(context)
             else:
                 self._formatter.write_row(context)
+
+        for row in rows_missing_files:
+            # TODO: Handle missing file
+            pass
             
         self._formatter.finalize()
     
@@ -313,19 +346,29 @@ class DataView(object):
 
         return None
 
-    def process_file(self, context, file_entry):
+    def process_file(self, context, file_entry, write_fn):
         # Open file and pass to file reader
         reader = CsvFileReader()
         file_path, file_system = files.get_valid_file(file_entry)
         with file_system.open(file_path, 'r') as f:
             # Determine file columns if not specified
             reader.initialize(f, self._file_spec.get('formatOptions'))
+
+            # On the first file, initialize the file columns
+            if not self._file_columns:
+                # Initialize file_columns
+                self.initialize_file_columns(reader)
+
+                # Initialize the formatter
+                self._formatter.initialize(write_fn, self._flat_columns)
+
             for row in reader:
                 row_context = context.copy()
-                row_context.update(row)
+
+                for src, dst in self._file_columns:
+                    # TODO: handle missing data
+                    row_context[dst] = row.get(src)
 
                 self._formatter.write_row(row_context)
-
-
 
 

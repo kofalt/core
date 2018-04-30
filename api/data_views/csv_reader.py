@@ -13,3 +13,7 @@ class CsvFileReader(object):
 
     def __iter__(self):
         return self._reader
+
+    def get_columns(self):
+        return self._reader.fieldnames
+
