@@ -54,7 +54,7 @@ class HierarchyAggregator(object):
         """Build and execute the aggregation pipeline.
         
         Returns:
-            list: The set of aggregation results
+            pymongo.cursor.Cursor: A cursor to the set of aggregation results
         """
         pipeline = []
         collection = None
@@ -86,18 +86,32 @@ class HierarchyAggregator(object):
                 pipeline.append({'$unwind': '$' + coll_singular})
 
             # Add projection
-            id_field = '_meta.{}_id'.format(coll_singular)
-            sort_field = '_meta.{}_sort_key'.format(coll_singular)
+            id_field = '_meta.{}._id'.format(coll_singular)
+            label_field = '_meta.{}.label'.format(coll_singular)
+            sort_field = '_meta.{}._sort_key'.format(coll_singular)
 
             projection = {
                 '_id': 0,
                 id_field: '${}_id'.format(proj_pfx),
+                label_field: '${}label'.format(proj_pfx),
                 sort_field: '${}{}'.format(proj_pfx, stage.sort_key)
             }
 
+            if coll_singular == 'session':
+                subj_id_field = '_meta.subject._id'
+                subj_label_field = '_meta.subject.label'
+
+                projection[subj_id_field] = '${}subject._id'.format(proj_pfx)
+                projection[subj_label_field] = '${}subject.code'.format(proj_pfx)
+
             projection.update(carryover)
             carryover[id_field] = 1
+            carryover[label_field] = 1
             carryover[sort_field] = 1
+
+            if coll_singular == 'session':
+                carryover[subj_id_field] = 1
+                carryover[subj_label_field] = 1
 
             for src in stage.fields:
                 if isinstance(src, tuple):
@@ -119,6 +133,6 @@ class HierarchyAggregator(object):
            
         # Add sorting
         pipeline.append({'$sort': sort_keys})
-        
-        return list(collection.aggregate(pipeline))
+
+        return collection.aggregate(pipeline)
 
