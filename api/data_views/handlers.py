@@ -40,7 +40,7 @@ class DataViewHandler(base.RequestHandler):
                 ('Connection', 'keep-alive')
             ])
 
-            view.execute(write)
+            view.execute(self.request, self.origin, write)
 
             return ''
 
