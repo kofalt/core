@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 45 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 46 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1557,6 +1557,13 @@ def upgrade_to_45():
 
     cursor = config.db.projects.find({'template': {'$exists': True }})
     process_cursor(cursor, upgrade_templates_to_45)
+
+def upgrade_to_46():
+    """
+    Update gears to ensure they all have the created timestamp, will be set
+    to EPOCH if they don't have it
+    """
+    config.db.gears.update_many({"created":{"$exists":False}}, {'$set': {'created': datetime.datetime(1970,1,1), 'modified': datetime.datetime(1970,1,1)}})
 
 
 
