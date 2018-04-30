@@ -127,7 +127,7 @@ class DataView(object):
         storage = ContainerStorage.factory(cont_type)
         self._tree = storage.get_parent_tree(container_id, cont=search_results[0], add_self=True)
 
-        # Set access log initial context
+        # Set access log initial context (including group)
         self._access_log.create_context(self._tree)
         
         self._tree = [cont for cont in self._tree if cont['cont_type'] not in ['subjects', 'groups']]
