@@ -14,6 +14,8 @@ subject2 = {
     'age': years_to_secs(33)
 }
 
+subjects = [subject1, subject2]
+
 def csv_test_data(name, rows=5, delim=','):
     result = [ 'name{0}value{0}value2'.format(delim) ]
 
@@ -101,8 +103,6 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     assert rows[0]['acquisition'] == 'scout'
 
 def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
-    from pprint import pprint
-
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -129,6 +129,22 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
         }
     })
 
-    pprint(r.json())
     assert r.ok
+    rows = r.json()
+
+    assert len(rows) == 10
+
+    for i in range(2):
+        name_value = 'a{}'.format(i+1)
+        subject = subjects[i]
+        for j in range(5):
+            row = rows[i*5+j]
+
+            assert row['subject'] == subject['code']
+            assert row['subject.age'] == subject['age']
+            assert row['subject.sex'] == subject['sex']
+            assert row['name'] == name_value
+            assert row['value'] == str(j)
+            assert row['value2'] == str(2*j)
+
 
