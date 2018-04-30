@@ -1563,7 +1563,7 @@ def upgrade_to_46():
     Update gears to ensure they all have the created timestamp, will be set
     to EPOCH if they don't have it
     """
-    config.db.gears.update_many({"created":{"$exists":False}}, {'$set': {'created': datetime.datetime(1970,1,1), 'modified': datetime.datetime(1970,1,1)}})
+    config.db.gears.update_many({"created":{"$exists":False}}, {'$set': {'created': datetime.datetime(1970,1,1), 'modified': datetime.datetime.utcnow()}})
 
 
 
