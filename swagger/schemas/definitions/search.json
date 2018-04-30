@@ -42,6 +42,14 @@
             },
             "additionalProperties": false
         },
+        "save-search-update": {
+            "type":         "object",
+            "properties":   {
+                "label":        {"$ref":"common.json#/definitions/label"},
+                "search":       {"$ref": "#/definitions/search-query"}
+            },
+            "additionalProperties": false
+        },
     	"search-project-response": {
     		"type": "object",
     		"properties": {

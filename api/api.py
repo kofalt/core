@@ -119,8 +119,8 @@ endpoints = [
         # Search Saving
         route('/savesearches',                            SaveSearchHandler,                                m=['POST']),
         route('/savesearches',                            SaveSearchHandler,     h='get_all',               m=['GET']),
-        route('/savesearches/<sid:{cid}>',                SaveSearchHandler,                                m=['GET','DELETE']),
-        route('/savesearches/<sid:{cid}>',                SaveSearchHandler,     h='replace_search',        m=['PUT']),
+        route('/savesearches/<sid:{oid}>',                SaveSearchHandler,                                m=['GET','DELETE']),
+        route('/savesearches/<sid:{oid}>',                SaveSearchHandler,                                m=['PUT']),
 
         # Users
 
@@ -264,13 +264,8 @@ endpoints = [
 
         # Collections / Projects
 
-<<<<<<< HEAD
-        prefix('/<cont_name:collections|projects>', [
-            prefix('/<cid:{oid}>', [
-=======
         prefix('/<cont_name:collections|projects|savesearches>', [
-            prefix('/<cid:{cid}>', [
->>>>>>> refactored code to make names consistent
+            prefix('/<cid:{oid}>', [
                 route('/<list_name:permissions>',                          PermissionsListHandler, m=['POST']),
                 route('/<list_name:permissions>/<_id:{uid}>',              PermissionsListHandler, m=['GET', 'PUT', 'DELETE']),
             ]),

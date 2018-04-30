@@ -32,11 +32,11 @@ def test_search_saving(as_admin, data_builder):
     r = as_admin.get('/savesearches/' + search)
     assert r.ok
     assert r.json()['label'] == 'search1'
-    payload = r.json()
+    payload = {'label': 'newSearch'}
     payload['label'] = 'newSearch'
     r = as_admin.put('/savesearches/' + search, json=payload)
     assert r.ok
-    assert r.json()['_id'] == search
+    assert r.json()['modified'] == 1
     r = as_admin.get('/savesearches/' + search)
     assert r.ok
     assert r.json()['label'] == 'newSearch'

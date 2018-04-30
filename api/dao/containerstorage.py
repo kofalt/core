@@ -581,6 +581,3 @@ class SearchStorage(ContainerStorage):
             raise APIConflictException('Object with id {} already exists.'.format(payload['_id']))
         return result
 
-    def replace_el(self, search):
-        self.delete_el(search['_id'])
-        return self.create_el(search)
