@@ -242,13 +242,7 @@ def get_version():
     if not version_object:
         return version_object
 
-    try:
-        with open('/var/scitran/api_version.txt') as f:
-            api_version = f.read()
-            version_object['release'] = api_version
-    except IOError:
-        version_object['release'] = ''
-
+    version_object['release'] = get_release_version()
     return version_object
 
 
@@ -273,6 +267,20 @@ def mongo_pipeline(table, pipeline):
 def get_auth(auth_type):
     return get_config()['auth'][auth_type]
 
+# Application version file path
+release_version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../api_version.txt')
+release_version = ''
+
+def get_release_version():
+    """Get the semantic application release version (may be none)"""
+    global release_version
+    if not release_version and os.path.isfile(release_version_file_path):
+        try:
+            with open(release_version_file_path, 'r') as f:
+                release_version = f.read().strip()
+        except IOError:
+            pass
+    return release_version
 
 # Storage configuration
 fs = open_fs(__config['persistent']['fs_url'])
