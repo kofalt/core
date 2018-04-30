@@ -39,7 +39,7 @@ class FileProcessor(object):
         else:
             self._presistent_fs.move(src_path=fs.path.join('tmp', self._tempdir_name, src_path), dst_path=dst_path)
 
-    def process_form(self, request):
+    def process_form(self, request, use_filepath=False):
         """
         Some workarounds to make webapp2 process forms in an intelligent way.
         Normally webapp2/WebOb Reqest.POST would copy the entire request stream
@@ -64,8 +64,7 @@ class FileProcessor(object):
         env = request.environ.copy()
         env.setdefault('CONTENT_LENGTH', '0')
         env['QUERY_STRING'] = ''
-
-        field_storage_class = get_single_file_field_storage(self._temp_fs)
+        field_storage_class = get_single_file_field_storage(self._temp_fs, use_filepath=use_filepath)
 
         form = field_storage_class(
             fp=request.body_file, environ=env, keep_blank_values=True
@@ -117,7 +116,7 @@ class FileProcessor(object):
             self._presistent_fs.removetree(fs.path.join('tmp', self._tempdir_name))
 
 
-def get_single_file_field_storage(file_system):
+def get_single_file_field_storage(file_system, use_filepath=False):
     # pylint: disable=attribute-defined-outside-init
 
     # We dynamically create this class because we
@@ -135,11 +134,14 @@ def get_single_file_field_storage(file_system):
 
             self.hasher = hashlib.new(DEFAULT_HASH_ALG)
             # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
-            self.filename = util.sanitize_path(self.filename)
+            if use_filepath:
+                self.filename = util.sanitize_path(self.filename)
+            else:
+                self.filename = os.path.basename(self.filename)
             if not isinstance(self.filename, unicode):
                 self.filename = six.u(self.filename)
-            # If the filepath doesn't exist, make it
-            if not file_system.exists(os.path.dirname(self.filename)) and self.filename:
+            # If the filepath doesn't exist, make it IF the opted in to use full path as name
+            if  self.filename and os.path.dirname(self.filename) and not file_system.exists(os.path.dirname(self.filename)):
                 file_system.makedirs(os.path.dirname(self.filename))
             self.open_file = file_system.open(self.filename, 'wb')
             return self.open_file
