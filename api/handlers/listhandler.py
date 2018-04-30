@@ -211,8 +211,7 @@ class PermissionsListHandler(ListHandler):
         _id = kwargs.get('cid')
 
         payload = self.request.json_body
-        user_ids = [user['_id'] for user in containerstorage.ContainerStorage('users', use_object_id=False).get_all_el({}, None, None)]
-        if payload.get('_id') not in user_ids:
+        if not self._user_exists(payload.get('_id')):
             raise APIUnknownUserException('Cannot add permission for unknown user {}'.format(payload.get('_id')))
 
         result = super(PermissionsListHandler, self).post(cont_name, list_name, **kwargs)
@@ -266,6 +265,11 @@ class PermissionsListHandler(ListHandler):
             except APIStorageException:
                 self.abort(500, 'permissions not propagated from {} {} down hierarchy'.format(cont_name, _id))
 
+    def _user_exists(self, uid):
+        """
+        Checks if user exists
+        """
+        return bool(containerstorage.ContainerStorage('users', use_object_id=False).get_all_el({'_id': uid}, None, {'_id':1}))
 
 class NotesListHandler(ListHandler):
     """
