@@ -14,7 +14,11 @@ subject2 = {
     'age': years_to_secs(33)
 }
 
-subjects = [subject1, subject2]
+subject3 = {
+    'code': '1003'
+}
+
+subjects = [subject1, subject2, subject3]
 
 def csv_test_data(name, rows=5, delim=','):
     result = [ 'name{0}value{0}value2'.format(delim) ]
@@ -147,4 +151,95 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
             assert row['value'] == str(j)
             assert row['value2'] == str(2*j)
 
+
+def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
+    session3 = data_builder.create_session(project=project, subject=subject3, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    acquisition2 = data_builder.create_acquisition(session=session2, label='scout')
+    acquisition3 = data_builder.create_acquisition(session=session3, label='scout')
+    
+    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    assert as_admin.post('/acquisitions/' + acquisition2 + '/files', files=file_form1).ok
+
+    file_form2 = file_form(('values.csv', csv_test_data('a2')))
+    assert as_admin.post('/acquisitions/' + acquisition3 + '/files', files=file_form2).ok
+
+    # ============================
+    # Default missing data strategy (replace values with null)
+    # ============================
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.csv' }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()
+
+    assert len(rows) == 11
+
+    for i in range(2):
+        name_value = 'a{}'.format(i+1)
+        subject = subjects[i+1]
+        for j in range(5):
+            row = rows[i*5+j]
+
+            assert row['subject'] == subject['code']
+            assert row['subject.age'] == subject.get('age')
+            assert row['subject.sex'] == subject.get('sex')
+            assert row['name'] == name_value
+            assert row['value'] == str(j)
+            assert row['value2'] == str(2*j)
+
+    # Subject with no file is last
+    row = rows[10]
+    assert row['subject'] == subject1['code']
+    assert row['subject.age'] == subject1['age']
+    assert row['subject.sex'] == subject1['sex']
+    assert row['name'] == None
+    assert row['value'] == None 
+    assert row['value2'] == None
+
+    # ============================
+    # Drop rows missing data strategy
+    # ============================
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'missingDataStrategy': 'drop-row',
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.csv' }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()
+
+    assert len(rows) == 5
+    for i in range(5):
+        row = rows[i]
+
+        assert row['subject'] == subject2['code']
+        assert row['subject.age'] == subject2.get('age')
+        assert row['subject.sex'] == subject2.get('sex')
+        assert row['name'] == 'a1'
+        assert row['value'] == str(i)
+        assert row['value2'] == str(2*i)
 
