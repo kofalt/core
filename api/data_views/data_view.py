@@ -25,7 +25,8 @@ from .access_logger import create_access_logger
 from .json_formatter import JsonFormatter
 from .csv_reader import CsvFileReader
 from .hierarchy_aggregator import HierarchyAggregator, AggregationStage
-from .util import extract_json_property, file_filter_to_regex
+from .util import extract_json_property, file_filter_to_regex, nil_value
+from .missing_data_strategies import get_missing_data_strategy
 
 # TODO: subjects belong here once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
@@ -99,6 +100,9 @@ class DataView(object):
         # The constructed aggregation pipeline
         self._aggregator = None
 
+        # The row writer
+        self._writer = None
+
     def prepare(self, container_id, output_format, uid):
         """ Prepare the data view execution by looking up container_id and checking permissions.
         
@@ -109,6 +113,9 @@ class DataView(object):
         """
         if output_format == 'json':
             self._formatter = JsonFormatter()
+
+        missing_data_strategy = self.desc.get('missingDataStrategy')
+        self._writer = get_missing_data_strategy(missing_data_strategy, self._formatter)
 
         container_id = normalize_id(container_id)
 
@@ -276,8 +283,7 @@ class DataView(object):
 
             for src, dst in self._column_map[cont_type]:
                 key = '{}.{}'.format(cont_type, src)
-                # TODO: Handle missing column
-                context[dst] = extract_json_property(key, obj)
+                context[dst] = extract_json_property(key, obj, default=nil_value)
 
     def execute(self, request, origin, write_fn):
         # Execute the aggregation query
@@ -302,7 +308,10 @@ class DataView(object):
             # Find the first matching, non-deleted file
             if self._file_spec is not None:
                 file_entry = self.match_file(cont_files)
-                filename = file_entry['name']
+                if file_entry:
+                    filename = file_entry['name']
+                else:
+                    filename = None
             else:
                 file_entry = None
                 filename = None
@@ -328,21 +337,25 @@ class DataView(object):
                 else:
                     rows_missing_files.append(context)
             else:
-                self._formatter.write_row(context)
+                self._writer.write_row(context)
 
         for row in rows_missing_files:
-            # TODO: Handle missing file
-            pass
+            # Handle missing file data by replacing values with nil
+            for _src, dst in self._file_columns:
+                row[dst] = nil_value
+
+            self._writer.write_row(row, nil_hint=True)
             
         self._formatter.finalize()
     
     def match_file(self, files):
         # Find a matching, not-deleted file
-        for f in files:
-            if 'deleted' in f:
-                continue
-            if self._file_filter.match(f['name']):
-                return f
+        if files is not None:
+            for f in files:
+                if 'deleted' in f:
+                    continue
+                if self._file_filter.match(f['name']):
+                    return f
 
         return None
 
@@ -366,9 +379,8 @@ class DataView(object):
                 row_context = context.copy()
 
                 for src, dst in self._file_columns:
-                    # TODO: handle missing data
-                    row_context[dst] = row.get(src)
+                    row_context[dst] = row.get(src, nil_value)
 
-                self._formatter.write_row(row_context)
+                self._writer.write_row(row_context)
 
 
