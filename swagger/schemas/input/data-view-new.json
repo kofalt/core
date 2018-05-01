@@ -2,10 +2,9 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type":"object",
     "allOf":[{"$ref":"../definitions/data-view.json#/definitions/data-view-input"}],
-    "required":["parent", "label", "columns"],
+    "required":["label", "columns"],
     "example": {
         "label": "Subject response data",
-        "parent": "5ada5483620be23aa6ae1798",
         "includeLabels": false,
         "columns": [
             { "src": "subject.code", "dst": "subject" },
