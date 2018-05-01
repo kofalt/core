@@ -67,7 +67,8 @@ class Flywheel:
 
         # Perform version check
         if not skip_version_check and not os.environ.get('FLYWHEEL_SDK_SKIP_VERSION_CHECK'):
-            self.perform_version_check()
+            self.api_client.set_version_check_fn(self.perform_version_check)
+
     {{#apis}}
     {{#operations}}
     {{#operation}}
