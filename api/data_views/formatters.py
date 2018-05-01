@@ -2,8 +2,12 @@
 import json
 from ..web.encoder import custom_json_serializer
 
+def get_formatter(strategy):
+    if not strategy or strategy == 'json':
+        return JsonObjectFormatter()
+    raise ValueError('Unknown formatter type: {}'.format(strategy))
 
-class JsonFormatter(object):
+class JsonObjectFormatter(object):
     def __init__(self):
         self._write = None
         self._first_row = True
