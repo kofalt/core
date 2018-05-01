@@ -273,7 +273,7 @@ release_version = ''
 
 def get_release_version():
     """Get the semantic application release version (may be none)"""
-    global release_version
+    global release_version #pylint: disable=global-statement
     if not release_version and os.path.isfile(release_version_file_path):
         try:
             with open(release_version_file_path, 'r') as f:
