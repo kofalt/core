@@ -8,9 +8,17 @@ from __future__ import absolute_import
 
 {{#apiInfo}}
 
+import os
+import platform
+import logging
+
+log = logging.getLogger('Flywheel')
+
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.api_client import  ApiClient
 import {{apiPackage}}
+
+SDK_VERSION = "{{packageVersion}}"
 
 def config_from_api_key(api_key):
     parts = api_key.split(':')
@@ -37,7 +45,10 @@ def config_from_api_key(api_key):
     return config
 
 class Flywheel:
-    def __init__(self, api_key, root=False):
+    def __init__(self, api_key, root=False, skip_version_check=False):
+        # Init logging
+        logging.basicConfig()
+
         # Parse API Key and configure api_client
         config = config_from_api_key(api_key)
         self.api_client = ApiClient(config)
@@ -46,10 +57,17 @@ class Flywheel:
         if root:
             self.api_client.set_default_query_param('root', 'true')
 
+        self.api_client.user_agent = 'Flywheel SDK/{} (Python {}; {})'.format(SDK_VERSION,
+            platform.python_version(), platform.system())
+
         # Initialize Apis
         {{#apis}}
         self.{{classVarName}} = {{apiPackage}}.{{classname}}(self.api_client)
         {{/apis}}
+
+        # Perform version check
+        if not skip_version_check and not os.environ.get('FLYWHEEL_SDK_SKIP_VERSION_CHECK'):
+            self.perform_version_check()
     {{#apis}}
     {{#operations}}
     {{#operation}}
@@ -103,6 +121,48 @@ class Flywheel:
     {{/operation}}
     {{/operations}}
     {{/apis}}
+
+    def perform_version_check(self):
+        import re
+        import warnings
+
+        VERSION_RE = re.compile(r'^(?P<semver>(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<patch>\d+)))?.*')
+        release_version = ''
+        try:
+            version_info = self.default_api.get_version()
+            release_version = version_info.release
+        except:
+            pass
+
+        # If not sdk version
+        sdk_version_match = VERSION_RE.match(SDK_VERSION)
+        if release_version:
+            release_version_match = VERSION_RE.match(release_version)
+        else:
+            release_version_match = None
+
+        log_level = logging.WARNING
+        versions_match = False
+        if sdk_version_match and release_version_match:
+            # Compare major/minor version
+            sdk_major = int(sdk_version_match.group('major'))
+            sdk_minor = int(sdk_version_match.group('minor'))
+
+            release_major = int(release_version_match.group('major'))
+            release_minor = int(release_version_match.group('minor'))
+
+            if sdk_major == release_major and sdk_minor == release_minor:
+                versions_match = True
+                log_level = logging.INFO
+
+        log.log(log_level, 'Server API Version: {}'.format(release_version))
+        log.log(log_level, 'Client SDK Version: {}'.format(SDK_VERSION))
+
+        if not versions_match:
+            warnings.warn('Client and server versions do not match. This is an unsupported configuration!')
+            if release_version_match:
+                log.warning('Use "pip install flywheel-sdk~={}" '.format(release_version_match.group('semver')) +
+                    'to install a compatible version for this server')
 
 {{>flywheel_methods}}
 
