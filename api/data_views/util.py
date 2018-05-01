@@ -54,3 +54,24 @@ def file_filter_to_regex(filter_spec):
     except re.error:
         raise InputValidationException('Invalid filter spec: {}'.format(filter_spec['value']))
 
+class NilValue(object):
+    def __repr__(self):
+        return 'nil'
+
+nil_value = NilValue()
+
+def is_nil(val):
+    """Check if the given value is nil"""
+    return isinstance(val, NilValue)
+
+def contains_nil(obj, nil_hint=False):
+    """Check if the given dict contains any nil_value sentinal values"""
+    if nil_hint:
+        return True
+
+    for val in obj.itervalues():
+        if is_nil(val):
+            return True
+
+    return False
+
