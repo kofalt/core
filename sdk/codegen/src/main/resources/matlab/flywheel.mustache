@@ -39,6 +39,7 @@ classdef Flywheel < handle
         {{classVarName}}
         {{/apis}}
         {{/apiInfo}}
+        checkVersion
     end
     methods
         function obj = Flywheel(apiKey, root, skipVersionCheck)
@@ -49,9 +50,9 @@ classdef Flywheel < handle
                 obj.apiClient.restClient.addDefaultParameter('root', 'true');
             end
 
-            checkVersion = isempty(getenv('FLYWHEEL_SDK_SKIP_VERSION_CHECK'));
-            if checkVersion && exist('skipVersionCheck', 'var') && skipVersionCheck
-                checkVersion = false;
+            obj.checkVersion = isempty(getenv('FLYWHEEL_SDK_SKIP_VERSION_CHECK'));
+            if obj.checkVersion && exist('skipVersionCheck', 'var') && skipVersionCheck
+                obj.checkVersion = false;
             end
 
             userAgent = sprintf('Flywheel SDK/%s (Matlab %s; %s)', {{packageName}}.Flywheel.SDK_VERSION, version, computer);
@@ -64,9 +65,7 @@ classdef Flywheel < handle
             {{/apiInfo}}
 
             % Perform version check
-            if checkVersion
-                obj.apiClient.setVersionCheckFn(@() obj.performVersionCheck());
-            end
+            obj.apiClient.setVersionCheckFn(@() obj.performVersionCheck());
         end
         {{#apiInfo}}
         {{#apis}}
@@ -96,7 +95,8 @@ classdef Flywheel < handle
 {{>flywheel_methods}}
 
         function performVersionCheck(obj)
-            sdkVer = obj.parseVersion({{packageName}}.Flywheel.SDK_VERSION);
+            sdkVersion = {{packageName}}.Flywheel.SDK_VERSION;
+            [sdkMajor, sdkMinor] = obj.parseVersion(sdkVersion);
             releaseVersion = '';
             try
                 serverVersion = obj.defaultApi.getVersion();
@@ -104,31 +104,48 @@ classdef Flywheel < handle
             catch ME
             end
 
-            releaseVer = obj.parseVersion(releaseVersion);
+            [releaseMajor, releaseMinor] = obj.parseVersion(releaseVersion);
 
-            versionsMatch = false;
-            if ~isempty(sdkVer) && ~isempty(releaseVer)
-                versionsMatch = strcmp(sdkVer, releaseVer);
+            % Log conditionals:
+            % 1. Client or server version not set
+            % 2. Major version mismatch
+            % 3. SDK Minor version > Server Minor version (client features not available on server)
+            % 4. SDK Minor version < Server Minor version (new features on server)
+            showPackageVersion = false;
+
+            if releaseMajor > 0 && sdkMajor > 0
+                if sdkMajor ~= releaseMajor
+                    if isempty(strfind(sdkVersion, 'dev'))
+                        warning('Flywheel:versionMismatch', sprintf('Client version %s does not match server version %s. Please update your client version!', sdkVersion, releaseVersion));
+                        showPackageVersion = true;
+                    end
+                elseif obj.checkVersion
+                    if sdkMinor > releaseMinor
+                        fprintf('Client version %s is ahead of server version %s. Not all client functionality will be supported by the server.\n', sdkVersion, releaseVersion);
+                        showPackageVersion = true;
+                    elseif sdkMinor < releaseMinor
+                        fprintf('Client version %s is behind of server version %s. Please consider upgrading your client to access all available functionality.\n', sdkVersion, releaseVersion);
+                        showPackageVersion = true;
+                    end
+                end
+            elseif obj.checkVersion
+                warning('Flywheel:versionUnavailable', 'Client or server version not available! This is an unsupported configuration!');
             end
 
-            fprintf('Server API Version: %s\n', releaseVersion);
-            fprintf('Client SDK Version: %s\n', {{packageName}}.Flywheel.SDK_VERSION);
-
-            if ~versionsMatch
-                warning('Flywheel:versionMismatch', 'Client and server versions do not match. This is an unsupported configuration!');
-                if ~isempty(releaseVersion)
-                    fprintf('Go to https://github.com/flywheel-io/core/releases to find a matching package for version: %s\n', releaseVersion);
-                end
+            if showPackageVersion
+                fprintf('Go to https://github.com/flywheel-io/core/releases to find a matching package for version: %s\n', releaseVersion);
             end
         end
-        function result = parseVersion(obj, s)
+        function [major, minor] = parseVersion(obj, s)
             if isempty(s)
-                result = '';
+                major = 0;
+                minor = 0;
             else
                 parts = strsplit(s, '[^\d\.]+', 'DelimiterType', 'RegularExpression');
                 semver = parts{1};
                 parts = strsplit(semver, '.');
-                result = sprintf('%s.%s', parts{1}, parts{2});
+                major = str2num(parts{1});
+                minor = str2num(parts{2});
             end
         end
     end

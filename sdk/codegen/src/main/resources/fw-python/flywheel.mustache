@@ -66,8 +66,8 @@ class Flywheel:
         {{/apis}}
 
         # Perform version check
-        if not skip_version_check and not os.environ.get('FLYWHEEL_SDK_SKIP_VERSION_CHECK'):
-            self.api_client.set_version_check_fn(self.perform_version_check)
+        self.check_version = not skip_version_check and not os.environ.get('FLYWHEEL_SDK_SKIP_VERSION_CHECK')
+        self.api_client.set_version_check_fn(self.perform_version_check)
 
     {{#apis}}
     {{#operations}}
@@ -142,8 +142,13 @@ class Flywheel:
         else:
             release_version_match = None
 
-        log_level = logging.WARNING
-        versions_match = False
+        # Log conditionals:
+        # 1. Client or server version not set
+        # 2. Major version mismatch
+        # 3. SDK Minor version > Server Minor version (client features not available on server)
+        # 4. SDK Minor version < Server Minor version (new features on server)
+
+        show_pip_message = False
         if sdk_version_match and release_version_match:
             # Compare major/minor version
             sdk_major = int(sdk_version_match.group('major'))
@@ -152,18 +157,27 @@ class Flywheel:
             release_major = int(release_version_match.group('major'))
             release_minor = int(release_version_match.group('minor'))
 
-            if sdk_major == release_major and sdk_minor == release_minor:
-                versions_match = True
-                log_level = logging.INFO
+            if sdk_major != release_major:
+                if SDK_VERSION.find('dev') == -1:
+                    # Always print version mismatch
+                    warnings.warn('Client version {} does not match server version {}. Please update your client version!'.format(SDK_VERSION, release_version))
+                    show_pip_message = True
 
-        log.log(log_level, 'Server API Version: {}'.format(release_version))
-        log.log(log_level, 'Client SDK Version: {}'.format(SDK_VERSION))
+            elif self.check_version:
+                if sdk_minor > release_minor:
+                    log.warning('Client version {} is ahead of server version {}. '.format(SDK_VERSION, release_version) +
+                        'Not all client functionality will be supported by the server.')
+                    show_pip_message = True
+                elif sdk_minor < release_minor:
+                    log.warning('Client version {} is behind server version {}. '.format(SDK_VERSION, release_version) +
+                        'Please consider upgrading your client to access all available functionality.')
+                    show_pip_message = True
+        elif self.check_version:
+            warnings.warn('Client or server version not available! This is an unsupported configuration!')
 
-        if not versions_match:
-            warnings.warn('Client and server versions do not match. This is an unsupported configuration!')
-            if release_version_match:
-                log.warning('Use "pip install flywheel-sdk~={}" '.format(release_version_match.group('semver')) +
-                    'to install a compatible version for this server')
+        if show_pip_message:
+            log.warning('Use "pip install flywheel-sdk~={}" '.format(release_version_match.group('semver')) +
+                'to install a compatible version for this server')
 
 {{>flywheel_methods}}
 
