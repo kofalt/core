@@ -22,7 +22,7 @@ from ..dao.basecontainerstorage import ContainerStorage, CHILD_MAP
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 
 from .access_logger import create_access_logger
-from .json_formatter import JsonFormatter
+from .formatters import get_formatter
 from .csv_reader import CsvFileReader
 from .hierarchy_aggregator import HierarchyAggregator, AggregationStage
 from .util import extract_json_property, file_filter_to_regex, nil_value
@@ -111,8 +111,7 @@ class DataView(object):
             output_format (str): The expected output format (e.g. json)
             uid (str): The user id to use when checking container permissions.        
         """
-        if output_format == 'json':
-            self._formatter = JsonFormatter()
+        self._formatter = get_formatter(output_format)
 
         missing_data_strategy = self.desc.get('missingDataStrategy')
         self._writer = get_missing_data_strategy(missing_data_strategy, self._formatter)
