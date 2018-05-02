@@ -21,18 +21,18 @@ def extract_json_property(name, obj, default=None):
             try:
                 obj = obj[int(path_el)]
             except IndexError:
-                obj = None
+                obj = nil_value 
             except ValueError:
-                obj = None
+                obj = nil_value 
         elif isinstance(obj, collections.Mapping):
-            obj = obj.get(path_el, None)
+            obj = obj.get(path_el, nil_value)
         else:
-            obj = getattr(obj, path_el, None)
+            obj = getattr(obj, path_el, nil_value)
 
-        if obj is None:
+        if is_nil(obj) or obj is None: 
             break
 
-    if obj is None:
+    if is_nil(obj):
         return default
 
     return obj
