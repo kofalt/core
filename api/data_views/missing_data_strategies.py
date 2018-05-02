@@ -12,11 +12,11 @@ class DropRowStrategy(object):
     def __init__(self, formatter):
         self._formatter = formatter
 
-    def write_row(self, context, nil_hint=False):
+    def write_row(self, context, columns, nil_hint=False):
         if contains_nil(context, nil_hint):
             return
 
-        self._formatter.write_row(context)
+        self._formatter.write_row(context, columns)
 
 class ReplaceDataStrategy(object):
     """Missing value handler that will replace missing data with the given value"""
@@ -24,10 +24,10 @@ class ReplaceDataStrategy(object):
         self._formatter = formatter
         self._replacement_value = None
 
-    def write_row(self, context, nil_hint=False):
+    def write_row(self, context, columns, nil_hint=False):
         for key in context.keys():
             if is_nil(context[key]):
                 context[key] = self._replacement_value
 
-        self._formatter.write_row(context)
+        self._formatter.write_row(context, columns)
 
