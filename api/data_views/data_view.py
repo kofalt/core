@@ -27,6 +27,9 @@ from .csv_reader import CsvFileReader
 from .hierarchy_aggregator import HierarchyAggregator, AggregationStage
 from .util import extract_json_property, file_filter_to_regex, nil_value
 from .missing_data_strategies import get_missing_data_strategy
+from .file_opener import FileOpener
+
+log = config.log
 
 # TODO: subjects belong here once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
@@ -68,13 +71,20 @@ class DataView(object):
         # The file filter, or None
         self._file_filter = None
 
-        # The file columns, or None
-        self._file_columns = None
+        # The file columns
+        self._file_columns = []
+
+        # The zip file filter or None
+        self._zip_file_filter = None
 
         if self._file_spec:
             self._file_container = containerutil.singularize(self._file_spec['container'])
             self._file_filter = file_filter_to_regex(self._file_spec['filter'])
             self._access_log.set_file_container(self._file_container)
+
+            zip_filter = self._file_spec.get('zipMember')
+            if zip_filter:
+                self._zip_file_filter = file_filter_to_regex(zip_filter)
 
         # Contains the initial hierarchy tree for the target container
         self._tree = None
@@ -229,7 +239,6 @@ class DataView(object):
         if not cols:
             cols = [{'src': x} for x in reader.get_columns()]
 
-        self._file_columns = []
         for i in range(len(cols)):
             col = cols[i]
 
@@ -323,27 +332,28 @@ class DataView(object):
         # Write all of the access logs. If this fails, abort the request (allow exception to pass through)
         self._access_log.write_logs(request, origin)
 
-        # Initialize the formatter for non-files
-        if not self._file_spec:
-            self._formatter.initialize(write_fn, self._flat_columns)
+        # Initialize the formatter
+        self._formatter.initialize(write_fn)
 
         # Extract as many values as possible into parent_context
         rows_missing_files = []
         for context, file_entry in rows:
             if self._file_spec:
                 if file_entry:
-                    self.process_file(context, file_entry, write_fn)
+                    if not self.process_file(context, file_entry, write_fn):
+                        rows_missing_files.append(context)
                 else:
                     rows_missing_files.append(context)
             else:
-                self._writer.write_row(context)
+                self._writer.write_row(context, self._flat_columns)
 
-        for row in rows_missing_files:
-            # Handle missing file data by replacing values with nil
-            for _src, dst in self._file_columns:
-                row[dst] = nil_value
+        if rows_missing_files:
+            for row in rows_missing_files:
+                # Handle missing file data by replacing values with nil
+                for _src, dst in self._file_columns:
+                    row[dst] = nil_value
 
-            self._writer.write_row(row, nil_hint=True)
+                self._writer.write_row(row, self._flat_columns, nil_hint=True)
             
         self._formatter.finalize()
     
@@ -359,27 +369,31 @@ class DataView(object):
         return None
 
     def process_file(self, context, file_entry, write_fn):
-        # Open file and pass to file reader
+        try:
+            with FileOpener(file_entry, self._zip_file_filter) as opened_file:
+                self.process_file_data(context, opened_file.fd, write_fn)
+            return True
+        except Exception:
+            log.exception('Could not open {}'.format(file_entry['name']))
+            return False
+
+    def process_file_data(self, context, fd, write_fn):
+        # Determine file columns if not specified
         reader = CsvFileReader()
-        file_path, file_system = files.get_valid_file(file_entry)
-        with file_system.open(file_path, 'r') as f:
-            # Determine file columns if not specified
-            reader.initialize(f, self._file_spec.get('formatOptions'))
+        reader.initialize(fd, self._file_spec.get('formatOptions'))
 
-            # On the first file, initialize the file columns
-            if not self._file_columns:
-                # Initialize file_columns
-                self.initialize_file_columns(reader)
+        # On the first file, initialize the file columns
+        if not self._file_columns:
+            # Initialize file_columns
+            self.initialize_file_columns(reader)
 
-                # Initialize the formatter
-                self._formatter.initialize(write_fn, self._flat_columns)
+        for row in reader:
+            row_context = context.copy()
 
-            for row in reader:
-                row_context = context.copy()
+            for src, dst in self._file_columns:
+                row_context[dst] = row.get(src, nil_value)
 
-                for src, dst in self._file_columns:
-                    row_context[dst] = row.get(src, nil_value)
+            self._writer.write_row(row_context, self._flat_columns)
 
-                self._writer.write_row(row_context)
 
 

@@ -15,11 +15,10 @@ class JsonObjectFormatter(object):
     def get_content_type(self):
         return 'application/json; charset=utf-8'
 
-    def initialize(self, write_fn, columns):
+    def initialize(self, write_fn):
         self._write = write_fn
-        self._columns = columns
 
-    def write_row(self, context):
+    def write_row(self, context, columns):
         if self._first_row:
             self._write('[')
         else:
@@ -31,4 +30,8 @@ class JsonObjectFormatter(object):
         self._first_row = False
 
     def finalize(self):
-        self._write(']')
+        # If we wrote no rows, write an empty array
+        if self._first_row:
+            self._write('[]')
+        else:
+            self._write(']')
