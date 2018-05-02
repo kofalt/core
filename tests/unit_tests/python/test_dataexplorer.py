@@ -10,7 +10,7 @@ class TestTransportError(elasticsearch.TransportError):
     def __str__(self):
         return 'TestTransportError'
 
-def test_search(as_public, as_drone, es):
+def test_search(as_public, as_drone, es, as_user):
     # try to search w/o login
     r = as_public.post('/dataexplorer/search')
     assert r.status_code == 403
@@ -184,6 +184,13 @@ def test_search(as_public, as_drone, es):
         index='data_explorer')
     assert r.ok
     assert r.json['results'] == formatted_file_results
+
+    # User search without root and all_data set to true
+    r = as_user.post('/dataexplorer/search', json={'return_type': cont_type, 'all_data': True, 'search_string': search_str, 'filters': [
+        {'terms': {filter_key: filter_value}},
+        {'range': filter_range},
+    ]})
+    assert r.status_code == 403
 
     # file search w/ search null filter
     es.search.return_value = {'hits': {'hits': copy.deepcopy(raw_file_results)}}

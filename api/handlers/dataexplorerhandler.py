@@ -8,7 +8,9 @@ from .. import config, validators
 from ..auth import require_login, require_superuser, groupauth
 from ..dao import noop
 from ..dao.containerstorage import QueryStorage
-from ..web.errors import APIStorageException
+from ..web.errors import APIStorageException, APIPermissionException
+
+log = config.log
 
 # pylint: disable=pointless-string-statement
 """
@@ -372,8 +374,11 @@ class DataExplorerHandler(base.RequestHandler):
             else:
                 modified_filters.append(f)
 
+        # Must be site admin to search all data
+        if request.get('all_data', False) and not self.user_is_admin:
+            raise APIPermissionException("Must have site admin privileges to search across all data")
         # Add permissions filter to list if user is not requesting all data or is superuser
-        if not request.get('all_data', False) and not self.superuser_request:
+        elif not request.get('all_data', False) and not self.superuser_request:
             modified_filters.append({'term': {'permissions._id': self.uid}})
 
         # Only return objects that have not been marked as deleted

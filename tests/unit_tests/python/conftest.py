@@ -5,12 +5,13 @@ import datetime
 import json
 import logging
 import os
-
+import binascii
 import attrdict
 import mock
 import mongomock
 import pytest
 import webapp2
+import datetime
 
 import api.config
 
@@ -26,12 +27,40 @@ def as_drone(app):
         'X-SciTran-Auth': SCITRAN_CORE_DRONE_SECRET,
     })
 
-
 @pytest.fixture(scope='session')
 def as_public(app):
     """Return ApiAccessor without authentication"""
     return ApiAccessor(app)
 
+
+SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
+
+
+@pytest.fixture(scope='session')
+def as_user(app, as_drone, api_db):
+    api_db.users.insert_one({
+        "_id" : "user@user.io",
+        "firstname" : "User",
+        "created" : datetime.datetime.utcnow(),
+        "lastname" : "Name",
+        "modified" : datetime.datetime.utcnow(),
+        "avatars" : {
+            "provider" : "https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg"
+        },
+        "root" : False,
+        "email" : "user@user.io",
+        "avatar" : "https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg",
+        "firstlogin" : datetime.datetime.utcnow(),
+        "lastlogin" : datetime.datetime.utcnow()
+    })
+    api_db.apikeys.insert_one({
+                '_id': SCITRAN_USER_API_KEY,
+                'created': datetime.datetime.utcnow(),
+                'last_seen': None,
+                'type': 'user',
+                'uid': "user@user.io"
+            })
+    return ApiAccessor(app, headers={'Authorization': 'scitran-user {}'.format(SCITRAN_USER_API_KEY)})
 
 @pytest.fixture(scope='session')
 def api_db(app):
