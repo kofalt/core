@@ -23,7 +23,7 @@ from ..web.errors import APIPermissionException, APINotFoundException, InputVali
 
 from .access_logger import create_access_logger
 from .formatters import get_formatter
-from .csv_reader import CsvFileReader
+from .readers import create_file_reader
 from .hierarchy_aggregator import HierarchyAggregator, AggregationStage
 from .util import extract_json_property, file_filter_to_regex, nil_value
 from .missing_data_strategies import get_missing_data_strategy
@@ -371,16 +371,16 @@ class DataView(object):
     def process_file(self, context, file_entry, write_fn):
         try:
             with FileOpener(file_entry, self._zip_file_filter) as opened_file:
-                self.process_file_data(context, opened_file.fd, write_fn)
+                self.process_file_data(context, opened_file.name, opened_file.fd, write_fn)
             return True
         except Exception:
             log.exception('Could not open {}'.format(file_entry['name']))
             return False
 
-    def process_file_data(self, context, fd, write_fn):
+    def process_file_data(self, context, filename, fd, write_fn):
         # Determine file columns if not specified
-        reader = CsvFileReader()
-        reader.initialize(fd, self._file_spec.get('formatOptions'))
+        reader = create_file_reader(fd, filename, 
+            self._file_spec.get('format'), self._file_spec.get('formatOptions', {}))
 
         # On the first file, initialize the file columns
         if not self._file_columns:

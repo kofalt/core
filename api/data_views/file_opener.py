@@ -19,6 +19,13 @@ class FileOpener(object):
         # This is the final _fd for reading
         self._fd = None
 
+        # The final filename
+        self._name = file_entry['name']
+
+    @property
+    def name(self):
+        return self._name.lower()
+
     @property
     def fd(self):
         return self._fd
@@ -34,11 +41,11 @@ class FileOpener(object):
 
         if self.zip_filter or gz:
             open_mode = 'rb'
-        
         try:
+            # Open the file using file_system
             file_path, file_system = files.get_valid_file(self.file_entry)
-            
             self._system_fd = file_system.open(file_path, open_mode)
+
             if self.zip_filter:
                 # Open zipfile
                 self._zipfile = zipfile.ZipFile(self._system_fd)
@@ -54,9 +61,11 @@ class FileOpener(object):
                     raise RuntimeError('Could not find matching zip entry in zip file: {}'.format(self.file_entry['name']))
 
                 self._fd = self._zipfile.open(path, 'r')
+                self._name = path
             elif gz:
                 # Open as gzip
                 self._fd = gzip.GzipFile(fileobj=self._system_fd, mode='r')
+                self._name, _ext = os.path.splitext(self._name)
             else:
                 # Read file directly
                 self._fd = self._system_fd
