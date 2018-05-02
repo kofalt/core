@@ -191,6 +191,38 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
             assert row['value'] == str(j)
             assert row['value2'] == str(2*j)
 
+def test_adhoc_data_view_tsv_file(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('values.tsv', csv_test_data('a1', delim='\t')))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.tsv' }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()
+
+    assert len(rows) == 5
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row['subject'] == subject1['code']
+        assert row['name'] == 'a1' 
+        assert row['value'] == str(i)
+        assert row['value2'] == str(2*i)
 
 def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
