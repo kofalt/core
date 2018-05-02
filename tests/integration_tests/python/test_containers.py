@@ -800,7 +800,7 @@ def test_edit_file_info(data_builder, as_admin, file_form):
 
     r = as_admin.post('/projects/' + project + '/files', files=file_form(file_name))
     assert r.ok
-    r = as_admin.post('/projects/' + project + '/files', files=file_form(file_name_fwd))
+    r = as_admin.post('/projects/' + project + '/files', files=file_form(file_name_fwd), params={'filename_path':True})
     assert r.ok
 
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')

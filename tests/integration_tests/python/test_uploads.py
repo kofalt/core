@@ -719,9 +719,9 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
         }
     ]
 
-    # engine upload
+    # engine upload with slashes in filenames with filename_path=true
     r = as_root.post('/engine',
-        params={'level': 'acquisition', 'id': acquisition, 'job': job},
+        params={'level': 'acquisition', 'id': acquisition, 'job': job, 'filename_path':True},
         files=file_form('one.csv', 'folderA/two.csv', '../folderB/two.csv', meta=metadata)
     )
     assert r.ok
@@ -751,7 +751,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     m_timestamp = dateutil.parser.parse(metadata['acquisition']['timestamp'])
     assert a_timestamp == m_timestamp
 
-    # Change the metadata filename to its snaitized version
+    # Change the metadata filename to its sanitized version
     metadata['acquisition']['files'][2]['name'] = 'folderB/two.csv'
 
     for mf in metadata['acquisition']['files']:
@@ -759,6 +759,42 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
         assert mf is not None
         assert f['type'] == mf['type']
         assert f['info'] == mf['info']
+
+
+
+    # engine upload with slashes in filenames with filename_path=false
+
+    metadata['acquisition']['files'] = [
+        {
+            'name': 'one.csv',
+            'type': 'engine type 0',
+            'info': {'test': 'f0'}
+        },
+        {
+            'name': 'folderA/two.csv',
+            'type': 'engine type 1',
+            'info': {'test': 'f1'}
+        }
+    ]
+
+    r = as_root.post('/engine',
+        params={'level': 'acquisition', 'id': acquisition, 'job': job, 'filename_path':False},
+        files=file_form('one.csv', 'folderA/two.csv', meta=metadata)
+    )
+    assert r.ok
+    r = as_root.get('/acquisitions/' + acquisition)
+    assert r.ok
+    a = r.json()
+
+    # Change the metadata filename to its sanitized version
+    metadata['acquisition']['files'][1]['name'] = 'two.csv'
+
+    for mf in metadata['acquisition']['files']:
+        f = find_file_in_array(mf['name'], a['files'])
+        assert mf is not None
+        assert f['type'] == mf['type']
+        assert f['info'] == mf['info']
+
 
 def test_session_engine_upload(data_builder, file_form, as_root):
     project = data_builder.create_project()
@@ -795,7 +831,7 @@ def test_session_engine_upload(data_builder, file_form, as_root):
     }
 
     r = as_root.post('/engine',
-        params={'level': 'session', 'id': session},
+        params={'level': 'session', 'id': session, 'filename_path':True},
         files=file_form('one.csv', 'two.csv', 'folder/three.csv', meta=metadata)
     )
     assert r.ok
@@ -852,7 +888,7 @@ def test_project_engine_upload(data_builder, file_form, as_root):
     }
 
     r = as_root.post('/engine',
-        params={'level': 'project', 'id': project},
+        params={'level': 'project', 'id': project, 'filename_path':True},
         files=file_form('one.csv', 'two.csv', 'folder/three.csv', meta=metadata)
     )
     assert r.ok
