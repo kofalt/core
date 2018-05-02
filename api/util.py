@@ -318,12 +318,8 @@ class RangeHeaderParseError(ValueError):
 
 
 def build_content_range_header(first, last, size):
-    if first == None:
-        first = 0
     if last == None:
         last = size-1
-
-    print 'first is {} last is {} size is {}'.format(first, last, size)
 
     return 'bytes %s-%s/%s' % (str(first), str(last), str(size))
 
