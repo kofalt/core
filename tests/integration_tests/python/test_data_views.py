@@ -1,3 +1,7 @@
+import os
+import zipfile
+import gzip
+from StringIO import StringIO
 
 def years_to_secs(age):
     return age * 86400 * 365
@@ -20,13 +24,35 @@ subject3 = {
 
 subjects = [subject1, subject2, subject3]
 
-def csv_test_data(name, rows=5, delim=','):
+def csv_test_data(name, rows=5, delim=',', compress=False):
     result = [ 'name{0}value{0}value2'.format(delim) ]
 
     for i in range(rows):
         result.append('{1}{0}{2}{0}{3}'.format(delim, name, i, i*2))
 
-    return '\r\n'.join(result)
+    result = '\r\n'.join(result)
+
+    if compress:
+        sio = StringIO()
+        gzf = gzip.GzipFile(fileobj=sio, mode='w')
+        gzf.write(result)
+        gzf.close()
+        result = sio.getvalue()
+
+    return result
+
+def zip_test_data(files=['dir1/file1.csv', 'dir2/file2.csv']):
+    sio = StringIO()
+    zf = zipfile.ZipFile(sio, 'w')
+
+    for filename in files:
+        root, _ext = os.path.splitext(filename)
+        file_data = csv_test_data(os.path.basename(root))
+
+        zf.writestr(filename, file_data)
+
+    zf.close()
+    return sio.getvalue()
 
 def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
     project = data_builder.create_project(label='test-project')
@@ -36,6 +62,20 @@ def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
         ]
     })
     assert r.status_code == 403
+
+def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition' }
+        ]
+    })
+    assert r.ok
+    rows = r.json()
+    assert len(rows) == 0
 
 def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
@@ -161,10 +201,10 @@ def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admi
     acquisition2 = data_builder.create_acquisition(session=session2, label='scout')
     acquisition3 = data_builder.create_acquisition(session=session3, label='scout')
     
-    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    file_form1 = file_form(('values.csv.gz', csv_test_data('a1', compress=True)))
     assert as_admin.post('/acquisitions/' + acquisition2 + '/files', files=file_form1).ok
 
-    file_form2 = file_form(('values.csv', csv_test_data('a2')))
+    file_form2 = file_form(('values.csv.gz', csv_test_data('a2', compress=True)))
     assert as_admin.post('/acquisitions/' + acquisition3 + '/files', files=file_form2).ok
 
     # ============================
@@ -180,7 +220,7 @@ def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admi
         ],
         'fileSpec': {
             'container': 'acquisition',
-            'filter': { 'value': '*.csv' }
+            'filter': { 'value': '*.csv.gz' }
         }
     })
 
@@ -225,7 +265,7 @@ def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admi
         ],
         'fileSpec': {
             'container': 'acquisition',
-            'filter': { 'value': '*.csv' }
+            'filter': { 'value': '*.csv.gz' }
         }
     })
 
@@ -240,6 +280,44 @@ def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admi
         assert row['subject.age'] == subject2.get('age')
         assert row['subject.sex'] == subject2.get('sex')
         assert row['name'] == 'a1'
+        assert row['value'] == str(i)
+        assert row['value2'] == str(2*i)
+
+def test_adhoc_data_view_zip_members(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('data.zip', zip_test_data()))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.zip' },
+            'zipMember': { 'value': 'dir2/*.csv' }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()
+
+    assert len(rows) == 5 
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row['subject'] == subject1['code']
+        assert row['subject.age'] == subject1['age']
+        assert row['subject.sex'] == subject1['sex']
+        assert row['name'] == 'file2' 
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
 
