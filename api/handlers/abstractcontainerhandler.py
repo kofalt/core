@@ -1,26 +1,9 @@
+from bson import ObjectId
 from webapp2 import Request
 
-from .. import config
+from ..dao.containerutil import container_search
 from ..web import base
 from ..web.errors import APINotFoundException
-
-
-# Efficiently search in multiple collections
-CONTAINER_SEARCH_JS = r"""
-(function searchContainer(_id) {
-    if (/^[a-f\d]{24}$/i.test(_id)) {
-        _id = ObjectId(_id);
-    }
-    return {
-        "groups": db.getCollection("groups").findOne({"_id" : _id}, {"_id": 1}),
-        "projects": db.getCollection("projects").findOne({"_id" : _id}, {"_id": 1}),
-        "sessions": db.getCollection("sessions").findOne({"_id" : _id}, {"_id": 1}),
-        "acquisitions": db.getCollection("acquisitions").findOne({"_id" : _id}, {"_id": 1}),
-        "analyses": db.getCollection("analyses").findOne({"_id" : _id}, {"_id": 1}),
-        "collections": db.getCollection("collections").findOne({"_id" : _id}, {"_id": 1})
-    }
-})("%s");
-"""
 
 
 class AbstractContainerHandler(base.RequestHandler):
@@ -36,23 +19,15 @@ class AbstractContainerHandler(base.RequestHandler):
             /containers/x/files --> x is a project ID --> /projects/x/files
         """
 
-        # Run command; check result
-        command = config.db.command('eval', CONTAINER_SEARCH_JS % cid)
-        result = command.get('retval')
+        if ObjectId.is_valid(cid):
+            cid = ObjectId(cid)
 
-        if command.get('ok') != 1.0 or result is None:
-            self.abort(500, 'Error running db command')
-
-        # Find which container type was found, if any
-        cont_name = None
-        for key in result.keys():
-            if result[key] is not None:
-                cont_name = key
-                break
-        else:
-            raise APINotFoundException('No container ' + cid + ' found')
+        results = container_search({'_id': cid}, projection={'_id': 1})
+        if not results:
+            raise APINotFoundException('No container {} found'.format(cid))
 
         # Create new request instance using destination URI (eg. replace containers with cont_name)
+        cont_name, _ = results[0]
         destination_environ = self.request.environ
         for key in 'PATH_INFO', 'REQUEST_URI':
             destination_environ[key] = destination_environ[key].replace('containers', cont_name, 1)

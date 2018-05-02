@@ -203,7 +203,7 @@ endpoints = [
 
         # Abstract container
 
-        route('/containers/<cid:{fname}><extra:.*>', AbstractContainerHandler, h='handle'),
+        route('/containers/<cid:{gid}|{cid}><extra:.*>', AbstractContainerHandler, h='handle'),
 
 
         # Groups
