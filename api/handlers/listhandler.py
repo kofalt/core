@@ -455,6 +455,7 @@ class FileListHandler(ListHandler):
                         raise util.RangeHeaderParseError('Feature flag not set')
 
                     ranges = util.parse_range_header(range_header)
+
                     for first, last in ranges:
                         if first > fileinfo['size'] - 1:
                             self.abort(416, 'Invalid range')
@@ -478,9 +479,9 @@ class FileListHandler(ListHandler):
                     else:
                         self.response.headers['Content-Type'] = str(
                             fileinfo.get('mimetype', 'application/octet-stream'))
-                        self.response.headers['Content-Range'] = 'bytes %s-%s/%s' % (str(ranges[0][0]),
-                                                                                     str(ranges[0][1]),
-                                                                                     str(fileinfo['size']))
+                        self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
+
+
                     with file_system.open(file_path, 'rb') as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
@@ -502,9 +503,7 @@ class FileListHandler(ListHandler):
                                 self.response.write('--%s\n' % self.request.id)
                                 self.response.write('Content-Type: %s\n' % str(
                                     fileinfo.get('mimetype', 'application/octet-stream')))
-                                self.response.write('Content-Range: %s' % 'bytes %s-%s/%s\n' % (str(first),
-                                                                                                str(last),
-                                                                                                str(fileinfo['size'])))
+                                self.response.write('Content-Range: %s\n' % str(util.build_content_range_header(first, last, fileinfo['size'])))
                                 self.response.write('\n')
                                 self.response.write(data)
                                 self.response.write('\n')

@@ -309,6 +309,13 @@ class RangeHeaderParseError(ValueError):
     """Exception class representing a string parsing error."""
 
 
+def build_content_range_header(first, last, size):
+    if last == None:
+        last = size-1
+
+    return 'bytes %s-%s/%s' % (str(first), str(last), str(size))
+
+
 def parse_range_header(range_header_val, valid_units=('bytes',)):
     """
     Range header parser according to RFC7233
