@@ -53,6 +53,7 @@
           - csv
           - tsv
           - json
+          - json-row-column
         default: json
       - name: body
         in: body
@@ -135,6 +136,7 @@
           - csv
           - tsv
           - json
+          - json-row-column
         default: json
     produces:
       - application/json
