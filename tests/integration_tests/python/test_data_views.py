@@ -1,6 +1,8 @@
 import os
+import json
 import zipfile
 import gzip
+import collections
 from StringIO import StringIO
 
 def years_to_secs(age):
@@ -40,6 +42,21 @@ def csv_test_data(name, rows=5, delim=',', compress=False):
         result = sio.getvalue()
 
     return result
+
+def json_test_data(name, rows=5):
+    output = []
+    row_count = rows if rows else 1
+    for i in range(row_count):
+        output.append(collections.OrderedDict([
+            ('name', name),
+            ('aValue', i),
+            ('value2', i*2)
+        ]))
+
+    if not rows:
+        output = output[0]
+
+    return json.dumps(output)
 
 def zip_test_data(files=['dir1/file1.csv', 'dir2/file2.csv']):
     sio = StringIO()
@@ -223,6 +240,69 @@ def test_adhoc_data_view_tsv_file(data_builder, file_form, as_admin):
         assert row['name'] == 'a1' 
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
+
+def test_adhoc_data_view_json_list_file(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('values.json', json_test_data('a1')))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.json' }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()
+
+    assert len(rows) == 5
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row['subject'] == subject1['code']
+        assert row['name'] == 'a1' 
+        assert row['aValue'] == i
+        assert row['value2'] == 2*i
+
+def test_adhoc_data_view_json_dict_file(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('values.json', json_test_data('a1', rows=False)))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.json' }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row['subject'] == subject1['code']
+    assert row['name'] == 'a1' 
+    assert row['aValue'] == 0
+    assert row['value2'] == 0
 
 def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
