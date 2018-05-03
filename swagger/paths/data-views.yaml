@@ -34,18 +34,6 @@
       '400':
         $ref: '#/responses/400:invalid-body-json'
 
-/views:
-  get:
-    summary: Return a list of all views accessible by the user
-    operationId: get_all_data_views
-    tags:
-    - views
-    responses:
-      '200':
-        description: 'The list of views'
-        schema:
-          $ref: schemas/output/data-view-list.json
-
 /views/data:
   post:
     summary: Execute an ad-hoc view, returning data in the preferred format.
