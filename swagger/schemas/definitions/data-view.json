@@ -95,7 +95,6 @@
       "properties": {
         "_id": {"$ref": "common.json#/definitions/objectid"},
         "label": {"$ref": "common.json#/definitions/label"},
-        "permissions":  {"$ref":"permission.json#/definitions/permission-output-list"},
         "columns": {
           "type": "array",
           "items": {"$ref": "#/definitions/column-spec"},
