@@ -124,7 +124,7 @@ class AccessLogger(object):
             return True
         
         next_part = field.split('.')[0]
-        if next_part in ['subject', 'info']:
+        if next_part in ['subject', 'info', 'notes', 'tags']:
             return True
 
         return False

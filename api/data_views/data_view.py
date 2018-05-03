@@ -35,9 +35,6 @@ log = config.log
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
 
-# Key in the pipeline that is always populated with the subject code
-SUBJECT_CODE_KEY = '_subject_code'
-
 def normalize_id(val):
     if re.match('^[a-f\d]{24}$', val):
         return bson.ObjectId(val)
@@ -269,10 +266,6 @@ class DataView(object):
             stage = AggregationStage(child_cont_type)
             for src, _dst in self._column_map.get(child_cont_type_singular, []):
                 stage.fields.append(src)
-
-            # TODO: Should become if 'subject' then '$code' 
-            if child_cont_type == 'sessions':
-                stage.fields.append( (SUBJECT_CODE_KEY, 'subject.code') )
 
             if child_cont_type_singular == self._file_container:
                 stage.fields.append( ('files', 'files') )
