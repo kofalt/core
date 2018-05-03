@@ -1,4 +1,5 @@
 import os
+import csv
 import json
 import zipfile
 import gzip
@@ -81,6 +82,7 @@ def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
     assert r.status_code == 403
 
 def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
+    # JSON
     project = data_builder.create_project(label='test-project')
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
         'includeIds': False,
@@ -91,8 +93,22 @@ def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
         ]
     })
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
     assert len(rows) == 0
+
+    # JSON row-column
+    r = as_admin.post('/views/data?containerId={}&format=json-row-column'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition' }
+        ]
+    })
+    assert r.ok
+    data = r.json()['data']
+    assert len(data['columns']) == 0
+    assert len(data['rows']) == 0
 
 def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
@@ -115,7 +131,7 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
     assert len(rows) == 2
 
     assert rows[0]['project'] == 'test-project'
@@ -153,7 +169,7 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
     assert len(rows) == 1
 
     assert rows[0]['project'] == 'test-project'
@@ -191,7 +207,7 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
 
     assert len(rows) == 10
 
@@ -207,6 +223,126 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
             assert row['name'] == name_value
             assert row['value'] == str(j)
             assert row['value2'] == str(2*j)
+
+def test_adhoc_data_view_json_row_column_format(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/views/data?containerId={}&format=json-row-column'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.csv' }
+        }
+    })
+
+    assert r.ok
+    data = r.json()['data']
+    columns = data['columns']
+    rows = data['rows']
+
+    assert columns == ['subject', 'subject.age', 'subject.sex', 'name', 'value', 'value2']
+    assert len(rows) == 5
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row[0] == subject1['code']
+        assert row[1] == subject1['age']
+        assert row[2] == subject1['sex']
+        assert row[3] == 'a1'
+        assert row[4] == str(i)
+        assert row[5] == str(2*i)
+
+def test_adhoc_data_view_csv_format(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/views/data?containerId={}&format=csv'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.csv' }
+        }
+    })
+
+    assert r.ok
+    body = StringIO(r.text)
+    rows = list(csv.reader(body))
+    columns = rows.pop(0)
+
+    assert columns == ['subject', 'subject.age', 'subject.sex', 'name', 'value', 'value2']
+    assert len(rows) == 5
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row[0] == subject1['code']
+        assert row[1] == str(subject1['age'])
+        assert row[2] == subject1['sex']
+        assert row[3] == 'a1'
+        assert row[4] == str(i)
+        assert row[5] == str(2*i)
+
+def test_adhoc_data_view_tsv_format(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/views/data?containerId={}&format=tsv'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.csv' }
+        }
+    })
+
+    assert r.ok
+    body = StringIO(r.text)
+    rows = list(csv.reader(body, dialect='excel-tab'))
+    columns = rows.pop(0)
+
+    assert columns == ['subject', 'subject.age', 'subject.sex', 'name', 'value', 'value2']
+    assert len(rows) == 5
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row[0] == subject1['code']
+        assert row[1] == str(subject1['age'])
+        assert row[2] == subject1['sex']
+        assert row[3] == 'a1'
+        assert row[4] == str(i)
+        assert row[5] == str(2*i)
 
 def test_adhoc_data_view_tsv_file(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
@@ -229,7 +365,7 @@ def test_adhoc_data_view_tsv_file(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
 
     assert len(rows) == 5
 
@@ -262,7 +398,7 @@ def test_adhoc_data_view_json_list_file(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
 
     assert len(rows) == 5
 
@@ -295,7 +431,7 @@ def test_adhoc_data_view_json_dict_file(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
 
     assert len(rows) == 1
     row = rows[0]
@@ -337,7 +473,7 @@ def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admi
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
 
     assert len(rows) == 11
 
@@ -382,7 +518,7 @@ def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admi
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
 
     assert len(rows) == 5
     for i in range(5):
@@ -419,7 +555,7 @@ def test_adhoc_data_view_zip_members(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()
+    rows = r.json()['data']
 
     assert len(rows) == 5 
 
