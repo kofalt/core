@@ -2,7 +2,7 @@
 
 !api
 !bin
-!docs_gen
+!docs
 !docker
 !requirements.txt
 !setup.py

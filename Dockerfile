@@ -29,6 +29,15 @@ COPY --from=gradle /local/src/matlab/build/gen /local/src/matlab/build/gen
 RUN ./build-wheel-and-docs.sh
 
 
+FROM python:3.4 as docs
+COPY sdk /local/sdk
+COPY docs /local/docs
+WORKDIR /local/docs
+COPY --from=swagger /local/sdk/swagger.json /local/gh-pages/docs/swagger/swagger.json
+RUN mkdir -p /local/gh-pages/branches && mkdir -p /local/gh-pages/tags
+RUN python build-docs.py docs
+
+
 FROM ubuntu:14.04 as base
 ENV TERM=xterm
 RUN set -eux \
