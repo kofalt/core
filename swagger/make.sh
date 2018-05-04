@@ -1,8 +1,6 @@
 #!/bin/bash
 set -exo pipefail
 
-. bin/copy_docs.sh
-
 if [ "$#" -ge 1 ]; then
 	DOC_VERSION="-- --docs-version=$1"
 fi
@@ -23,6 +21,3 @@ docker run --rm -it \
 	-v "${NPM_CACHE}:/npm" \
 	-e "npm_config_cache=/npm" \
 	${NODE_CONTAINER} /bin/sh -c "npm install && npm run build $DOC_VERSION"
-
-DOCS_DIR=docs_gen
-copy_swagger_docs ${DOCS_DIR}

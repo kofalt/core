@@ -4,8 +4,6 @@
 
 set -eu
 
-. bin/copy_docs.sh
-
 unset CDPATH
 cd "$( dirname "${BASH_SOURCE[0]}" )/.."
 
@@ -71,6 +69,42 @@ prune_branches() {
     fi
 }
 
+# Copy docs to target folder
+copy_docs() {
+    dest_dir=$1
+
+    # Ensure that target exists
+    mkdir -p "${dest_dir}"
+
+    # Cleanup old docs, if necessary
+    rm -f ${dest_dir}/index.html
+    rm -rf "${dest_dir}/swagger" "${dest_dir}/python" "${dest_dir}/matlab"
+
+    # Swagger
+    cp -R swagger/build/swagger-ui "${dest_dir}/swagger"
+
+    # Python docs
+    cp -R sdk/src/python/sphinx/build/static gh-pages/
+    cp -R sdk/src/python/sphinx/build "${dest_dir}/python"
+
+    # Matlab docs
+    cp -R sdk/src/matlab/build/gen/sphinx/build "${dest_dir}/matlab"
+
+    # Static files
+    cp -R docs/static gh-pages/
+
+    # Cleanup sphinx folders
+    rm -r "${dest_dir}/matlab/static"
+    rm -r "${dest_dir}/matlab/.doctrees"
+    rm -r "${dest_dir}/matlab/.buildinfo"
+    rm -r "${dest_dir}/matlab/objects.inv"
+
+    rm -r "${dest_dir}/python/static"
+    rm -r "${dest_dir}/python/.doctrees"
+    rm -r "${dest_dir}/python/.buildinfo"
+    rm -r "${dest_dir}/python/objects.inv"
+}
+
 # Checkin documentation for a single branche
 # target_dir: The destination directory (e.g. branches/<branch_name>)
 checkin_branch() {
@@ -88,9 +122,8 @@ checkin_branch() {
 
         # Create target directory and copy files
         mkdir -p "gh-pages/${target_dir}"
-        copy_swagger_docs "gh-pages/${target_dir}"
-        copy_sdk_docs "gh-pages/${target_dir}"
-
+        copy_docs "gh-pages/${target_dir}"
+        
         # Build doc pages
         docs/build-docs.sh "${target_dir}"
 
@@ -140,8 +173,7 @@ checkin_master() {
 
     # Copy currently generated documentation into gh-pages
     mkdir -p "gh-pages/${target_dir}"
-    copy_swagger_docs gh-pages/${target_dir}
-    copy_sdk_docs gh-pages/${target_dir}
+    copy_docs "gh-pages/${target_dir}"
 
     # Build doc pages
     docs/build-docs.sh "${target_dir}" --root
