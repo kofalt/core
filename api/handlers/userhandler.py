@@ -111,11 +111,26 @@ class UserHandler(base.RequestHandler):
         payload['root'] = payload.get('root', False)
         payload.setdefault('email', payload['_id'])
         payload.setdefault('avatars', {})
+
+        if self.public_request and config.db.users.count() == 0:
+            try:
+                config.db.singletons.insert_one({'_id': 'bootstrap', 'uid': payload['_id']})
+            except pymongo.errors.DuplicateKeyError:
+                pass
+            else:
+                payload['root'] = True
+                result = mongo_validator(self.storage.exec_op)('POST', payload=payload)
+                if result.acknowledged:
+                    api_key = UserApiKey.generate(payload['_id'])
+                    return {'_id': result.inserted_id, 'key': api_key}
+                else:
+                    config.db.singletons.delete_one({'_id': 'bootstrap'})
+
         result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload)
         if result.acknowledged:
             return {'_id': result.inserted_id}
         else:
-            self.abort(404, 'User {} not updated'.format(payload['_id']))
+            self.abort(404, 'User {} not created'.format(payload['_id']))
 
     def _cleanup_user_permissions(self, uid):
         try:

@@ -22,15 +22,20 @@ SCITRAN_PERSISTENT_DB_URI = os.environ['SCITRAN_PERSISTENT_DB_URI']
 SCITRAN_SITE_API_URL = os.environ['SCITRAN_SITE_API_URL']
 
 # create api keys for users
-SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10))
+SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
 
 
 @pytest.fixture(scope='session')
-def bootstrap_users(as_drone):
+def bootstrap_users():
     """Create admin and non-admin users with api keys"""
-    data_builder = DataBuilder(as_drone)
-    data_builder.create_user(_id='admin@user.com', api_key=SCITRAN_ADMIN_API_KEY, root=True)
+    global SCITRAN_ADMIN_API_KEY
+    session = BaseUrlSession()
+    r = session.post('/users', json={'_id': 'admin@user.com', 'firstname': 'Test', 'lastname': 'Admin'})
+    assert r.ok
+    SCITRAN_ADMIN_API_KEY = r.json()['key']
+    session.headers.update({'Authorization': 'scitran-user {}'.format(SCITRAN_ADMIN_API_KEY)})
+    data_builder = DataBuilder(session)
     data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
     yield data_builder
     data_builder.teardown()
