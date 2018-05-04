@@ -73,6 +73,19 @@ prune_branches() {
 copy_docs() {
     dest_dir=$1
 
+    mkdir -p swagger/build/swagger-ui
+    docker run --name temp_name core:swagger /bin/true
+    docker cp temp_name:/local/swagger/build/swagger-ui/. swagger/build/swagger-ui
+    docker rm temp_name
+
+    mkdir -p sdk/src/python/sphinx/build/static
+    mkdir -p sdk/src/matlab/build/gen/sphinx/build
+    docker run --name temp_name core:sdk_build /bin/true
+    docker cp temp_name:/local/src/python/sphinx/build/static/. sdk/src/python/sphinx/build/static
+    docker cp temp_name:/local/src/python/sphinx/build/. sdk/src/python/sphinx/build
+    docker cp temp_name:/local/src/matlab/build/gen/sphinx/build/. sdk/src/matlab/build/gen/sphinx/build
+    docker rm temp_name
+
     # Ensure that target exists
     mkdir -p "${dest_dir}"
 
@@ -123,7 +136,7 @@ checkin_branch() {
         # Create target directory and copy files
         mkdir -p "gh-pages/${target_dir}"
         copy_docs "gh-pages/${target_dir}"
-        
+
         # Build doc pages
         docs/build-docs.sh "${target_dir}"
 
