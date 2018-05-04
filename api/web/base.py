@@ -52,40 +52,67 @@ class RequestHandler(webapp2.RequestHandler):
 
     def initialization_auth(self):
         drone_request = False
-        job_context = None
-        session_token = self.request.headers.get('Authorization', None)
-        drone_secret = self.request.headers.get('X-SciTran-Auth', None)
-        drone_method = self.request.headers.get('X-SciTran-Method', None)
-        drone_name = self.request.headers.get('X-SciTran-Name', None)
+        session_token = self.request.headers.get('Authorization')
+        drone_secret = self.request.headers.get('X-SciTran-Auth')
+        drone_method = self.request.headers.get('X-SciTran-Method')
+        drone_name = self.request.headers.get('X-SciTran-Name')
+
+        self.origin = {'type': str(Origin.unknown), 'id': None}
 
         if session_token:
             if session_token.startswith('scitran-user '):
-                # User (API key) authentication
+                # API key authentication
                 key = session_token.split()[1]
                 api_key = APIKey.validate(key)
-                self.uid = api_key['uid']
-                if 'job' in api_key:
-                    job_context = api_key['job']
-
-            elif session_token.startswith('scitran-drone '):
-                # Drone (API key) authentication
-                # When supported, remove custom headers and shared secret
-                self.abort(401, 'Drone API keys are not yet supported')
+                if api_key.get('type') == 'device':
+                    self.origin = {'type': str(Origin.device), 'id': api_key['uid']}
+                    drone_request = True  # Grant same access for backwards compatibility
+                else:
+                    self.uid = api_key['uid']
+                    self.origin = {'type': str(Origin.user), 'id': self.uid}
+                    if 'job' in api_key:
+                        self.origin['via'] = {'type': str(Origin.job), 'id': api_key['job']}
             else:
                 # User (oAuth) authentication
                 self.uid = self.authenticate_user_token(session_token)
+                self.origin = {'type': str(Origin.user), 'id': self.uid}
 
-
-
-        # Drone shared secret authentication
-        elif drone_secret is not None:
+        elif drone_secret:
             if drone_method is None or drone_name is None:
                 self.abort(400, 'X-SciTran-Method or X-SciTran-Name header missing')
             if config.get_item('core', 'drone_secret') is None:
                 self.abort(401, 'drone secret not configured')
             if drone_secret != config.get_item('core', 'drone_secret'):
                 self.abort(401, 'invalid drone secret')
+
+            # Upsert for backwards compatibility (ie. not-yet-seen device still using drone secret)
+            label = (drone_method + '_' + drone_name).replace(' ', '_')  # Note: old drone _id's are kept under label
+            device = config.db.devices.find_one_and_update(
+                {'label': label},
+                {'$set': {'label': label, 'type': drone_method, 'name': drone_name}},
+                upsert=True,
+                return_document=pymongo.collection.ReturnDocument.AFTER
+            )
+
+            self.origin = {'type': str(Origin.device), 'id': device['_id']}
             drone_request = True
+
+        if self.origin['type'] == Origin.device:
+            # Update device.last_seen
+            # In the future, consider merging any keys into self.origin?
+            config.db.devices.update_one(
+                {'_id': self.origin['id']},
+                {'$set': {
+                    'last_seen': datetime.datetime.utcnow(),
+                    'errors': []  # Reset errors list if device checks in
+                }})
+
+            # Bit hackish - detect from route if a job is the origin, and if so what job ID.
+            # Could be removed if routes get reorganized. POST /api/jobs/id/result, maybe?
+            is_job_upload = self.request.path.startswith('/api/engine')
+            job_id = self.request.GET.get('job')
+            if is_job_upload and job_id is not None:
+                self.origin = {'type': str(Origin.job), 'id': job_id}
 
         self.public_request = not drone_request and not self.uid
 
@@ -112,9 +139,6 @@ class RequestHandler(webapp2.RequestHandler):
                     self.abort(403, 'user ' + self.uid + ' is not authorized to make superuser requests')
             else:
                 self.superuser_request = False
-
-        self.origin = None
-        self.set_origin(drone_request, job_context)
 
     def authenticate_user_token(self, session_token):
         """
@@ -217,6 +241,7 @@ class RequestHandler(webapp2.RequestHandler):
         timestamp = datetime.datetime.utcnow()
 
         self.uid = token_entry['uid']
+        self.origin = {'type': str(Origin.user), 'id': self.uid}
 
         # If this is the first time they've logged in, record that
         config.db.users.update_one({'_id': self.uid, 'firstlogin': None}, {'$set': {'firstlogin': timestamp}})
@@ -228,9 +253,6 @@ class RequestHandler(webapp2.RequestHandler):
         token_entry['timestamp'] = timestamp
 
         config.db.authtokens.insert_one(token_entry)
-
-        # Set origin now that the uid is known
-        self.set_origin(False, None)
 
         return {'token': session_token}
 
@@ -246,73 +268,6 @@ class RequestHandler(webapp2.RequestHandler):
             self.abort(401, 'User not logged in.')
         result = config.db.authtokens.delete_one({'_id': token})
         return {'tokens_removed': result.deleted_count}
-
-
-    def set_origin(self, drone_request, job_context):
-        """
-        Add an origin to the request object. Used later in request handler logic.
-
-        Pretty clear duplication of logic with superuser_request / drone_request;
-        this map serves a different purpose, and specifically matches the desired file-origin map.
-        Might be a good future project to remove one or the other.
-        """
-
-        if self.uid is not None:
-            self.origin = {
-                'type': str(Origin.user),
-                'id': self.uid
-            }
-            if job_context:
-                self.origin['via'] = {
-                    'type': str(Origin.job),
-                    'id': job_context
-                }
-        elif drone_request:
-
-            method = self.request.headers.get('X-SciTran-Method')
-            name = self.request.headers.get('X-SciTran-Name')
-
-            self.origin = {
-                'id': (method + '_' + name).replace(' ', '_'),
-                'type': str(Origin.device),
-                'method': method,
-                'name': name
-            }
-
-            # Upsert device record, with last-contacted time.
-            # In the future, consider merging any keys into self.origin?
-            config.db['devices'].find_one_and_update({
-                    '_id': self.origin['id']
-                }, {
-                    '$set': {
-                        '_id': self.origin['id'],
-                        'last_seen': datetime.datetime.utcnow(),
-                        'method': self.origin['method'],
-                        'name': self.origin['name'],
-                        'errors': [] # Reset errors list if device checks in
-                    }
-                },
-                upsert=True,
-                return_document=pymongo.collection.ReturnDocument.AFTER
-            )
-
-            # Bit hackish - detect from route if a job is the origin, and if so what job ID.
-            # Could be removed if routes get reorganized. POST /api/jobs/id/result, maybe?
-            is_job_upload = self.request.path.startswith('/api/engine')
-            job_id        = self.request.GET.get('job')
-
-            # This runs after the standard drone-request upsert above so that we can still update the last-seen timestamp.
-            if is_job_upload and job_id is not None:
-                self.origin = {
-                    'type': str(Origin.job),
-                    'id': job_id
-                }
-        else:
-            self.origin = {
-                'type': str(Origin.unknown),
-                'id': None
-            }
-
 
     def is_true(self, param):
         return self.request.GET.get(param, '').lower() in ('1', 'true')

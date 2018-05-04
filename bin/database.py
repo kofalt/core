@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 46 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 47 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1411,7 +1411,6 @@ def upgrade_to_44():
             config.db.sessions.update_many(query, update)
 
 
-
 def upgrade_files_to_45(cont, context):
     """
     if the file has a modality, we try to find a matching classification
@@ -1558,6 +1557,7 @@ def upgrade_to_45():
     cursor = config.db.projects.find({'template': {'$exists': True }})
     process_cursor(cursor, upgrade_templates_to_45)
 
+
 def upgrade_to_46():
     """
     Update gears to ensure they all have the created timestamp, will be set
@@ -1566,6 +1566,16 @@ def upgrade_to_46():
     config.db.gears.update_many({"created":{"$exists":False}}, {'$set': {'created': datetime.datetime(1970,1,1), 'modified': datetime.datetime.utcnow()}})
 
 
+def upgrade_to_47():
+    """
+    Use ObjectId for device._id (part of device key authentication)
+    """
+    for device in config.db.devices.find({'_id': {'$type': 'string'}}):
+        config.db.devices.delete_one({'_id': device['_id']})
+        device['label'] = device.pop('_id')    # Save old _id string as label
+        device['type'] = device.pop('method')  # Rename method to type (engine, reaper, etc.)
+        device['_id'] = bson.ObjectId()        # Generate oid
+        config.db.devices.insert_one(device)
 
 
 ###
