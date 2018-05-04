@@ -8,4 +8,6 @@
 !setup.py
 !swagger/examples
 !swagger/schemas
+!sdk
+!swagger
 !tests/requirements.txt
