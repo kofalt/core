@@ -176,8 +176,6 @@ class SubjectStorage(ContainerStorage):
         return SessionStorage().get_all_el(query, None, projection)
 
 
-
-
 class SessionStorage(ContainerStorage):
 
     def __init__(self):
@@ -343,7 +341,6 @@ class SessionStorage(ContainerStorage):
             raise ValueError('Cannot get all sessions from target container {}'.format(target_type))
 
         return self.get_all_el(query, user, projection)
-
 
 
 class AcquisitionStorage(ContainerStorage):

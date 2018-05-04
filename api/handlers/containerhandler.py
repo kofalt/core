@@ -151,8 +151,8 @@ class ContainerHandler(base.RequestHandler):
                 j_id   = f['origin']['id']
                 j_id_b = j_id
 
-                # Some tables don't use BSON for their primary keys.
-                if j_type not in (Origin.user, Origin.device):
+                # Only user table doesn't use BSON for it's primary key.
+                if j_type != Origin.user:
                     j_id_b = bson.ObjectId(j_id)
 
                 # Join from database if we haven't for this origin before

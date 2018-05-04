@@ -1,3 +1,4 @@
+import datetime
 import os
 import sys
 
@@ -183,3 +184,28 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
     }
     for p in [t_project1, t_project2]:
         assert as_admin.get('/projects/' + p).json()['template'] == template_after
+
+
+def test_47(api_db, database):
+    last_seen = datetime.datetime.utcnow().replace(microsecond=0)
+    api_db.devices.insert_one({
+        '_id': 'method_name',
+        'method': 'method',
+        'name': 'name',
+        'last_seen': last_seen,
+        'errors': [],
+    })
+    database.upgrade_to_47()
+    device = api_db.devices.find_one({'type': 'method', 'name': 'name'})
+
+    assert device
+    new_id = device.get('_id')
+    assert isinstance(new_id, bson.ObjectId)
+    assert device == {
+        '_id': new_id,
+        'label': 'method_name',
+        'type': 'method',
+        'name': 'name',
+        'last_seen': last_seen,
+        'errors': [],
+    }

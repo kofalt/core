@@ -30,11 +30,11 @@ routing_regexes = {
     # Group ID: 2-32 characters of form [0-9a-z.@_-]. Start and ends with alphanum.
     'gid': '[0-9a-z][0-9a-z.@_-]{0,30}[0-9a-z]',
 
-    # Container ID: 24-character hex
-    'cid': '[0-9a-f]{24}',
-
     # User ID: any length, [0-9a-z.@_-]
     'uid': '[0-9a-zA-Z.@_-]*',
+
+    # Object ID: 24-character hex
+    'oid': '[0-9a-f]{24}',
 
     # Container name
     'cname': 'groups|projects|sessions|acquisitions|collections|analyses',
@@ -50,9 +50,6 @@ routing_regexes = {
 
     # Filename/classification
     'fclass': '.+(?=/classification)',
-
-    # Note ID
-    'nid': '[0-9a-f]{24}',
 
     # Schema path
     'schema': r'[^/.]{3,60}/[^/.]{3,60}\.json'
@@ -156,12 +153,12 @@ endpoints = [
         route('/gears',                                  GearsHandler),
         route('/gears/check',                            GearsHandler, h='check', m=['POST']),
         route('/gears/temp',                             GearHandler, h='upload', m=['POST']),
-        route('/gears/temp/<cid:{cid}>',  GearHandler, h='download', m=['GET']),
+        route('/gears/temp/<cid:{oid}>',  GearHandler, h='download', m=['GET']),
         prefix('/gears', [
             route('/<:[^/]+>',                           GearHandler),
             route('/<:[^/]+>/invocation',                GearHandler, h='get_invocation'),
             route('/<:[^/]+>/suggest/<:{cname}|subjects>/<:[^/]+>', GearHandler, h='suggest'),
-            route('/<:[^/]+>/context/<:{cname}>/<:{cid}>', GearHandler, h='get_context', m=['GET']),
+            route('/<:[^/]+>/context/<:{cname}>/<:{oid}>', GearHandler, h='get_context', m=['GET']),
         ]),
 
         # Batch jobs
@@ -181,8 +178,8 @@ endpoints = [
         route( '/devices',              DeviceHandler,                 m=['POST']),
         prefix('/devices', [
             route('/status',            DeviceHandler, h='get_status', m=['GET']),
-            route('/self',              DeviceHandler, h='get_self',   m=['GET']),
-            route('/<device_id:[^/]+>', DeviceHandler,                 m=['GET']),
+            route('/self',              DeviceHandler, h='put_self',   m=['PUT']),
+            route('/<device_id:{oid}>', DeviceHandler,                 m=['GET', 'DELETE']),
         ]),
 
 
@@ -198,12 +195,12 @@ endpoints = [
         # Site
 
         route('/<cid:site>/rules',              RulesHandler,          m=['GET', 'POST']),
-        route('/<cid:site>/rules/<rid:{cid}>',  RuleHandler,           m=['GET', 'PUT', 'DELETE']),
+        route('/<cid:site>/rules/<rid:{oid}>',  RuleHandler,           m=['GET', 'PUT', 'DELETE']),
 
 
         # Abstract container
 
-        route('/containers/<cid:{gid}|{cid}><extra:.*>', AbstractContainerHandler, h='handle'),
+        route('/containers/<cid:{gid}|{oid}><extra:.*>', AbstractContainerHandler, h='handle'),
 
 
         # Groups
@@ -227,19 +224,19 @@ endpoints = [
         prefix('/projects', [
             route('/groups',               ContainerHandler, h='get_groups_with_project',      m=['GET']),
             route('/recalc',               ContainerHandler, h='calculate_project_compliance', m=['POST']),
-            route('/<cid:{cid}>/template', ContainerHandler, h='set_project_template',         m=['POST']),
-            route('/<cid:{cid}>/template', ContainerHandler, h='delete_project_template',      m=['DELETE']),
-            route('/<cid:{cid}>/recalc',   ContainerHandler, h='calculate_project_compliance', m=['POST']),
-            route('/<cid:{cid}>/rules',    RulesHandler,                                       m=['GET', 'POST']),
-            route('/<cid:{cid}>/rules/<rid:{cid}>',  RuleHandler,                              m=['GET', 'PUT', 'DELETE']),
+            route('/<cid:{oid}>/template', ContainerHandler, h='set_project_template',         m=['POST']),
+            route('/<cid:{oid}>/template', ContainerHandler, h='delete_project_template',      m=['DELETE']),
+            route('/<cid:{oid}>/recalc',   ContainerHandler, h='calculate_project_compliance', m=['POST']),
+            route('/<cid:{oid}>/rules',    RulesHandler,                                       m=['GET', 'POST']),
+            route('/<cid:{oid}>/rules/<rid:{oid}>',  RuleHandler,                              m=['GET', 'PUT', 'DELETE']),
         ]),
 
 
         # Sessions
 
         prefix('/sessions', [
-            route('/<cid:{cid}>/jobs',          ContainerHandler, h='get_jobs',     m=['GET']),
-            route('/<cid:{cid}>/subject',       ContainerHandler, h='get_subject',  m=['GET']),
+            route('/<cid:{oid}>/jobs',          ContainerHandler, h='get_jobs',     m=['GET']),
+            route('/<cid:{oid}>/subject',       ContainerHandler, h='get_subject',  m=['GET']),
         ]),
 
 
@@ -249,16 +246,16 @@ endpoints = [
         route( '/collections',                 CollectionsHandler,                                 m=['POST']),
         prefix('/collections', [
             route('/curators',                 CollectionsHandler, h='curators',                   m=['GET']),
-            route('/<cid:{cid}>',              CollectionsHandler,                                 m=['GET', 'PUT', 'DELETE']),
-            route('/<cid:{cid}>/sessions',     CollectionsHandler, h='get_sessions',               m=['GET']),
-            route('/<cid:{cid}>/acquisitions', CollectionsHandler, h='get_acquisitions',           m=['GET']),
+            route('/<cid:{oid}>',              CollectionsHandler,                                 m=['GET', 'PUT', 'DELETE']),
+            route('/<cid:{oid}>/sessions',     CollectionsHandler, h='get_sessions',               m=['GET']),
+            route('/<cid:{oid}>/acquisitions', CollectionsHandler, h='get_acquisitions',           m=['GET']),
         ]),
 
 
         # Collections / Projects
 
         prefix('/<cont_name:collections|projects>', [
-            prefix('/<cid:{cid}>', [
+            prefix('/<cid:{oid}>', [
                 route('/<list_name:permissions>',                          PermissionsListHandler, m=['POST']),
                 route('/<list_name:permissions>/<_id:{uid}>',              PermissionsListHandler, m=['GET', 'PUT', 'DELETE']),
             ]),
@@ -266,16 +263,16 @@ endpoints = [
 
 
         # Analyses
-        route( '/analyses/<_id:{cid}>',                      AnalysesHandler,  m=['GET']),
-        prefix('/analyses/<_id:{cid}>', [
+        route( '/analyses/<_id:{oid}>',                      AnalysesHandler,  m=['GET']),
+        prefix('/analyses/<_id:{oid}>', [
             route('/files',                                       AnalysesHandler, h='upload',      m=['POST']),
             route('/<filegroup:inputs|files>',                    AnalysesHandler, h='download',    m=['GET']),
             route('/<filegroup:inputs|files>/<filename:{fname}>', AnalysesHandler, h='download',    m=['GET']),
             route('/info',                                        AnalysesHandler, h='modify_info', m=['POST']),
         ]),
-        prefix('/<:{cname}>/<:{cid}>/<cont_name:analyses>/<cid:{cid}>', [
+        prefix('/<:{cname}>/<:{oid}>/<cont_name:analyses>/<cid:{oid}>', [
             route('/<list_name:notes>',                         NotesListHandler,               m=['POST']),
-            route('/<list_name:notes>/<_id:{nid}>',             NotesListHandler, name='notes', m=['GET', 'PUT', 'DELETE']),
+            route('/<list_name:notes>/<_id:{oid}>',             NotesListHandler, name='notes', m=['GET', 'PUT', 'DELETE']),
         ]),
 
 
@@ -284,8 +281,8 @@ endpoints = [
         route( '/<cont_name:{cname}>', ContainerHandler, name='cont_list', h='get_all', m=['GET']),
         route( '/<cont_name:{cname}>', ContainerHandler,                                m=['POST']),
         prefix('/<cont_name:{cname}>', [
-            route( '/<cid:{cid}>',     ContainerHandler,                                m=['GET','PUT','DELETE']),
-            prefix('/<cid:{cid}>', [
+            route( '/<cid:{oid}>',     ContainerHandler,                                m=['GET','PUT','DELETE']),
+            prefix('/<cid:{oid}>', [
 
                 route( '/info',                   ContainerHandler, h='modify_info', m=['POST']),
                 route( '/<subject:subject>/info', ContainerHandler, h='modify_info', m=['POST']),
@@ -307,14 +304,14 @@ endpoints = [
                 route( '/analyses',                             AnalysesHandler, h='get_all', m=['GET']),
                 route( '/analyses',                             AnalysesHandler,              m=['POST']),
                 prefix('/analyses', [
-                    route('/<_id:{cid}>',                                             AnalysesHandler,               m=['GET', 'PUT', 'DELETE']),
-                    route('/<_id:{cid}>/files',                                       AnalysesHandler, h='upload',   m=['POST']),
-                    route('/<_id:{cid}>/<filegroup:inputs|files>',                    AnalysesHandler, h='download', m=['GET']),
-                    route('/<_id:{cid}>/<filegroup:inputs|files>/<filename:{fname}>', AnalysesHandler, h='download', m=['GET']),
+                    route('/<_id:{oid}>',                                             AnalysesHandler,               m=['GET', 'PUT', 'DELETE']),
+                    route('/<_id:{oid}>/files',                                       AnalysesHandler, h='upload',   m=['POST']),
+                    route('/<_id:{oid}>/<filegroup:inputs|files>',                    AnalysesHandler, h='download', m=['GET']),
+                    route('/<_id:{oid}>/<filegroup:inputs|files>/<filename:{fname}>', AnalysesHandler, h='download', m=['GET']),
                 ]),
 
                 route('/<list_name:notes>',             NotesListHandler,               m=['POST']),
-                route('/<list_name:notes>/<_id:{nid}>', NotesListHandler, name='notes', m=['GET', 'PUT', 'DELETE']),
+                route('/<list_name:notes>/<_id:{oid}>', NotesListHandler, name='notes', m=['GET', 'PUT', 'DELETE']),
             ])
         ]),
 
@@ -322,7 +319,7 @@ endpoints = [
         # Misc (to be cleaned up later)
 
         route('/<par_cont_name:groups>/<par_id:{gid}>/<cont_name:projects>', ContainerHandler, h='get_all', m=['GET']),
-        route('/<par_cont_name:{cname}>/<par_id:{cid}>/<cont_name:{cname}>', ContainerHandler, h='get_all', m=['GET']),
+        route('/<par_cont_name:{cname}>/<par_id:{oid}>/<cont_name:{cname}>', ContainerHandler, h='get_all', m=['GET']),
 
 
     ]),
