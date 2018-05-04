@@ -57,7 +57,7 @@ class RequestHandler(webapp2.RequestHandler):
         drone_method = self.request.headers.get('X-SciTran-Method')
         drone_name = self.request.headers.get('X-SciTran-Name')
 
-        self.origin = {'type': str(Origin.unknown), 'id': None}
+        self.origin = {'type': Origin.unknown, 'id': None}
 
         if session_token:
             if session_token.startswith('scitran-user '):
@@ -65,17 +65,17 @@ class RequestHandler(webapp2.RequestHandler):
                 key = session_token.split()[1]
                 api_key = APIKey.validate(key)
                 if api_key.get('type') == 'device':
-                    self.origin = {'type': str(Origin.device), 'id': api_key['uid']}
+                    self.origin = {'type': Origin.device, 'id': api_key['uid']}
                     drone_request = True  # Grant same access for backwards compatibility
                 else:
                     self.uid = api_key['uid']
-                    self.origin = {'type': str(Origin.user), 'id': self.uid}
+                    self.origin = {'type': Origin.user, 'id': self.uid}
                     if 'job' in api_key:
-                        self.origin['via'] = {'type': str(Origin.job), 'id': api_key['job']}
+                        self.origin['via'] = {'type': Origin.job, 'id': api_key['job']}
             else:
                 # User (oAuth) authentication
                 self.uid = self.authenticate_user_token(session_token)
-                self.origin = {'type': str(Origin.user), 'id': self.uid}
+                self.origin = {'type': Origin.user, 'id': self.uid}
 
         elif drone_secret:
             if drone_method is None or drone_name is None:
@@ -94,7 +94,7 @@ class RequestHandler(webapp2.RequestHandler):
                 return_document=pymongo.collection.ReturnDocument.AFTER
             )
 
-            self.origin = {'type': str(Origin.device), 'id': device['_id']}
+            self.origin = {'type': Origin.device, 'id': device['_id']}
             drone_request = True
 
         if self.origin['type'] == Origin.device:
@@ -112,7 +112,7 @@ class RequestHandler(webapp2.RequestHandler):
             is_job_upload = self.request.path.startswith('/api/engine')
             job_id = self.request.GET.get('job')
             if is_job_upload and job_id is not None:
-                self.origin = {'type': str(Origin.job), 'id': job_id}
+                self.origin = {'type': Origin.job, 'id': job_id}
 
         self.public_request = not drone_request and not self.uid
 
@@ -139,6 +139,17 @@ class RequestHandler(webapp2.RequestHandler):
                     self.abort(403, 'user ' + self.uid + ' is not authorized to make superuser requests')
             else:
                 self.superuser_request = False
+
+        # Format origin object to str
+        if self.origin.get('type'):
+            self.origin['type']         = str(self.origin['type'])
+        if self.origin.get('id'):
+            self.origin['id']           = str(self.origin['id'])
+        if self.origin.get('via'):
+            self.origin['via']['type']  = str(self.origin['via']['type'])
+            self.origin['via']['id']    = str(self.origin['via']['id'])
+
+
 
     def authenticate_user_token(self, session_token):
         """
@@ -337,7 +348,7 @@ class RequestHandler(webapp2.RequestHandler):
     def log_user_access(self, access_type, cont_name=None, cont_id=None, filename=None, multifile=False, origin_override=None):
         origin = origin_override if origin_override is not None else self.origin
         ticket = self.get_param('ticket')
-        
+
         try:
             log_user_access(self.request, access_type, cont_name=cont_name, cont_id=cont_id,
                     filename=filename, multifile=multifile, origin=origin, download_ticket=ticket)
