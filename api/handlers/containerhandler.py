@@ -148,7 +148,7 @@ class ContainerHandler(base.RequestHandler):
 
             elif join_origin:
                 j_type = f['origin']['type']
-                j_id   = f['origin']['id']
+                j_id   = str(f['origin']['id'])
                 j_id_b = j_id
 
                 # Only user table doesn't use BSON for it's primary key.
