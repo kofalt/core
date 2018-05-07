@@ -1,10 +1,8 @@
-from jsonschema import ValidationError
-
-from ..auth import require_drone, require_login, require_admin, has_access
+from ..auth import require_login
 
 from .. import config, validators
 from ..web import base
-from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
+from ..web.errors import InputValidationException
 
 from .data_view import DataView
 

@@ -1,7 +1,7 @@
 from ..dao import containerutil
 
 from .. import config
-from ..access_log import create_entry, bulk_log_access
+from ..access_log import bulk_log_access
 from ..web.request import AccessType
 
 # List of potentially logged events, by container
@@ -140,6 +140,6 @@ class AccessLoggerNoop(object):
         pass
     def write_logs(self, request, origin):
         pass
-    def is_phi_field(self, cont_type, field):
+    def is_phi_field(self, dummy_cont_type, dummy_field):
         return False
 
