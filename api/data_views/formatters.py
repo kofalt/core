@@ -3,6 +3,14 @@ import json
 from ..web.encoder import custom_json_serializer
 
 def get_formatter(strategy):
+    """Get a row formatter strategy based on name
+    
+    Arguments:
+        strategy (str): The output strategy (one of: json, json-row-column, csv, tsv)
+
+    Returns:
+        object: The formatting strategy
+    """
     if not strategy or strategy == 'json':
         return JsonObjectFormatter()
     if strategy == 'json-row-column':
@@ -14,6 +22,7 @@ def get_formatter(strategy):
     raise ValueError('Unknown formatter type: {}'.format(strategy))
 
 class JsonObjectFormatter(object):
+    """A formatting strategy that will write a JSON list of objects"""
     def __init__(self):
         self._write = None
         self._first_row = True
@@ -24,7 +33,7 @@ class JsonObjectFormatter(object):
     def initialize(self, write_fn):
         self._write = write_fn
 
-    def write_row(self, context, columns):
+    def write_row(self, context, dummy_columns):
         if self._first_row:
             self._write('{"data":[')
         else:
@@ -43,6 +52,7 @@ class JsonObjectFormatter(object):
             self._write(']}')
 
 class JsonRowColumnFormatter(object):
+    """A formatting strategy that will write a JSON list of columns, then a list of lists of values (rows)"""
     def __init__(self):
         self._write = None
         self._first_row = True
@@ -77,6 +87,7 @@ class JsonRowColumnFormatter(object):
             self._write(']}}')
 
 class CsvFormatter(object):
+    """A formatting strategy that will write a comma or tab separated value file"""
     def __init__(self, dialect='excel'):
         self.dialect = dialect
         self._write = None

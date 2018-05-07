@@ -2,6 +2,8 @@ import collections
 import fnmatch
 import re
 
+from ..web.errors import InputValidationException
+
 def extract_json_property(name, obj, default=None):
     """Deeply extract a property from an object, using dot notation.
 
@@ -55,6 +57,7 @@ def file_filter_to_regex(filter_spec):
         raise InputValidationException('Invalid filter spec: {}'.format(filter_spec['value']))
 
 class NilValue(object):
+    """A sentinal value that represents missing data (semantically different from None)"""
     def __repr__(self):
         return 'nil'
 

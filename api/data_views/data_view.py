@@ -11,11 +11,8 @@
             
 """
 import bson
-import re
 
-from pprint import pprint
-
-from .. import config, files
+from .. import config
 from ..auth import has_access
 from ..dao import containerutil
 from ..dao.basecontainerstorage import ContainerStorage, CHILD_MAP
@@ -36,7 +33,7 @@ VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
 
 def normalize_id(val):
-    if re.match('^[a-f\d]{24}$', val):
+    if bson.ObjectId.is_valid(val):
         return bson.ObjectId(val)
     return val
 
@@ -254,7 +251,7 @@ class DataView(object):
 
         # Determine the total depth
         aggregator = HierarchyAggregator()
-        for idx in range(len(self._tree), len(self._containers)):
+        for dummy_idx in range(len(self._tree), len(self._containers)):
             child_cont_type = get_child_cont_type(cont_type)
             child_cont_type_singular = containerutil.singularize(child_cont_type)
 
@@ -264,7 +261,7 @@ class DataView(object):
                 aggregator.filter_spec = { key_name: cont_id }
 
             stage = AggregationStage(child_cont_type)
-            for src, _dst in self._column_map.get(child_cont_type_singular, []):
+            for src, _ in self._column_map.get(child_cont_type_singular, []):
                 stage.fields.append(src)
 
             if child_cont_type_singular == self._file_container:
@@ -278,7 +275,7 @@ class DataView(object):
         self._aggregator = aggregator
 
     def extract_column_values(self, context, obj):
-        for cont_type, cont in obj.items():
+        for cont_type, _ in obj.items():
             if cont_type not in self._column_map:
                 continue
 
@@ -333,7 +330,7 @@ class DataView(object):
         for context, file_entry in rows:
             if self._file_spec:
                 if file_entry:
-                    if not self.process_file(context, file_entry, write_fn):
+                    if not self.process_file(context, file_entry):
                         rows_missing_files.append(context)
                 else:
                     rows_missing_files.append(context)
@@ -343,7 +340,7 @@ class DataView(object):
         if rows_missing_files:
             for row in rows_missing_files:
                 # Handle missing file data by replacing values with nil
-                for _src, dst in self._file_columns:
+                for _, dst in self._file_columns:
                     row[dst] = nil_value
 
                 self._writer.write_row(row, self._flat_columns, nil_hint=True)
@@ -361,16 +358,16 @@ class DataView(object):
 
         return None
 
-    def process_file(self, context, file_entry, write_fn):
+    def process_file(self, context, file_entry):
         try:
             with FileOpener(file_entry, self._zip_file_filter) as opened_file:
-                self.process_file_data(context, opened_file.name, opened_file.fd, write_fn)
+                self.process_file_data(context, opened_file.name, opened_file.fd)
             return True
-        except Exception:
+        except: # pylint: disable=bare-except
             log.exception('Could not open {}'.format(file_entry['name']))
             return False
 
-    def process_file_data(self, context, filename, fd, write_fn):
+    def process_file_data(self, context, filename, fd):
         # Determine file columns if not specified
         reader = create_file_reader(fd, filename, 
             self._file_spec.get('format'), self._file_spec.get('formatOptions', {}))
