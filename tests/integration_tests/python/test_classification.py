@@ -405,11 +405,3 @@ def test_classification_change_triggers_job(randstr, data_builder, as_admin, api
 
     # Clean up rule
     r = as_admin.delete('/site/rules/' + rule_id)
-
-
-
-
-
-
-
-
