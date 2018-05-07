@@ -185,6 +185,10 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
     for p in [t_project1, t_project2]:
         assert as_admin.get('/projects/' + p).json()['template'] == template_after
 
+    ### CLEANUP
+
+    api_db.modalities.delete_many({})
+
 
 def test_47(api_db, database):
     last_seen = datetime.datetime.utcnow().replace(microsecond=0)
