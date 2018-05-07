@@ -1,4 +1,3 @@
-import bson
 import collections
 
 from ..dao import containerutil

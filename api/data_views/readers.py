@@ -4,36 +4,48 @@ import csv
 import json
 import collections
 
-def create_file_reader(fileobj, filename, format, options):
+def create_file_reader(fileobj, filename, file_format, options):
+    """Create a filereader for the given file format (or autodetect type based on filename)
+    
+    Arguments:
+        fileobj (file): The file object to read
+        filename (str): The name of the file
+        file_format (str): The optional file_format (or None or empty string to auto detect)
+        options (dict): An optional set of options to pass into the file_formatter (e.g. csv options)
+
+    Returns:
+        object: The file reader object
+    """
     # Determine file reader and options
-    if not format:
-        root, ext = os.path.splitext(filename)
+    if not file_format:
+        _, ext = os.path.splitext(filename)
         if ext == '.csv':
-            format = 'csv'
+            file_format = 'csv'
         elif ext == '.tsv':
-            format = 'tsv'
+            file_format = 'tsv'
         elif ext == '.json':
-            format = 'json'
+            file_format = 'json'
         else:
             raise RuntimeError('Could not auto-detect file type')
 
-    if format == 'csv' or format == 'tsv':
+    if file_format == 'csv' or file_format == 'tsv':
         # Set default dialect for tsv files
-        if 'dialect' not in options and format == 'tsv':
+        if 'dialect' not in options and file_format == 'tsv':
             options['dialect'] = 'excel-tab'
 
         result = CsvFileReader()
         result.initialize(fileobj, options)
         return result
 
-    if format == 'json':
+    if file_format == 'json':
         result = JsonFileReader()
         result.initialize(fileobj, options)
         return result
     
-    raise RuntimeError('Unsupporetd file format: {}'.format(format))
+    raise RuntimeError('Unsupported file format: {}'.format(file_format))
 
 class CsvFileReader(object):
+    """File reader that can read comma or tab separated data files"""
     def __init__(self):
         self._reader = None
         self._columns = None
@@ -51,6 +63,7 @@ class CsvFileReader(object):
         return self._reader.fieldnames
 
 class JsonFileReader(object):
+    """File reader that can read JSON files (expects dictionary or list of dictionaries)"""
     # Arbitrary 10mb limit
     MAX_JSON_FILE_SIZE_BYTES = 10485760
 
@@ -58,7 +71,7 @@ class JsonFileReader(object):
         self._json = None
         self._columns = []
 
-    def initialize(self, fileobj, options):
+    def initialize(self, fileobj, dummy_options):
         max_size = JsonFileReader.MAX_JSON_FILE_SIZE_BYTES
 
         # Read up to max length bytes

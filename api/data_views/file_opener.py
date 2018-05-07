@@ -6,7 +6,17 @@ from .. import files
 
 # TODO: Should we support tarfiles?
 class FileOpener(object):
+    """Context manager that will open a (possibly compressed) filesystem file.
+
+    FileOpener will close any open files when the context is exited.
+    """
     def __init__(self, file_entry, zip_filter):
+        """Create a new FileOpener
+
+        Arguments:
+            file_entry (dict): The file entry as retrieved from the database
+            zip_filter (regex): The regular expression to match zip entries, if applicable
+        """
         self.file_entry = file_entry
         self.zip_filter = zip_filter
 
@@ -24,14 +34,17 @@ class FileOpener(object):
 
     @property
     def name(self):
+        """str: The name of the opened file"""
         return self._name.lower()
 
     @property
     def fd(self):
+        """file: The currently opened file"""
         return self._fd
 
     def is_gzip(self):
-        _root, ext = os.path.splitext(self.file_entry['name'])
+        """Check if the file described by file_entry is a gzip file"""
+        _, ext = os.path.splitext(self.file_entry['name'])
         return ext == '.gz'
 
     def __enter__(self):
@@ -60,25 +73,26 @@ class FileOpener(object):
                 if not matched_file:
                     raise RuntimeError('Could not find matching zip entry in zip file: {}'.format(self.file_entry['name']))
 
-                self._fd = self._zipfile.open(path, 'r')
-                self._name = path
+                self._fd = self._zipfile.open(matched_file, 'r')
+                self._name = matched_file 
             elif gz:
                 # Open as gzip
                 self._fd = gzip.GzipFile(fileobj=self._system_fd, mode='r')
-                self._name, _ext = os.path.splitext(self._name)
+                self._name, _ = os.path.splitext(self._name)
             else:
                 # Read file directly
                 self._fd = self._system_fd
 
             return self
         except Exception:
-            self.cleanup()
+            self.close()
             raise
 
-    def __exit__(self, type, value, traceback):
-        self.cleanup()
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.close()
 
-    def cleanup(self):
+    def close(self):
+        """Close any open files"""
         # NOTE: This function should be re-entrant
         if self._zipfile:
             self._zipfile.close()
