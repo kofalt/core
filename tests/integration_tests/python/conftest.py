@@ -27,7 +27,7 @@ SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
 
 
 @pytest.fixture(scope='session')
-def bootstrap_users():
+def bootstrap_users(api_db):
     """Create admin and non-admin users with api keys"""
     global SCITRAN_ADMIN_API_KEY
     session = BaseUrlSession()
@@ -38,7 +38,8 @@ def bootstrap_users():
     data_builder = DataBuilder(session)
     data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
     yield data_builder
-    data_builder.teardown()
+    api_db.users.delete_many({})
+    api_db.singletons.delete_one({'_id': 'bootstrap'})
 
 
 @pytest.fixture(scope='session')
