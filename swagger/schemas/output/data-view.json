@@ -6,10 +6,6 @@
     "example": {
     	"_id": "5ada553f620be23aa6ae1799",
         "label": "Subject census",
-        "permissions": [{
-        	"_id": "justinehlert@flywheel.io",
-        	"access": "admin"
-        }],
         "columns": [
             { "src": "subject.code", "dst": "subject" },
             { "src": "subject.age" },
