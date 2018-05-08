@@ -35,6 +35,7 @@ class DataViewHandler(base.RequestHandler):
         def response_handler(environ, start_response): # pylint: disable=unused-argument
             write = start_response('200 OK', [
                 ('Content-Type', view.get_content_type()),
+                ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
                 ('Connection', 'keep-alive')
             ])
 

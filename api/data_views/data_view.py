@@ -137,10 +137,14 @@ class DataView(object):
         # Add the output stage
         formatter = get_formatter(output_format, self)
         self._content_type = formatter.get_content_type()
+        self._file_extension = formatter.get_file_extension()
         self.pipeline.pipe(Write(config, formatter))
 
     def get_content_type(self):
         return self._content_type
+
+    def get_filename(self, basename):
+        return '{}{}'.format(basename, self._file_extension)
 
     def execute(self, request, origin, write_fn):
         # Store the write_fn so write() calls succeed
