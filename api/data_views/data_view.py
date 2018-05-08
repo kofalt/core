@@ -105,14 +105,18 @@ class DataView(object):
 
         # Add match files stage
         if config.file_spec:
+            files_key = 'files'
+
             match_type = config.get_file_match_type()
 
             # Optionally add analysis filter
             if config.analysis_filter:
-                match_analyses = MatchContainers('analyses', 'label', 'analysis', config.analysis_filter, match_type)
+                label_filter = config.analysis_filter.get('label')
+                match_analyses = MatchContainers('analysis', 'label', 'analysis', label_filter, match_type)
                 self.pipeline.pipe(match_analyses)
+                files_key = 'analysis.files'
 
-            match_files = MatchContainers('files', 'name', 'file', config.file_spec['filter'], match_type)
+            match_files = MatchContainers(files_key, 'name', 'file', config.file_spec['filter'], match_type)
             self.pipeline.pipe(match_files)
 
         # Add access log stage
