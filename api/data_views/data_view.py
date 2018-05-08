@@ -12,26 +12,21 @@
 """
 import bson
 
-from .. import config
 from ..auth import has_access
 from ..dao import containerutil
 from ..dao.basecontainerstorage import ContainerStorage
-from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
+from ..web.errors import APIPermissionException, APINotFoundException
 
 from .formatters import get_formatter
-from .readers import create_file_reader
-from .util import extract_json_property, file_filter_to_regex, nil_value
-from .missing_data_strategies import get_missing_data_strategy
-from .file_opener import FileOpener
 from .config import DataViewConfig
 
 from .pipeline.aggregate import Aggregate
 from .pipeline.extract_columns import ExtractColumns
 from .pipeline.log_access import LogAccess
+from .pipeline.match_containers import MatchContainers
 from .pipeline.write import Write
+from .pipeline.read_file import ReadFile
 from .pipeline.missing_data_strategies import get_missing_data_strategy
-
-log = config.log
 
 # TODO: subjects belong here once formalized
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
@@ -42,7 +37,10 @@ class DataView(object):
         # The configuration object
         self.config = DataViewConfig(desc)
 
-        # The content type
+        # The processing pipeline
+        self.pipeline = None
+
+        # The content type for the response
         self._content_type = None
 
         # The write function
@@ -55,10 +53,11 @@ class DataView(object):
         self._tree = None
 
     def write(self, data):
+        """Write data to the response"""
         self._write_fn(data)
 
     def prepare(self, container_id, output_format, uid):
-        """ Prepare the data view execution by looking up container_id and checking permissions.
+        """Prepare the data view execution by looking up container_id and checking permissions.
 
         Then build the data pipeline.
         
@@ -104,10 +103,24 @@ class DataView(object):
         # First stage is aggregation
         self.pipeline = Aggregate(config)
 
-        # If there is an analysis filter, then we have an extract analyses phase
+        # Add match files stage
+        if config.file_spec:
+            match_type = config.get_file_match_type()
+
+            # Optionally add analysis filter
+            if config.analysis_filter:
+                match_analyses = MatchContainers('analyses', 'label', 'analysis', config.analysis_filter, match_type)
+                self.pipeline.pipe(match_analyses)
+
+            match_files = MatchContainers('files', 'name', 'file', config.file_spec['filter'], match_type)
+            self.pipeline.pipe(match_files)
 
         # Add access log stage
         self.pipeline.pipe(self._log_access_stage)
+
+        # Add process files stage
+        if config.file_spec:
+            self.pipeline.pipe(ReadFile(config))
 
         # Add extraction stage
         self.pipeline.pipe(ExtractColumns(config))
@@ -122,21 +135,6 @@ class DataView(object):
         self._content_type = formatter.get_content_type()
         self.pipeline.pipe(Write(config, formatter))
 
-    def initialize_file_columns(self, reader):
-        # file_data is a special column for file rows
-        cols = self._file_spec.get('columns')
-        if not cols:
-            cols = [{'src': x} for x in reader.get_columns()]
-
-        for i in range(len(cols)):
-            col = cols[i]
-
-            src = col['src']
-            dst = col.get('dst', src)
-
-            self._file_columns.append((src, dst))
-            self._flat_columns.append(dst)
-
     def get_content_type(self):
         return self._content_type
 
@@ -149,103 +147,4 @@ class DataView(object):
 
         self.pipeline.process(self._tree)
         return ''
-
-        """
-        # Execute the aggregation query
-        cursor = self._aggregator.execute()
-
-        parent_context = {}
-        self.extract_column_values(parent_context, self._context)
-
-        # Build context values
-        rows = []
-        for row in cursor:
-            # Build context, match file, and perform access log
-            cont_files = row.pop('files', None)
-
-            # Log context
-            meta = row.pop('_meta', None)
-
-            # make a copy of context and update from row
-            context = parent_context.copy()
-            self.extract_column_values(context, row)
-
-            # Find the first matching, non-deleted file
-            if self._file_spec is not None:
-                file_entry = self.match_file(cont_files)
-                if file_entry:
-                    filename = file_entry['name']
-                else:
-                    filename = None
-            else:
-                file_entry = None
-                filename = None
-
-            rows.append( (context, file_entry) )
-
-        # Initialize the formatter
-        self._formatter.initialize(write_fn)
-
-        # Extract as many values as possible into parent_context
-        rows_missing_files = []
-        for context, file_entry in rows:
-            if self._file_spec:
-                if file_entry:
-                    if not self.process_file(context, file_entry):
-                        rows_missing_files.append(context)
-                else:
-                    rows_missing_files.append(context)
-            else:
-                self._writer.write_row(context, self._flat_columns)
-
-        if rows_missing_files:
-            for row in rows_missing_files:
-                # Handle missing file data by replacing values with nil
-                for _, dst in self._file_columns:
-                    row[dst] = nil_value
-
-                self._writer.write_row(row, self._flat_columns, nil_hint=True)
-            
-        self._formatter.finalize()
-        """
-    
-    def match_file(self, files):
-        # Find a matching, not-deleted file
-        if files is not None:
-            for f in files:
-                if 'deleted' in f:
-                    continue
-                if self._file_filter.match(f['name']):
-                    return f
-
-        return None
-
-    def process_file(self, context, file_entry):
-        try:
-            with FileOpener(file_entry, self._zip_file_filter) as opened_file:
-                self.process_file_data(context, opened_file.name, opened_file.fd)
-            return True
-        except: # pylint: disable=bare-except
-            log.exception('Could not open {}'.format(file_entry['name']))
-            return False
-
-    def process_file_data(self, context, filename, fd):
-        # Determine file columns if not specified
-        reader = create_file_reader(fd, filename, 
-            self._file_spec.get('format'), self._file_spec.get('formatOptions', {}))
-
-        # On the first file, initialize the file columns
-        if not self._file_columns:
-            # Initialize file_columns
-            self.initialize_file_columns(reader)
-
-        for row in reader:
-            row_context = context.copy()
-
-            for src, dst in self._file_columns:
-                row_context[dst] = row.get(src, nil_value)
-
-            self._writer.write_row(row_context, self._flat_columns)
-
-
 

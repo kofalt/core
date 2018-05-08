@@ -4,6 +4,50 @@ import re
 
 from ..web.errors import InputValidationException
 
+def filtered_container_list(containers, label_key, label_filter, match_type='first', date_key='created'):
+    """Return a list of matching, non_deleted containers from the input list.
+
+    This function assumes that in addition to the label key, there is a 'created' key which will be used for sorting.
+
+    Arguments:
+        containers (list): The list of containers to sort and filter
+        label_key (string): The key to the label field
+        label_filter (regex): The optional label filter
+        match_type (string): The match type, one of: first, last, newest, oldest, all (defaults to first)
+        date_key (string): The optional key to use for sorting (defaults to 'created')
+
+    Returns:
+        list: The list of matching containers (could be empty)
+    """
+    # Filter
+    def match_fn(entry):
+        # Ignore deleted entries
+        if 'deleted' in entry:
+            return False
+
+        if label_filter:
+            label = entry.get(label_key, '')
+            if not label_filter.match(label):
+                return False
+            
+        return True
+    results = filter(match_fn, containers)
+
+    # Sort
+    if match_type == 'last':
+        results = reversed(results)
+    elif match_type == 'newest':
+        sorted(results, key=lambda x: x[date_key], reverse=True)
+    elif match_type == 'oldest':
+        sorted(results, key=lambda x: x[date_key])
+
+    # Reduce
+    results = list(results)
+    if match_type != 'all':
+        results = results[:1]
+    return results
+
+
 def extract_json_property(name, obj, default=None):
     """Deeply extract a property from an object, using dot notation.
 
