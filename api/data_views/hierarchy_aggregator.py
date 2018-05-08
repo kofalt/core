@@ -11,8 +11,10 @@ class AggregationStage(object):
         fields (list): The list of field names or tuple of (dst, src) to include in projection
         sort_key (str): The sort key for this collection
         sort_order (int): The sort order for this collection (1 for ascending or -1 for descending)
+        parent_key (str): The optional alternate parent key
+        unwind (bool): Whether or not to include an unwind step (default is true)
     """
-    def __init__(self, collection, fields=None, sort_key='created', sort_order=1):
+    def __init__(self, collection, fields=None, sort_key='created', sort_order=1, parent_key=None, unwind=True):
         self.collection = collection
         if fields:
             self.fields = fields
@@ -20,7 +22,8 @@ class AggregationStage(object):
             self.fields = []
         self.sort_key = sort_key
         self.sort_order = sort_order
-
+        self.parent_key = parent_key
+        self.unwind = unwind
 
 class HierarchyAggregator(object):
     """Aggregate the data hierarchy with sorting, filtering, and projection.
@@ -75,54 +78,59 @@ class HierarchyAggregator(object):
             else:
                 proj_pfx = coll_singular + '.'
 
+                parent_key = stage.parent_key if stage.parent_key else parent
+
                 # Add lookup and unwind stage
                 pipeline.append({'$lookup': {
                     'from': coll,
                     'localField': parent_id,
-                    'foreignField': parent,
+                    'foreignField': parent_key,
                     'as': coll_singular 
                 }})
-                pipeline.append({'$unwind': '$' + coll_singular})
 
-            # Add projection
-            id_field = '_meta.{}._id'.format(coll_singular)
-            label_field = '_meta.{}.label'.format(coll_singular)
-            sort_field = '_meta.{}._sort_key'.format(coll_singular)
+                if stage.unwind:
+                    pipeline.append({'$unwind': '$' + coll_singular})
 
-            projection = {
-                '_id': 0,
-                id_field: '${}_id'.format(proj_pfx),
-                label_field: '${}label'.format(proj_pfx),
-                sort_field: '${}{}'.format(proj_pfx, stage.sort_key)
-            }
+            if stage.unwind:
+                # Add projection
+                id_field = '_meta.{}._id'.format(coll_singular)
+                label_field = '_meta.{}.label'.format(coll_singular)
+                sort_field = '_meta.{}._sort_key'.format(coll_singular)
 
-            if coll_singular == 'session':
-                subj_id_field = '_meta.subject._id'
-                subj_label_field = '_meta.subject.label'
+                projection = {
+                    '_id': 0,
+                    id_field: '${}_id'.format(proj_pfx),
+                    label_field: '${}label'.format(proj_pfx),
+                    sort_field: '${}{}'.format(proj_pfx, stage.sort_key)
+                }
 
-                projection[subj_id_field] = '${}subject._id'.format(proj_pfx)
-                projection[subj_label_field] = '${}subject.code'.format(proj_pfx)
+                if coll_singular == 'session':
+                    subj_id_field = '_meta.subject._id'
+                    subj_label_field = '_meta.subject.label'
 
-            projection.update(carryover)
-            carryover[id_field] = 1
-            carryover[label_field] = 1
-            carryover[sort_field] = 1
+                    projection[subj_id_field] = '${}subject._id'.format(proj_pfx)
+                    projection[subj_label_field] = '${}subject.code'.format(proj_pfx)
 
-            if coll_singular == 'session':
-                carryover[subj_id_field] = 1
-                carryover[subj_label_field] = 1
+                projection.update(carryover)
+                carryover[id_field] = 1
+                carryover[label_field] = 1
+                carryover[sort_field] = 1
 
-            for src in stage.fields:
-                if isinstance(src, tuple):
-                    # Destination field was specified
-                    field, src = src
-                else:
-                    field = '{}.{}'.format(coll_singular, src)
+                if coll_singular == 'session':
+                    carryover[subj_id_field] = 1
+                    carryover[subj_label_field] = 1
 
-                projection[field] = '${}{}'.format(proj_pfx, src)
-                carryover[field] = 1
+                for src in stage.fields:
+                    if isinstance(src, tuple):
+                        # Destination field was specified
+                        field, src = src
+                    else:
+                        field = '{}.{}'.format(coll_singular, src)
 
-            pipeline.append({'$project': projection})
+                    projection[field] = '${}{}'.format(proj_pfx, src)
+                    carryover[field] = 1
+
+                pipeline.append({'$project': projection})
             
             # Add sort key
             sort_keys[sort_field] = stage.sort_order
