@@ -1,4 +1,5 @@
 import os
+import bson
 import csv
 import json
 import zipfile
@@ -568,4 +569,132 @@ def test_adhoc_data_view_zip_members(data_builder, file_form, as_admin):
         assert row['name'] == 'file2' 
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
+
+def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_drone, api_db):
+    project = data_builder.create_project(label='test-project')
+    session = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition = data_builder.create_acquisition(session=session, label='scout')
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
+
+    gear1 = data_builder.create_gear(gear={'name': 'data-view-gear1', 'inputs': {'csv': {'base': 'file'}}})
+    gear2 = data_builder.create_gear(gear={'name': 'data-view-gear2', 'inputs': {'csv': {'base': 'file'}}})
+
+    # Create job-based analysis 1
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'analysis-1',
+        'job': {'gear_id': gear1,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis1 = r.json()['_id']
+    
+    # Get job id
+    r = as_admin.get('/analyses/' + analysis1)
+    assert r.ok
+    job1 = r.json().get('job')
+
+    # Upload output file
+    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis1, 'job': job1},
+        files=file_form1)
+    assert r.ok
+
+    # Create job-based analysis 2
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'second-analysis',
+        'job': {'gear_id': gear2,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis2 = r.json()['_id']
+    
+    # Get job id
+    r = as_admin.get('/analyses/' + analysis2)
+    assert r.ok
+    job2 = r.json().get('job')
+
+    # Upload output file
+    file_form2 = file_form(('values2.csv', csv_test_data('a2')))
+    file_form3 = file_form(('values3.csv', csv_test_data('a3')))
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis2, 'job': job2},
+        files=[
+            ('file', file_form2['file']),
+            ('file', file_form3['file'])
+        ])
+    assert r.ok
+
+    # Execute data view, match on label
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'session',
+            'filter': { 'value': '*.csv' },
+            'analysisFilter': {
+                'label': { 'value': 'analysis*' }
+            }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+
+    assert len(rows) == 5 
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row['subject'] == subject1['code']
+        assert row['subject.age'] == subject1['age']
+        assert row['subject.sex'] == subject1['sex']
+        assert row['name'] == 'a1' 
+        assert row['value'] == str(i)
+        assert row['value2'] == str(2*i)
+
+    # Execute data view, match on second label, multiple files
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
+        ],
+        'fileSpec': {
+            'container': 'session',
+            'filter': { 'value': '*.csv' },
+            'match': 'all',
+            'analysisFilter': {
+                'label': { 'value': 'second-analysis' }
+            }
+        }
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+
+    assert len(rows) == 10
+
+    for i in range(2):
+        name_value = 'a{}'.format(i+2)
+        for j in range(5):
+            row = rows[i*5+j]
+
+            assert row['subject'] == subject1['code']
+            assert row['subject.age'] == subject1['age']
+            assert row['subject.sex'] == subject1['sex']
+            assert row['name'] == name_value
+            assert row['value'] == str(j)
+            assert row['value2'] == str(2*j)
+
+    api_db.analyses.delete_one({'_id': bson.ObjectId(analysis1)})
+    api_db.analyses.delete_one({'_id': bson.ObjectId(analysis2)})
+
 

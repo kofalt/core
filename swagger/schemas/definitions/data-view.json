@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "definitions":{
-    "file-filter-spec": {
+    "name-filter-spec": {
       "type": "object",
       "properties": {
           "value": { 
@@ -17,12 +17,27 @@
       "additionalProperties": false,
       "description": "Specifies either a pattern match or regular expression match string filter"
     },
+    "analysis-filter-spec": {
+      "type": "object",
+      "properties": {
+        "label": {"$ref": "#/definitions/name-filter-spec"},
+        "gear-name": {"$ref": "#/definitions/name-filter-spec"}
+      },
+      "additionalProperties": false,
+      "description": "Specifies which analyses to match for files"
+    },
     "file-spec": {
       "type": "object",
       "properties": {
         "container": { "$ref": "container.json#/definitions/container-type" },
-        "filter": { "$ref": "#/definitions/file-filter-spec" },
-        "zipMember": { "$ref": "#/definitions/file-filter-spec" },
+        "analysisFilter": { "$ref": "#/definitions/analysis-filter-spec" },
+        "filter": { "$ref": "#/definitions/name-filter-spec" },
+        "zipMember": { "$ref": "#/definitions/name-filter-spec" },
+        "match": { 
+          "type": "string",
+          "enum": ["first", "last", "newest", "oldest", "all"],
+          "description": "If multiple file matches are encountered, which file to choose. Default is first"
+        },
         "format": {
           "type": "string",
           "enum": ["csv", "tsv", "json"],
