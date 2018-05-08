@@ -19,6 +19,25 @@ def create_access_logger():
 
     return AccessLoggerNoop()
 
+def is_phi_field(cont_type, field):
+    """Check if the given field is potentially accessing PHI
+    
+    Arguments:
+        cont_type (str): The container type
+        field (str): The field name
+
+    Returns:
+        bool: True if the field potentially contains PHI
+    """
+    if cont_type == 'subject':
+        return True
+    
+    next_part = field.split('.')[0]
+    if next_part in ['subject', 'info', 'notes', 'tags']:
+        return True
+
+    return False
+
 class AccessLogger(object):
     """Collects access logs for bulk data access"""
     def __init__(self):
@@ -109,25 +128,6 @@ class AccessLogger(object):
         """
         if self._bulk_entries:
             bulk_log_access(request, origin, self._bulk_entries)
-
-    def is_phi_field(self, cont_type, field):
-        """Check if the given field is potentially accessing PHI
-        
-        Arguments:
-            cont_type (str): The container type
-            field (str): The field name
-
-        Returns:
-            bool: True if the field potentially contains PHI
-        """
-        if cont_type == 'subject':
-            return True
-        
-        next_part = field.split('.')[0]
-        if next_part in ['subject', 'info', 'notes', 'tags']:
-            return True
-
-        return False
 
 class AccessLoggerNoop(object):
     def set_file_container(self, cont_name):
