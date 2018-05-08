@@ -440,7 +440,7 @@ def test_adhoc_data_view_json_dict_file(data_builder, file_form, as_admin):
     assert row['aValue'] == 0
     assert row['value2'] == 0
 
-def test_adhoc_data_view_csv_files_missing_data(data_builder, file_form, as_admin):
+def test_adhoc_data_view_missing_data_csv_files(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
