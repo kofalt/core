@@ -30,6 +30,9 @@ class JsonObjectFormatter(object):
     def get_content_type(self):
         return 'application/json; charset=utf-8'
 
+    def get_file_extension(self):
+        return '.json'
+
     def write_row(self, context, dummy_columns):
         if self._first_row:
             self._file.write('{"data":[')
@@ -54,6 +57,9 @@ class JsonRowColumnFormatter(object):
 
     def get_content_type(self):
         return 'application/json; charset=utf-8'
+
+    def get_file_extension(self):
+        return '.json'
 
     def write_row(self, context, columns):
         if self._first_row:
@@ -89,6 +95,11 @@ class CsvFormatter(object):
         if self.dialect == 'excel-tab':
             return 'text/tab-separated-values; charset=utf-8'
         return 'text/csv; charset=utf-8'
+
+    def get_file_extension(self):
+        if self.dialect == 'excel-tab':
+            return '.tsv'
+        return '.csv'
 
     def write_row(self, context, columns):
         if not self._writer:

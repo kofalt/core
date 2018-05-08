@@ -94,6 +94,7 @@ def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
         ]
     })
     assert r.ok
+    assert r.headers['content-disposition'] == 'attachment; filename="view-data.json"'
     rows = r.json()['data']
     assert len(rows) == 0
 
@@ -288,6 +289,7 @@ def test_adhoc_data_view_csv_format(data_builder, file_form, as_admin):
     })
 
     assert r.ok
+    assert r.headers['content-disposition'] == 'attachment; filename="view-data.csv"'
     body = StringIO(r.text)
     rows = list(csv.reader(body))
     columns = rows.pop(0)
@@ -328,6 +330,7 @@ def test_adhoc_data_view_tsv_format(data_builder, file_form, as_admin):
     })
 
     assert r.ok
+    assert r.headers['content-disposition'] == 'attachment; filename="view-data.tsv"'
     body = StringIO(r.text)
     rows = list(csv.reader(body, dialect='excel-tab'))
     columns = rows.pop(0)
