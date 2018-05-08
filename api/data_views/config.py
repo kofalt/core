@@ -3,6 +3,7 @@ from ..dao import containerutil
 
 # TODO: Add subject once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
+COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file' ]
 
 def id_column(cont_type):
     return ( cont_type, '_id', cont_type )
@@ -67,11 +68,12 @@ class DataViewConfig(object):
             if container == 'subject':
                 container = 'session'
                 field = src
-            elif container not in  VIEW_CONTAINERS:
+            elif container not in COLUMN_CONTAINERS:
                 raise InputValidationException('Unknown container for column: {}'.format(src))
 
             self.columns.append( (container, field, dst) )
-            max_idx = max(max_idx, VIEW_CONTAINERS.index(container))
+            if container in VIEW_CONTAINERS:
+                max_idx = max(max_idx, VIEW_CONTAINERS.index(container))
 
         # Check file spec container as well
         if self.file_container:
