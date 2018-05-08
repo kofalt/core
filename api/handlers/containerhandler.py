@@ -329,7 +329,7 @@ class ContainerHandler(base.RequestHandler):
         else:
             query = {}
         # this request executes the actual reqeust filtering containers based on the user permissions
-        results = permchecker(self.storage.exec_op)('GET', query=query, public=self.public_request, projection=projection)
+        results = permchecker(self.storage.exec_op)('GET', query=query, public=self.public_request, projection=projection, pagination=self.pagination)
         if results is None:
             self.abort(404, 'No elements found in container {}'.format(self.storage.cont_name))
         # return only permissions of the current user unless superuser or getting avatars

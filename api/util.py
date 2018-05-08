@@ -112,6 +112,7 @@ def user_perm(permissions, _id):
             return perm
     return {}
 
+
 def is_user_id(uid):
     """
     Checks to make sure uid matches uid regex
@@ -127,6 +128,27 @@ def is_group_id(gid):
     """
     pattern = re.compile('^[0-9a-z][0-9a-z.@_-]{0,30}[0-9a-z]$')
     return bool(pattern.match(gid))
+
+
+def datetime_from_str(s):
+    """
+    Return datetime.datetime parsed from a string that is a prefix of isoformat.
+    Return None if the string is not such a valid prefix.
+    """
+    re_fmt = {
+        r'^\d\d\d\d$':                                        '%Y',
+        r'^\d\d\d\d-\d\d$':                                   '%Y-%m',
+        r'^\d\d\d\d-\d\d-\d\d$':                              '%Y-%m-%d',
+        r'^\d\d\d\d-\d\d-\d\dT\d\d$':                         '%Y-%m-%dT%H',
+        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d$':                    '%Y-%m-%dT%H:%M',
+        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d$':               '%Y-%m-%dT%H:%M:%S',
+        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d$': '%Y-%m-%dT%H:%M:%S.%f',
+    }
+    for date_re, date_fmt in re_fmt.iteritems():
+        if re.match(date_re, s):
+            return datetime.datetime.strptime(s, date_fmt)
+    return None
+
 
 def resolve_gravatar(email):
     """

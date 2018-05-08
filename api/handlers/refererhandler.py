@@ -155,7 +155,7 @@ class AnalysesHandler(RefererHandler):
         sub_cont_names = {'projects':0, 'sessions':1, 'acquisitions':2, 'all':3}
 
         # Check that the url is valid
-        if cont_name not in cont_names.keys():
+        if cont_name not in cont_names:
             self.abort(400, "Analysis lists not supported for {}.".format(cont_name))
         elif cont_level:
             if cont_names[cont_name] > sub_cont_names.get(cont_level, -1):
@@ -169,11 +169,10 @@ class AnalysesHandler(RefererHandler):
             else:
                 parents = [pid for pid in parent_tree[cont_level]]
             # We set User to None because we check for permission when finding the parents
-            analyses = containerstorage.AnalysisStorage().get_all_el({'parent.id':{'$in':parents}},None,{'info': 0, 'files.info': 0})
+            query = {'parent.id': {'$in': parents}}
         else:
-            analyses = containerstorage.AnalysisStorage().get_all_el({'parent.id':cid, 'parent.type':singularize(cont_name)},None,{'info': 0, 'files.info': 0})
-        return analyses
-
+            query = {'parent.id': cid, 'parent.type': singularize(cont_name)}
+        return self.storage.get_all_el(query, None, {'info': 0, 'files.info': 0}, pagination=self.pagination)
 
 
     @log_access(AccessType.delete_analysis)

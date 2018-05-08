@@ -1,4 +1,5 @@
 import base64
+import bson
 import datetime
 import jsonschema
 import os
@@ -285,6 +286,67 @@ class RequestHandler(webapp2.RequestHandler):
 
     def get_param(self, param, default=None):
         return self.request.GET.get(param, default)
+
+    @property
+    def pagination(self):
+        """
+        Return parsed pagination dict from request URL parameters.
+
+        Query params:
+            ?filter=k1=v1,k2>v2,k2<v3 [, ...]
+            ?sort=k1,k2:desc [, ...]
+            ?limit=N
+        """
+
+        pagination = {}
+
+        if self.get_param('filter'):
+            pagination['filter'] = {}
+            filter_ops = {'<':  '$lt',
+                          '<=': '$lte',
+                          '=':  '$eq',
+                          '!=': '$ne',
+                          '>=': '$gte',
+                          '>':  '$gt'}
+            for filter_str in self.get_param('filter').split(','):
+                for filter_op in sorted(filter_ops, key=len, reverse=True):
+                    key, op, value = filter_str.partition(filter_op)
+                    if op:
+                        if key not in pagination['filter']:
+                            pagination['filter'][key] = {}
+                        if bson.ObjectId.is_valid(value):
+                            value = bson.ObjectId(value)
+                        elif util.datetime_from_str(value):
+                            value = util.datetime_from_str(value)
+                        # TODO int, float, others?
+                        pagination['filter'][key].update({filter_ops[op]: value})
+                        break
+                else:
+                    msg = 'Invalid pagination query param "filter": {} (operator missing)'
+                    raise errors.APIValidationException({'error': msg.format(filter_str)})
+
+        if self.get_param('sort'):
+            pagination['sort'] = []
+            sort_orders = { '1': pymongo.ASCENDING,   'asc': pymongo.ASCENDING,
+                           '-1': pymongo.DESCENDING, 'desc': pymongo.DESCENDING}
+            for sort_str in self.get_param('sort').split(','):
+                key, _, order = sort_str.partition(':')
+                order = order.lower() or 'asc'
+                if order not in sort_orders:
+                    msg = 'Invalid pagination query param "sort": {} (unknown order)'
+                    raise errors.APIValidationException({'error': msg.format(sort_str)})
+                pagination['sort'].append((key, sort_orders[order]))
+
+        if self.get_param('limit'):
+            try:
+                pagination['limit'] = int(self.get_param('limit'))
+                if pagination['limit'] <= 0:
+                    raise ValueError('expected positive integer, got {}'.format(pagination['limit']))
+            except ValueError as e:
+                msg = 'Invalid pagination query param "limit": {}'
+                raise errors.APIValidationException({'error': msg.format(e.args[0])})
+
+        return pagination
 
     def handle_exception(self, exception, debug, return_json=False): # pylint: disable=arguments-differ
         """

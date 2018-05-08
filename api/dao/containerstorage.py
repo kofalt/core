@@ -4,6 +4,7 @@ import bson
 import copy
 
 from . import containerutil
+from . import dbutil
 from . import hierarchy
 from .. import config
 
@@ -151,7 +152,7 @@ class SubjectStorage(ContainerStorage):
         return cont
 
 
-    def get_all_el(self, query, user, projection, fill_defaults=False):
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
         if query is None:
             query = {}
         if user:
@@ -167,7 +168,8 @@ class SubjectStorage(ContainerStorage):
             a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
             query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
 
-        results = list(self.dbc.find(query, projection))
+        find_kwargs = dict(filter=query, projection=projection)
+        results = list(self.dbc.find(**dbutil.paginate_find_kwargs(find_kwargs, pagination)))
         if not results:
             return []
 
@@ -287,7 +289,7 @@ class SessionStorage(ContainerStorage):
         return SubjectStorage().get_container(cont['subject']['_id'], projection=projection)
 
 
-    def get_all_el(self, query, user, projection, fill_defaults=False):
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
         """
         Override allows 'collections' key in the query, will transform into proper query for the caller and return results
         """
@@ -297,7 +299,7 @@ class SessionStorage(ContainerStorage):
             a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
             query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
 
-        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults)
+        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination)
 
 
     def recalc_session_compliance(self, session_id, session=None, template=None, hard=False):

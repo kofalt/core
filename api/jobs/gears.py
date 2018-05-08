@@ -11,16 +11,20 @@ import gears as gear_tools
 import pymongo
 
 from .. import config
+from ..dao import dbutil
 from .jobs import Job
 
 from ..web.errors import APIValidationException, APINotFoundException
 
 log = config.log
 
-def get_gears():
+def get_gears(pagination=None):
     """
     Fetch the install-global gears from the database
     """
+
+    if pagination:
+        pagination['pipe_key'] = lambda key: 'original.' + key
 
     pipe = [
         {'$sort': {
@@ -33,7 +37,7 @@ def get_gears():
         }}
     ]
 
-    cursor = config.mongo_pipeline('gears', pipe)
+    cursor = config.mongo_pipeline('gears', dbutil.paginate_pipeline(pipe, pagination))
 
     return map(lambda x: x['original'], cursor)
 

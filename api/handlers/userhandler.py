@@ -55,7 +55,7 @@ class UserHandler(base.RequestHandler):
         projection = {'preferences': 0, 'api_key': 0}
         if not self.user_is_admin:
             projection['wechat'] = 0
-        result = permchecker(self.storage.exec_op)('GET', projection=projection)
+        result = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
         if result is None:
             self.abort(404, 'Not found')
         return result

@@ -14,7 +14,7 @@ from .. import upload
 from .. import files
 from ..auth import require_drone, require_login, require_admin, has_access
 from ..auth.apikeys import JobApiKey
-from ..dao import hierarchy
+from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..util import humanize_validation_error, set_for_download
 from ..validators import validate_data, verify_payload_exists
@@ -43,7 +43,7 @@ class GearsHandler(base.RequestHandler):
     def get(self):
         """List all gears."""
 
-        gears   = get_gears()
+        gears   = get_gears(pagination=self.pagination)
         filters = self.request.GET.getall('filter')
 
         if 'single_input' in filters:
@@ -240,7 +240,8 @@ class RulesHandler(base.RequestHandler):
             if not self.user_is_admin and not has_access(self.uid, project, 'ro'):
                 raise APIPermissionException('User does not have access to project {} rules'.format(cid))
 
-        return config.db.project_rules.find({'project_id' : cid}, projection=projection)
+        find_kwargs = dict(filter={'project_id' : cid}, projection=projection)
+        return config.db.project_rules.find(**dbutil.paginate_find_kwargs(find_kwargs, self.pagination))
 
     @verify_payload_exists
     def post(self, cid):
@@ -341,7 +342,7 @@ class JobsHandler(base.RequestHandler):
     @require_admin
     def get(self): # pragma: no cover (no route)
         """List all jobs."""
-        return list(config.db.jobs.find())
+        return list(config.db.jobs.find(**dbutil.paginate_find_kwargs({}, self.pagination)))
 
     def add(self):
         """Add a job to the queue."""
@@ -612,7 +613,7 @@ class BatchHandler(base.RequestHandler):
             query = {}
         else:
             query = {'origin.id': self.uid}
-        return batch.get_all(query, {'proposal':0})
+        return batch.get_all(query, {'proposal':0}, pagination=self.pagination)
 
     @require_login
     def get(self, _id):

@@ -5,6 +5,7 @@ import pymongo.errors
 
 from . import consistencychecker
 from . import containerutil
+from . import dbutil
 from .. import config
 from .. import util
 
@@ -210,9 +211,10 @@ class ContainerStorage(object):
     def _to_mongo(self, payload):
         pass
 
+    # pylint: disable=unused-argument
     def exec_op(self, action, _id=None, payload=None, query=None, user=None,
-                public=False, projection=None, recursive=False, r_payload=None,  # pylint: disable=unused-argument
-                replace_metadata=False, unset_payload=None):
+                public=False, projection=None, recursive=False, r_payload=None,
+                replace_metadata=False, unset_payload=None, pagination=None):
         """
         Generic method to exec a CRUD operation from a REST verb.
         """
@@ -223,7 +225,7 @@ class ContainerStorage(object):
         if action == 'GET' and _id:
             return self.get_el(_id, projection=projection, fill_defaults=True)
         if action == 'GET':
-            return self.get_all_el(query, user, projection, fill_defaults=True)
+            return self.get_all_el(query, user, projection, fill_defaults=True, pagination=pagination)
         if action == 'DELETE':
             return self.delete_el(_id)
         if action == 'PUT':
@@ -294,7 +296,7 @@ class ContainerStorage(object):
             cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
         return cont
 
-    def get_all_el(self, query, user, projection, fill_defaults=False):
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
         if query is None:
             query = {}
         if user:
@@ -318,7 +320,9 @@ class ContainerStorage(object):
         else:
             replace_info_with_bool = False
 
-        results = list(self.dbc.find(query, projection))
+        find_kwargs = dict(filter=query, projection=projection)
+        results = list(self.dbc.find(**dbutil.paginate_find_kwargs(find_kwargs, pagination)))
+
         for cont in results:
             if cont.get('files', []):
                 cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
