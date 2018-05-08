@@ -38,8 +38,16 @@ class DataViewConfig(object):
         # The ordered set of columns
         self.flat_columns = []
 
+        # The list of file columns, if discovered
+        self.file_columns = []
+    
         # The list of containers that will be queried as part of the pipeline
         self.containers = []
+
+    def get_file_match_type(self):
+        if self.file_spec:
+            return self.file_spec.get('match', 'first')
+        return 'first'
 
     def initialize_columns(self):
         """Initializes the columns and container fields from the fetch spec"""
