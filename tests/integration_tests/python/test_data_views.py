@@ -665,7 +665,9 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
         'columns': [
             { 'src': 'subject.code', 'dst': 'subject' },
             { 'src': 'subject.age' },
-            { 'src': 'subject.sex' }
+            { 'src': 'subject.sex' },
+            { 'src': 'analysis.label', 'dst': 'analysis' },
+            { 'src': 'file.name', 'dst': 'filename' }
         ],
         'fileSpec': {
             'container': 'session',
@@ -677,6 +679,10 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
         }
     })
 
+    if not r.ok:
+        from pprint import pprint
+        pprint(r.json())
+
     assert r.ok
     rows = r.json()['data']
 
@@ -684,12 +690,15 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
 
     for i in range(2):
         name_value = 'a{}'.format(i+2)
+        filename = 'values{}.csv'.format(i+2)
         for j in range(5):
             row = rows[i*5+j]
 
             assert row['subject'] == subject1['code']
             assert row['subject.age'] == subject1['age']
             assert row['subject.sex'] == subject1['sex']
+            assert row['filename'] == filename
+            assert row['analysis'] == 'second-analysis' 
             assert row['name'] == name_value
             assert row['value'] == str(j)
             assert row['value2'] == str(2*j)
