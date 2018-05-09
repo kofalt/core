@@ -2,6 +2,7 @@ import itertools
 
 from ..web.errors import InputValidationException
 from ..dao import containerutil
+from .column_aliases import ColumnAliases
 
 # TODO: Add subject once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
@@ -68,10 +69,16 @@ class DataViewConfig(object):
 
         max_idx = -1 
         for col in columns:
-            src = col['src']
-            dst = col.get('dst', src)
-            datatype = col.get('type')
-            container, field = src.split('.', 1)
+            # Lookup src alias
+            src, datatype = ColumnAliases.get_column_alias(col['src'])
+
+            dst = col.get('dst', col['src'])
+            datatype = col.get('type', datatype)
+
+            try:
+                container, field = src.split('.', 1)
+            except ValueError:
+                raise InputValidationException('Unknown column alias: {}'.format(src))
 
             if container == 'subject':
                 container = 'session'
