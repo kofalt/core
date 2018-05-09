@@ -1,0 +1,22 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type":"array",
+    "items":{
+        "allOf":[{"$ref":"../definitions/data-view.json#/definitions/column-alias"}]
+    },
+    "example": [
+        {
+            "name": "project",
+            "src": "project._id",
+            "description": "The project id",
+            "type": "string"
+        },
+        {
+            "name": "project_label",
+            "src": "project.label",
+            "description": "The project label",
+            "type": "string"
+        }
+    ]
+}
+
