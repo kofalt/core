@@ -237,6 +237,7 @@ def get_public_config():
         'modified': __config.get('modified'),
         'site': __config.get('site'),
         'auth': auth,
+        'signed_url': hasattr(fs, 'get_signed_url'),
     }
 
 def get_version():

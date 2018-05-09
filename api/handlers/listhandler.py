@@ -355,23 +355,28 @@ class FileListHandler(ListHandler):
     """
 
     def _create_upload_ticket(self):
+        if not hasattr(config.fs, 'get_signed_url'):
+            self.abort(405, 'Signed URLs are not supported with the current storage backend')
+
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
-        filename = payload.get('filename', None)
+        filenames = payload.get('filenames', None)
 
-        if not (metadata or filename):
-            self.abort(404, 'metadata and filename are required')
+        if not (metadata or filenames):
+            self.abort(400, 'metadata and at least one filename are required')
 
         tempdir = str(uuid.uuid4())
         # Upload into a temp folder, so we will be able to cleanup
-        signed_url = files.get_signed_url(fs.path.join('tmp', tempdir, filename), config.fs, purpose='upload')
+        signed_urls = {}
+        for filename in filenames:
+            signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename),
+                                                         config.fs,
+                                                         purpose='upload')
 
-        if not signed_url:
-            self.abort(405, 'Signed URLs are not supported with the current storage backend')
-
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filename, metadata)
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filenames, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
-                'upload_url': signed_url}
+                'urls': signed_urls}
+
 
     def _check_download_ticket(self, ticket_id, _id, filename):
         ticket = config.db.downloads.find_one({'_id': ticket_id})
@@ -612,11 +617,13 @@ class FileListHandler(ListHandler):
                 # If we don't have an origin with this request, use the ticket's origin
                 self.origin = ticket.get('origin')
 
-            file_fields = [
-                util.dotdict({
-                    'filename': ticket['filename']
-                })
-            ]
+            file_fields = []
+            for filename in ticket['filenames']:
+                file_fields.append(
+                    util.dotdict({
+                        'filename': filename
+                    })
+                )
 
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                          container_type=containerutil.singularize(cont_name),

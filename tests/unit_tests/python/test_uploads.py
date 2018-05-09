@@ -4,19 +4,25 @@ import requests_mock
 def test_signed_url_reaper_upload(as_drone, mocker):
 
     payload = {
-        "metadata": {
-            "group": {"_id": "scitran"},
-            "project": {"label": ""},
-            "session": {
-                "uid": "session_uid",
-                "subject": {"code": "bela"}
+        'metadata': {
+            'group': {'_id': 'scitran'},
+            'project': {'label': ''},
+            'session': {
+                'uid': 'session_uid',
+                'subject': {'code': 'bela'}
             },
-            "acquisition": {
-                "uid": "acquisition_uid",
-                "files": [{"name": "test"}]
+            'acquisition': {
+                'uid': 'acquisition_uid',
+                'files': [
+                    {'name': 'test'},
+                    {'name': 'test2'}
+                ]
             }
         },
-        "filename": "test"
+        'filenames': [
+            'test',
+            'test2'
+        ]
     }
 
     r = as_drone.post('/upload/reaper?ticket=',
@@ -30,28 +36,31 @@ def test_signed_url_reaper_upload(as_drone, mocker):
                       json=payload)
 
     assert r.ok
-    assert r.json['upload_url'] == 'url'
+    assert r.json['urls'] == {'test': 'url', 'test2': 'url'}
+    assert mock_fs.get_signed_url.call_count == 2
 
     ticket_id = r.json['ticket']
 
     r = as_drone.post('/upload/reaper?ticket=' + ticket_id)
     assert r.ok
 
-    assert mock_fs.move.called
+    assert mock_fs.move.call_count == 2
 
 
 def test_signed_url_label_upload(as_drone, data_builder, mocker):
     group = data_builder.create_group()
 
     payload = {
-        "metadata": {
+        'metadata': {
             'group': {'_id': group},
             'project': {
                 'label': 'test_project',
                 'files': [{'name': 'project.csv'}]
             }
         },
-        "filename": "project.csv"
+        'filenames': [
+            'project.csv'
+        ]
     }
 
     r = as_drone.post('/upload/label?ticket=',
@@ -65,7 +74,8 @@ def test_signed_url_label_upload(as_drone, data_builder, mocker):
                       json=payload)
 
     assert r.ok
-    assert r.json['upload_url'] == 'url'
+    assert r.json['urls'] == {'project.csv': 'url'}
+    assert mock_fs.get_signed_url.call_count == 1
 
     ticket_id = r.json['ticket']
 
@@ -92,7 +102,9 @@ def test_signed_url_engine_upload(as_drone, data_builder, mocker):
                 ]
             }
         },
-        'filename': 'one.csv'
+        'filenames': [
+            'one.csv'
+        ]
     }
 
     r = as_drone.post('/engine?upload_ticket=&level=%s&id=%s' % ('project', project),
@@ -106,7 +118,8 @@ def test_signed_url_engine_upload(as_drone, data_builder, mocker):
                       json=payload)
 
     assert r.ok
-    assert r.json['upload_url'] == 'url'
+    assert r.json['urls'] == {'one.csv': 'url'}
+    assert mock_fs.get_signed_url.call_count == 1
 
     ticket_id = r.json['ticket']
 
@@ -133,7 +146,9 @@ def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mo
             'value': {'label': 'test'},
             'enabled': True
         },
-        'filename': 'one.csv'
+        'filenames': [
+            'one.csv'
+        ]
     }
 
     r = as_drone.post('/engine?upload_ticket=&level=%s&id=%s' % ('analysis', session_analysis),
@@ -148,7 +163,8 @@ def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mo
                       json=payload)
 
     assert r.ok
-    assert r.json['upload_url'] == 'url'
+    assert r.json['urls'] == {'one.csv': 'url'}
+    assert mock_fs.get_signed_url.call_count == 1
 
     ticket_id = r.json['ticket']
 
@@ -166,7 +182,9 @@ def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
 
     payload = {
         'metadata': {},
-        'filename': 'one.csv'
+        'filenames': [
+            'one.csv'
+        ]
     }
 
     r = as_drone.post('/projects/' + project + '/files?ticket=', json=payload)
@@ -177,7 +195,8 @@ def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
     r = as_drone.post('/projects/' + project + '/files?ticket=', json=payload)
 
     assert r.ok
-    assert r.json['upload_url'] == 'url'
+    assert r.json['urls'] == {'one.csv': 'url'}
+    assert mock_fs.get_signed_url.call_count == 1
 
     ticket_id = r.json['ticket']
 

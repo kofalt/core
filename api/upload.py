@@ -197,23 +197,27 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 class Upload(base.RequestHandler):
 
     def _create_upload_ticket(self):
+        if not hasattr(config.fs, 'get_signed_url'):
+            self.abort(405, 'Signed URLs are not supported with the current storage backend')
+
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
-        filename = payload.get('filename', None)
+        filenames = payload.get('filenames', None)
 
-        if not (metadata or filename):
-            self.abort(404, 'metadata and filename are required')
+        if not (metadata or filenames):
+            self.abort(400, 'metadata and at least one filename are required')
 
         tempdir = str(uuid.uuid4())
         # Upload into a temp folder, so we will be able to cleanup
-        signed_url = files.get_signed_url(fs.path.join('tmp', tempdir, filename), config.fs, purpose='upload')
+        signed_urls = {}
+        for filename in filenames:
+            signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename),
+                                                         config.fs,
+                                                         purpose='upload')
 
-        if not signed_url:
-            self.abort(405, 'Signed URLs are not supported with the current storage backend')
-
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filename, metadata)
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filenames, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
-                'upload_url': signed_url}
+                'urls': signed_urls}
 
     def _check_upload_ticket(self, ticket_id):
         ticket = config.db.uploads.find_one({'_id': ticket_id})
@@ -245,11 +249,13 @@ class Upload(base.RequestHandler):
         ticket_id = self.get_param('ticket')
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
-            file_fields = [
-                util.dotdict({
-                    'filename': ticket['filename']
-                })
-            ]
+            file_fields = []
+            for filename in ticket['filenames']:
+                file_fields.append(
+                    util.dotdict({
+                        'filename': filename
+                    })
+                )
 
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                   context=context, file_fields=file_fields, tempdir=ticket['tempdir'])
@@ -285,11 +291,13 @@ class Upload(base.RequestHandler):
         ticket_id = self.get_param('upload_ticket')
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
-            file_fields = [
-                util.dotdict({
-                    'filename': ticket['filename']
-                })
-            ]
+            file_fields = []
+            for filename in ticket['filenames']:
+                file_fields.append(
+                    util.dotdict({
+                        'filename': filename
+                    })
+                )
 
             strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
