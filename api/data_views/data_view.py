@@ -43,6 +43,9 @@ class DataView(object):
         # The content type for the response
         self._content_type = None
 
+        # The file extension for the response
+        self._file_extension = '.bin'
+
         # The write function
         self._write_fn = None
 
