@@ -32,6 +32,38 @@ At the core of the data view implementation is a configurable pipeline that cons
 - [Write](pipeline/write.py) - This stage is always performed, and is the terminal stage. It writes the flattened rows
 	in the configured output format.
 
+## Example Pipelines
+
+### Aggregate Containers Only
+```
++-----------+   +------------+   +-----------------+   +---------------------+   +-------+
+| Aggregate +---> Log Access +---> Extract Columns +---> Handle Missing Data +---> Write |
++-----------+   +------------+   +-----------------+   +---------------------+   +-------+
+```
+
+### Aggregate with Files
+```
++-----------+     +-------------+     +------------+     +-----------+
+| Aggregate +-----> Match Files +-----> Log Access +-----> Read File |
++-----------+     +-------------+     +------------+     +-----+-----+
+                                                               |    
+            +-------+    +---------------------+   +-----------v-----+
+            | Write <----+ Handle Missing Data <---+ Extract Columns |
+            +-------+    +---------------------+   +-----------------+
+```
+
+### Aggregate with Analyses and Files
+```
++-----------+     +----------------+    +-------------+     +------------+
+| Aggregate +-----> Match Analyses +----> Match Files +-----> Log Access |
++-----------+     +----------------+    +-------------+     +------+-----+
+                                                                   |
++-------+    +---------------------+   +-----------------+   +-----v-----+
+| Write <----+ Handle Missing Data <---+ Extract Columns <---+ Read File |
++-------+    +---------------------+   +-----------------+   +-----------+
+```
+
+
 ## Code Organization
 
 - **data_views/** 
