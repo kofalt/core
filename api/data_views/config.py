@@ -21,6 +21,7 @@ class ColumnSpec(object):
         self.datatype = datatype
 
 class DataViewConfig(object):
+    """Contains all relevant configuration for executing a DataView"""
     def __init__(self, desc):
         # The original data view description
         self.desc = desc
