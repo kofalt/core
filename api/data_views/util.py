@@ -83,6 +83,40 @@ def extract_json_property(name, obj, default=None):
 
     return obj
 
+def convert_to_datatype(value, datatype):
+    """Attempt to convert value to the given datatype. 
+    
+    If conversion fails, returns nil_value.
+    
+    Arguments:
+        value: The original value
+        datatype: The datatype, one of string, int, float, bool
+
+    Returns:
+        The converted value, or nil_value if conversion failed.
+    """
+    if is_nil(value):
+        return value
+
+    try:
+        if datatype == 'int':
+            return int(value)
+        elif datatype == 'float':
+            return float(value)
+        elif datatype == 'bool':
+            if isinstance(value, basestring) and value.lower() == 'false':
+                return False
+            return bool(value)
+        elif datatype == 'string':
+            if value is None:
+                return ''
+            return str(value)
+        else:
+            raise RuntimeError('Unknown datatype: {}'.format(datatype))
+
+    except ValueError:
+        return nil_value
+
 def file_filter_to_regex(filter_spec):
     """Convert a file-filter-spec to a regular expression
 

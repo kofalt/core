@@ -1,5 +1,5 @@
 from .pipeline import PipelineStage, EndOfPayload
-from ..util import extract_json_property, nil_value
+from ..util import extract_json_property, nil_value, convert_to_datatype
 
 class ExtractColumns(PipelineStage):
     def __init__(self, config):
@@ -17,8 +17,12 @@ class ExtractColumns(PipelineStage):
                 if cont_type not in column_map:
                     continue
 
-                for src, dst in column_map[cont_type]:
-                    row[dst] = extract_json_property(src, cont, default=nil_value)
+                for col in column_map[cont_type]:
+                    value = extract_json_property(col.src, cont, default=nil_value)
+                    if col.datatype is not None:
+                        value = convert_to_datatype(value, col.datatype)
+                    row[col.dst] = value
+
 
             self.emit(row)
 
