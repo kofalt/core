@@ -136,10 +136,7 @@ def datetime_from_str(s):
     Return None if the string is not such a valid prefix.
     """
     re_fmt = {
-        r'^\d\d\d\d$':                                        '%Y',
-        r'^\d\d\d\d-\d\d$':                                   '%Y-%m',
         r'^\d\d\d\d-\d\d-\d\d$':                              '%Y-%m-%d',
-        r'^\d\d\d\d-\d\d-\d\dT\d\d$':                         '%Y-%m-%dT%H',
         r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d$':                    '%Y-%m-%dT%H:%M',
         r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d$':               '%Y-%m-%dT%H:%M:%S',
         r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d$': '%Y-%m-%dT%H:%M:%S.%f',
