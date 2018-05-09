@@ -320,6 +320,7 @@ endpoints = [
 
         # Data views
         route('/views/data', DataViewHandler, h='execute_adhoc', m=['POST']),
+        route('/views/columns', DataViewHandler, h='get_columns', m=['GET']),
 
         # Misc (to be cleaned up later)
 

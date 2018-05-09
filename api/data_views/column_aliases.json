@@ -1,0 +1,149 @@
+[
+	{
+		"name": "project",
+		"src": "project._id",
+		"description": "The project id"
+	},
+	{
+		"name": "project_label",
+		"src": "project.label",
+		"description": "The project label"
+	},
+	
+	{
+		"name": "session",
+		"src": "session._id",
+		"description": "The session id"
+	},
+	{
+		"name": "session_label",
+		"src": "session.label",
+		"description": "The session label"
+	},
+	{
+		"name": "session_operator",
+		"src": "session.operator",
+		"description": "The session operator name"
+	},
+	{
+		"name": "session_timestamp",
+		"src": "session.timestamp",
+		"description": "The session timestamp"
+	},
+	{
+		"name": "session_timezone",
+		"src": "session.timezone",
+		"description": "The session timezone"
+	},
+
+	{
+		"name": "subject",
+		"src": "subject._id",
+		"description": "The subject id"
+	},
+	{
+		"name": "subject_label",
+		"src": "subject.code",
+		"description": "The subject label or code"
+	},
+	{
+		"name": "subject_firstname",
+		"src": "subject.firstname",
+		"description": "The subject first name"
+	},
+	{
+		"name": "subject_lastname",
+		"src": "subject.lastname",
+		"description": "The subject last name"
+	},
+	{
+		"name": "subject_age",
+		"src": "subject.age",
+		"description": "The subject age, in seconds",
+		"type": "int"
+	},
+	{
+		"name": "subject_sex",
+		"src": "subject.sex",
+		"description": "The subject sex (one of female|male|other|unknown)"
+	},
+	{
+		"name": "subject_race",
+		"src": "subject.race",
+		"description": "The subject race (one of American Indian or Alaska Native|Asian|Native Hawaiian or Other Pacific Islander|Black or African American|White|More Than One Race|Unknown or Not Reported)"
+	},
+	{
+		"name": "subject_ethnicity",
+		"src": "subject.ethnicity",
+		"description": "The subject ethnicity (one of Not Hispanic or Latino|Hispanic or Latino|Unknown or Not Reported)"
+	},
+
+	{
+		"name": "acquisition",
+		"src": "acquisition._id",
+		"description": "The acquisition id"
+	},
+	{
+		"name": "acquisition_label",
+		"src": "acquisition.label",
+		"description": "The acquisition label"
+	},
+	{
+		"name": "acquisition_timestamp",
+		"src": "acquisition.timestamp",
+		"description": "The acquisition timestamp"
+	},
+	{
+		"name": "acquisition_timezone",
+		"src": "acquisition.timezone",
+		"description": "The acquisition timezone"
+	},
+
+	{
+		"name": "analysis",
+		"src": "analysis._id",
+		"description": "The analysis id"
+	},
+	{
+		"name": "analysis_label",
+		"src": "analysis.label",
+		"description": "The analysis label"
+	},
+
+	{
+		"name": "file",
+		"src": "file._id",
+		"description": "The file id"
+	},
+	{
+		"name": "file_name",
+		"src": "file.name",
+		"description": "The filename"
+	},
+	{
+		"name": "file_type",
+		"src": "file.type",
+		"description": "The type of file (e.g., dicom, image, document)"
+	},
+	{
+		"name": "file_mimetype",
+		"src": "file.mimetype",
+		"description": "The file mime type (e.g. application/json, text/csv)"
+	},
+	{
+		"name": "file_modality",
+		"src": "file.modality",
+		"description": "The file instrument type (e.g., MR, CT)"
+	},
+	{
+		"name": "file_classification",
+		"src": "file.classification",
+		"description": "The file classification object"
+	},
+	{
+		"name": "file_size",
+		"src": "file.size",
+		"description": "The size of the file, in bytes",
+		"type": "int"
+	}
+]

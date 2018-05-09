@@ -26,6 +26,11 @@
       "additionalProperties": false,
       "description": "Specifies which analyses to match for files"
     },
+    "column-type": {
+      "type": "string",
+      "enum": [ "int", "float", "string", "bool" ],
+      "description": "The type that this value should be translated to (for typed output)"
+    },
     "file-spec": {
       "type": "object",
       "properties": {
@@ -66,11 +71,7 @@
           "type": "string",
           "description": "The optional destination property name"
         },
-        "type": {
-          "type": "string",
-          "enum": [ "int", "float", "string", "bool" ],
-          "description": "The type that this value should be translated to (for typed output)"
-        }
+        "type": { "$ref": "#/definitions/column-type" }
       },
       "required": ["src"],
       "additionalProperties": false,
@@ -134,6 +135,27 @@
       "description": "Specifies a flattened view of the flywheel hierarchy, possibly including files.",
       "additionalProperties": false,
       "x-sdk-model": "data-view"
+    },
+    "column-alias": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The column alias name"
+        },
+        "src": {
+          "type": "string",
+          "description": "The source for this column's data"
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of this field"
+        },
+        "type": { "$ref": "#/definitions/column-type" }
+      },
+      "description": "Represents a column alias for use in data views. Maps from src to name.",
+      "additionalProperties": false,
+      "required": ["name", "src", "description", "type"]
     }
   }
 }

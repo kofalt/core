@@ -5,12 +5,18 @@ from ..web import base
 from ..web.errors import InputValidationException
 
 from .data_view import DataView
+from .column_aliases import ColumnAliases
 
 log = config.log
 
 class DataViewHandler(base.RequestHandler):
 
     """Provide /views API routes."""
+
+    @require_login
+    def get_columns(self):
+        """Return all known column aliases with description and type"""
+        return ColumnAliases.get_columns()
 
     @require_login
     def execute_adhoc(self):
