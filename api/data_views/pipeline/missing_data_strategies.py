@@ -9,7 +9,11 @@ def get_missing_data_strategy(strategy):
     raise ValueError('Unknown missing data strategy: {}'.format(strategy))
 
 class DropRowStrategy(PipelineStage):
-    """Missing value handler that will drop rows that are missing data"""
+    """Missing value handler that will drop rows that are missing data
+
+    Expects flattend rows.
+    Emits flattened rows.
+    """
     def process(self, context):
         if context != EndOfPayload and contains_nil(context):
             return
@@ -17,7 +21,11 @@ class DropRowStrategy(PipelineStage):
         self.emit(context)
 
 class ReplaceDataStrategy(PipelineStage):
-    """Missing value handler that will replace missing data with the given value"""
+    """Missing value handler that will replace missing data with the given value
+
+    Expects flattend rows.
+    Emits flattened rows with nil_valueS replaced.
+    """
     def __init__(self, value=None):
         super(ReplaceDataStrategy, self).__init__()
         self._replacement_value = value 

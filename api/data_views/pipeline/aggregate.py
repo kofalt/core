@@ -11,8 +11,8 @@ def get_child_cont_type(cont_type):
 class Aggregate(PipelineStage):
     """Performs the mongodb aggregation query for the selected containers.
 
-    Expects the initial hierarchy tree as the payload, and emits a list of rows 
-    that were returned by the aggregation pipeline, combined with the initial context.
+    Expects the initial hierarchy tree as the payload.
+    Emits a list of rows that were returned by the aggregation pipeline, combined with the initial context.
 
     The list of rows will have a _meta object that contains container labels and ids,
     and a list of analyses or files as configured in the pipeline.
