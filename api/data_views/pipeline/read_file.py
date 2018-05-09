@@ -7,7 +7,17 @@ from ..util import file_filter_to_regex
 from ...config import log
 
 class ReadFile(PipelineStage):
+    """Pipeline stage that will read the file entry, possibly extracting a zip member.
+
+    Expects a single row (or EndOfPayload) that has a 'file' member of the file to open.
+    Emits a row for each row found in the file (or files if multiple zip members)
+    """
     def __init__(self, config):
+        """Initialize the pipeline stage.
+
+        Arguments:
+            config (DataViewConfig): The data view configuration
+        """
         super(ReadFile, self).__init__()
         self.config = config
         self.error_rows = []
@@ -23,6 +33,7 @@ class ReadFile(PipelineStage):
         self.format_options = self.config.file_spec.get('formatOptions', {})
 
     def initialize_file_columns(self, reader):
+        """Initialize the file columns based on the config, or set of columns discovered by the file reader"""
         # file_data is a special column for file rows
         cols = self.config.file_spec.get('columns')
         if not cols:
@@ -37,7 +48,15 @@ class ReadFile(PipelineStage):
 
             self.config.add_column('file_data', src, dst, datatype)
 
+        self.file_columns_initialized = True
+
     def process_file(self, context, file_entry):
+        """Process the given file entry
+
+        Arguments:
+            context (dict): The current context
+            file_entry (dict): The file entry to process
+        """
         try:
             with FileOpener(file_entry, self.zip_filter) as opener:
                 for filename, fd in opener.files():
@@ -47,6 +66,13 @@ class ReadFile(PipelineStage):
             self.error_rows.append(context)
 
     def process_file_data(self, context, filename, fd):
+        """Process the data in the given file.
+
+        Arguments:
+            context (dict): The current context
+            filename (str): The name of the opened file (e.g. the zip file name, or file_entry['name'])
+            fd (file): The file object
+        """
         # Determine file columns if not specified
         reader = create_file_reader(fd, filename, self.file_format, self.format_options) 
 

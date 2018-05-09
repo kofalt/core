@@ -141,9 +141,11 @@ class DataView(object):
         self.pipeline.pipe(Write(config, formatter))
 
     def get_content_type(self):
+        """Get the response Content-Type header value"""
         return self._content_type
 
     def get_filename(self, basename):
+        """Add the correct extension to basename"""
         return '{}{}'.format(basename, self._file_extension)
 
     def execute(self, request, origin, write_fn):
