@@ -34,6 +34,18 @@
       '400':
         $ref: '#/responses/400:invalid-body-json'
 
+/views/columns:
+  get:
+    summary: Return a list of all known column aliases for use in data views
+    operationId: get_data_view_columns
+    tags:
+    - views
+    responses:
+      '200':
+        description: 'The list of column aliases'
+        schema:
+          $ref: schemas/output/data-view-columns.json
+
 /views/data:
   post:
     summary: Execute an ad-hoc view, returning data in the preferred format.

@@ -70,6 +70,7 @@ At the core of the data view implementation is a configurable pipeline that cons
   - **pipeline/** - This module contains the pipeline stages for data view (described above). 
 	Some of the stages have dependencies on modules in the `data_views` folder.
   - [**access_logger.py**](access_logger.py) - Provides a class for collecting then bulk creating access log entries.
+  - [**column_aliases.py**](column_aliases.py) - Provide a mapping of column aliases to column sources.
   - [**config.py**](config.py) - Provides the DataViewConfig class which holds the configuration for data view execution.
   - [**data_view.py**](data_view.py) - The master DataView class which can take a view configuration and container id and execute a view.
   - [**file_opener.py**](file_opener.py) - Class that can take a file entry, and open and extract gz and zip files.

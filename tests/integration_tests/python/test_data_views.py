@@ -5,6 +5,7 @@ import json
 import zipfile
 import gzip
 import collections
+import pytest
 from StringIO import StringIO
 
 def years_to_secs(age):
@@ -72,6 +73,28 @@ def zip_test_data(files=['dir1/file1.csv', 'dir2/file2.csv']):
 
     zf.close()
     return sio.getvalue()
+
+def test_data_view_columns(as_user):
+    r = as_user.get('/views/columns')
+    assert r.ok
+    columns = r.json()
+    # This is just a subset of expected aliases
+    expected_columns = { 'project', 'project_label', 'subject_label', 'subject_age', 'file_name', 'analysis_label' }
+    valid_types = { 'int', 'float', 'bool', 'string' }
+
+    for col in columns:
+        assert 'name' in col
+        assert 'src' in col
+        assert 'description' in col
+        assert 'type' in col
+
+        expected_columns.discard(col['name'])
+        if col['type'] not in valid_types:
+            pytest.fail('Unexpected column type: {}'.format(col['type']))
+
+    if len(expected_columns):
+        pytest.fail('Did not find all expected columns: {}'.format(', '.join(expected_columns)))
+
 
 def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
     project = data_builder.create_project(label='test-project')
@@ -200,13 +223,14 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
     file_form2 = file_form(('values.csv', csv_test_data('a2')))
     assert as_admin.post('/acquisitions/' + acquisition2 + '/files', files=file_form2).ok
 
+    # Test column aliases as well
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
         'includeIds': False,
         'includeLabels': False,
         'columns': [
-            { 'src': 'subject.code', 'dst': 'subject' },
-            { 'src': 'subject.age' },
-            { 'src': 'subject.sex' }
+            { 'src': 'subject_label' },
+            { 'src': 'subject_age' },
+            { 'src': 'subject_sex' }
         ],
         'fileSpec': {
             'container': 'acquisition',
@@ -230,9 +254,9 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
         for j in range(5):
             row = rows[i*5+j]
 
-            assert row['subject'] == subject['code']
-            assert row['subject.age'] == subject['age']
-            assert row['subject.sex'] == subject['sex']
+            assert row['subject_label'] == subject['code']
+            assert row['subject_age'] == subject['age']
+            assert row['subject_sex'] == subject['sex']
             assert row['name'] == name_value
             assert row['value'] == j
             assert isinstance(row['value2'], float)
