@@ -65,6 +65,11 @@
         "dst": {
           "type": "string",
           "description": "The optional destination property name"
+        },
+        "type": {
+          "type": "string",
+          "enum": [ "int", "float", "string", "bool" ],
+          "description": "The type that this value should be translated to (for typed output)"
         }
       },
       "required": ["src"],

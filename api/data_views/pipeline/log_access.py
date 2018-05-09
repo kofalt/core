@@ -11,15 +11,15 @@ class LogAccess(PipelineStage):
         self.origin = None
 
     def initialize(self, tree):
-        for container, field, _ in self.config.columns:
+        for col in self.config.columns:
             # Any subject fields and any info fields are considered PHI
-            if is_phi_field(container, field):
-                next_part = field.split('.')[0]
+            if is_phi_field(col.container, col.src):
+                next_part = col.src.split('.')[0]
                 # TODO: Remove check when subject is formalized
                 if next_part == 'subject':
                     self.logger.add_container('subject')
                 else:
-                    self.logger.add_container(container)
+                    self.logger.add_container(col.container)
         
         if self.config.file_container:
             self.logger.set_file_container(self.config.file_container)

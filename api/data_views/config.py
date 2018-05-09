@@ -1,3 +1,5 @@
+import itertools
+
 from ..web.errors import InputValidationException
 from ..dao import containerutil
 
@@ -5,11 +7,18 @@ from ..dao import containerutil
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
 COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file' ]
 
-def id_column(cont_type):
-    return ( cont_type, '_id', cont_type )
 
-def label_column(cont_type):
-    return ( cont_type, 'label', '{}_label'.format(cont_type) )
+class ColumnSpec(object):
+    """Represents a single column configured for extraction"""
+    def __init__(self, container, src, dst, datatype=None):
+        # The container that this column should be extracted from
+        self.container = container
+        # The source path of the column value
+        self.src = src
+        # The destination name
+        self.dst = dst
+        # The optional datatype to extract
+        self.datatype = datatype
 
 class DataViewConfig(object):
     def __init__(self, desc):
@@ -39,9 +48,6 @@ class DataViewConfig(object):
         # The ordered set of columns
         self.flat_columns = []
 
-        # The list of file columns, if discovered
-        self.file_columns = []
-    
         # The list of containers that will be queried as part of the pipeline
         self.containers = []
 
@@ -53,7 +59,7 @@ class DataViewConfig(object):
     def initialize_columns(self):
         """Initializes the columns and container fields from the fetch spec"""
         self.determine_fetch_containers()
-        self.format_columns()
+        self.add_default_columns()
 
     def determine_fetch_containers(self):
         """Determine how deep we need to fetch based on columns and file specs"""
@@ -63,6 +69,7 @@ class DataViewConfig(object):
         for col in columns:
             src = col['src']
             dst = col.get('dst', src)
+            datatype = col.get('type')
             container, field = src.split('.', 1)
 
             if container == 'subject':
@@ -71,7 +78,7 @@ class DataViewConfig(object):
             elif container not in COLUMN_CONTAINERS:
                 raise InputValidationException('Unknown container for column: {}'.format(src))
 
-            self.columns.append( (container, field, dst) )
+            self.add_column(container, field, dst, datatype)
             if container in VIEW_CONTAINERS:
                 max_idx = max(max_idx, VIEW_CONTAINERS.index(container))
 
@@ -89,41 +96,43 @@ class DataViewConfig(object):
         assert max_idx > -1
         self.containers = VIEW_CONTAINERS[:max_idx+1]
 
-    def get_all_columns(self):
+    def add_default_columns(self):
         """Get all columns including auto generated id and label columns"""
-        # Add default columns to the beginning
-        columns = []
-
         include_ids = self.desc.get('includeIds', True)
         include_labels = self.desc.get('includeLabels', True)
+
+        idx = itertools.count()
 
         for cont in self.containers:
             if cont == 'session':
                 # TODO: Remove once subjects are formalized
                 if include_ids:
-                    columns.append( ('session', 'subject._id', 'subject') )
+                    self.add_column( 'session', 'subject._id', 'subject', idx=next(idx) )
                 if include_labels:
-                    columns.append( ('session', 'subject.code', 'subject_label') )
+                    self.add_column( 'session', 'subject.code', 'subject_label', idx=next(idx) )
 
             if include_ids:
-                columns.append(id_column(cont))
+                self.add_column( cont, '_id', cont, idx=next(idx) )
+
             if include_labels:
-                columns.append(label_column(cont))
+                self.add_column(cont, 'label', '{}_label'.format(cont), idx=next(idx) )
 
-        return columns + self.columns
+    def add_column(self, container, src, dst, datatype=None, idx=None):
+        """Add a column to the various internal maps
 
-    def format_columns(self):
-        """Format columns into a map of container -> columns, and include an index"""
-        # Group columns by 
-        columns = self.get_all_columns()
+        Arguments:
+            container (str): The source container of the column value
+            src (str): The source key of the column value in container
+            dst (str): The destination key for the column value
+            datatype (str): The optional column data type
+        """
+        if idx is None:
+            idx = len(self.columns)
 
-        for idx in range(len(columns)):
-            container, src, dst = columns[idx]
-
-            if container not in self.column_map:
-                self.column_map[container] = []
-
-            self.column_map[container].append((src, dst))
-            self.flat_columns.append(dst)
-
+        col = ColumnSpec(container, src, dst, datatype)
+        self.columns.insert(idx, col)
+        if container not in self.column_map:
+            self.column_map[container] = []
+        self.column_map[container].append(col)
+        self.flat_columns.insert(idx, dst)
 
