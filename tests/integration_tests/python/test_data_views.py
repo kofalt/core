@@ -120,15 +120,15 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     acquisition2 = data_builder.create_acquisition(session=session2, label='scout')
 
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
-        'includeIds': False,
+        'includeIds': True,
         'includeLabels': False,
         'columns': [
-            { 'src': 'project.label', 'dst': 'project' },
-            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'project.label', 'dst': 'project_label' },
+            { 'src': 'subject.code', 'dst': 'subject_label' },
             { 'src': 'subject.age' },
             { 'src': 'subject.sex' },
-            { 'src': 'session.label', 'dst': 'session' },
-            { 'src': 'acquisition.label', 'dst': 'acquisition' }
+            { 'src': 'session.label', 'dst': 'session_label' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition_label' }
         ]
     })
 
@@ -136,19 +136,25 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     rows = r.json()['data']
     assert len(rows) == 2
 
-    assert rows[0]['project'] == 'test-project'
-    assert rows[0]['subject'] == subject1['code']
+    assert rows[0]['project'] == project
+    assert rows[0]['project_label'] == 'test-project'
+    assert rows[0]['subject_label'] == subject1['code']
     assert rows[0]['subject.age'] == subject1['age']
     assert rows[0]['subject.sex'] == subject1['sex']
-    assert rows[0]['session'] == 'ses-01'
-    assert rows[0]['acquisition'] == 'scout'
+    assert rows[0]['session'] == session1
+    assert rows[0]['session_label'] == 'ses-01'
+    assert rows[0]['acquisition'] == acquisition1
+    assert rows[0]['acquisition_label'] == 'scout'
 
-    assert rows[1]['project'] == 'test-project'
-    assert rows[1]['subject'] == subject2['code']
+    assert rows[1]['project'] == project
+    assert rows[1]['project_label'] == 'test-project'
+    assert rows[1]['subject_label'] == subject2['code']
     assert rows[1]['subject.age'] == subject2['age']
     assert rows[1]['subject.sex'] == subject2['sex']
-    assert rows[1]['session'] == 'ses-01'
-    assert rows[1]['acquisition'] == 'scout'
+    assert rows[1]['session'] == session2
+    assert rows[1]['session_label'] == 'ses-01'
+    assert rows[1]['acquisition'] == acquisition2
+    assert rows[1]['acquisition_label'] == 'scout'
 
 def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
@@ -204,7 +210,12 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
         ],
         'fileSpec': {
             'container': 'acquisition',
-            'filter': { 'value': '*.csv' }
+            'filter': { 'value': '*.csv' },
+            'columns': [
+                { 'src': 'name' },
+                { 'src': 'value', 'type': 'int' },
+                { 'src': 'value2', 'type': 'float' }
+            ]
         }
     })
 
@@ -223,8 +234,9 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
             assert row['subject.age'] == subject['age']
             assert row['subject.sex'] == subject['sex']
             assert row['name'] == name_value
-            assert row['value'] == str(j)
-            assert row['value2'] == str(2*j)
+            assert row['value'] == j
+            assert isinstance(row['value2'], float)
+            assert row['value2'] == 2*j
 
 def test_adhoc_data_view_json_row_column_format(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')

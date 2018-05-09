@@ -39,8 +39,8 @@ class Aggregate(PipelineStage):
                 aggregator.filter_spec = { key_name: cont_id }
 
             stage = AggregationStage(child_cont_type)
-            for src, _ in config.column_map.get(child_cont_type_singular, []):
-                stage.fields.append(src)
+            for col in config.column_map.get(child_cont_type_singular, []):
+                stage.fields.append(col.src)
 
             if child_cont_type_singular == config.file_container:
                 # Check for analysis filter, if so we will load all of the analyses
