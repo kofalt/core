@@ -28,18 +28,14 @@ class ReadFile(PipelineStage):
         if not cols:
             cols = [{'src': x} for x in reader.get_columns()]
 
-        col_map = []
         for i in range(len(cols)):
             col = cols[i]
 
             src = col['src']
             dst = col.get('dst', src)
+            datatype = col.get('type')
 
-            col_map.append((src, dst))
-            self.config.flat_columns.append(dst)
-
-        # Add file_data column mappings
-        self.config.column_map['file_data'] = col_map
+            self.config.add_column('file_data', src, dst, datatype)
 
     def process_file(self, context, file_entry):
         try:
