@@ -35,6 +35,7 @@ from .batch import check_state, update
 from .queue import Queue
 from .rules import create_jobs, validate_regexes
 
+
 class GearsHandler(base.RequestHandler):
 
     """Provide /gears API routes."""
@@ -57,6 +58,7 @@ class GearsHandler(base.RequestHandler):
 
         check_for_gear_insertion(self.request.json)
         return None
+
 
 class GearHandler(base.RequestHandler):
     """Provide /gears/x API routes."""

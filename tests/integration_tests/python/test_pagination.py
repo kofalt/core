@@ -58,21 +58,39 @@ def test_limit(data_builder, as_admin, file_form):
     assert len(as_admin.get('/collections').json()) > 1
     assert len(as_admin.get('/collections?limit=1').json()) == 1
 
-    gear1 = data_builder.create_gear()
-    gear2 = data_builder.create_gear()
+    g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
+    g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
+    g_b0 = data_builder.create_gear(gear={'name': 'b', 'version': '0.0.0'})
+    g_b1 = data_builder.create_gear(gear={'name': 'b', 'version': '1.0.0'})
     assert len(as_admin.get('/gears').json()) > 1
     assert len(as_admin.get('/gears?limit=1').json()) == 1
 
-    rule_doc = {'alg': as_admin.get('/gears/' + gear1).json()['gear']['name'],
+    rule_doc = {'alg': as_admin.get('/gears/' + g_a1).json()['gear']['name'],
                 'name': 'foo', 'any': [], 'all': []}
     r1 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
     r2 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
     assert len(as_admin.get('/site/rules').json()) > 1
     assert len(as_admin.get('/site/rules?limit=1').json()) == 1
+
+    assert as_admin.post('/acquisitions/' + aq1 + '/files', files=file_form('test.txt')).ok
+    batch_json = {'gear_id': g_a1, 'targets': [{'type': 'acquisition', 'id': aq1}]}
+    b1 = as_admin.post('/batch', json=batch_json).json()['_id']
+    b2 = as_admin.post('/batch', json=batch_json).json()['_id']
+    assert len(as_admin.get('/batch').json()) > 1
+    assert len(as_admin.get('/batch?limit=1').json()) == 1
+
+    ## `GET /jobs` is not exposed (yet)
+    # job_json = {
+    #     'gear_id': gear1,
+    #     'inputs': {'text': {'type': 'analysis', 'id': an1, 'name': 'a.txt'}},
+    #     'destination': {'type': 'acquisition', 'id': aq1}}
+    # j1 = as_admin.post('/jobs/add', json=job_data).json()['_id']
+    # j2 = as_admin.post('/jobs/add', json=job_data).json()['_id']
+    # assert len(as_admin.get('/jobs').json()) > 1
+    # assert len(as_admin.get('/jobs?limit=1').json()) == 1
+
     assert as_admin.delete('/site/rules/' + r1).ok
     assert as_admin.delete('/site/rules/' + r2).ok
-
-    # TODO batch, job
 
 
 def test_sort(data_builder, as_admin):
@@ -96,6 +114,13 @@ def test_sort(data_builder, as_admin):
 
     r = as_admin.get('/acquisitions?sort=label:1,created:-1')
     assert [a['_id'] for a in r.json()] == [a2, a1, b2, b1, c2, c1]
+
+    g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
+    g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
+    g_b0 = data_builder.create_gear(gear={'name': 'b', 'version': '0.0.0'})
+    g_b1 = data_builder.create_gear(gear={'name': 'b', 'version': '1.0.0'})
+    r = as_admin.get('/gears?sort=gear.name:-1')
+    assert [g['_id'] for g in r.json()] == [g_b1, g_a1]
 
 
 def test_filter(data_builder, as_admin):
@@ -132,3 +157,11 @@ def test_filter(data_builder, as_admin):
     b_created = as_admin.get('/acquisitions/' + b).json()['created'][:-6]
     r = as_admin.get('/acquisitions?filter=created=' + b_created)
     assert {aq['_id'] for aq in r.json()} == {b}
+
+    g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
+    g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
+    g_b0 = data_builder.create_gear(gear={'name': 'b', 'version': '0.0.0'})
+    g_b1 = data_builder.create_gear(gear={'name': 'b', 'version': '1.0.0'})
+    r = as_admin.get('/gears?filter=gear.name=a&filter=single_input')
+    assert r.ok
+    assert {g['_id'] for g in r.json()} == {g_a1}

@@ -300,7 +300,16 @@ class RequestHandler(webapp2.RequestHandler):
 
         pagination = {}
 
-        if self.get_param('filter'):
+        for filter_param in self.request.GET.getall('filter'):
+            if filter_param == 'single_input':
+                # Enable new filters in addition to `GET /gears?filter=single_input`
+                # TODO find better place for this logic instead of base class
+                continue
+
+            if 'filter' in pagination:
+                msg = 'Multiple "filter" query params not allowed (use commas instead)'
+                raise errors.APIValidationException({'error': msg})
+
             pagination['filter'] = {}
             filter_ops = {'<':  '$lt',
                           '<=': '$lte',
@@ -308,7 +317,7 @@ class RequestHandler(webapp2.RequestHandler):
                           '!=': '$ne',
                           '>=': '$gte',
                           '>':  '$gt'}
-            for filter_str in self.get_param('filter').split(','):
+            for filter_str in filter_param.split(','):
                 for filter_op in sorted(filter_ops, key=len, reverse=True):
                     key, op, value = filter_str.partition(filter_op)
                     if op:
@@ -318,18 +327,28 @@ class RequestHandler(webapp2.RequestHandler):
                             value = bson.ObjectId(value)
                         elif util.datetime_from_str(value):
                             value = util.datetime_from_str(value)
-                        # TODO int, float, others?
+                        else:
+                            try:
+                                # Note: querying for floats also yields ints (=> no need for int casting here)
+                                value = float(value)
+                            except ValueError:
+                                pass
+                        # TODO cast other types?
                         pagination['filter'][key].update({filter_ops[op]: value})
                         break
                 else:
                     msg = 'Invalid pagination query param "filter": {} (operator missing)'
                     raise errors.APIValidationException({'error': msg.format(filter_str)})
 
-        if self.get_param('sort'):
+        for sort_param in self.request.GET.getall('sort'):
+            if 'sort' in pagination:
+                msg = 'Multiple "sort" query params not allowed (use commas instead)'
+                raise errors.APIValidationException({'error': msg})
+
             pagination['sort'] = []
             sort_orders = { '1': pymongo.ASCENDING,   'asc': pymongo.ASCENDING,
                            '-1': pymongo.DESCENDING, 'desc': pymongo.DESCENDING}
-            for sort_str in self.get_param('sort').split(','):
+            for sort_str in sort_param.split(','):
                 key, _, order = sort_str.partition(':')
                 order = order.lower() or 'asc'
                 if order not in sort_orders:
@@ -337,9 +356,13 @@ class RequestHandler(webapp2.RequestHandler):
                     raise errors.APIValidationException({'error': msg.format(sort_str)})
                 pagination['sort'].append((key, sort_orders[order]))
 
-        if self.get_param('limit'):
+        for limit_param in self.request.GET.getall('limit'):
+            if 'limit' in pagination:
+                msg = 'Multiple "limit" query params not allowed'
+                raise errors.APIValidationException({'error': msg})
+
             try:
-                pagination['limit'] = int(self.get_param('limit'))
+                pagination['limit'] = int(limit_param)
                 if pagination['limit'] <= 0:
                     raise ValueError('expected positive integer, got {}'.format(pagination['limit']))
             except ValueError as e:

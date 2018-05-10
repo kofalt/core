@@ -84,7 +84,7 @@ def paginate_pipeline(pipeline, pagination):
             pipeline.append({'$match': pagination['filter']})
 
         if 'sort' in pagination:
-            pipeline.append({'$sort': pagination['sort']})
+            pipeline.append({'$sort': dict(pagination['sort'])})
 
         if 'limit' in pagination:
             pipeline.append({'$limit': pagination['limit']})
