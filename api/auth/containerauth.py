@@ -110,6 +110,39 @@ def default_referer(handler, parent_container=None):
         return f
     return g
 
+def any_referer(handler, container=None, parent_container=None):
+    def g(exec_op):
+        def f(method, _id=None, payload=None):
+            has_access = False
+
+            # if parent container is "site", then the user must be a superuser to make changes
+            if handler.superuser_request:
+                has_access = True
+            elif parent_container == 'site':
+                has_access = method == 'GET' and container.get('public', False)
+            elif method == 'GET' and (container.get('public', False) or parent_container.get('public', False)):
+                has_access = True
+            elif parent_container.get('cont_name') == 'user':
+                # if the parent container is a user, then only the user has access
+                has_access = handler.uid == parent_container['_id']
+            else:
+                access = _get_access(handler.uid, parent_container)
+                if method == 'GET':
+                    has_access = access >= INTEGER_PERMISSIONS['ro']
+                elif method in ['POST', 'PUT', 'DELETE']:
+                    # if the parent container is a group then the user must be an admin to create/delete views
+                    if parent_container.get('cont_name') == 'group':
+                        has_access = access >= INTEGER_PERMISSIONS['admin']
+                    else:
+                        has_access = access >= INTEGER_PERMISSIONS['rw']
+
+            # finally we fall back on the default referrer
+            if has_access:
+                return exec_op(method, _id=_id, payload=payload)
+            else:
+                handler.abort(403, 'user not authorized to perform a {} operation on parent container'.format(method))
+        return f
+    return g
 
 def public_request(handler, container=None):
     """
