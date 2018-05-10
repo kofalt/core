@@ -132,7 +132,7 @@ class CollectionsHandler(ContainerHandler):
         for result in results:
             if self.is_true('stats'):
                 result = containerutil.get_stats(result, 'collections')
-        return results
+        return self.paginate_results(results)
 
     def curators(self):
         curator_ids = []

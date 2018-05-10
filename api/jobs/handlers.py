@@ -49,7 +49,7 @@ class GearsHandler(base.RequestHandler):
         if 'single_input' in filters:
             gears = list(filter(lambda x: count_file_inputs(x) <= 1, gears))
 
-        return gears
+        return self.paginate_results(gears)
 
     @require_login
     def check(self):
@@ -241,7 +241,8 @@ class RulesHandler(base.RequestHandler):
                 raise APIPermissionException('User does not have access to project {} rules'.format(cid))
 
         find_kwargs = dict(filter={'project_id' : cid}, projection=projection)
-        return config.db.project_rules.find(**dbutil.paginate_find_kwargs(find_kwargs, self.pagination))
+        results = config.db.project_rules.find(**dbutil.paginate_find_kwargs(find_kwargs, self.pagination))
+        return self.paginate_results(results)
 
     @verify_payload_exists
     def post(self, cid):
@@ -342,7 +343,8 @@ class JobsHandler(base.RequestHandler):
     @require_admin
     def get(self): # pragma: no cover (no route)
         """List all jobs."""
-        return list(config.db.jobs.find(**dbutil.paginate_find_kwargs({}, self.pagination)))
+        results = config.db.jobs.find(**dbutil.paginate_find_kwargs({}, self.pagination))
+        return self.paginate_results(results)
 
     def add(self):
         """Add a job to the queue."""
@@ -613,7 +615,8 @@ class BatchHandler(base.RequestHandler):
             query = {}
         else:
             query = {'origin.id': self.uid}
-        return batch.get_all(query, {'proposal':0}, pagination=self.pagination)
+        results = batch.get_all(query, {'proposal':0}, pagination=self.pagination)
+        return self.paginate_results(results)
 
     @require_login
     def get(self, _id):

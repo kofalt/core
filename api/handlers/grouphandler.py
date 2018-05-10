@@ -57,7 +57,7 @@ class GroupHandler(base.RequestHandler):
         if 'projects' in self.request.params.getall('join'):
             for result in results:
                 result = self.handle_projects(result)
-        return results
+        return self.paginate_results(results)
 
     @validators.verify_payload_exists
     def put(self, _id):

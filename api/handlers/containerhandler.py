@@ -349,7 +349,7 @@ class ContainerHandler(base.RequestHandler):
         if self.is_true('join_avatars'):
             modified_results = self.join_user_info(modified_results)
 
-        return modified_results
+        return self.paginate_results(modified_results)
 
     def _filter_all_permissions(self, results, uid):
         for result in results:

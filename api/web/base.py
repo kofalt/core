@@ -348,6 +348,16 @@ class RequestHandler(webapp2.RequestHandler):
 
         return pagination
 
+    def paginate_results(self, results):
+        """
+        Return result list wrapped in a dict to allow passing additional meta like count.
+        URL param `?page=1` acts as a feature toggle to maintain backwards-compatibility.
+        """
+        if self.is_true('page'):
+            results = list(results)
+            results = {'count': len(results), 'results': results}
+        return results
+
     def handle_exception(self, exception, debug, return_json=False): # pylint: disable=arguments-differ
         """
         Send JSON response for exception

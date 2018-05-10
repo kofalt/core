@@ -1,3 +1,16 @@
+def test_count(data_builder, as_admin):
+    a = data_builder.create_acquisition(label='a')
+    b = data_builder.create_acquisition(label='b')
+
+    r = as_admin.get('/acquisitions?page=true')
+    assert r.ok
+    data = r.json()
+    assert 'count' in data
+    assert 'results' in data
+    assert data['count'] == len(data['results'])
+    assert data['results'] == as_admin.get('/acquisitions').json()
+
+
 def test_limit(data_builder, as_admin, file_form):
     assert as_admin.get('/users?limit=foo').status_code == 422
     assert as_admin.get('/users?limit=-1').status_code == 422
