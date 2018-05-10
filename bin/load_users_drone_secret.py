@@ -119,19 +119,13 @@ ap.description = 'Bootstrap SciTran users and groups'
 ap.add_argument('url', help='API URL')
 ap.add_argument('json', help='JSON file containing users and groups')
 ap.add_argument('--insecure', action='store_true', help='do not verify SSL connections')
-ap.add_argument('--secret', help='shared API secret')
+ap.add_argument('--key', help='API key to use')
 args = ap.parse_args()
 
 if args.insecure:
     requests.packages.urllib3.disable_warnings()
 
-http_headers = {
-    'X-SciTran-Method': 'bootstrapper',
-    'X-SciTran-Name': 'Bootstrapper',
-}
-if args.secret:
-    http_headers['X-SciTran-Auth'] = args.secret
-# TODO: extend this to support oauth tokens
+http_headers = {'Authorization': 'scitran-user ' + args.key}
 
 try:
     users(args.json, args.url, http_headers, args.insecure)
