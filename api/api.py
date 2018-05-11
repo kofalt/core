@@ -199,6 +199,21 @@ endpoints = [
         route('/<cid:site>/rules/<rid:{oid}>',  RuleHandler,           m=['GET', 'PUT', 'DELETE']),
 
 
+        # Data views
+
+        prefix('/containers/<parent:{gid}|{oid}|{uid}>', [
+            route('/views', DataViewHandler, h='list_views',            m=['GET']),
+            route('/views', DataViewHandler,                            m=['POST']),
+        ]),
+
+        prefix('/views', [
+            route('/data',             DataViewHandler, h='execute_adhoc',   m=['POST']),
+            route('/columns',          DataViewHandler, h='get_columns',     m=['GET']),
+            route('/<_id:{oid}>',      DataViewHandler,                      m=['GET', 'DELETE', 'PUT']),
+            route('/<_id:{oid}>/data', DataViewHandler, h='execute_saved',   m=['GET'])
+        ]),
+
+
         # Abstract container
 
         route('/containers/<cid:{gid}|{oid}><extra:.*>', AbstractContainerHandler, h='handle'),
@@ -315,11 +330,6 @@ endpoints = [
                 route('/<list_name:notes>/<_id:{oid}>', NotesListHandler, name='notes', m=['GET', 'PUT', 'DELETE']),
             ])
         ]),
-
-
-        # Data views
-        route('/views/data', DataViewHandler, h='execute_adhoc', m=['POST']),
-        route('/views/columns', DataViewHandler, h='get_columns', m=['GET']),
 
         # Misc (to be cleaned up later)
 
