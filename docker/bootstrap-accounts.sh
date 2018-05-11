@@ -30,7 +30,7 @@ export PYTHONPATH=.
 
 
 # Bootstrap Users
-./bin/load_users_drone_secret.py --insecure --key "${BOOTSTRAP_USER_KEY}" "${SCITRAN_SITE_API_URL}" "${bootstrap_user_file}"
+./bin/load_users.py --insecure --key "${BOOTSTRAP_USER_KEY}" "${SCITRAN_SITE_API_URL}" "${bootstrap_user_file}"
 
 
 )
