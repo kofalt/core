@@ -10,7 +10,7 @@ PARENT_CONTAINERS = ['users', 'projects', 'groups']
 class DataViewStorage(ContainerStorage):
     """ContainerStorage class for Data Views"""
     def __init__(self):
-        super(DataViewStorage, self).__init__('data_views', use_object_id=True, use_delete_tag=True)
+        super(DataViewStorage, self).__init__('data_views', use_object_id=True)
 
     def get_parent(self, _id, cont=None, projection=None):
         """Get the parent for the view with _id
