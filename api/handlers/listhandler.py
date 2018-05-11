@@ -362,7 +362,7 @@ class FileListHandler(ListHandler):
         metadata = payload.get('metadata', None)
         filenames = payload.get('filenames', None)
 
-        if not (metadata or filenames):
+        if not (metadata and filenames):
             self.abort(400, 'metadata and at least one filename are required')
 
         tempdir = str(uuid.uuid4())
