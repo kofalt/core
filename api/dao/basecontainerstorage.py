@@ -275,9 +275,14 @@ class ContainerStorage(object):
 
     def delete_el(self, _id):
         _id = self.format_id(_id)
+        self.cleanup_ancillary_data(_id)
         if self.use_delete_tag:
             return self.dbc.update_one({'_id': _id}, {'$set': {'deleted': datetime.datetime.utcnow()}})
         return self.dbc.delete_one({'_id':_id})
+
+    def cleanup_ancillary_data(self, _id):
+        """Optional cleanup of other data that may be associated with this container"""
+        pass
 
     def get_el(self, _id, projection=None, fill_defaults=False):
         _id = self.format_id(_id)

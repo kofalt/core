@@ -190,7 +190,7 @@ class ContainerHandler(base.RequestHandler):
 
         # Get list of all users, hash by uid
         # TODO: This is not an efficient solution if there are hundreds of inactive users
-        users_list = containerstorage.ContainerStorage('users', use_object_id=False).get_all_el({}, None, None)
+        users_list = containerstorage.UserStorage().get_all_el({}, None, None)
         users = {user['_id']: user for user in users_list}
 
         for r in results:
