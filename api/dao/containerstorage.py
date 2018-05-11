@@ -45,6 +45,26 @@ class GroupStorage(ContainerStorage):
             },
             upsert=True)
 
+class UserStorage(ContainerStorage):
+
+    def __init__(self):
+        super(UserStorage,self).__init__('users', use_object_id=False)
+
+    def cleanup_ancillary_data(self, _id):
+        self.cleanup_user_permissions(_id)
+
+    def cleanup_user_permissions(self, uid):
+        """Remove user from the permissions array of every container"""
+        try:
+            query = {'permissions._id': uid}
+            update = {'$pull': {'permissions' : {'_id': uid}}}
+
+            for cont in ['collections', 'groups', 'projects', 'sessions', 'acquisitions']:
+                config.db[cont].update_many(query, update)
+
+        except APIStorageException:
+            raise APIStorageException('Site-wide user permissions for {} were unabled to be removed'.format(uid))
+
 
 class ProjectStorage(ContainerStorage):
 

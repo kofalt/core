@@ -269,7 +269,7 @@ class PermissionsListHandler(ListHandler):
         """
         Checks if user exists
         """
-        return bool(containerstorage.ContainerStorage('users', use_object_id=False).get_all_el({'_id': uid}, None, {'_id':1}))
+        return bool(containerstorage.UserStorage().get_all_el({'_id': uid}, None, {'_id':1}))
 
 class NotesListHandler(ListHandler):
     """
