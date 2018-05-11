@@ -718,10 +718,6 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
         }
     })
 
-    if not r.ok:
-        from pprint import pprint
-        pprint(r.json())
-
     assert r.ok
     rows = r.json()['data']
 
@@ -745,4 +741,294 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis1)})
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis2)})
 
+def test_user_data_view(as_user, as_public):
+    # Try to create with no body
+    r = as_user.post('/containers/user@user.com/views')
+    assert r.status_code == 400
+
+    # Try to create invalid view
+    view = { 'columns': [{'src': 'acquisition_label'}] }
+    r = as_user.post('/containers/user@user.com/views', json=view)
+    assert r.status_code == 400
+
+    # Try to create a view on a different user
+    view['label'] = 'test-view'
+    r = as_user.post('/containers/admin@user.com/views', json=view)
+    assert r.status_code == 403
+
+    # Create a user-owned view
+    r = as_user.post('/containers/user@user.com/views', json=view)
+    assert r.ok
+    view = r.json()['_id']
+    
+    # Attempt to get view as public
+    r = as_public.get('/views/' + view)
+    assert r.status_code == 403
+
+    # Get view
+    r = as_user.get('/views/' + view)
+    assert r.ok
+    r_view = r.json()
+
+    assert r_view['_id'] == view
+    assert r_view['label'] == 'test-view'
+    assert len(r_view['columns']) == 1
+
+    # Attempt to list another user's views
+    r = as_user.get('/containers/admin@user.com/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 0
+
+    # List views
+    r = as_user.get('/containers/user@user.com/views')
+    assert r.ok
+    views = r.json()
+
+    assert len(views) == 1
+    assert views[0] == r_view
+
+    # Update view with no payload
+    r = as_user.put('/views/' + view)
+    assert r.status_code == 400
+
+    # Update view with invalid payload
+    r = as_user.put('/views/' + view, json={'_id': 'otherid'})
+    assert r.status_code == 400
+
+    # Update view
+    r = as_user.put('/views/' + view, json={'public':True})
+    assert r.ok
+
+    # Attempt to get view as public after making it public
+    r = as_public.get('/views/' + view)
+
+    assert r.ok
+    r_view = r.json()
+
+    assert r_view['_id'] == view
+    assert r_view['label'] == 'test-view'
+    assert r_view['public'] == True
+    assert len(r_view['columns']) == 1
+
+    r = as_user.delete('/views/' + view)
+    assert r.ok
+
+def test_site_data_view(as_admin, as_user):
+    view = { 
+        'label': 'test-site-view',
+        'columns': [{'src': 'acquisition_label'}] 
+    }
+
+    # Try to create a view as non admin 
+    r = as_user.post('/containers/site/views', json=view)
+    assert r.status_code == 403
+
+    # Create a site-owned view
+    r = as_admin.post('/containers/site/views', json=view)
+    assert r.ok
+    view = r.json()['_id']
+    
+    # Attempt to get view as user 
+    r = as_user.get('/views/' + view)
+    assert r.status_code == 403
+
+    # Get view
+    r = as_admin.get('/views/' + view)
+    assert r.ok
+    r_view = r.json()
+
+    assert r_view['_id'] == view
+    assert r_view['label'] == 'test-site-view'
+    assert len(r_view['columns']) == 1
+
+    # Attempt to list site views
+    r = as_user.get('/containers/site/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 0
+
+    # List views
+    r = as_admin.get('/containers/site/views')
+    assert r.ok
+    views = r.json()
+
+    assert len(views) == 1
+    assert views[0] == r_view
+
+    # Update view
+    r = as_admin.put('/views/' + view, json={'public':True})
+    assert r.ok
+
+    # Attempt to get view as public after making it public
+    r = as_user.get('/views/' + view)
+
+    assert r.ok
+    r_view = r.json()
+
+    assert r_view['_id'] == view
+    assert r_view['label'] == 'test-site-view'
+    assert r_view['public'] == True
+    assert len(r_view['columns']) == 1
+
+    # Attempt to list site views
+    r = as_user.get('/containers/site/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 1
+    assert views[0] == r_view
+
+    r = as_admin.delete('/views/' + view)
+    assert r.ok
+
+def test_group_data_view(as_admin, as_user, data_builder):
+    group = data_builder.create_group(_id='data_view_group')
+    assert group == 'data_view_group'
+
+    r = as_admin.post('/groups/data_view_group/permissions', json={'_id': 'user@user.com', 'access': 'rw'})
+    assert r.ok
+
+    view = { 
+        'label': 'test-group-view',
+        'columns': [{'src': 'acquisition_label'}] 
+    }
+
+    # Try to create a view as non admin 
+    r = as_user.post('/containers/data_view_group/views', json=view)
+    assert r.status_code == 403
+
+    # Create a group-owned view
+    r = as_admin.post('/containers/data_view_group/views', json=view)
+    assert r.ok
+    view = r.json()['_id']
+    
+    # Attempt to get view as user 
+    r = as_user.get('/views/' + view)
+    assert r.ok
+    r_view = r.json()
+
+    assert r_view['_id'] == view
+    assert r_view['label'] == 'test-group-view'
+    assert len(r_view['columns']) == 1
+
+    # Get view
+    r = as_admin.get('/views/' + view)
+    assert r.ok
+    assert r_view == r.json()
+
+    # Attempt to list site views
+    r = as_user.get('/containers/data_view_group/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 1
+    assert views[0] == r_view
+
+    # List views
+    r = as_admin.get('/containers/data_view_group/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 1
+    assert views[0] == r_view
+
+    r = as_admin.delete('/views/' + view)
+    assert r.ok
+    
+def test_project_data_view(as_admin, as_user, as_public, data_builder, file_form):
+    project = data_builder.create_project(label='test-project', public=False)
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+
+    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'ro'})
+    assert r.ok
+
+    view = { 
+        'label': 'test-project-view',
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject_label' },
+            { 'src': 'subject_age' },
+            { 'src': 'subject_sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.csv' }
+        }
+    }
+
+    # Try to create a view as read-only
+    r = as_user.post('/containers/'+ project + '/views', json=view)
+    assert r.status_code == 403
+
+    # Create a project-owned view
+    r = as_admin.post('/containers/' + project + '/views', json=view)
+    assert r.ok
+    view = r.json()['_id']
+    
+    # Attempt to get view as user 
+    r = as_user.get('/views/' + view)
+    assert r.ok
+    r_view = r.json()
+
+    assert r_view['_id'] == view
+    assert r_view['label'] == 'test-project-view'
+    assert len(r_view['columns']) == 3
+
+    # Get view
+    r = as_admin.get('/views/' + view)
+    assert r.ok
+    assert r_view == r.json()
+
+    # Attempt to list project views as public
+    r = as_public.get('/containers/' + project + '/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 0
+
+    # List project views
+    r = as_user.get('/containers/' + project + '/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 1
+    assert views[0] == r_view
+
+    # Modify project to public
+    r = as_admin.put('/projects/' + project, json={'public':True})
+    assert r.ok
+
+    # Get view
+    r = as_public.get('/views/' + view)
+    assert r.ok
+    assert r_view == r.json()
+
+    # Attempt to list project views as public
+    r = as_public.get('/containers/' + project + '/views')
+    assert r.ok
+    views = r.json()
+    assert len(views) == 1
+    assert views[0] == r_view
+    
+    # Execute the view
+    r = as_admin.get('/views/' + view + '/data?containerId={}'.format(project))
+
+    assert r.ok
+    rows = r.json()['data']
+
+    assert len(rows) == 5
+
+    for i in range(5):
+        row = rows[i]
+
+        assert row['subject_label'] == subject1['code']
+        assert row['subject_age'] == subject1['age']
+        assert row['subject_sex'] == subject1['sex']
+        assert row['name'] == 'a1' 
+        assert row['value'] == str(i)
+        assert row['value2'] == str(2*i)
+
+    r = as_admin.delete('/views/' + view)
+    assert r.ok
 

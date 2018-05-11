@@ -179,6 +179,7 @@ def initialize_db():
     db.gears.create_index('name')
     db.batch.create_index('jobs')
     db.project_rules.create_index('project_id')
+    db.data_views.create_index('parent')
 
     if __config['core']['access_log_enabled']:
         log_db.access_log.create_index('context.ticket_id')

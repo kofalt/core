@@ -91,6 +91,10 @@
           "description": "The parent container id"
         },
         "label": {"$ref": "common.json#/definitions/label"},
+        "public": {
+          "type": "boolean",
+          "description": "Indicates whether or not the view is public"
+        },
         "columns": {
           "type": "array",
           "items": {"$ref": "#/definitions/column-spec"},
@@ -116,6 +120,10 @@
       "properties": {
         "_id": {"$ref": "common.json#/definitions/objectid"},
         "label": {"$ref": "common.json#/definitions/label"},
+        "public": {
+          "type": "boolean",
+          "description": "Indicates whether or not the view is public"
+        },
         "columns": {
           "type": "array",
           "items": {"$ref": "#/definitions/column-spec"},
