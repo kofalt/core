@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 47 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 48 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1576,6 +1576,58 @@ def upgrade_to_47():
         device['type'] = device.pop('method')  # Rename method to type (engine, reaper, etc.)
         device['_id'] = bson.ObjectId()        # Generate oid
         config.db.devices.insert_one(device)
+
+
+
+def upgrade_files_to_48(cont, context):
+    """
+    Issue #1200
+    In db upgrade 47, we changed how device objects are stored in the database:
+    Thier `_id` became their `label` and the were given an ObjectId as their new `_id`
+
+    With that new format, origins added to files after the change had a (str'd) ObjectId
+    as their `origin.id`, while old still had the human readable string label. This update
+    will move all old origins to the new format, marking the ones that we cannot transition
+    to unknown/null.
+    """
+
+    device_id_by_name = context['devices']
+    cont_name = context['cont_name']
+    files = cont.get('files', [])
+
+    for f in files:
+        if f['origin']['type'] == 'device':
+            if not bson.ObjectId.is_valid(f['origin']['id']):
+
+                # Old style device origin, try to find it in the table
+                if f['origin']['id'] in device_id_by_name:
+                    f['origin']['id'] = device_id_by_name[f['origin']['id']]
+
+                else:
+                    # This device must have either changed ids, or is no longer in the system
+                    # system/null is the best we can do
+                    f['origin'] = {'type': Origin.unknown, 'id': None}
+
+
+    config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
+
+    return True
+
+
+def upgrade_to_48():
+    """
+    Update old device origin id to new
+    """
+
+    devices = config.db.devices.find({})
+    device_id_by_name = [{d['label']:str(d['_id'])} for d in devices]
+
+    for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
+
+        cursor = config.db[cont_name].find({'files.origin.type': 'device'})
+        process_cursor(cursor, upgrade_files_to_48, context={'devices': device_id_by_name, 'cont_name': cont_name})
+
+
 
 
 ###
