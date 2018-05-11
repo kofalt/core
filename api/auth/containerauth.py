@@ -157,7 +157,7 @@ def any_referer(handler, container=None, parent_container=None):
             if has_any_referer_access(handler, method, container, parent_container):
                 return exec_op(method, _id=_id, payload=payload)
             else:
-                handler.abort(403, 'user not authorized to perform a {} operation on parent container'.format(method))
+                raise APIPermissionException('user not authorized to perform a {} operation on parent container'.format(method))
         return f
     return g
 

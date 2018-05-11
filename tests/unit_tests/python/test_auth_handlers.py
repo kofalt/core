@@ -2,6 +2,7 @@ import pytest
 
 from api.dao import noop
 from api.auth.containerauth import any_referer
+from api.web.errors import APIPermissionException
 
 from pprint import pprint
 
@@ -12,33 +13,23 @@ class MockRequestHandler(object):
         self.superuser_request = superuser_request
         self.public_request = public_request
         self.user_is_admin = user_is_admin
-        self.aborted = False
-
-    def abort(self, status_code, message):
-        self.aborted = True
-        self.status_code = status_code
-        self.message = message
-
-    def fail_if_aborted(self):
-        if self.aborted:
-            pytest.fail('Expected request to succeed')
-
-    def fail_if_passed(self, expected_status=403):
-        if not self.aborted or self.status_code != expected_status:
-            pytest.fail('Expected request to fail with status: {}'.format(expected_status))
-
 
 def verify_has_access(method, uid, referer, **kwargs):
     handler = MockRequestHandler(method, uid, **kwargs)
     f = referer(handler)(noop)
-    f(method)
-    handler.fail_if_aborted()
+    try:
+        f(method)
+    except APIPermissionException:
+        pytest.fail('Expected request to succeed')
 
 def verify_has_no_access(method, uid, referer, **kwargs):
     handler = MockRequestHandler(method, uid, **kwargs)
     f = referer(handler)(noop)
-    f(method)
-    handler.fail_if_passed()
+    try:
+        f(method)
+        pytest.fail('Expected request to fail with APIPermissionException')
+    except APIPermissionException:
+        pass
 
 def curry_referer(referer, **kwargs):
     def fn(handler):
