@@ -62,8 +62,8 @@ class DataViewHandler(base.RequestHandler):
         except APIStorageException as e:
             self.abort(400, e.message)
 
-        if result.modified_count == 1:
-            return {'deleted': result.modified_count}
+        if result.deleted_count == 1:
+            return {'deleted': result.deleted_count}
 
         self.abort(404, 'Data view {} not deleted'.format(_id))
 
