@@ -6,11 +6,12 @@ from api.auth.containerauth import any_referer
 from pprint import pprint
 
 class MockRequestHandler(object):
-    def __init__(self, method, uid, superuser_request=False, public_request=False):
+    def __init__(self, method, uid, superuser_request=False, public_request=False, user_is_admin=False):
         self.method = method
         self.uid = uid
         self.superuser_request = superuser_request
         self.public_request = public_request
+        self.user_is_admin = user_is_admin
         self.aborted = False
 
     def abort(self, status_code, message):
@@ -54,15 +55,15 @@ def test_any_referer_with_site():
     referer = curry_referer(any_referer, container=public_data_view, parent_container='site')
     verify_has_access('GET', uid, referer)
     verify_has_no_access('PUT', uid, referer)
-    verify_has_access('GET', uid, referer, superuser_request=True)
-    verify_has_access('PUT', uid, referer, superuser_request=True)
+    verify_has_access('GET', uid, referer, user_is_admin=True)
+    verify_has_access('PUT', uid, referer, user_is_admin=True)
 
     # Private access
     referer = curry_referer(any_referer, container=private_data_view, parent_container='site')
     verify_has_no_access('GET', uid, referer)
     verify_has_no_access('PUT', uid, referer)
-    verify_has_access('GET', uid, referer, superuser_request=True)
-    verify_has_access('PUT', uid, referer, superuser_request=True)
+    verify_has_access('GET', uid, referer, user_is_admin=True)
+    verify_has_access('PUT', uid, referer, user_is_admin=True)
 
 def test_any_referer_with_user():
     uid = 'user@user.com'
