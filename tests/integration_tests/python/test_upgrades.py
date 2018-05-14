@@ -239,7 +239,13 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
     device_id_str = str(device_id)
     files = api_db.acquisitions.find_one({'_id': bson.ObjectId(acq_id)})['files']
     assert files[0]['origin'] == {'type': 'device', 'id': device_id_str}
-    assert files[1]['origin'] == {'type': 'unknown', 'id': None}
+
+    # Look for id of new device
+    added_device_id_str = files[1]['origin']['id']
+    assert files[1]['origin'] == {'type': 'device', 'id': added_device_id_str}
+    added_device = api_db.devices.find_one({'label': 'missing_one'})
+    assert added_device['type'] == 'unknown'
+    added_device['_id'] = added_device_id_str
 
     # Verify that `join=origin` now works as intended
     r = as_admin.get('/acquisitions/' + acq_id + '?join=origin')
@@ -252,5 +258,6 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
             'name': 'name',
             'last_seen': pytz.timezone('UTC').localize(last_seen).isoformat(),
             'errors': [],
-        }
+        },
+        added_device_id_str: added_device
     }

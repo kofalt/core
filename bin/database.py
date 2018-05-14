@@ -1578,8 +1578,7 @@ def upgrade_to_47():
         config.db.devices.insert_one(device)
 
 
-
-def upgrade_files_to_48(cont, context):
+def upgrade_files_to_48(cont, cont_name):
     """
     Issue #1200
     In db upgrade 47, we changed how device objects are stored in the database:
@@ -1591,8 +1590,8 @@ def upgrade_files_to_48(cont, context):
     to unknown/null.
     """
 
-    device_id_by_name = context['devices']
-    cont_name = context['cont_name']
+    devices = config.db.devices.find({})
+    device_id_by_name = {d['label']: str(d['_id']) for d in devices}
     files = cont.get('files', [])
 
     for f in files:
@@ -1605,8 +1604,17 @@ def upgrade_files_to_48(cont, context):
 
                 else:
                     # This device must have either changed ids, or is no longer in the system
-                    # system/null is the best we can do
-                    f['origin'] = {'type': str(Origin.unknown), 'id': None}
+                    # Create a device for this _id and insert it into the devices tables
+                    device = {
+                        '_id':      bson.ObjectId(),
+                        'label':    f['origin']['id'],
+                        'type':     f['origin'].get('method', 'unknown'),
+                        'name':     f['origin'].get('name')
+                    }
+                    config.db.devices.insert_one(device)
+                    device_id_by_name[device['label']] = str(device['_id'])
+
+                    f['origin']['id'] = str(device['_id'])
 
 
     config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
@@ -1619,14 +1627,10 @@ def upgrade_to_48():
     Update old device origin id to new
     """
 
-    devices = config.db.devices.find({})
-    device_id_by_name = {d['label']: str(d['_id']) for d in devices}
-
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
 
         cursor = config.db[cont_name].find({'files.origin.type': 'device'})
-        process_cursor(cursor, upgrade_files_to_48, context={'devices': device_id_by_name, 'cont_name': cont_name})
-
+        process_cursor(cursor, upgrade_files_to_48, context=cont_name)
 
 
 
