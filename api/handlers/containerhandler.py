@@ -137,7 +137,7 @@ class ContainerHandler(base.RequestHandler):
         cached_gears = {}
 
         for f in result.get('files', []):
-            origin = f.get('origin', None)
+            origin = f.get('origin')
 
             if origin is None:
                 # Backfill origin maps if none provided from DB
@@ -149,11 +149,7 @@ class ContainerHandler(base.RequestHandler):
             elif join_origin:
                 j_type = f['origin']['type']
                 j_id   = str(f['origin']['id'])
-                j_id_b = j_id
-
-                # Only user table doesn't use BSON for it's primary key.
-                if j_type != Origin.user:
-                    j_id_b = bson.ObjectId(j_id)
+                j_id_b = bson.ObjectId(j_id) if bson.ObjectId.is_valid(j_id) else j_id
 
                 # Join from database if we haven't for this origin before
                 if j_type != 'unknown' and result['join-origin'][j_type].get(j_id, None) is None:

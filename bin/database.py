@@ -1606,7 +1606,7 @@ def upgrade_files_to_48(cont, context):
                 else:
                     # This device must have either changed ids, or is no longer in the system
                     # system/null is the best we can do
-                    f['origin'] = {'type': Origin.unknown, 'id': None}
+                    f['origin'] = {'type': str(Origin.unknown), 'id': None}
 
 
     config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
@@ -1620,7 +1620,7 @@ def upgrade_to_48():
     """
 
     devices = config.db.devices.find({})
-    device_id_by_name = [{d['label']:str(d['_id'])} for d in devices]
+    device_id_by_name = {d['label']: str(d['_id']) for d in devices}
 
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
 
