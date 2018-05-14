@@ -51,6 +51,10 @@
         "formatOptions": {
           "type": "object"
         },
+        "processFiles": {
+          "type": "boolean",
+          "description": "Set to false to skip file reading, and return file attributes instead"
+        },
         "columns": {
           "type": "array",
           "items": {"$ref":"#/definitions/column-spec"}
