@@ -738,6 +738,42 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
             assert row['value'] == str(j)
             assert row['value2'] == str(2*j)
 
+    # Execute data view, match on second label, multiple files, no processing
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject.code', 'dst': 'subject' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' },
+            { 'src': 'analysis.label', 'dst': 'analysis' },
+            { 'src': 'file.name', 'dst': 'filename' }
+        ],
+        'fileSpec': {
+            'container': 'session',
+            'filter': { 'value': '*.csv' },
+            'match': 'all',
+            'analysisFilter': {
+                'label': { 'value': 'second-analysis' }
+            },
+            'processFiles': False
+        }
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+
+    assert len(rows) == 2
+
+    for i in range(2):
+        row = rows[i]
+
+        assert row['subject'] == subject1['code']
+        assert row['subject.age'] == subject1['age']
+        assert row['subject.sex'] == subject1['sex']
+        assert row['filename'] == 'values{}.csv'.format(i+2)
+        assert row['analysis'] == 'second-analysis' 
+
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis1)})
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis2)})
 
