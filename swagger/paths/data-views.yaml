@@ -49,7 +49,7 @@
 /views/data:
   post:
     summary: Execute an ad-hoc view, returning data in the preferred format.
-    operationId: execute_adhoc_data_view
+    operationId: evaluate_data_view_adhoc
     tags:
     - views
     parameters:
@@ -76,7 +76,6 @@
       - application/json
       - text/csv
       - text/tab-separated-values
-    x-sdk-download-file-param: dest_file
     responses:
       '200':
         description: 'The view execution result'
@@ -132,7 +131,7 @@
       description: The ID of the view
   get:
     summary: Execute a view, returning data in the preferred format.
-    operationId: download_data_view
+    operationId: evaluate_data_view 
     tags:
     - views
     parameters:
@@ -154,7 +153,6 @@
       - application/json
       - text/csv
       - text/tab-separated-values
-    x-sdk-download-file-param: dest_file
     responses:
       '200':
         description: 'The view execution result'
