@@ -72,6 +72,6 @@ pip install "git+https://github.com/scitran/reaper.git@${bootstrap_reaper_label}
 
 
 ## load the test data in
-folder_sniper --yes --insecure --secret "$SCITRAN_CORE_DRONE_SECRET" "$TESTDATA_DIR/download" $SCITRAN_SITE_API_URL
+folder_reaper -s 0 --oneshot --yes --insecure --key "$SCITRAN_CORE_API_KEY" --root "$TESTDATA_DIR/download" $SCITRAN_SITE_API_URL
 
 )
