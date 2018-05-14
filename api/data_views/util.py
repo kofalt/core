@@ -134,16 +134,11 @@ def file_filter_to_regex(filter_spec):
     except re.error:
         raise InputValidationException('Invalid filter spec: {}'.format(filter_spec['value']))
 
-class NilValue(object):
-    """A sentinal value that represents missing data (semantically different from None)"""
-    def __repr__(self):
-        return 'nil'
-
-nil_value = NilValue()
+nil_value = object()
 
 def is_nil(val):
     """Check if the given value is nil"""
-    return isinstance(val, NilValue)
+    return nil_value == val
 
 def contains_nil(obj, nil_hint=False):
     """Check if the given dict contains any nil_value sentinal values"""
