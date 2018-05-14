@@ -1,3 +1,4 @@
+import collections
 import random
 import time
 
@@ -61,6 +62,9 @@ def paginate_find_kwargs(find_kwargs, pagination):
             sort.extend(pagination['sort'])
             find_kwargs['sort'] = sort
 
+        if 'skip' in pagination:
+            find_kwargs['skip'] = pagination['skip']
+
         if 'limit' in pagination:
             find_kwargs['limit'] = pagination['limit']
     return find_kwargs
@@ -84,7 +88,10 @@ def paginate_pipeline(pipeline, pagination):
             pipeline.append({'$match': pagination['filter']})
 
         if 'sort' in pagination:
-            pipeline.append({'$sort': dict(pagination['sort'])})
+            pipeline.append({'$sort': collections.OrderedDict(pagination['sort'])})
+
+        if 'skip' in pagination:
+            pipeline.append({'$skip': pagination['skip']})
 
         if 'limit' in pagination:
             pipeline.append({'$limit': pagination['limit']})

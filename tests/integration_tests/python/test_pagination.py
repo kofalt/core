@@ -93,6 +93,20 @@ def test_limit(data_builder, as_admin, file_form):
     assert as_admin.delete('/site/rules/' + r2).ok
 
 
+def test_skip(data_builder, as_admin):
+    assert as_admin.get('/users?skip=foo').status_code == 422
+    assert as_admin.get('/users?skip=-1').status_code == 422
+
+    a = data_builder.create_acquisition(label='a')
+    b = data_builder.create_acquisition(label='b')
+
+    r = as_admin.get('/acquisitions')
+    assert {aq['_id'] for aq in r.json()} == {a, b}
+
+    r = as_admin.get('/acquisitions?skip=1')
+    assert {aq['_id'] for aq in r.json()} == {b}
+
+
 def test_sort(data_builder, as_admin):
     assert as_admin.get('/acquisitions?sort=label:foo').status_code == 422
 

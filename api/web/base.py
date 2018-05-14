@@ -1,5 +1,4 @@
 import base64
-import bson
 import datetime
 import jsonschema
 import os
@@ -295,6 +294,7 @@ class RequestHandler(webapp2.RequestHandler):
         Query params:
             ?filter=k1=v1,k2>v2,k2<v3 [, ...]
             ?sort=k1,k2:desc [, ...]
+            ?skip=N
             ?limit=N
         """
 
@@ -305,69 +305,36 @@ class RequestHandler(webapp2.RequestHandler):
                 # Enable new filters in addition to `GET /gears?filter=single_input`
                 # TODO find better place for this logic instead of base class
                 continue
-
             if 'filter' in pagination:
-                msg = 'Multiple "filter" query params not allowed (use commas instead)'
-                raise errors.APIValidationException({'error': msg})
-
-            pagination['filter'] = {}
-            filter_ops = {'<':  '$lt',
-                          '<=': '$lte',
-                          '=':  '$eq',
-                          '!=': '$ne',
-                          '>=': '$gte',
-                          '>':  '$gt'}
-            for filter_str in filter_param.split(','):
-                for filter_op in sorted(filter_ops, key=len, reverse=True):
-                    key, op, value = filter_str.partition(filter_op)
-                    if op:
-                        if key not in pagination['filter']:
-                            pagination['filter'][key] = {}
-                        if bson.ObjectId.is_valid(value):
-                            value = bson.ObjectId(value)
-                        elif util.datetime_from_str(value):
-                            value = util.datetime_from_str(value)
-                        else:
-                            try:
-                                # Note: querying for floats also yields ints (=> no need for int casting here)
-                                value = float(value)
-                            except ValueError:
-                                pass
-                        # TODO cast other types?
-                        pagination['filter'][key].update({filter_ops[op]: value})
-                        break
-                else:
-                    msg = 'Invalid pagination query param "filter": {} (operator missing)'
-                    raise errors.APIValidationException({'error': msg.format(filter_str)})
+                raise errors.APIValidationException({'error': 'Multiple "filter" query params not allowed (use commas instead)'})
+            try:
+                pagination['filter'] = util.parse_pagination_filter_param(filter_param)
+            except util.PaginationParseError as e:
+                raise errors.APIValidationException({'error': e.message})
 
         for sort_param in self.request.GET.getall('sort'):
             if 'sort' in pagination:
-                msg = 'Multiple "sort" query params not allowed (use commas instead)'
-                raise errors.APIValidationException({'error': msg})
+                raise errors.APIValidationException({'error': 'Multiple "sort" query params not allowed (use commas instead)'})
+            try:
+                pagination['sort'] = util.parse_pagination_sort_param(sort_param)
+            except util.PaginationParseError as e:
+                raise errors.APIValidationException({'error': e.message})
 
-            pagination['sort'] = []
-            sort_orders = { '1': pymongo.ASCENDING,   'asc': pymongo.ASCENDING,
-                           '-1': pymongo.DESCENDING, 'desc': pymongo.DESCENDING}
-            for sort_str in sort_param.split(','):
-                key, _, order = sort_str.partition(':')
-                order = order.lower() or 'asc'
-                if order not in sort_orders:
-                    msg = 'Invalid pagination query param "sort": {} (unknown order)'
-                    raise errors.APIValidationException({'error': msg.format(sort_str)})
-                pagination['sort'].append((key, sort_orders[order]))
+        for skip_param in self.request.GET.getall('skip'):
+            if 'skip' in pagination:
+                raise errors.APIValidationException({'error': 'Multiple "skip" query params not allowed'})
+            try:
+                pagination['skip'] = util.parse_pagination_int_param(skip_param)
+            except util.PaginationParseError as e:
+                raise errors.APIValidationException({'error': e.message})
 
         for limit_param in self.request.GET.getall('limit'):
             if 'limit' in pagination:
-                msg = 'Multiple "limit" query params not allowed'
-                raise errors.APIValidationException({'error': msg})
-
+                raise errors.APIValidationException({'error': 'Multiple "limit" query params not allowed'})
             try:
-                pagination['limit'] = int(limit_param)
-                if pagination['limit'] <= 0:
-                    raise ValueError('expected positive integer, got {}'.format(pagination['limit']))
-            except ValueError as e:
-                msg = 'Invalid pagination query param "limit": {}'
-                raise errors.APIValidationException({'error': msg.format(e.args[0])})
+                pagination['limit'] = util.parse_pagination_int_param(limit_param)
+            except util.PaginationParseError as e:
+                raise errors.APIValidationException({'error': e.message})
 
         return pagination
 
