@@ -126,7 +126,7 @@ class DataView(object):
         self.pipeline.pipe(self._log_access_stage)
 
         # Add process files stage
-        if config.file_spec:
+        if config.file_spec and config.file_spec.get('processFiles') != False:
             self.pipeline.pipe(ReadFile(config))
 
         # Add extraction stage
