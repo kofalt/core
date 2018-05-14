@@ -92,3 +92,51 @@
     {{/operation}}
     {{/operations}}
     {{/apis}}
+
+    def read_data_view_data(self, view, container_id, decode=True, **kwargs):
+        """Execute a data view against container, and return a file-like object that can be streamed."""
+        kwargs['_return_http_data_only'] = True
+        kwargs['_preload_content'] = False
+        if isinstance(view, six.string_types):
+            resp = self.views_api.evaluate_data_view_with_http_info(view, container_id, **kwargs)
+        else:
+            resp = self.views_api.evaluate_data_view_adhoc_with_http_info(container_id, view, **kwargs)
+        resp.raw.decode_content = True
+        if decode:
+            return codecs.getreader(resp.encoding)(resp.raw)
+        return resp.raw
+
+    def read_data_view_data_frame(self, view, container_id, opts=None, **kwargs):
+        import pandas
+
+        if opts is None:
+            opts = {}
+
+        kwargs['format'] = 'csv'
+        resp = self.read_data_view_data(view, container_id, decode=False, **kwargs)
+        if resp:
+            try:
+                df = pandas.read_csv(resp, **opts)
+                return df
+            finally:
+                resp.close()
+        return None
+
+
+    def save_data_view_data(self, view, container_id, dest_file, **kwargs):
+        """Read the contents of a data view"""
+        kwargs['_return_http_data_only'] = True
+        kwargs['_preload_content'] = False
+        # Stream response to file
+        with open(dest_file, 'wb') as out_file:
+            if isinstance(view, six.string_types):
+                resp = self.views_api.evaluate_data_view_with_http_info(view, container_id, **kwargs)
+            else:
+                resp = self.views_api.evaluate_data_view_adhoc_with_http_info(container_id, view, **kwargs)
+
+            if resp:
+                try:
+                    for chunk in resp.iter_content(chunk_size=65536):
+                        out_file.write(chunk)
+                finally:
+                    resp.close()
