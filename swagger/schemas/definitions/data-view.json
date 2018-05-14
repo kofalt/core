@@ -61,7 +61,7 @@
           "items": {"$ref":"#/definitions/column-spec"}
         }
       },
-      "required": ["filter"],
+      "required": ["container", "filter"],
       "additionalProperties": false,
       "description": "Specifies a file to be processed, including filename matching and parsing options"
     },

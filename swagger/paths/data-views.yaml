@@ -53,7 +53,7 @@
   post:
     summary: Execute an ad-hoc view, returning data in the preferred format.
     description: This is a BETA feature, and is not yet available.
-    operationId: execute_adhoc_data_view
+    operationId: evaluate_data_view_adhoc
     tags:
     - views
     parameters:
@@ -92,7 +92,6 @@
       - application/json
       - text/csv
       - text/tab-separated-values
-    x-sdk-download-file-param: dest_file
     responses:
       '200':
         description: 'The view execution result'
@@ -196,7 +195,7 @@
   get:
     summary: Execute a view, returning data in the preferred format.
     description: This is a BETA feature, and is not yet available.
-    operationId: download_data_view
+    operationId: evaluate_data_view 
     tags:
     - views
     parameters:
@@ -230,7 +229,6 @@
       - application/json
       - text/csv
       - text/tab-separated-values
-    x-sdk-download-file-param: dest_file
     responses:
       '200':
         description: 'The view execution result'
