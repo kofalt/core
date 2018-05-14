@@ -366,10 +366,10 @@ class DataExplorerHandler(base.RequestHandler):
             elif f.get('term'):
                 # Search raw field
                 for k,v in f['term'].iteritems():
-                    if isinstance(v, bool):
-                        modified_filters.append({'term': {k: v}})
-                    else:
+                    if isinstance(v, basestring):
                         modified_filters.append({'term': {k+'.raw': v}})
+                    else:
+                        modified_filters.append({'term': {k: v}})
             else:
                 modified_filters.append(f)
 
