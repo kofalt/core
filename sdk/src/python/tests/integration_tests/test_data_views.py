@@ -55,7 +55,7 @@ class DataViewTestCases(SdkTestCase):
         self.assertIsNotNone(r_view)
 
         self.assertEqual(r_view.label, 'test-data-view')
-        self.assertEqual(len(r_view.columns), 2)
+        self.assertEqual(len(r_view.columns), 4)
 
         views = fw.get_data_views(self.user_id)
         self.assertGreaterEqual(len(views), 1)
