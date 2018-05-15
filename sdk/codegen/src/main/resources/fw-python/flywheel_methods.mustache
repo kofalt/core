@@ -99,8 +99,24 @@
     {{/operations}}
     {{/apis}}
 
+    def print_data_view_columns(self, file=sys.stdout):
+        """Print a list of column aliases that can be used in data views.
+
+        :param file-like file: The file to print to
+        """
+        for column in self.views_api.get_data_view_columns():
+            six.print_('{} ({}): {}'.format(column.name, column.type, column.description), file=file)
+
     def read_data_view_data(self, view, container_id, decode=True, **kwargs):
-        """Execute a data view against container, and return a file-like object that can be streamed."""
+        """Execute a data view against container, and return a file-like object that can be streamed.
+
+        :param view: The view id or DataView object to execute.
+        :type view: str or DataView
+        :param str container_id: The id of the container to execute the view against
+        :param bool decode: Whether or not to decode the stream to utf-8 (default is true)
+        :param kwargs: Additional arguments to pass to the evaluate_data_view call. (e.g. format='csv')
+        :return: A file-like object where the contents can be read
+        """
         kwargs['_return_http_data_only'] = True
         kwargs['_preload_content'] = False
         if isinstance(view, six.string_types):
@@ -113,6 +129,17 @@
         return resp.raw
 
     def read_data_view_data_frame(self, view, container_id, opts=None, **kwargs):
+        """Execute a data view against container, and return a DataFrame.
+
+        NOTE: This requires that the pandas module be installed on the system.
+
+        :param view: The view id or DataView object to execute.
+        :type view: str or DataView
+        :param str container_id: The id of the container to execute the view against
+        :param object opts: Additional options to pass to the pandas read_csv function
+        :param kwargs: Additional arguments to pass to the evaluate_data_view call. (e.g. format='csv')
+        :return: A pandas DataFrame
+        """
         import pandas
 
         if opts is None:
@@ -130,7 +157,14 @@
 
 
     def save_data_view_data(self, view, container_id, dest_file, **kwargs):
-        """Read the contents of a data view"""
+        """Execute a data view against container, and save the results to disk.
+
+        :param view: The view id or DataView object to execute.
+        :type view: str or DataView
+        :param str container_id: The id of the container to execute the view against
+        :param str dest_file: The destination file path
+        :param kwargs: Additional arguments to pass to the evaluate_data_view call. (e.g. format='csv')
+        """
         kwargs['_return_http_data_only'] = True
         kwargs['_preload_content'] = False
         # Stream response to file
