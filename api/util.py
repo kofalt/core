@@ -207,7 +207,7 @@ def obj_from_map(_map):
 
     return type('',(object,),_map)()
 
-def set_for_download(response, stream=None, filename=None, length=None):
+def set_for_download(response, stream=None, filename=None, length=None, enable_buffering=False):
     """Takes a self.response, and various download options."""
 
     # If an app_iter is to be set, it MUST be before these other headers are set.
@@ -221,6 +221,17 @@ def set_for_download(response, stream=None, filename=None, length=None):
 
     if length is not None:
         response.headers['Content-Length'] = str(length)
+
+    if enable_buffering:
+        enable_response_buffering(response)
+
+def enable_response_buffering(response):
+    """Takes a self.response and enables buffering.
+
+    Should be set for large transfers (i.e. downloads)
+    NOTE: Must be called before sending data!
+    """
+    response.headers['X-Accel-Buffering'] = 'yes'
 
 def format_hash(hash_alg, hash_):
     """
