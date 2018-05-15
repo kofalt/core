@@ -12,6 +12,7 @@
             { "src": "subject.sex" }
         ],
         "fileSpec": {
+            "container": "acquisition",
             "filter": { "value": "*_events.tsv" },
             "format": "tsv",
             "columns": [
