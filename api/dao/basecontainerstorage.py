@@ -320,8 +320,8 @@ class ContainerStorage(object):
         else:
             replace_info_with_bool = False
 
-        find_kwargs = dict(filter=query, projection=projection)
-        results = list(self.dbc.find(**dbutil.paginate_find_kwargs(find_kwargs, pagination)))
+        page = dbutil.paginate_find(self.dbc, {'filter': query, 'projection': projection}, pagination)
+        results = page['results']
 
         for cont in results:
             if cont.get('files', []):
@@ -345,7 +345,7 @@ class ContainerStorage(object):
                     f['info_exists'] = bool(f_info)
                     f['info'] = containerutil.sanitize_info(f_info)
 
-        return results
+        return results if pagination is None else page
 
     def modify_info(self, _id, payload, modify_subject=False):
 

@@ -44,11 +44,8 @@ def fault_tolerant_replace_one(db, coll_name, query, update, upsert=False):
     raise APIStorageException('Unable to replace object.')
 
 
-def paginate_find_kwargs(find_kwargs, pagination):
-    """
-    Modify and return find_kwargs (keyword arguments dict for `db.coll.find()`)
-    using the pagination settings.
-    """
+def paginate_find(collection, find_kwargs, pagination):
+    """Return paginated `db.coll.find()` results."""
     if pagination:
         if 'filter' in pagination:
             filter_ = find_kwargs.get('filter', {})
@@ -67,14 +64,16 @@ def paginate_find_kwargs(find_kwargs, pagination):
 
         if 'limit' in pagination:
             find_kwargs['limit'] = pagination['limit']
-    return find_kwargs
+
+    return {
+        'total': collection.count(find_kwargs['filter']),
+        'results': list(collection.find(**find_kwargs)),
+    }
 
 
-def paginate_pipeline(pipeline, pagination):
-    """
-    Modify and return mongo pipeline (list of stages for `db.coll.aggregate()`)
-    using the pagination settings.
-    """
+def paginate_pipe(collection, pipeline, pagination):
+    """Return paginated `db.coll.aggregate()` results."""
+    total_pipeline = pipeline[:]
     if pagination:
         if 'pipe_key' in pagination:
             pipe_key = pagination.pop('pipe_key')
@@ -86,6 +85,7 @@ def paginate_pipeline(pipeline, pagination):
 
         if 'filter' in pagination:
             pipeline.append({'$match': pagination['filter']})
+            total_pipeline = pipeline[:]
 
         if 'sort' in pagination:
             pipeline.append({'$sort': collections.OrderedDict(pagination['sort'])})
@@ -95,4 +95,10 @@ def paginate_pipeline(pipeline, pagination):
 
         if 'limit' in pagination:
             pipeline.append({'$limit': pagination['limit']})
-    return pipeline
+
+    # total_pipeline.append({'$count': 'total'})  # mongo 3.4+
+    total_pipeline.append({'$group': {'_id': None, 'total': {'$sum': 1}}})
+    return {
+        'total': next(collection.aggregate(total_pipeline))['total'],
+        'results': list(collection.aggregate(pipeline)),
+    }

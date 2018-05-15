@@ -4,7 +4,6 @@ import bson
 import copy
 
 from . import containerutil
-from . import dbutil
 from . import hierarchy
 from .. import config
 
@@ -151,8 +150,8 @@ class SubjectStorage(ContainerStorage):
             self._fill_default_values(cont)
         return cont
 
-
-    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
+    # pylint: disable=arguments-differ
+    def get_all_el(self, query, user, projection, fill_defaults=False):
         if query is None:
             query = {}
         if user:
@@ -168,8 +167,7 @@ class SubjectStorage(ContainerStorage):
             a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
             query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
 
-        find_kwargs = dict(filter=query, projection=projection)
-        results = list(self.dbc.find(**dbutil.paginate_find_kwargs(find_kwargs, pagination)))
+        results = list(self.dbc.find(query, projection))
         if not results:
             return []
 

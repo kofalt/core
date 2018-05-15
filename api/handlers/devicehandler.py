@@ -34,11 +34,12 @@ class DeviceHandler(base.RequestHandler):
 
     @require_login
     def get_all(self):
-        devices = list(self.storage.get_all_el(None, None, None))
+        page = self.storage.get_all_el(None, None, None, pagination=self.pagination)
+        devices = page['results']
         if self.user_is_admin and self.is_true('join_keys'):
             for device in devices:
                 self.join_api_key(device)
-        return devices
+        return self.format_page(page)
 
     @staticmethod
     def join_api_key(device):

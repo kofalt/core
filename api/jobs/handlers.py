@@ -44,13 +44,16 @@ class GearsHandler(base.RequestHandler):
     def get(self):
         """List all gears."""
 
-        gears   = get_gears(pagination=self.pagination)
-        filters = self.request.GET.getall('filter')
+        # Using pagination params and `?filter=single_input` together raises APIValidationException
+        page = get_gears(pagination=self.pagination)
 
-        if 'single_input' in filters:
-            gears = list(filter(lambda x: count_file_inputs(x) <= 1, gears))
+        if 'single_input' in self.request.GET.getall('filter'):
+            page['results'] = [gear for gear in page['results'] if count_file_inputs(gear) <= 1]
 
-        return self.paginate_results(gears)
+            # Filtering with `?filter=single_input` invalidates the pagination total
+            del page['total']
+
+        return self.format_page(page)
 
     @require_login
     def check(self):
@@ -242,9 +245,9 @@ class RulesHandler(base.RequestHandler):
             if not self.user_is_admin and not has_access(self.uid, project, 'ro'):
                 raise APIPermissionException('User does not have access to project {} rules'.format(cid))
 
-        find_kwargs = dict(filter={'project_id' : cid}, projection=projection)
-        results = config.db.project_rules.find(**dbutil.paginate_find_kwargs(find_kwargs, self.pagination))
-        return self.paginate_results(results)
+        find_kwargs = dict(filter={'project_id': cid}, projection=projection)
+        page = dbutil.paginate_find(config.db.project_rules, find_kwargs, self.pagination)
+        return self.format_page(page)
 
     @verify_payload_exists
     def post(self, cid):
@@ -345,8 +348,8 @@ class JobsHandler(base.RequestHandler):
     @require_admin
     def get(self): # pragma: no cover (no route)
         """List all jobs."""
-        results = config.db.jobs.find(**dbutil.paginate_find_kwargs({}, self.pagination))
-        return self.paginate_results(results)
+        page = dbutil.paginate_find(config.db.jobs, {}, self.pagination)
+        return self.format_page(page)
 
     def add(self):
         """Add a job to the queue."""
@@ -617,8 +620,8 @@ class BatchHandler(base.RequestHandler):
             query = {}
         else:
             query = {'origin.id': self.uid}
-        results = batch.get_all(query, {'proposal':0}, pagination=self.pagination)
-        return self.paginate_results(results)
+        page = batch.get_all(query, {'proposal': 0}, pagination=self.pagination)
+        return self.format_page(page)
 
     @require_login
     def get(self, _id):

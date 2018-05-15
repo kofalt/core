@@ -49,15 +49,16 @@ class GroupHandler(base.RequestHandler):
     def get_all(self, uid=None):
         projection = {'label': 1, 'created': 1, 'modified': 1, 'permissions': 1, 'tags': 1}
         permchecker = groupauth.list_permission_checker(self, uid)
-        results = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
+        page = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
+        results = page['results']
         if not self.superuser_request and not self.is_true('join_avatars') and not self.user_is_admin:
             self._filter_permissions(results, self.uid)
         if self.is_true('join_avatars'):
-            results = ContainerHandler.join_user_info(results)
+            ContainerHandler.join_user_info(results)
         if 'projects' in self.request.params.getall('join'):
             for result in results:
-                result = self.handle_projects(result)
-        return self.paginate_results(results)
+                self.handle_projects(result)
+        return self.format_page(page)
 
     @validators.verify_payload_exists
     def put(self, _id):

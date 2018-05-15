@@ -329,7 +329,8 @@ class ContainerHandler(base.RequestHandler):
         else:
             query = {}
         # this request executes the actual reqeust filtering containers based on the user permissions
-        results = permchecker(self.storage.exec_op)('GET', query=query, public=self.public_request, projection=projection, pagination=self.pagination)
+        page = permchecker(self.storage.exec_op)('GET', query=query, public=self.public_request, projection=projection, pagination=self.pagination)
+        results = page['results']
         if results is None:
             self.abort(404, 'No elements found in container {}'.format(self.storage.cont_name))
         # return only permissions of the current user unless superuser or getting avatars
@@ -339,17 +340,14 @@ class ContainerHandler(base.RequestHandler):
         if self.is_true('counts'):
             self._add_results_counts(results, cont_name)
 
-        modified_results = []
-        for result in results:
-            if self.is_true('stats'):
-                result = containerutil.get_stats(result, cont_name)
-            result = self.handle_origin(result)
-            modified_results.append(result)
+        if self.is_true('stats'):
+            for result in results:
+                containerutil.get_stats(result, cont_name)
 
         if self.is_true('join_avatars'):
-            modified_results = self.join_user_info(modified_results)
+            self.join_user_info(results)
 
-        return self.paginate_results(modified_results)
+        return self.format_page(page)
 
     def _filter_all_permissions(self, results, uid):
         for result in results:

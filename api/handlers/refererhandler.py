@@ -172,8 +172,8 @@ class AnalysesHandler(RefererHandler):
             query = {'parent.id': {'$in': parents}}
         else:
             query = {'parent.id': cid, 'parent.type': singularize(cont_name)}
-        results = self.storage.get_all_el(query, None, {'info': 0, 'files.info': 0}, pagination=self.pagination)
-        return self.paginate_results(results)
+        page = self.storage.get_all_el(query, None, {'info': 0, 'files.info': 0}, pagination=self.pagination)
+        return self.format_page(page)
 
 
     @log_access(AccessType.delete_analysis)

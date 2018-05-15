@@ -438,7 +438,7 @@ def parse_pagination_filter_param(filter_param):
                 pagination_filter[key].update({filter_ops[op]: value})
                 break
         else:
-            raise PaginationParseError('Invalid pagination filter: {} (operator missing)')
+            raise PaginationParseError('Invalid pagination filter: {} (operator missing)'.format(filter_str))
 
     return pagination_filter
 

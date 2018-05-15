@@ -37,9 +37,9 @@ def get_gears(pagination=None):
         }}
     ]
 
-    cursor = config.mongo_pipeline('gears', dbutil.paginate_pipeline(pipe, pagination))
-
-    return map(lambda x: x['original'], cursor)
+    page = dbutil.paginate_pipe(config.db.gears, pipe, pagination)
+    page['results'] = [r['original'] for r in page['results']]
+    return page['results'] if pagination is None else page
 
 def get_gear(_id):
     return config.db.gears.find_one({'_id': bson.ObjectId(_id)})

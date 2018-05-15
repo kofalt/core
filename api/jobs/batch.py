@@ -30,7 +30,8 @@ def get_all(query, projection=None, pagination=None):
     Fetch batch objects from the database
     """
     find_kwargs = dict(filter=query, projection=projection)
-    return config.db.batch.find(**dbutil.paginate_find_kwargs(find_kwargs, pagination))
+    page = dbutil.paginate_find(config.db.batch, find_kwargs, pagination)
+    return page['results'] if pagination is None else page
 
 def get(batch_id, projection=None, get_jobs=False):
     """

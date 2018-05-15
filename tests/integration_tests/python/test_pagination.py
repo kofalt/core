@@ -1,14 +1,37 @@
-def test_count(data_builder, as_admin):
-    a = data_builder.create_acquisition(label='a')
-    b = data_builder.create_acquisition(label='b')
+def test_total(data_builder, as_admin):
+    a1 = data_builder.create_acquisition(label='a1')
+    a2 = data_builder.create_acquisition(label='a2')
 
-    r = as_admin.get('/acquisitions?page=true')
-    assert r.ok
-    data = r.json()
-    assert 'count' in data
-    assert 'results' in data
-    assert data['count'] == len(data['results'])
-    assert data['results'] == as_admin.get('/acquisitions').json()
+    r_list = as_admin.get('/acquisitions')
+    assert r_list.ok
+    acqs = r_list.json()
+
+    r_page = as_admin.get('/acquisitions', headers={'X-Accept-Feature': 'pagination'})
+    assert r_page.ok
+    page = r_page.json()
+
+    assert 'total' in page
+    assert 'results' in page
+    assert page['total'] == len(acqs)
+    assert page['results'] == acqs
+
+    g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
+    g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
+    g_b0 = data_builder.create_gear(gear={'name': 'b', 'version': '0.0.0'})
+    g_b1 = data_builder.create_gear(gear={'name': 'b', 'version': '1.0.0'})
+
+    r_list = as_admin.get('/gears')
+    assert r_list.ok
+    gears = r_list.json()
+
+    r_page = as_admin.get('/gears', headers={'X-Accept-Feature': 'pagination'})
+    assert r_page.ok
+    page = r_page.json()
+
+    assert 'total' in page
+    assert 'results' in page
+    assert page['total'] == len(gears)
+    assert page['results'] == gears
 
 
 def test_limit(data_builder, as_admin, file_form):
@@ -93,6 +116,23 @@ def test_limit(data_builder, as_admin, file_form):
     assert as_admin.delete('/site/rules/' + r2).ok
 
 
+def test_page(data_builder, as_admin):
+    assert as_admin.get('/users?page=foo').status_code == 422
+    assert as_admin.get('/users?page=-1').status_code == 422
+
+    a = data_builder.create_acquisition(label='a')
+    b = data_builder.create_acquisition(label='b')
+
+    r = as_admin.get('/acquisitions?limit=1&page=1')
+    assert {aq['_id'] for aq in r.json()} == {a}
+
+    r = as_admin.get('/acquisitions?limit=1&page=2')
+    assert {aq['_id'] for aq in r.json()} == {b}
+
+    r = as_admin.get('/acquisitions?limit=1&page=3')
+    assert {aq['_id'] for aq in r.json()} == set()
+
+
 def test_skip(data_builder, as_admin):
     assert as_admin.get('/users?skip=foo').status_code == 422
     assert as_admin.get('/users?skip=-1').status_code == 422
@@ -172,10 +212,13 @@ def test_filter(data_builder, as_admin):
     r = as_admin.get('/acquisitions?filter=created=' + b_created)
     assert {aq['_id'] for aq in r.json()} == {b}
 
+    r = as_admin.get('/gears?filter=gear.name=a&filter=single_input')
+    assert r.status_code == 422
+
     g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
     g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
     g_b0 = data_builder.create_gear(gear={'name': 'b', 'version': '0.0.0'})
     g_b1 = data_builder.create_gear(gear={'name': 'b', 'version': '1.0.0'})
-    r = as_admin.get('/gears?filter=gear.name=a&filter=single_input')
+    r = as_admin.get('/gears?filter=gear.name=a')
     assert r.ok
     assert {g['_id'] for g in r.json()} == {g_a1}
