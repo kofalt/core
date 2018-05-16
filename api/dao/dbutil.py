@@ -98,7 +98,8 @@ def paginate_pipe(collection, pipeline, pagination):
 
     # total_pipeline.append({'$count': 'total'})  # mongo 3.4+
     total_pipeline.append({'$group': {'_id': None, 'total': {'$sum': 1}}})
+    total_result = list(collection.aggregate(total_pipeline))
     return {
-        'total': next(collection.aggregate(total_pipeline))['total'],
+        'total': total_result[0]['total'] if total_result else 0,
         'results': list(collection.aggregate(pipeline)),
     }

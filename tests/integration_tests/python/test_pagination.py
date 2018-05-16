@@ -15,6 +15,10 @@ def test_total(data_builder, as_admin):
     assert page['total'] == len(acqs)
     assert page['results'] == acqs
 
+    r = as_admin.get('/gears', headers={'X-Accept-Feature': 'pagination'})
+    assert r.ok
+    assert r.json()['total'] == 0
+
     g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
     g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
     g_b0 = data_builder.create_gear(gear={'name': 'b', 'version': '0.0.0'})
