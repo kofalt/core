@@ -3,12 +3,7 @@ import os
 import sys
 import re
 from fs import open_fs
-import fs.move
-import fs.subfs
-import fs.tempfs
 import fs.path
-import fs.errors
-import fs.tree
 import fs.copy
 
 SCITRAN_PERSISTENT_FS_URL = os.environ['SCITRAN_PERSISTENT_FS_URL']
