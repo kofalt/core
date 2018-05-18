@@ -2,7 +2,7 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type":"object",
     "allOf":[{"$ref":"../definitions/data-view.json#/definitions/data-view-input"}],
-    "required":["label", "columns"],
+    "required":["label"],
     "example": {
         "label": "Subject response data",
         "includeLabels": false,

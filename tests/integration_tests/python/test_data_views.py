@@ -95,6 +95,10 @@ def test_data_view_columns(as_user):
     if len(expected_columns):
         pytest.fail('Did not find all expected columns: {}'.format(', '.join(expected_columns)))
 
+def test_adhoc_empty_data_view(data_builder, as_admin, as_user):
+    project = data_builder.create_project(label='test-project')
+    r = as_user.post('/views/data?containerId={}'.format(project), json={})
+    assert r.status_code == 400
 
 def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
     project = data_builder.create_project(label='test-project')
@@ -331,14 +335,10 @@ def test_adhoc_data_view_csv_format(data_builder, file_form, as_admin):
     file_form1 = file_form(('values.csv', csv_test_data('a1')))
     assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
 
+    # Test without columns
     r = as_admin.post('/views/data?containerId={}&format=csv'.format(project), json={
         'includeIds': False,
         'includeLabels': False,
-        'columns': [
-            { 'src': 'subject.code', 'dst': 'subject' },
-            { 'src': 'subject.age' },
-            { 'src': 'subject.sex' }
-        ],
         'fileSpec': {
             'container': 'acquisition',
             'filter': { 'value': '*.csv' }
@@ -351,18 +351,15 @@ def test_adhoc_data_view_csv_format(data_builder, file_form, as_admin):
     rows = list(csv.reader(body))
     columns = rows.pop(0)
 
-    assert columns == ['subject', 'subject.age', 'subject.sex', 'name', 'value', 'value2']
+    assert columns == ['name', 'value', 'value2']
     assert len(rows) == 5
 
     for i in range(5):
         row = rows[i]
 
-        assert row[0] == subject1['code']
-        assert row[1] == str(subject1['age'])
-        assert row[2] == subject1['sex']
-        assert row[3] == 'a1'
-        assert row[4] == str(i)
-        assert row[5] == str(2*i)
+        assert row[0] == 'a1'
+        assert row[1] == str(i)
+        assert row[2] == str(2*i)
 
 def test_adhoc_data_view_tsv_format(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')

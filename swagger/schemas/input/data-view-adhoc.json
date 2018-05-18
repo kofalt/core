@@ -2,7 +2,6 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type":"object",
     "allOf":[{"$ref":"../definitions/data-view.json#/definitions/data-view-input"}],
-    "required":["columns"],
     "example": {
         "columns": [
             { "src": "subject.code", "dst": "subject" },
