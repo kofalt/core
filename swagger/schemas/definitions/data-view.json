@@ -162,6 +162,11 @@
           "type": "string",
           "description": "The source for this column's data"
         },
+        "group": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The list of columns that belong to this group"
+        },
         "description": {
           "type": "string",
           "description": "A description of this field"
@@ -170,7 +175,7 @@
       },
       "description": "Represents a column alias for use in data views. Maps from src to name.",
       "additionalProperties": false,
-      "required": ["name", "src", "description", "type"]
+      "required": ["name", "description"]
     },
     "save-data-view-input": {
       "type": "object",
