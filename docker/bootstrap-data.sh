@@ -72,6 +72,6 @@ pip install "git+https://github.com/scitran/reaper.git@${bootstrap_reaper_label}
 
 
 ## load the test data in
-folder_reaper -s 0 --oneshot --yes --insecure --key "$SCITRAN_CORE_API_KEY" --root "$TESTDATA_DIR/download" $SCITRAN_SITE_API_URL
+folder_reaper -s 0 --oneshot --insecure --key "$SCITRAN_CORE_API_KEY" --root "$TESTDATA_DIR/download" $SCITRAN_SITE_API_URL
 
 )
