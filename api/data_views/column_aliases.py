@@ -17,10 +17,12 @@ class ColumnAliases(object):
         # Load column map and set default type (string)
         self.column_map = {}
         for col in self.columns:
-            if 'type' not in col:
-                col['type'] = 'string'
-            self.column_map[col['name']] = (col['src'], col.get('type'), col.get('expr'))
-
+            if 'group' in col:
+                self.column_map[col['name']] = col['group'] 
+            else:
+                if 'type' not in col:
+                    col['type'] = 'string'
+                self.column_map[col['name']] = (col['src'], col.get('type'), col.get('expr'))
 
     @classmethod
     def instance(cls):
@@ -47,7 +49,7 @@ class ColumnAliases(object):
             key (str): The column key
 
         Returns:
-            tuple: The aliased (key, datatype) or the original (key, None) if there was no alias.
+            tuple: The aliased (key, datatype), group list, or the original (key, None) if there was no alias.
         """
         inst = cls.instance()
         if key in inst.column_map:

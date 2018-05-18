@@ -94,8 +94,19 @@ class DataViewConfig(object):
         """Determine how deep we need to fetch based on columns and file specs"""
         columns = self.desc.get('columns', [])
 
-        max_idx = -1 
+        # Resolve column groups
+        resolved_cols = []
         for col in columns:
+            alias = ColumnAliases.get_column_alias(col['src'])
+            if isinstance(alias, list):
+                for alias_col in alias:
+                    resolved_cols.append({'src': alias_col})
+            else:
+                resolved_cols.append(col)
+
+        max_idx = -1 
+        for col in resolved_cols:
+            # Lookup src alias
             dst = col.get('dst', col['src'])
             datatype = col.get('type')
             expr = col.get('expr')
