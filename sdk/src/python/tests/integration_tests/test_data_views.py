@@ -103,10 +103,7 @@ class DataViewTestCases(SdkTestCase):
 
 
     def test_execute_adhoc_data_view_csv(self):
-        builder = flywheel.DataViewBuilder()
-        builder.column('subject_age').column('subject_sex')
-        builder.include_ids()
-        view = builder.build()
+        view = flywheel.DataViewBuilder(columns=['subject_age', 'subject_sex']).build()
 
         with self.fw.read_data_view_data(view, self.project_id, format='csv') as resp:
             reader = csv.reader(resp)
@@ -118,11 +115,5 @@ class DataViewTestCases(SdkTestCase):
             row = next(reader)
             self.assertEqual(len(row), 5)
             self.assertEqual(row, [self.project_id, self.subject.id, self.session_id, str(self.subject.age), self.subject.sex])
-
-
-
-
-
-
 
 
