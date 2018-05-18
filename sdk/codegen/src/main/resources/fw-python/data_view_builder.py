@@ -7,7 +7,7 @@ from .models import (
 )
 
 class DataViewBuilder(object):
-    def __init__(self, label=None, public=False, files=None, match=None, zip_files=None, columns=None):
+    def __init__(self, label=None, public=False, files=None, match=None, zip_files=None, columns=None, process_files=True):
         """Builder class that assists in constructing a DataView object.
 
         :param str label: The optional label, if saving this data view.
@@ -16,6 +16,7 @@ class DataViewBuilder(object):
         :param str match: The file match type, one of: first, last, newest, oldest, all
         :param str zip_files: The zip file filter, see the zip_member_filter function
         :param list columns: The columns or column groups to add
+        :param bool process_files: Whether or not to process files, default is true
         """
         self._label = label
         self._public = public
@@ -27,7 +28,7 @@ class DataViewBuilder(object):
         self._file_format = None
         self._file_format_opts = {}
         self._file_match = match
-        self._process_files = True
+        self._process_files = process_files
         self._analysis_filter = None
         self._include_labels = False
         self._include_ids = True
