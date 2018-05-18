@@ -34,11 +34,11 @@ class DataViewTestCases(SdkTestCase):
             return
 
         builder = flywheel.DataViewBuilder('test-data-view')
-        builder.column('subject_age')
+        builder.column('subject.age')
         builder.column('session.label', dst='session_label')
-        builder.column('subject_firstname', dst='firstname')
-        builder.column('subject_lastname', dst='lastname')
-        builder.include_ids().public()
+        builder.column('subject.firstname', dst='firstname')
+        builder.column('subject.lastname', dst='lastname')
+        builder.public()
 
         cls.data_view_id = cls.fw.add_data_view(cls.user_id, builder.build())
 
@@ -75,11 +75,11 @@ class DataViewTestCases(SdkTestCase):
         self.assertEqual(len(data), 1)
 
         row = data[0]
-        self.assertEqual(row['project'], self.project_id)
-        self.assertEqual(row['subject'], self.subject.id)
-        self.assertEqual(row['session'], self.session_id)
+        self.assertEqual(row['project.id'], self.project_id)
+        self.assertEqual(row['subject.id'], self.subject.id)
+        self.assertEqual(row['session.id'], self.session_id)
         self.assertEqual(row['session_label'], self.session.label)
-        self.assertEqual(row['subject_age'], self.subject.age)
+        self.assertEqual(row['subject.age'], self.subject.age)
         self.assertEqual(row['firstname'], self.subject.firstname)
         self.assertEqual(row['lastname'], self.subject.lastname)
 
@@ -96,21 +96,21 @@ class DataViewTestCases(SdkTestCase):
 
         df = fw.read_data_view_data_frame(self.data_view_id, self.project_id)
         self.assertIsNotNone(df)
-        self.assertEqual(df['project'][0], self.project_id)
-        self.assertEqual(df['subject'][0], self.subject.id)
-        self.assertEqual(df['session'][0], self.session_id)
-        self.assertEqual(df['subject_age'][0], self.subject.age)
+        self.assertEqual(df['project.id'][0], self.project_id)
+        self.assertEqual(df['subject.id'][0], self.subject.id)
+        self.assertEqual(df['session.id'][0], self.session_id)
+        self.assertEqual(df['subject.age'][0], self.subject.age)
 
 
     def test_execute_adhoc_data_view_csv(self):
-        view = flywheel.DataViewBuilder(columns=['subject_age', 'subject_sex']).build()
+        view = flywheel.DataViewBuilder(columns=['subject.age', 'subject.sex']).build()
 
         with self.fw.read_data_view_data(view, self.project_id, format='csv') as resp:
             reader = csv.reader(resp)
 
             row = next(reader)
             self.assertEqual(len(row), 5)
-            self.assertEqual(row, ['project', 'subject', 'session', 'subject_age', 'subject_sex'])
+            self.assertEqual(row, ['project.id', 'subject.id', 'session.id', 'subject.age', 'subject.sex'])
 
             row = next(reader)
             self.assertEqual(len(row), 5)
