@@ -20,4 +20,4 @@ function CreateBootstrapUser() {(
 echo "================================================"
 echo "            CREATE BOOTSTRAP USER               "
 echo "================================================"
-CreateBootstrapUser $@
+CreateBootstrapUser "$@"
