@@ -79,18 +79,21 @@ def test_data_view_columns(as_user):
     assert r.ok
     columns = r.json()
     # This is just a subset of expected aliases
-    expected_columns = { 'project', 'project_label', 'subject_label', 'subject_age', 'file_name', 'analysis_label' }
+    expected_columns = { 'project', 'project.label', 'subject.label', 'subject.age', 'file.name', 'analysis.label' }
     valid_types = { 'int', 'float', 'bool', 'string' }
 
     for col in columns:
         assert 'name' in col
-        assert 'src' in col
         assert 'description' in col
-        assert 'type' in col
+
+        if 'group' not in col:
+            assert 'src' in col
+            assert 'type' in col
+
+            if col['type'] not in valid_types:
+                pytest.fail('Unexpected column type: {}'.format(col['type']))
 
         expected_columns.discard(col['name'])
-        if col['type'] not in valid_types:
-            pytest.fail('Unexpected column type: {}'.format(col['type']))
 
     if len(expected_columns):
         pytest.fail('Did not find all expected columns: {}'.format(', '.join(expected_columns)))
@@ -190,11 +193,12 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
     acquisition2 = data_builder.create_acquisition(session=session2, label='scout')
 
+    # Test "project" column grouping
     r = as_admin.post('/views/data?containerId={}'.format(session2), json={
         'includeIds': False,
         'includeLabels': False,
         'columns': [
-            { 'src': 'project.label', 'dst': 'project' },
+            { 'src': 'project' },
             { 'src': 'subject.code', 'dst': 'subject' },
             { 'src': 'subject.age' },
             { 'src': 'subject.sex' },
@@ -207,7 +211,8 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     rows = r.json()['data']
     assert len(rows) == 1
 
-    assert rows[0]['project'] == 'test-project'
+    assert rows[0]['project.id'] == project
+    assert rows[0]['project.label'] == 'test-project'
     assert rows[0]['subject'] == subject2['code']
     assert rows[0]['subject.age'] == subject2['age']
     assert rows[0]['subject.sex'] == subject2['sex']
@@ -232,9 +237,9 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
         'includeIds': False,
         'includeLabels': False,
         'columns': [
-            { 'src': 'subject_label' },
-            { 'src': 'subject_age' },
-            { 'src': 'subject_sex' }
+            { 'src': 'subject.label' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
         ],
         'fileSpec': {
             'container': 'acquisition',
@@ -258,9 +263,9 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
         for j in range(5):
             row = rows[i*5+j]
 
-            assert row['subject_label'] == subject['code']
-            assert row['subject_age'] == subject['age']
-            assert row['subject_sex'] == subject['sex']
+            assert row['subject.label'] == subject['code']
+            assert row['subject.age'] == subject['age']
+            assert row['subject.sex'] == subject['sex']
             assert row['name'] == name_value
             assert row['value'] == j
             assert isinstance(row['value2'], float)
@@ -780,7 +785,7 @@ def test_user_data_view(as_user, as_public):
     assert r.status_code == 400
 
     # Try to create invalid view
-    view = { 'columns': [{'src': 'acquisition_label'}] }
+    view = { 'columns': [{'src': 'acquisition.label'}] }
     r = as_user.post('/containers/user@user.com/views', json=view)
     assert r.status_code == 400
 
@@ -850,7 +855,7 @@ def test_user_data_view(as_user, as_public):
 def test_site_data_view(as_admin, as_user):
     view = { 
         'label': 'test-site-view',
-        'columns': [{'src': 'acquisition_label'}] 
+        'columns': [{'src': 'acquisition.label'}] 
     }
 
     # Try to create a view as non admin 
@@ -923,7 +928,7 @@ def test_group_data_view(as_admin, as_user, data_builder):
 
     view = { 
         'label': 'test-group-view',
-        'columns': [{'src': 'acquisition_label'}] 
+        'columns': [{'src': 'acquisition.label'}] 
     }
 
     # Try to create a view as non admin 
@@ -982,9 +987,9 @@ def test_project_data_view(as_admin, as_user, as_public, data_builder, file_form
         'includeIds': False,
         'includeLabels': False,
         'columns': [
-            { 'src': 'subject_label' },
-            { 'src': 'subject_age' },
-            { 'src': 'subject_sex' }
+            { 'src': 'subject.label' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' }
         ],
         'fileSpec': {
             'container': 'acquisition',
@@ -1055,9 +1060,9 @@ def test_project_data_view(as_admin, as_user, as_public, data_builder, file_form
     for i in range(5):
         row = rows[i]
 
-        assert row['subject_label'] == subject1['code']
-        assert row['subject_age'] == subject1['age']
-        assert row['subject_sex'] == subject1['sex']
+        assert row['subject.label'] == subject1['code']
+        assert row['subject.age'] == subject1['age']
+        assert row['subject.sex'] == subject1['sex']
         assert row['name'] == 'a1' 
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
