@@ -134,8 +134,7 @@
         },
         "columns": {
           "type": "array",
-          "items": {"$ref": "#/definitions/column-spec"},
-          "minItems": 1
+          "items": {"$ref": "#/definitions/column-spec"}
         },
         "fileSpec": {"$ref": "#/definitions/file-spec"},
         "includeIds": {
