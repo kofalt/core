@@ -14,10 +14,7 @@ function CreateBootstrapUser() {(
   BOOTSTRAP_USER_KEY=$(curl -k -X POST $SCITRAN_SITE_API_URL/users -d '{"_id": "'$BOOTSTRAP_USER_EMAIL'", "firstname": "'$BOOTSTRAP_USER_FIRST_NAME'", "lastname": "'$BOOTSTRAP_USER_LAST_NAME'"}' \
                     | python3 -c "import sys, json; print(json.load(sys.stdin)['key'])")
 
-  echo "SCITRAN_CORE_API_KEY=$BOOTSTRAP_USER_KEY" > /dev.dynamic.env
+  echo $BOOTSTRAP_USER_KEY
 )}
 
-echo "================================================"
-echo "            CREATE BOOTSTRAP USER               "
-echo "================================================"
 CreateBootstrapUser "$@"
