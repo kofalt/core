@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from __future__ import print_function
 import os
 import sys
@@ -5,6 +7,12 @@ import re
 from fs import open_fs
 import fs.path
 import fs.copy
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('path', help='path of the beackup folder')
+parser.add_argument('--mode','-m' , choices=['normal', 'no-delete'], default='normal', help='Sync mode; "normal": If a file is missing on the local side, it will be deleted in the cloud too. "no-delete": Files are never deleted from the cloud')
+args = parser.parse_args()
 
 SCITRAN_PERSISTENT_FS_URL = os.environ['SCITRAN_PERSISTENT_FS_URL']
 if not SCITRAN_PERSISTENT_FS_URL:
@@ -32,13 +40,14 @@ except ValueError:
 
 # 2.) Delete files from the cloud storage that does not exist on the
 #     local file system any more.
-for path in cloud_fs.walk.files(filter=['*']):
-    if not local_fs.exists(path):
-        print("Cleanup: " + path)
-        try:
-            cloud_fs.remove(path)
-        except ValueError:
-            print ("Synchronization error: " + ValueError)
+if args.mode == 'normal':
+    for path in cloud_fs.walk.files(filter=['*']):
+        if not local_fs.exists(path):
+            print("Cleanup: " + path)
+            try:
+                cloud_fs.remove(path)
+            except ValueError:
+                print ("Synchronization error: " + ValueError)
 
 cloud_fs.close()
 local_fs.close()
