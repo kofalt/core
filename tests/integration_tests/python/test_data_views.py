@@ -166,24 +166,24 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     rows = r.json()['data']
     assert len(rows) == 2
 
-    assert rows[0]['project'] == project
+    assert rows[0]['project.id'] == project
     assert rows[0]['project_label'] == 'test-project'
     assert rows[0]['subject_label'] == subject1['code']
     assert rows[0]['subject.age'] == subject1['age']
     assert rows[0]['subject.sex'] == subject1['sex']
-    assert rows[0]['session'] == session1
+    assert rows[0]['session.id'] == session1
     assert rows[0]['session_label'] == 'ses-01'
-    assert rows[0]['acquisition'] == acquisition1
+    assert rows[0]['acquisition.id'] == acquisition1
     assert rows[0]['acquisition_label'] == 'scout'
 
-    assert rows[1]['project'] == project
+    assert rows[1]['project.id'] == project
     assert rows[1]['project_label'] == 'test-project'
     assert rows[1]['subject_label'] == subject2['code']
     assert rows[1]['subject.age'] == subject2['age']
     assert rows[1]['subject.sex'] == subject2['sex']
-    assert rows[1]['session'] == session2
+    assert rows[1]['session.id'] == session2
     assert rows[1]['session_label'] == 'ses-01'
-    assert rows[1]['acquisition'] == acquisition2
+    assert rows[1]['acquisition.id'] == acquisition2
     assert rows[1]['acquisition_label'] == 'scout'
 
 def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
