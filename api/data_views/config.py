@@ -92,7 +92,7 @@ class DataViewConfig(object):
 
     def determine_fetch_containers(self):
         """Determine how deep we need to fetch based on columns and file specs"""
-        columns = self.desc['columns']
+        columns = self.desc.get('columns', [])
 
         max_idx = -1 
         for col in columns:
