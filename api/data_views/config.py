@@ -125,15 +125,15 @@ class DataViewConfig(object):
             if cont == 'session':
                 # TODO: Remove once subjects are formalized
                 if include_ids:
-                    self.add_column( 'session', 'subject._id', 'subject', idx=next(idx) )
+                    self.add_column( 'session', 'subject._id', 'subject.id', idx=next(idx) )
                 if include_labels:
-                    self.add_column( 'session', 'subject.code', 'subject_label', idx=next(idx) )
+                    self.add_column( 'session', 'subject.code', 'subject.label', idx=next(idx) )
 
             if include_ids:
-                self.add_column( cont, '_id', cont, idx=next(idx) )
+                self.add_column( cont, '_id', '{}.id'.format(cont), idx=next(idx) )
 
             if include_labels:
-                self.add_column(cont, 'label', '{}_label'.format(cont), idx=next(idx) )
+                self.add_column(cont, 'label', '{}.label'.format(cont), idx=next(idx) )
 
     def add_column(self, container, src, dst, datatype=None, idx=None):
         """Add a column to the various internal maps
