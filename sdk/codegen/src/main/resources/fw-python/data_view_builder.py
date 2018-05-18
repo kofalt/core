@@ -7,11 +7,15 @@ from .models import (
 )
 
 class DataViewBuilder(object):
-    def __init__(self, label=None, public=False):
+    def __init__(self, label=None, public=False, files=None, match=None, zip_files=None, columns=None):
         """Builder class that assists in constructing a DataView object.
 
         :param str label: The optional label, if saving this data view.
         :param bool public: Whether or not to make this data view public when saving it.
+        :param str files: The simplified file filter match, see the files method
+        :param str match: The file match type, one of: first, last, newest, oldest, all
+        :param str zip_files: The zip file filter, see the zip_member_filter function
+        :param list columns: The columns or column groups to add
         """
         self._label = label
         self._public = public
@@ -22,12 +26,30 @@ class DataViewBuilder(object):
         self._file_zip_filter = None
         self._file_format = None
         self._file_format_opts = {}
-        self._file_match = None
+        self._file_match = match
         self._process_files = True
         self._analysis_filter = None
         self._include_labels = False
-        self._include_ids = False
+        self._include_ids = True
         self._missing_data_strategy = None
+
+        if zip_files is not None:
+            self.zip_member_filter(zip_files)
+
+        if files is not None:
+            self.files(files)
+
+        # Add column/columns
+        if isinstance(columns, list):
+            for column in columns:
+                if isinstance(column, tuple):
+                    self.column(*column)
+                else:
+                    self.column(column)
+        elif isinstance(columns, tuple):
+            self.column(*columns)
+        elif columns is not None:
+            self.column(columns)
 
     def build(self):
         """Build the DataView constructed with this builder.
@@ -88,6 +110,25 @@ class DataViewBuilder(object):
         :return: self
         """
         self._columns.append(DataViewColumnSpec(src=src, dst=dst, type=type))
+        return self
+
+    def files(self, pattern):
+        """Shorthand for matching files, in the form of <container>:*.ext or <container>:<analysis filter>:*.
+
+        Container is one of project, subject, session, acquisition
+        Filename filters can use the (*, ?) wildcards
+        Analysis filter is matching against label, and also supports wildcards.
+        :param str pattern: The file pattern to match
+        :return: self
+        """
+        parts = pattern.split(':')
+        self._file_container = parts[0]
+        if len(parts) > 1:
+            self._file_filter = DataViewNameFilterSpec(value=parts[-1])
+            if len(parts) > 2:
+                filter_spec = DataViewNameFilterSpec(value=parts[1])
+                self._analysis_filter = DataViewAnalysisFilterSpec(label=filter_spec)
+
         return self
 
     def file_column(self, src, dst=None, type=None):
