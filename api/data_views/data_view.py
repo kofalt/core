@@ -21,6 +21,7 @@ from .formatters import get_formatter
 from .config import DataViewConfig
 
 from .pipeline.aggregate import Aggregate
+from .pipeline.discover_columns import DiscoverColumns
 from .pipeline.extract_columns import ExtractColumns
 from .pipeline.log_access import LogAccess
 from .pipeline.match_containers import MatchContainers
@@ -102,6 +103,7 @@ class DataView(object):
 
     def build_pipeline(self, output_format):
         config = self.config
+        formatter = get_formatter(output_format, self)
 
         # First stage is aggregation
         self.pipeline = Aggregate(config)
@@ -129,6 +131,10 @@ class DataView(object):
         if config.file_spec and config.file_spec.get('processFiles') != False:
             self.pipeline.pipe(ReadFile(config))
 
+        # Add the column flattening stage
+        if formatter.is_flat_output():
+            self.pipeline.pipe(DiscoverColumns(config))
+
         # Add extraction stage
         self.pipeline.pipe(ExtractColumns(config))
 
@@ -138,7 +144,6 @@ class DataView(object):
         self.pipeline.pipe(missing_data_stage)
 
         # Add the output stage
-        formatter = get_formatter(output_format, self)
         self._content_type = formatter.get_content_type()
         self._file_extension = formatter.get_file_extension()
         self.pipeline.pipe(Write(config, formatter))
