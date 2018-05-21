@@ -1573,7 +1573,7 @@ def upgrade_to_47():
     for device in config.db.devices.find({'_id': {'$type': 'string'}}):
         config.db.devices.delete_one({'_id': device['_id']})
         device['label'] = device.pop('_id')    # Save old _id string as label
-        device['type'] = device.pop('method')  # Rename method to type (engine, reaper, etc.)
+        device['type'] = device.pop('method', device['label'])  # Rename method to type (engine, reaper, etc.)
         device['_id'] = bson.ObjectId()        # Generate oid
         config.db.devices.insert_one(device)
 

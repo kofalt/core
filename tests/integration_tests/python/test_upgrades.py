@@ -202,6 +202,11 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
         'errors': [],
     })
 
+    api_db.devices.insert_one({
+        '_id': 'device_without_method',
+        'last_seen': last_seen
+    })
+
     # Create acq with files
     # * one with with above device as it's origin
     # * the other pointing to a device that doesn't exist
@@ -228,6 +233,12 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
         'last_seen': last_seen,
         'errors': [],
     }
+
+    device = api_db.devices.find_one({'type': 'device_without_method'})
+    assert device
+    assert device['label'] == 'device_without_method'
+    assert device['type'] == 'device_without_method'
+
 
     # Verify that ObjectId casting is no longer 500-ing with `join=origin`, even without
     # upgrade 48 fixing device origins.
