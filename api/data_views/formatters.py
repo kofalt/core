@@ -49,6 +49,9 @@ class JsonObjectFormatter(object):
         else:
             self._file.write(']}')
 
+    def is_flat_output(self):
+        return False
+
 class JsonRowColumnFormatter(object):
     """A formatting strategy that will write a JSON list of columns, then a list of lists of values (rows)"""
     def __init__(self, fileobj):
@@ -84,6 +87,9 @@ class JsonRowColumnFormatter(object):
         else:
             self._file.write(']}}')
 
+    def is_flat_output(self):
+        return False
+
 class CsvFormatter(object):
     """A formatting strategy that will write a comma or tab separated value file"""
     def __init__(self, fileobj, dialect='excel'):
@@ -112,4 +118,7 @@ class CsvFormatter(object):
 
     def finalize(self):
         pass
+
+    def is_flat_output(self):
+        return True
 

@@ -207,6 +207,94 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     assert rows[1]['acquisition.id'] == acquisition2
     assert rows[1]['acquisition_label'] == 'scout'
 
+def test_adhoc_data_view_flatten_info(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
+
+    as_admin.post('/sessions/' + session1 + '/info', json={'replace': {
+        'value': 4,
+        'nested': {
+            'value': 12,
+            'value2': 8
+        }
+    }})
+    as_admin.post('/sessions/' + session2 + '/info', json={'replace': {
+        'value': 6,
+        'value2': 19,
+        'nested': {
+            'value': 23
+        }
+    }})
+
+    # Keep src key
+    r = as_admin.post('/views/data?containerId={}&format=csv'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'session.id' },
+            { 'src': 'session.info' },
+        ]
+    })
+
+    assert r.ok
+    body = StringIO(r.text)
+    rows = list(csv.reader(body))
+    columns = rows.pop(0)
+
+    assert len(columns) == 4
+    assert columns[0] == 'session.id'
+    
+    value_idx = columns.index('session.info.value')
+    nested_value_idx = columns.index('session.info.nested.value')
+    nested_value2_idx = columns.index('session.info.nested.value2')
+
+    assert len(rows) == 2
+
+    assert rows[0][0] == session1
+    assert rows[0][value_idx] == '4'
+    assert rows[0][nested_value_idx] == '12'
+    assert rows[0][nested_value2_idx] == '8'
+
+    assert rows[1][0] == session2
+    assert rows[1][value_idx] == '6'
+    assert rows[1][nested_value_idx] == '23'
+    assert rows[1][nested_value2_idx] == ''
+
+    # Remap to dst key
+    r = as_admin.post('/views/data?containerId={}&format=csv'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'session.id' },
+            { 'src': 'session.info', 'dst': 'session_info' },
+        ]
+    })
+
+    assert r.ok
+    body = StringIO(r.text)
+    rows = list(csv.reader(body))
+    columns = rows.pop(0)
+
+    assert len(columns) == 4
+    assert columns[0] == 'session.id'
+    
+    value_idx = columns.index('session_info.value')
+    nested_value_idx = columns.index('session_info.nested.value')
+    nested_value2_idx = columns.index('session_info.nested.value2')
+
+    assert len(rows) == 2
+
+    assert rows[0][0] == session1
+    assert rows[0][value_idx] == '4'
+    assert rows[0][nested_value_idx] == '12'
+    assert rows[0][nested_value2_idx] == '8'
+
+    assert rows[1][0] == session2
+    assert rows[1][value_idx] == '6'
+    assert rows[1][nested_value_idx] == '23'
+    assert rows[1][nested_value2_idx] == ''
+
 def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')

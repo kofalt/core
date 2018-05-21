@@ -25,6 +25,14 @@ class ColumnSpec(object):
         # The optional expression to apply
         self.expr = expr
 
+    def __hash__(self):
+        return hash((self.container, self.src, self.dst, self.datatype))
+
+    def __eq__(self, other):
+        return (self.container, self.src, self.dst, self.datatype) == (other.container, other.src, other.dst, other.datatype) 
+    def __ne__(self, other):
+        return not(self == other)
+
 class DataViewConfig(object):
     """Contains all relevant configuration for executing a DataView"""
     def __init__(self, desc):
@@ -206,4 +214,29 @@ class DataViewConfig(object):
             self.column_map[container] = []
         self.column_map[container].append(col)
         self.flat_columns.insert(idx, dst)
+
+    def replace_column(self, col, replacements=None):
+        """Replace a column with 0 or more replacements.
+
+        Arguments:
+            col: (ColumnSpec): The column to replace (must exist)
+            replacements (list): The list of replacement columns
+        """
+        # Find the original column
+        idx = self.columns.index(col)
+
+        # Remove the original column
+        del self.columns[idx]
+        del self.flat_columns[idx]
+        self.column_map[col.container].remove(col)
+
+        if replacements is None:
+            return
+
+        for repl in replacements:
+            self.columns.insert(idx, repl)
+            self.flat_columns.insert(idx, repl.dst)
+            self.column_map[repl.container].append(repl)
+
+            idx = idx + 1
 
