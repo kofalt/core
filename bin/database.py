@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 48 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 49 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1631,6 +1631,34 @@ def upgrade_to_48():
 
         cursor = config.db[cont_name].find({'files.origin.type': 'device'})
         process_cursor(cursor, upgrade_files_to_48, context=cont_name)
+
+def upgrade_files_to_49(cont, cont_name):
+
+    files = cont.get('files', [])
+
+    for f in files:
+        if f.get('classification') and 'Contrast' in f['classification']:
+            f['classification']['Measurement'] = f['classification'].pop('Contrast')
+
+
+    config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
+
+    return True
+
+
+
+def upgrade_to_49():
+    """
+    Rename `Contrast` to `Measurement` for a more accurate classification description
+    """
+    mr_modality = config.db.modalities.update(
+        {'_id': 'MR', 'classification.Contrast': {'$exists': True}},
+        {'$rename': {'classification.Contrast': 'classification.Measurement'}}
+    )
+
+    for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
+        cursor = config.db[cont_name].find({'files.classification.Contrast': {'$exists': True}})
+        process_cursor(cursor, upgrade_files_to_49, context=cont_name)
 
 
 
