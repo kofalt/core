@@ -127,23 +127,25 @@ class DataViewConfig(object):
         include_ids = self.desc.get('includeIds', True)
         include_labels = self.desc.get('includeLabels', True)
 
-        idx = itertools.count()
-
-        for cont in self.containers:
-            if cont == 'session':
+        if include_labels:
+            # Prepend labels
+            idx = itertools.count()
+            for cont in self.containers:
                 # TODO: Remove once subjects are formalized
-                if include_ids:
-                    self.add_column( 'session', 'subject._id', 'subject.id', idx=next(idx) )
-                if include_labels:
-                    self.add_column( 'session', 'subject.code', 'subject.label', idx=next(idx) )
+                if cont == 'session':
+                    self.add_column( 'session', 'subject.code', 'subject.label', 'string', idx=next(idx), allow_duplicate=False )
+                self.add_column(cont, 'label', '{}.label'.format(cont), 'string', idx=next(idx), allow_duplicate=False )
 
-            if include_ids:
-                self.add_column( cont, '_id', '{}.id'.format(cont), idx=next(idx) )
 
-            if include_labels:
-                self.add_column(cont, 'label', '{}.label'.format(cont), idx=next(idx) )
+        if include_ids:
+            # Append ids
+            for cont in self.containers:
+                # TODO: Remove once subjects are formalized
+                if cont == 'session':
+                    self.add_column( 'session', 'subject._id', 'subject.id', 'string', allow_duplicate=False )
+                self.add_column( cont, '_id', '{}.id'.format(cont), 'string', allow_duplicate=False )
 
-    def add_column(self, container, src, dst, datatype=None, idx=None):
+    def add_column(self, container, src, dst, datatype=None, idx=None, allow_duplicate=True):
         """Add a column to the various internal maps
 
         Arguments:
@@ -151,11 +153,17 @@ class DataViewConfig(object):
             src (str): The source key of the column value in container
             dst (str): The destination key for the column value
             datatype (str): The optional column data type
+            idx (int): The index where the column should be inserted
+            allow_duplicate (bool): Whether or not duplicate columns should be allowed
         """
         if idx is None:
             idx = len(self.columns)
 
         col = ColumnSpec(container, src, dst, datatype)
+
+        if not allow_duplicate and col in self.columns:
+            return
+
         self.columns.insert(idx, col)
         if container not in self.column_map:
             self.column_map[container] = []
