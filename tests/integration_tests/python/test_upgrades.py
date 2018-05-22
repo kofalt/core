@@ -149,7 +149,7 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
     for c in containers:
         files = as_admin.get('/{}/{}'.format(c[0], c[1])).json()['files']
         for f in files:
-            assert f['classification'] == {'Measurement': ['Diffusion', 'T2*'], 'Intent': ['Functional', 'Structural'], 'Custom': ['diffusion', 'functional']}
+            assert f['classification'] == {'Contrast': ['Diffusion', 'T2*'], 'Intent': ['Functional', 'Structural'], 'Custom': ['diffusion', 'functional']}
 
 
     # Ensure rules were updated
