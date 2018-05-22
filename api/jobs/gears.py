@@ -18,23 +18,45 @@ from ..web.errors import APIValidationException, APINotFoundException
 
 log = config.log
 
-def get_gears(pagination=None):
+def get_gears(project=None, pagination=None):
     """
-    Fetch the install-global gears from the database
+    Fetch the install-global gears from the database. Filters out project-hidden gears.
     """
 
     if pagination:
         pagination['pipe_key'] = lambda key: 'original.' + key
 
+    # Find gears that are not hidden by project
+    hide_gears = {
+        '$match': {
+            '$or': [
+                { 'projects': { '$exists': False }},
+                { 'projects': { '$eq': [] }}
+            ]
+        }
+    }
+
+    if project:
+        # Add in gears that match the current project
+        hide_gears['$match']['$or'].append({
+            'projects': {
+                '$in': [ project ]
+            }
+        })
+
     pipe = [
-        {'$sort': {
-            'gear.name': 1,
-            'created': -1,
-        }},
-        {'$group': {
-            '_id': { 'name': '$gear.name' },
-            'original': { '$first': '$$CURRENT' }
-        }}
+        hide_gears,
+        {
+            '$sort': {
+                'gear.name': 1,
+                'created': -1,
+            }
+        }, {
+            '$group': {
+                '_id': { 'name': '$gear.name' },
+                'original': { '$first': '$$CURRENT' }
+            }
+        }
     ]
 
     page = dbutil.paginate_pipe(config.db.gears, pipe, pagination)

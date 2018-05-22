@@ -45,7 +45,10 @@ class GearsHandler(base.RequestHandler):
         """List all gears."""
 
         # Using pagination params and `?filter=single_input` together raises APIValidationException
-        page = get_gears(pagination=self.pagination)
+        page = get_gears(
+           project=str(self.request.GET.get('project')),
+           pagination=self.pagination
+       )
 
         if 'single_input' in self.request.GET.getall('filter'):
             page['results'] = [gear for gear in page['results'] if count_file_inputs(gear) <= 1]
@@ -604,7 +607,6 @@ class JobHandler(base.RequestHandler):
         create_jobs(config.db, container_before, container, cont_name)
 
         self.log_user_access(AccessType.accept_failed_output, cont_name=j.destination.type, cont_id=j.destination.id, multifile=True)
-
 
 class BatchHandler(base.RequestHandler):
 
