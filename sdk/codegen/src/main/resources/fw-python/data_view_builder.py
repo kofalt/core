@@ -7,7 +7,8 @@ from .models import (
 )
 
 class DataViewBuilder(object):
-    def __init__(self, label=None, public=False, files=None, match=None, zip_files=None, columns=None, process_files=True):
+    def __init__(self, label=None, public=False, files=None, match=None, zip_files=None,
+                 columns=None, process_files=True, include_ids=True, include_labels=True):
         """Builder class that assists in constructing a DataView object.
 
         :param str label: The optional label, if saving this data view.
@@ -17,6 +18,8 @@ class DataViewBuilder(object):
         :param str zip_files: The zip file filter, see the zip_member_filter function
         :param list columns: The columns or column groups to add
         :param bool process_files: Whether or not to process files, default is true
+        :param bool include_ids: Whether or not to include id columns, default is true
+        :param bool include_labels: Whether or not to include label columns, default is true
         """
         self._label = label
         self._public = public
@@ -30,8 +33,8 @@ class DataViewBuilder(object):
         self._file_match = match
         self._process_files = process_files
         self._analysis_filter = None
-        self._include_labels = False
-        self._include_ids = True
+        self._include_ids = include_ids
+        self._include_labels = include_labels
         self._missing_data_strategy = None
 
         if zip_files is not None:
