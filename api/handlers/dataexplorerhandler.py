@@ -301,9 +301,6 @@ EXACT_CONTAINERS = ['file', 'collection']
 class DataExplorerHandler(base.RequestHandler):
     # pylint: disable=broad-except
 
-    def __init__(self, request=None, response=None):
-        super(DataExplorerHandler, self).__init__(request, response)
-
     def _parse_request(self, request_type='search'):
 
         try:

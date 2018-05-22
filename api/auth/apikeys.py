@@ -12,6 +12,8 @@ class APIKey(object):
     Abstract API key class
     """
 
+    key_type = None
+
     @staticmethod
     def _preprocess_key(key):
         """

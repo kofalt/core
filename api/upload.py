@@ -250,7 +250,7 @@ class Upload(base.RequestHandler):
 
         removed = result.deleted_count
         if removed > 0:
-            log.info('Removed ' + str(removed) + ' expired packfile tokens')
+            log.info('Removed %s expired packfile tokens', removed)
 
         # Next, find token directories and remove any that don't map to a token.
 
@@ -284,7 +284,7 @@ class Upload(base.RequestHandler):
                 pass
 
             if result is None:
-                log.info('Cleaning expired token directory ' + token)
+                log.info('Cleaning expired token directory %s', token)
                 config.fs.removetree(path)
                 cleaned += 1
 

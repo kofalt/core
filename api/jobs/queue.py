@@ -325,7 +325,7 @@ class Queue(object):
 
         # Return if there is a job request already (probably prefetch)
         if job.request is not None:
-            log.info('Job ' + job.id_ + ' already has a request, so not generating')
+            log.info('Job %s already has a request, so not generating', job.id_)
             return job
 
         # Create a new request formula
