@@ -4,7 +4,7 @@ def test_modalities(data_builder, as_admin, as_user):
         '_id': 'MR',
         'classification': {
             'Intent': ["Structural", "Functional", "Localizer"],
-            'Contrast': ["B0", "B1", "T1", "T2"]
+            'Measurement': ["B0", "B1", "T1", "T2"]
         }
     }
 
@@ -76,7 +76,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
         '_id': 'MR',
         'classification': {
             'Intent': ["Structural", "Functional", "Localizer"],
-            'Contrast': ["B0", "B1", "T1", "T2"]
+            'Measurement': ["B0", "B1", "T1", "T2"]
         }
     }
 
@@ -115,7 +115,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
     # Attempt full replace of classification
     file_cls = {
         'Intent':   ['Structural'],
-        'Contrast': ['B1', 'T1'],
+        'Measurement': ['B1', 'T1'],
         'Custom':   ['Custom Value']
     }
 
@@ -145,12 +145,12 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
     # Remove item from list
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/classification', json={
         'delete': {'Intent': ['Structural'],
-                   'Contrast': ['B1']}
+                   'Measurement': ['B1']}
     })
     assert r.ok
 
     file_cls['Intent'] = ['Functional']
-    file_cls['Contrast'] = ['T1']
+    file_cls['Measurement'] = ['T1']
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
     assert r.json()['classification'] == file_cls
@@ -189,11 +189,11 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
 
     # Ensure lowercase gets formatted in correct format via modality's classification
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/classification', json={
-        'add': {'contrast': ['t2', 'b0'], 'custom': ['lowercase']}
+        'add': {'Measurement': ['t2', 'b0'], 'custom': ['lowercase']}
     })
     assert r.ok
 
-    file_cls['Contrast'].extend(['T2', 'B0'])
+    file_cls['Measurement'].extend(['T2', 'B0'])
     file_cls['Custom'].append('lowercase')
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
@@ -201,11 +201,11 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
 
     # Ensure lowercase gets formatted in correct format via modality's classification
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/classification', json={
-        'delete': {'contrast': ['t2'], 'custom': ['lowercase']}
+        'delete': {'Measurement': ['t2'], 'custom': ['lowercase']}
     })
     assert r.ok
 
-    file_cls['Contrast'] = ['T1', 'B0']
+    file_cls['Measurement'] = ['T1', 'B0']
     file_cls['Custom'] = ['Custom Value']
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
@@ -352,7 +352,7 @@ def test_classification_change_triggers_job(randstr, data_builder, as_admin, api
         '_id': 'MR',
         'classification': {
             'Intent': ["Structural", "Functional", "Localizer"],
-            'Contrast': ["B0", "B1", "T1", "T2"]
+            'Measurement': ["B0", "B1", "T1", "T2"]
         }
     }
 
