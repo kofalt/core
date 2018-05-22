@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 
+import fs.errors
 import fs.path
 
 from .web import base
@@ -262,7 +263,12 @@ class Upload(base.RequestHandler):
         folder = fs.path.join('tokens', 'packfile')
 
         util.mkdir_p(folder, config.fs)
-        paths = config.fs.listdir(folder)
+        try:
+            paths = config.fs.listdir(folder)
+        except fs.errors.ResourceNotFound:
+            # Non-local storages are used without 0-blobs for "folders" (mkdir_p is a noop)
+            paths = []
+
         cleaned = 0
 
         for token in paths:
