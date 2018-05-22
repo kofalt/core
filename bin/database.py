@@ -1595,7 +1595,7 @@ def upgrade_files_to_48(cont, cont_name):
     files = cont.get('files', [])
 
     for f in files:
-        if f['origin']['type'] == 'device':
+        if f.get('origin') and f['origin'].get('type') == 'device':
             if not bson.ObjectId.is_valid(f['origin']['id']):
 
                 # Old style device origin, try to find it in the table
