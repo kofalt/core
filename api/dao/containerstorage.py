@@ -150,7 +150,7 @@ class SubjectStorage(ContainerStorage):
             self._fill_default_values(cont)
         return cont
 
-
+    # pylint: disable=arguments-differ
     def get_all_el(self, query, user, projection, fill_defaults=False):
         if query is None:
             query = {}
@@ -287,7 +287,7 @@ class SessionStorage(ContainerStorage):
         return SubjectStorage().get_container(cont['subject']['_id'], projection=projection)
 
 
-    def get_all_el(self, query, user, projection, fill_defaults=False):
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
         """
         Override allows 'collections' key in the query, will transform into proper query for the caller and return results
         """
@@ -297,7 +297,7 @@ class SessionStorage(ContainerStorage):
             a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
             query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
 
-        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults)
+        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination)
 
 
     def recalc_session_compliance(self, session_id, session=None, template=None, hard=False):

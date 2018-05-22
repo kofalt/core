@@ -176,20 +176,20 @@ def public_request(handler, container=None):
 
 def list_permission_checker(handler):
     def g(exec_op):
-        def f(method, query=None, user=None, public=False, projection=None):
+        def f(method, query=None, user=None, public=False, projection=None, pagination=None):
             if user and (user['_id'] != handler.uid):
                 handler.abort(403, 'User ' + handler.uid + ' may not see the Projects of User ' + user['_id'])
             query['permissions'] = {'$elemMatch': {'_id': handler.uid}}
             if handler.is_true('public'):
                 query['$or'] = [{'public': True}, {'permissions': query.pop('permissions')}]
-            return exec_op(method, query=query, user=user, public=public, projection=projection)
+            return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination)
         return f
     return g
 
 
 def list_public_request(exec_op):
-    def f(method, query=None, user=None, public=False, projection=None):
+    def f(method, query=None, user=None, public=False, projection=None, pagination=None):
         if public:
             query['public'] = True
-        return exec_op(method, query=query, user=user, public=public, projection=projection)
+        return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination)
     return f

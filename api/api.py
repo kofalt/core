@@ -134,6 +134,7 @@ endpoints = [
 
         # Jobs & gears
 
+        route( '/jobs',                    JobsHandler),
         prefix('/jobs', [
             route('/next',                 JobsHandler, h='next',       m=['GET']),
             route('/stats',                JobsHandler, h='stats',      m=['GET']),

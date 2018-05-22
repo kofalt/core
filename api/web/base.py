@@ -286,6 +286,58 @@ class RequestHandler(webapp2.RequestHandler):
     def get_param(self, param, default=None):
         return self.request.GET.get(param, default)
 
+    def is_enabled(self, feature):
+        """Return True if a feature is enabled (listed in the X-Accept-Feature header)"""
+        return feature.lower() in self.request.headers.get('X-Accept-Feature', '').lower()
+
+    @property
+    def pagination(self):
+        """
+        Return parsed pagination dict from request URL parameters.
+
+        Query params:
+            ?filter=k1=v1,k2>v2,k2<v3 [, ...]
+            ?sort=k1,k2:desc [, ...]
+            ?page=N
+            ?skip=N
+            ?limit=N
+        """
+
+        pagination = {}
+        parsers = {'filter': util.parse_pagination_filter_param,
+                   'sort': util.parse_pagination_sort_param}
+
+        for param_name in ('filter', 'sort', 'page', 'skip', 'limit'):
+            param_count = len(self.request.GET.getall(param_name))
+            if param_count > 1:
+                raise errors.APIValidationException({'error': 'Multiple "{}" query params not allowed'.format(param_name)})
+            if param_count > 0:
+                param_value = self.request.GET.get(param_name)
+                parse = parsers.get(param_name, util.parse_pagination_int_param)
+                try:
+                    pagination[param_name] = parse(param_value)
+                except util.PaginationParseError as e:
+                    raise errors.APIValidationException({'error': e.message})
+
+        if 'page' in pagination:
+            if 'skip' in pagination:
+                raise errors.APIValidationException({'error': '"page" and "skip" query params are mutually exclusive'})
+            if 'limit' not in pagination:
+                raise errors.APIValidationException({'error': '"limit" query param is required with "page"'})
+            pagination['skip'] = pagination['limit'] * (pagination.pop('page') - 1)
+
+        return pagination
+
+    def format_page(self, page):
+        """
+        Return page (dict with total and results) if `pagination` feature is enabled.
+        Return `page['results']` (list) otherwise, for backwards compatibility.
+        """
+        if not self.is_enabled('pagination'):
+            return page['results']
+        page['count'] = len(page['results'])
+        return page
+
     def handle_exception(self, exception, debug, return_json=False): # pylint: disable=arguments-differ
         """
         Send JSON response for exception

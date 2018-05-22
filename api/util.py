@@ -10,12 +10,14 @@ import requests
 import string
 import uuid
 
-import fs.path
-import fs.errors
-
+import bson
 import django
 from django.conf import settings
 from django.template import Template, Context
+import fs.path
+import fs.errors
+import pymongo
+
 
 BYTE_RANGE_RE = re.compile(r'^(?P<first>\d+)-(?P<last>\d+)?$')
 SUFFIX_BYTE_RANGE_RE = re.compile(r'^(?P<first>-\d+)$')
@@ -112,6 +114,7 @@ def user_perm(permissions, _id):
             return perm
     return {}
 
+
 def is_user_id(uid):
     """
     Checks to make sure uid matches uid regex
@@ -127,6 +130,24 @@ def is_group_id(gid):
     """
     pattern = re.compile('^[0-9a-z][0-9a-z.@_-]{0,30}[0-9a-z]$')
     return bool(pattern.match(gid))
+
+
+def datetime_from_str(s):
+    """
+    Return datetime.datetime parsed from a string that is a prefix of isoformat.
+    Return None if the string is not such a valid prefix.
+    """
+    re_fmt = {
+        r'^\d\d\d\d-\d\d-\d\d$':                              '%Y-%m-%d',
+        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d$':                    '%Y-%m-%dT%H:%M',
+        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d$':               '%Y-%m-%dT%H:%M:%S',
+        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d$': '%Y-%m-%dT%H:%M:%S.%f',
+    }
+    for date_re, date_fmt in re_fmt.iteritems():
+        if re.match(date_re, s):
+            return datetime.datetime.strptime(s, date_fmt)
+    return None
+
 
 def resolve_gravatar(email):
     """
@@ -381,3 +402,69 @@ def parse_range_header(range_header_val, valid_units=('bytes',)):
         ranges.append((first, last))
 
     return ranges
+
+
+class PaginationParseError(ValueError):
+    """Exception class for invalid pagination params."""
+    pass
+
+
+def parse_pagination_filter_param(filter_param):
+    """Return parsed pagination filter (dict) from filter param (str)."""
+    pagination_filter = {}
+    filter_ops = {'<':  '$lt',
+                  '<=': '$lte',
+                  '=':  '$eq',
+                  '!=': '$ne',
+                  '>=': '$gte',
+                  '>':  '$gt'}
+    for filter_str in filter_param.split(','):
+        for filter_op in sorted(filter_ops, key=len, reverse=True):
+            key, op, value = filter_str.partition(filter_op)
+            if op:
+                if key not in pagination_filter:
+                    pagination_filter[key] = {}
+                if bson.ObjectId.is_valid(value):
+                    value = bson.ObjectId(value)
+                elif datetime_from_str(value):
+                    value = datetime_from_str(value)
+                else:
+                    try:
+                        # Note: querying for floats also yields ints (=> no need for int casting here)
+                        value = float(value)
+                    except ValueError:
+                        pass
+                # TODO cast other types?
+                pagination_filter[key].update({filter_ops[op]: value})
+                break
+        else:
+            raise PaginationParseError('Invalid pagination filter: {} (operator missing)'.format(filter_str))
+
+    return pagination_filter
+
+
+def parse_pagination_sort_param(sort_param):
+    """Return parsed pagination sorting (list of (key, order) tuples) from sort param (str)."""
+    pagination_sort  = []
+    sort_orders = { '1': pymongo.ASCENDING,   'asc': pymongo.ASCENDING,
+                   '-1': pymongo.DESCENDING, 'desc': pymongo.DESCENDING}
+    for sort_str in sort_param.split(','):
+        key, _, order = sort_str.partition(':')
+        order = order.lower() or 'asc'
+        if order not in sort_orders:
+            raise PaginationParseError('Invalid pagination sort: {} (unknown order)'.format(sort_str))
+        pagination_sort.append((key, sort_orders[order]))
+
+    return pagination_sort
+
+
+def parse_pagination_int_param(int_param):
+    """Return positive int parsed from string."""
+    try:
+        pagination_int = int(int_param)
+        if pagination_int <= 0:
+            raise ValueError('expected positive integer, got {}'.format(pagination_int))
+    except ValueError as e:
+        raise PaginationParseError('Invalid pagination int: {}'.format(e.message))
+
+    return pagination_int
