@@ -33,7 +33,7 @@ class DataViewTestCases(SdkTestCase):
         if cls.data_view_id:
             return
 
-        builder = flywheel.DataViewBuilder('test-data-view')
+        builder = flywheel.DataViewBuilder('test-data-view', include_labels=False)
         builder.column('subject.age')
         builder.column('session.label', dst='session_label')
         builder.column('subject.firstname', dst='firstname')
@@ -103,17 +103,19 @@ class DataViewTestCases(SdkTestCase):
 
 
     def test_execute_adhoc_data_view_csv(self):
-        view = flywheel.DataViewBuilder(columns=['subject.age', 'subject.sex']).build()
+        view = flywheel.DataViewBuilder(columns=['subject.age', 'subject.sex', 'session'], include_labels=False).build()
 
         with self.fw.read_data_view_data(view, self.project_id, format='csv') as resp:
             reader = csv.reader(resp)
 
             row = next(reader)
-            self.assertEqual(len(row), 5)
-            self.assertEqual(row, ['project.id', 'subject.id', 'session.id', 'subject.age', 'subject.sex'])
+            self.assertEqual(len(row), 9)
+            self.assertEqual(row, ['subject.age', 'subject.sex', 'session.id', 'session.label', 'session.operator', 
+                'session.timestamp', 'session.timezone', 'project.id', 'subject.id'])
 
             row = next(reader)
-            self.assertEqual(len(row), 5)
-            self.assertEqual(row, [self.project_id, self.subject.id, self.session_id, str(self.subject.age), self.subject.sex])
+            self.assertEqual(len(row), 9)
+            self.assertEqual(row, [str(self.subject.age), self.subject.sex, self.session_id, self.session.label, 
+                '', '', '', self.project_id, self.subject.id])
 
 
