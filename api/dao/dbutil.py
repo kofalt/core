@@ -66,7 +66,7 @@ def paginate_find(collection, find_kwargs, pagination):
             find_kwargs['limit'] = pagination['limit']
 
     return {
-        'total': collection.count(find_kwargs['filter']),
+        'total': collection.count(find_kwargs.get('filter', {})),
         'results': list(collection.find(**find_kwargs)),
     }
 

@@ -330,10 +330,13 @@ class RequestHandler(webapp2.RequestHandler):
 
     def format_page(self, page):
         """
-        Return page (dict with total and results) if `pagination` feature is enabled,
-        `page['results']` (list) otherwise, for backwards compatibility.`
+        Return page (dict with total and results) if `pagination` feature is enabled.
+        Return `page['results']` (list) otherwise, for backwards compatibility.
         """
-        return page if self.is_enabled('pagination') else page['results']
+        if not self.is_enabled('pagination'):
+            return page['results']
+        page['count'] = len(page['results'])
+        return page
 
     def handle_exception(self, exception, debug, return_json=False): # pylint: disable=arguments-differ
         """

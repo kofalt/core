@@ -346,7 +346,7 @@ class RuleHandler(base.RequestHandler):
 class JobsHandler(base.RequestHandler):
 
     @require_admin
-    def get(self): # pragma: no cover (no route)
+    def get(self):
         """List all jobs."""
         page = dbutil.paginate_find(config.db.jobs, {}, self.pagination)
         return self.format_page(page)

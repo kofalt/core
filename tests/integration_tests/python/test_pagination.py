@@ -106,15 +106,14 @@ def test_limit(data_builder, as_admin, file_form):
     assert len(as_admin.get('/batch').json()) > 1
     assert len(as_admin.get('/batch?limit=1').json()) == 1
 
-    ## `GET /jobs` is not exposed (yet)
-    # job_json = {
-    #     'gear_id': gear1,
-    #     'inputs': {'text': {'type': 'analysis', 'id': an1, 'name': 'a.txt'}},
-    #     'destination': {'type': 'acquisition', 'id': aq1}}
-    # j1 = as_admin.post('/jobs/add', json=job_data).json()['_id']
-    # j2 = as_admin.post('/jobs/add', json=job_data).json()['_id']
-    # assert len(as_admin.get('/jobs').json()) > 1
-    # assert len(as_admin.get('/jobs?limit=1').json()) == 1
+    job_json = {
+        'gear_id': g_a1,
+        'inputs': {'text': {'type': 'acquisition', 'id': aq1, 'name': 'test.txt'}},
+        'destination': {'type': 'acquisition', 'id': aq2}}
+    j1 = as_admin.post('/jobs/add', json=job_json).json()['_id']
+    j2 = as_admin.post('/jobs/add', json=job_json).json()['_id']
+    assert len(as_admin.get('/jobs').json()) > 1
+    assert len(as_admin.get('/jobs?limit=1').json()) == 1
 
     assert as_admin.delete('/site/rules/' + r1).ok
     assert as_admin.delete('/site/rules/' + r2).ok

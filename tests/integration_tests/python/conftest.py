@@ -128,7 +128,7 @@ def default_payload():
                 'config': {},
                 'description': 'test',
                 'inputs': {
-                    'text files (max 100K)': {
+                    'text': {
                         'base': 'file',
                         'name': {'pattern': '^.*.txt$'},
                         'size': {'maximum': 100000}
@@ -316,7 +316,7 @@ class DataBuilder(object):
             for i in payload.get('inputs', {}).keys():
                 gear_inputs[i] = {'base': 'file'}
 
-            gear_doc = _default_payload['gear']['gear']
+            gear_doc = copy.deepcopy(_default_payload['gear']['gear'])
             gear_doc['inputs'] = gear_inputs
             payload['gear_id'] = self.create('gear', gear=gear_doc)
 
