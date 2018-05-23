@@ -99,6 +99,14 @@
     {{/operations}}
     {{/apis}}
 
+    def build_data_view(self, **kwargs):
+        """Short-hand for flywheel.DataViewBuilder(**kwargs).build()
+
+        :param kwargs: The arguments to pass directly to DataViewBuilder
+        :return: The built data view
+        """
+        return DataViewBuilder(**kwargs).build()
+
     def print_data_view_columns(self, file=sys.stdout):
         """Print a list of column aliases that can be used in data views.
 
