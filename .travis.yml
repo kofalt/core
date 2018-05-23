@@ -27,7 +27,7 @@ before_install:
 install: true
 
 script:
-  - test -f "$DOCKER_DIR/image.tar" && docker load -i "$DOCKER_DIR/image.tar" || true
+  - test -f "$DOCKER_DIR/image-sdk.tar" && docker load -i "$DOCKER_DIR/image-sdk.tar" || true
   - if [ -n "$TRAVIS_TAG" ]; then
         DOC_VERSION="$TRAVIS_TAG";
         SDK_VERSION="$TRAVIS_TAG";
@@ -48,7 +48,7 @@ script:
         ./bin/copy-sdk-dist.sh;
         ./bin/test-sdk.sh;
     fi
-  - docker save -o "$DOCKER_DIR/image.tar"
+  - docker save -o "$DOCKER_DIR/image-sdk.tar"
         $(docker history -q core:base | grep -v '<missing>')
         $(docker history -q core:dist | grep -v '<missing>')
         $(docker history -q core:testing | grep -v '<missing>');
