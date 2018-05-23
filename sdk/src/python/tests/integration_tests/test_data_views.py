@@ -103,9 +103,10 @@ class DataViewTestCases(SdkTestCase):
 
 
     def test_execute_adhoc_data_view_csv(self):
-        view = flywheel.DataViewBuilder(columns=['subject.age', 'subject.sex', 'session'], include_labels=False).build()
+        fw = self.fw
 
-        with self.fw.read_data_view_data(view, self.project_id, format='csv') as resp:
+        view = fw.build_data_view(columns=['subject.age', 'subject.sex', 'session'], include_labels=False)
+        with fw.read_data_view_data(view, self.project_id, format='csv') as resp:
             reader = csv.reader(resp)
 
             row = next(reader)
