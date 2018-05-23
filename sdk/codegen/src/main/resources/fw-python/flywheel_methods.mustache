@@ -113,7 +113,11 @@
         :param file-like file: The file to print to
         """
         for column in self.views_api.get_data_view_columns():
-            six.print_('{} ({}): {}'.format(column.name, column.type, column.description), file=file)
+            if column.group:
+                coltype = 'group'
+            else:
+                coltype = column.type
+            six.print_('{} ({}): {}'.format(column.name, coltype, column.description), file=file)
 
     def read_data_view_data(self, view, container_id, decode=True, **kwargs):
         """Execute a data view against container, and return a file-like object that can be streamed.
