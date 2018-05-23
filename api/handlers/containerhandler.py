@@ -137,7 +137,7 @@ class ContainerHandler(base.RequestHandler):
         cached_gears = {}
 
         for f in result.get('files', []):
-            origin = f.get('origin', None)
+            origin = f.get('origin')
 
             if origin is None:
                 # Backfill origin maps if none provided from DB
@@ -148,12 +148,8 @@ class ContainerHandler(base.RequestHandler):
 
             elif join_origin:
                 j_type = f['origin']['type']
-                j_id   = f['origin']['id']
-                j_id_b = j_id
-
-                # Some tables don't use BSON for their primary keys.
-                if j_type not in (Origin.user, Origin.device):
-                    j_id_b = bson.ObjectId(j_id)
+                j_id   = str(f['origin']['id'])
+                j_id_b = bson.ObjectId(j_id) if bson.ObjectId.is_valid(j_id) else j_id
 
                 # Join from database if we haven't for this origin before
                 if j_type != 'unknown' and result['join-origin'][j_type].get(j_id, None) is None:
@@ -190,7 +186,7 @@ class ContainerHandler(base.RequestHandler):
 
         # Get list of all users, hash by uid
         # TODO: This is not an efficient solution if there are hundreds of inactive users
-        users_list = containerstorage.ContainerStorage('users', use_object_id=False).get_all_el({}, None, None)
+        users_list = containerstorage.UserStorage().get_all_el({}, None, None)
         users = {user['_id']: user for user in users_list}
 
         for r in results:
@@ -333,9 +329,8 @@ class ContainerHandler(base.RequestHandler):
         else:
             query = {}
         # this request executes the actual reqeust filtering containers based on the user permissions
-        results = permchecker(self.storage.exec_op)('GET', query=query, public=self.public_request, projection=projection)
-        if results is None:
-            self.abort(404, 'No elements found in container {}'.format(self.storage.cont_name))
+        page = permchecker(self.storage.exec_op)('GET', query=query, public=self.public_request, projection=projection, pagination=self.pagination)
+        results = page['results']
         # return only permissions of the current user unless superuser or getting avatars
         if not self.superuser_request and not self.is_true('join_avatars'):
             self._filter_all_permissions(results, self.uid)
@@ -343,17 +338,14 @@ class ContainerHandler(base.RequestHandler):
         if self.is_true('counts'):
             self._add_results_counts(results, cont_name)
 
-        modified_results = []
-        for result in results:
-            if self.is_true('stats'):
-                result = containerutil.get_stats(result, cont_name)
-            result = self.handle_origin(result)
-            modified_results.append(result)
+        if self.is_true('stats'):
+            for result in results:
+                containerutil.get_stats(result, cont_name)
 
         if self.is_true('join_avatars'):
-            modified_results = self.join_user_info(modified_results)
+            self.join_user_info(results)
 
-        return modified_results
+        return self.format_page(page)
 
     def _filter_all_permissions(self, results, uid):
         for result in results:

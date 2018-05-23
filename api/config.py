@@ -238,7 +238,13 @@ def get_public_config():
     }
 
 def get_version():
-    return db.singletons.find_one({'_id': 'version'})
+    version_object = db.singletons.find_one({'_id': 'version'})
+    if not version_object:
+        return version_object
+
+    version_object['release'] = get_release_version()
+    return version_object
+
 
 def get_item(outer, inner):
     return get_config()[outer][inner]
@@ -261,8 +267,22 @@ def mongo_pipeline(table, pipeline):
 def get_auth(auth_type):
     return get_config()['auth'][auth_type]
 
+# Application version file path
+release_version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../api_version.txt')
+release_version = ''
+
+def get_release_version():
+    """Get the semantic application release version (may be none)"""
+    global release_version #pylint: disable=global-statement
+    if not release_version and os.path.isfile(release_version_file_path):
+        try:
+            with open(release_version_file_path, 'r') as f:
+                release_version = f.read().strip()
+        except IOError:
+            pass
+    return release_version
 
 # Storage configuration
 fs = open_fs(__config['persistent']['fs_url'])
-legacy_fs = open_fs('osfs://' + __config['persistent']['data_path'])
+local_fs = open_fs('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']

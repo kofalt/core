@@ -7,6 +7,7 @@ import uuid
 
 import fs.move
 import fs.subfs
+import fs.tempfs
 import fs.path
 import fs.errors
 
@@ -15,23 +16,30 @@ from . import config, util
 DEFAULT_HASH_ALG = 'sha384'
 
 class FileProcessor(object):
-    def __init__(self, base, presistent_fs):
-        self.base = base
+    def __init__(self, presistent_fs, local_tmp_fs=False):
         self._tempdir_name = str(uuid.uuid4())
         self._presistent_fs = presistent_fs
         self._presistent_fs.makedirs(fs.path.join('tmp', self._tempdir_name), recreate=True)
-        self._temp_fs = fs.subfs.SubFS(presistent_fs, fs.path.join('tmp', self._tempdir_name))
+        if not local_tmp_fs:
+            self._temp_fs = fs.subfs.SubFS(presistent_fs, fs.path.join('tmp', self._tempdir_name))
+        else:
+            self._temp_fs = fs.tempfs.TempFS('tmp')
 
-    def store_temp_file(self, src_path, dest_path):
+    def store_temp_file(self, src_path, dst_path, dst_fs=None):
         if not isinstance(src_path, unicode):
             src_path = six.u(src_path)
-        if not isinstance(dest_path, unicode):
-            dest_path = six.u(dest_path)
-        dst_dir = fs.path.dirname(dest_path)
+        if not isinstance(dst_path, unicode):
+            dst_path = six.u(dst_path)
+        dst_dir = fs.path.dirname(dst_path)
+        if not dst_fs:
+            dst_fs = self.persistent_fs
         self._presistent_fs.makedirs(dst_dir, recreate=True)
-        self._presistent_fs.move(src_path=fs.path.join('tmp', self._tempdir_name, src_path), dst_path=dest_path)
+        if isinstance(self._temp_fs, fs.tempfs.TempFS):
+            fs.move.move_file(self._temp_fs, src_path, dst_fs, dst_path)
+        else:
+            self._presistent_fs.move(src_path=fs.path.join('tmp', self._tempdir_name, src_path), dst_path=dst_path)
 
-    def process_form(self, request):
+    def process_form(self, request, use_filepath=False):
         """
         Some workarounds to make webapp2 process forms in an intelligent way.
         Normally webapp2/WebOb Reqest.POST would copy the entire request stream
@@ -56,8 +64,7 @@ class FileProcessor(object):
         env = request.environ.copy()
         env.setdefault('CONTENT_LENGTH', '0')
         env['QUERY_STRING'] = ''
-
-        field_storage_class = get_single_file_field_storage(self._temp_fs)
+        field_storage_class = get_single_file_field_storage(self._temp_fs, use_filepath=use_filepath)
 
         form = field_storage_class(
             fp=request.body_file, environ=env, keep_blank_values=True
@@ -101,11 +108,15 @@ class FileProcessor(object):
 
     def close(self):
         # Cleaning up
-        self._presistent_fs.listdir(fs.path.join('tmp', self._tempdir_name))
-        self._presistent_fs.removetree(fs.path.join('tmp', self._tempdir_name))
+        if isinstance(self._temp_fs, fs.tempfs.TempFS):
+            # The TempFS cleans up automatically on close
+            self._temp_fs.close()
+        else:
+            # Otherwise clean up manually
+            self._presistent_fs.removetree(fs.path.join('tmp', self._tempdir_name))
 
 
-def get_single_file_field_storage(file_system):
+def get_single_file_field_storage(file_system, use_filepath=False):
     # pylint: disable=attribute-defined-outside-init
 
     # We dynamically create this class because we
@@ -120,12 +131,18 @@ def get_single_file_field_storage(file_system):
         bufsize = 2 ** 20
 
         def make_file(self, binary=None):
-            # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
 
-            self.filename = fs.path.basename(self.filename)
             self.hasher = hashlib.new(DEFAULT_HASH_ALG)
+            # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
+            if use_filepath:
+                self.filename = util.sanitize_path(self.filename)
+            else:
+                self.filename = os.path.basename(self.filename)
             if not isinstance(self.filename, unicode):
                 self.filename = six.u(self.filename)
+            # If the filepath doesn't exist, make it IF the opted in to use full path as name
+            if  self.filename and os.path.dirname(self.filename) and not file_system.exists(os.path.dirname(self.filename)):
+                file_system.makedirs(os.path.dirname(self.filename))
             self.open_file = file_system.open(self.filename, 'wb')
             return self.open_file
 
@@ -217,7 +234,7 @@ def get_fs_by_file_path(file_path):
 
     if config.fs.isfile(file_path):
         return config.fs
-    elif config.support_legacy_fs and config.legacy_fs.isfile(file_path):
-        return config.legacy_fs
+    elif config.support_legacy_fs and config.local_fs.isfile(file_path):
+        return config.local_fs
     else:
         raise fs.errors.ResourceNotFound('File not found: %s' % file_path)

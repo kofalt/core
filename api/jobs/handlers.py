@@ -14,7 +14,7 @@ from .. import upload
 from .. import files
 from ..auth import require_drone, require_login, require_admin, has_access
 from ..auth.apikeys import JobApiKey
-from ..dao import hierarchy
+from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..util import humanize_validation_error, set_for_download
 from ..validators import validate_data, verify_payload_exists
@@ -35,6 +35,7 @@ from .batch import check_state, update
 from .queue import Queue
 from .rules import create_jobs, validate_regexes
 
+
 class GearsHandler(base.RequestHandler):
 
     """Provide /gears API routes."""
@@ -43,13 +44,16 @@ class GearsHandler(base.RequestHandler):
     def get(self):
         """List all gears."""
 
-        gears   = get_gears()
-        filters = self.request.GET.getall('filter')
+        # Using pagination params and `?filter=single_input` together raises APIValidationException
+        page = get_gears(pagination=self.pagination)
 
-        if 'single_input' in filters:
-            gears = list(filter(lambda x: count_file_inputs(x) <= 1, gears))
+        if 'single_input' in self.request.GET.getall('filter'):
+            page['results'] = [gear for gear in page['results'] if count_file_inputs(gear) <= 1]
 
-        return gears
+            # Filtering with `?filter=single_input` invalidates the pagination total
+            del page['total']
+
+        return self.format_page(page)
 
     @require_login
     def check(self):
@@ -57,6 +61,7 @@ class GearsHandler(base.RequestHandler):
 
         check_for_gear_insertion(self.request.json)
         return None
+
 
 class GearHandler(base.RequestHandler):
     """Provide /gears/x API routes."""
@@ -204,7 +209,7 @@ class GearHandler(base.RequestHandler):
         })
 
         stream = file_system.open(file_path, 'rb')
-        set_for_download(self.response, stream=stream, filename='gear.tar')
+        set_for_download(self.response, stream=stream, filename='gear.tar', enable_buffering=True)
 
     @require_admin
     def post(self, _id):
@@ -240,7 +245,9 @@ class RulesHandler(base.RequestHandler):
             if not self.user_is_admin and not has_access(self.uid, project, 'ro'):
                 raise APIPermissionException('User does not have access to project {} rules'.format(cid))
 
-        return config.db.project_rules.find({'project_id' : cid}, projection=projection)
+        find_kwargs = dict(filter={'project_id': cid}, projection=projection)
+        page = dbutil.paginate_find(config.db.project_rules, find_kwargs, self.pagination)
+        return self.format_page(page)
 
     @verify_payload_exists
     def post(self, cid):
@@ -339,9 +346,10 @@ class RuleHandler(base.RequestHandler):
 class JobsHandler(base.RequestHandler):
 
     @require_admin
-    def get(self): # pragma: no cover (no route)
+    def get(self):
         """List all jobs."""
-        return list(config.db.jobs.find())
+        page = dbutil.paginate_find(config.db.jobs, {}, self.pagination)
+        return self.format_page(page)
 
     def add(self):
         """Add a job to the queue."""
@@ -612,7 +620,8 @@ class BatchHandler(base.RequestHandler):
             query = {}
         else:
             query = {'origin.id': self.uid}
-        return batch.get_all(query, {'proposal':0})
+        page = batch.get_all(query, {'proposal': 0}, pagination=self.pagination)
+        return self.format_page(page)
 
     @require_login
     def get(self, _id):

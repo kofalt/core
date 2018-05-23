@@ -13,7 +13,8 @@ from ..auth import listauth, always_ok
 from ..dao import noop
 from ..dao import liststorage
 from ..dao import containerutil
-from ..web.errors import APIStorageException, APIPermissionException
+from ..dao import containerstorage
+from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException
 from ..web.request import AccessType
 
 
@@ -208,8 +209,12 @@ class PermissionsListHandler(ListHandler):
     """
     def post(self, cont_name, list_name, **kwargs):
         _id = kwargs.get('cid')
-        result = super(PermissionsListHandler, self).post(cont_name, list_name, **kwargs)
+
         payload = self.request.json_body
+        if not self._user_exists(payload.get('_id')):
+            raise APIUnknownUserException('Cannot add permission for unknown user {}'.format(payload.get('_id')))
+
+        result = super(PermissionsListHandler, self).post(cont_name, list_name, **kwargs)
 
         if cont_name == 'groups' and self.request.params.get('propagate') =='true':
             self._propagate_permissions(cont_name, _id, query={'permissions._id' : payload['_id']}, update={'$set': {'permissions.$.access': payload['access']}})
@@ -260,6 +265,11 @@ class PermissionsListHandler(ListHandler):
             except APIStorageException:
                 self.abort(500, 'permissions not propagated from {} {} down hierarchy'.format(cont_name, _id))
 
+    def _user_exists(self, uid):
+        """
+        Checks if user exists
+        """
+        return bool(containerstorage.UserStorage().get_all_el({'_id': uid}, None, {'_id':1}))
 
 class NotesListHandler(ListHandler):
     """
@@ -426,6 +436,7 @@ class FileListHandler(ListHandler):
             try:
                 with file_system.open(file_path, 'rb') as f:
                     with zipfile.ZipFile(f) as zf:
+                        util.enable_response_buffering(self.response)
                         self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                         self.response.write(zf.open(zip_member).read())
             except zipfile.BadZipfile:
@@ -455,6 +466,7 @@ class FileListHandler(ListHandler):
                         raise util.RangeHeaderParseError('Feature flag not set')
 
                     ranges = util.parse_range_header(range_header)
+
                     for first, last in ranges:
                         if first > fileinfo['size'] - 1:
                             self.abort(416, 'Invalid range')
@@ -465,6 +477,7 @@ class FileListHandler(ListHandler):
                 except util.RangeHeaderParseError:
                     self.response.app_iter = file_system.open(file_path, 'rb')
                     self.response.headers['Content-Length'] = str(fileinfo['size'])  # must be set after setting app_iter
+                    util.enable_response_buffering(self.response)
 
                     if self.is_true('view'):
                         self.response.headers['Content-Type'] = str(fileinfo.get('mimetype', 'application/octet-stream'))
@@ -478,9 +491,10 @@ class FileListHandler(ListHandler):
                     else:
                         self.response.headers['Content-Type'] = str(
                             fileinfo.get('mimetype', 'application/octet-stream'))
-                        self.response.headers['Content-Range'] = 'bytes %s-%s/%s' % (str(ranges[0][0]),
-                                                                                     str(ranges[0][1]),
-                                                                                     str(fileinfo['size']))
+                        self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
+
+
+                    util.enable_response_buffering(self.response)
                     with file_system.open(file_path, 'rb') as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
@@ -502,9 +516,7 @@ class FileListHandler(ListHandler):
                                 self.response.write('--%s\n' % self.request.id)
                                 self.response.write('Content-Type: %s\n' % str(
                                     fileinfo.get('mimetype', 'application/octet-stream')))
-                                self.response.write('Content-Range: %s' % 'bytes %s-%s/%s\n' % (str(first),
-                                                                                                str(last),
-                                                                                                str(fileinfo['size'])))
+                                self.response.write('Content-Range: %s\n' % str(util.build_content_range_header(first, last, fileinfo['size'])))
                                 self.response.write('\n')
                                 self.response.write(data)
                                 self.response.write('\n')

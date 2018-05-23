@@ -22,18 +22,24 @@ SCITRAN_PERSISTENT_DB_URI = os.environ['SCITRAN_PERSISTENT_DB_URI']
 SCITRAN_SITE_API_URL = os.environ['SCITRAN_SITE_API_URL']
 
 # create api keys for users
-SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10))
+SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
 
 
 @pytest.fixture(scope='session')
-def bootstrap_users(as_drone):
+def bootstrap_users(api_db):
     """Create admin and non-admin users with api keys"""
-    data_builder = DataBuilder(as_drone)
-    data_builder.create_user(_id='admin@user.com', api_key=SCITRAN_ADMIN_API_KEY, root=True)
+    global SCITRAN_ADMIN_API_KEY
+    session = BaseUrlSession()
+    r = session.post('/users', json={'_id': 'admin@user.com', 'firstname': 'Test', 'lastname': 'Admin'})
+    assert r.ok
+    SCITRAN_ADMIN_API_KEY = r.json()['key']
+    session.headers.update({'Authorization': 'scitran-user {}'.format(SCITRAN_ADMIN_API_KEY)})
+    data_builder = DataBuilder(session)
     data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
     yield data_builder
-    data_builder.teardown()
+    api_db.users.delete_many({})
+    api_db.singletons.delete_one({'_id': 'bootstrap'})
 
 
 @pytest.fixture(scope='session')
@@ -122,7 +128,7 @@ def default_payload():
                 'config': {},
                 'description': 'test',
                 'inputs': {
-                    'text files (max 100K)': {
+                    'text': {
                         'base': 'file',
                         'name': {'pattern': '^.*.txt$'},
                         'size': {'maximum': 100000}
@@ -232,15 +238,15 @@ def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):
 
     file_path = unicode(util.path_from_hash(file_hash))
     target_dir = fs.path.dirname(file_path)
-    if not config.legacy_fs.exists(target_dir):
-        config.legacy_fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.fs, src_path=util.path_from_uuid(file_id), dst_fs=config.legacy_fs, dst_path=file_path)
+    if not config.local_fs.exists(target_dir):
+        config.local_fs.makedirs(target_dir)
+    fs.move.move_file(src_fs=config.fs, src_path=util.path_from_uuid(file_id), dst_fs=config.local_fs, dst_path=file_path)
 
     yield (project, file_name, file_content)
 
     # clean up
-    config.legacy_fs.remove(file_path)
-    config.legacy_fs.removetree(target_dir)
+    config.local_fs.remove(file_path)
+    config.local_fs.removetree(target_dir)
     api_db['projects'].delete_one({'_id': project})
 
 class BaseUrlSession(requests.Session):
@@ -310,7 +316,7 @@ class DataBuilder(object):
             for i in payload.get('inputs', {}).keys():
                 gear_inputs[i] = {'base': 'file'}
 
-            gear_doc = _default_payload['gear']['gear']
+            gear_doc = copy.deepcopy(_default_payload['gear']['gear'])
             gear_doc['inputs'] = gear_inputs
             payload['gear_id'] = self.create('gear', gear=gear_doc)
 
@@ -368,6 +374,8 @@ class DataBuilder(object):
                 self.delete(child_cont, child['_id'], recursive=recursive)
         if resource == 'gear':
             _api_db.jobs.remove({'gear_id': str(_id)})
+        if resource == 'user':
+            _api_db.apikeys.delete_one({'uid': _id})
         _api_db[resource + 's'].remove({'_id': _id})
 
 

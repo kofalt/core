@@ -254,7 +254,7 @@ class Download(base.RequestHandler):
 
         path = ''
         if not path and container.get('label'):
-            path = container['label']
+            path = util.sanitize_string_to_filename(container['label'])
         if not path and container.get('timestamp'):
             timezone = container.get('timezone')
             if timezone:
@@ -322,6 +322,7 @@ class Download(base.RequestHandler):
                 self.response.app_iter = self.archivestream(ticket)
             self.response.headers['Content-Type'] = 'application/octet-stream'
             self.response.headers['Content-Disposition'] = 'attachment; filename=' + ticket['filename'].encode('ascii', errors='ignore')
+            util.enable_response_buffering(self.response)
         else:
 
             req_spec = self.request.json_body

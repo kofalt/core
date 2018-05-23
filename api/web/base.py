@@ -13,8 +13,8 @@ from ..auth.authproviders import AuthProvider
 from ..auth.apikeys import APIKey
 from ..web import errors
 from elasticsearch import ElasticsearchException
-from ..dao.hierarchy import get_parent_tree
 from ..web.request import log_access, AccessType
+from ..access_log import log_user_access
 
 
 class RequestHandler(webapp2.RequestHandler):
@@ -52,40 +52,67 @@ class RequestHandler(webapp2.RequestHandler):
 
     def initialization_auth(self):
         drone_request = False
-        job_context = None
-        session_token = self.request.headers.get('Authorization', None)
-        drone_secret = self.request.headers.get('X-SciTran-Auth', None)
-        drone_method = self.request.headers.get('X-SciTran-Method', None)
-        drone_name = self.request.headers.get('X-SciTran-Name', None)
+        session_token = self.request.headers.get('Authorization')
+        drone_secret = self.request.headers.get('X-SciTran-Auth')
+        drone_method = self.request.headers.get('X-SciTran-Method')
+        drone_name = self.request.headers.get('X-SciTran-Name')
+
+        self.origin = {'type': Origin.unknown, 'id': None}
 
         if session_token:
             if session_token.startswith('scitran-user '):
-                # User (API key) authentication
+                # API key authentication
                 key = session_token.split()[1]
                 api_key = APIKey.validate(key)
-                self.uid = api_key['uid']
-                if 'job' in api_key:
-                    job_context = api_key['job']
-
-            elif session_token.startswith('scitran-drone '):
-                # Drone (API key) authentication
-                # When supported, remove custom headers and shared secret
-                self.abort(401, 'Drone API keys are not yet supported')
+                if api_key.get('type') == 'device':
+                    self.origin = {'type': Origin.device, 'id': api_key['uid']}
+                    drone_request = True  # Grant same access for backwards compatibility
+                else:
+                    self.uid = api_key['uid']
+                    self.origin = {'type': Origin.user, 'id': self.uid}
+                    if 'job' in api_key:
+                        self.origin['via'] = {'type': Origin.job, 'id': api_key['job']}
             else:
                 # User (oAuth) authentication
                 self.uid = self.authenticate_user_token(session_token)
+                self.origin = {'type': Origin.user, 'id': self.uid}
 
-
-
-        # Drone shared secret authentication
-        elif drone_secret is not None:
+        elif drone_secret:
             if drone_method is None or drone_name is None:
                 self.abort(400, 'X-SciTran-Method or X-SciTran-Name header missing')
             if config.get_item('core', 'drone_secret') is None:
                 self.abort(401, 'drone secret not configured')
             if drone_secret != config.get_item('core', 'drone_secret'):
                 self.abort(401, 'invalid drone secret')
+
+            # Upsert for backwards compatibility (ie. not-yet-seen device still using drone secret)
+            label = (drone_method + '_' + drone_name).replace(' ', '_')  # Note: old drone _id's are kept under label
+            device = config.db.devices.find_one_and_update(
+                {'label': label},
+                {'$set': {'label': label, 'type': drone_method, 'name': drone_name}},
+                upsert=True,
+                return_document=pymongo.collection.ReturnDocument.AFTER
+            )
+
+            self.origin = {'type': Origin.device, 'id': device['_id']}
             drone_request = True
+
+        if self.origin['type'] == Origin.device:
+            # Update device.last_seen
+            # In the future, consider merging any keys into self.origin?
+            config.db.devices.update_one(
+                {'_id': self.origin['id']},
+                {'$set': {
+                    'last_seen': datetime.datetime.utcnow(),
+                    'errors': []  # Reset errors list if device checks in
+                }})
+
+            # Bit hackish - detect from route if a job is the origin, and if so what job ID.
+            # Could be removed if routes get reorganized. POST /api/jobs/id/result, maybe?
+            is_job_upload = self.request.path.startswith('/api/engine')
+            job_id = self.request.GET.get('job')
+            if is_job_upload and job_id is not None:
+                self.origin = {'type': Origin.job, 'id': job_id}
 
         self.public_request = not drone_request and not self.uid
 
@@ -113,8 +140,16 @@ class RequestHandler(webapp2.RequestHandler):
             else:
                 self.superuser_request = False
 
-        self.origin = None
-        self.set_origin(drone_request, job_context)
+        # Format origin object to str
+        if self.origin.get('type'):
+            self.origin['type']         = str(self.origin['type'])
+        if self.origin.get('id'):
+            self.origin['id']           = str(self.origin['id'])
+        if self.origin.get('via'):
+            self.origin['via']['type']  = str(self.origin['via']['type'])
+            self.origin['via']['id']    = str(self.origin['via']['id'])
+
+
 
     def authenticate_user_token(self, session_token):
         """
@@ -217,6 +252,7 @@ class RequestHandler(webapp2.RequestHandler):
         timestamp = datetime.datetime.utcnow()
 
         self.uid = token_entry['uid']
+        self.origin = {'type': str(Origin.user), 'id': self.uid}
 
         # If this is the first time they've logged in, record that
         config.db.users.update_one({'_id': self.uid, 'firstlogin': None}, {'$set': {'firstlogin': timestamp}})
@@ -228,9 +264,6 @@ class RequestHandler(webapp2.RequestHandler):
         token_entry['timestamp'] = timestamp
 
         config.db.authtokens.insert_one(token_entry)
-
-        # Set origin now that the uid is known
-        self.set_origin(False, None)
 
         return {'token': session_token}
 
@@ -247,78 +280,63 @@ class RequestHandler(webapp2.RequestHandler):
         result = config.db.authtokens.delete_one({'_id': token})
         return {'tokens_removed': result.deleted_count}
 
-
-    def set_origin(self, drone_request, job_context):
-        """
-        Add an origin to the request object. Used later in request handler logic.
-
-        Pretty clear duplication of logic with superuser_request / drone_request;
-        this map serves a different purpose, and specifically matches the desired file-origin map.
-        Might be a good future project to remove one or the other.
-        """
-
-        if self.uid is not None:
-            self.origin = {
-                'type': str(Origin.user),
-                'id': self.uid
-            }
-            if job_context:
-                self.origin['via'] = {
-                    'type': str(Origin.job),
-                    'id': job_context
-                }
-        elif drone_request:
-
-            method = self.request.headers.get('X-SciTran-Method')
-            name = self.request.headers.get('X-SciTran-Name')
-
-            self.origin = {
-                'id': (method + '_' + name).replace(' ', '_'),
-                'type': str(Origin.device),
-                'method': method,
-                'name': name
-            }
-
-            # Upsert device record, with last-contacted time.
-            # In the future, consider merging any keys into self.origin?
-            config.db['devices'].find_one_and_update({
-                    '_id': self.origin['id']
-                }, {
-                    '$set': {
-                        '_id': self.origin['id'],
-                        'last_seen': datetime.datetime.utcnow(),
-                        'method': self.origin['method'],
-                        'name': self.origin['name'],
-                        'errors': [] # Reset errors list if device checks in
-                    }
-                },
-                upsert=True,
-                return_document=pymongo.collection.ReturnDocument.AFTER
-            )
-
-            # Bit hackish - detect from route if a job is the origin, and if so what job ID.
-            # Could be removed if routes get reorganized. POST /api/jobs/id/result, maybe?
-            is_job_upload = self.request.path.startswith('/api/engine')
-            job_id        = self.request.GET.get('job')
-
-            # This runs after the standard drone-request upsert above so that we can still update the last-seen timestamp.
-            if is_job_upload and job_id is not None:
-                self.origin = {
-                    'type': str(Origin.job),
-                    'id': job_id
-                }
-        else:
-            self.origin = {
-                'type': str(Origin.unknown),
-                'id': None
-            }
-
-
     def is_true(self, param):
         return self.request.GET.get(param, '').lower() in ('1', 'true')
 
     def get_param(self, param, default=None):
         return self.request.GET.get(param, default)
+
+    def is_enabled(self, feature):
+        """Return True if a feature is enabled (listed in the X-Accept-Feature header)"""
+        return feature.lower() in self.request.headers.get('X-Accept-Feature', '').lower()
+
+    @property
+    def pagination(self):
+        """
+        Return parsed pagination dict from request URL parameters.
+
+        Query params:
+            ?filter=k1=v1,k2>v2,k2<v3 [, ...]
+            ?sort=k1,k2:desc [, ...]
+            ?page=N
+            ?skip=N
+            ?limit=N
+        """
+
+        pagination = {}
+        parsers = {'filter': util.parse_pagination_filter_param,
+                   'sort': util.parse_pagination_sort_param}
+
+        for param_name in ('filter', 'sort', 'page', 'skip', 'limit'):
+            param_count = len(self.request.GET.getall(param_name))
+            if param_count > 1:
+                raise errors.APIValidationException({'error': 'Multiple "{}" query params not allowed'.format(param_name)})
+            if param_count > 0:
+                param_value = self.request.GET.get(param_name)
+                parse = parsers.get(param_name, util.parse_pagination_int_param)
+                try:
+                    pagination[param_name] = parse(param_value)
+                except util.PaginationParseError as e:
+                    raise errors.APIValidationException({'error': e.message})
+
+        if 'page' in pagination:
+            if 'skip' in pagination:
+                raise errors.APIValidationException({'error': '"page" and "skip" query params are mutually exclusive'})
+            if 'limit' not in pagination:
+                raise errors.APIValidationException({'error': '"limit" query param is required with "page"'})
+            pagination['skip'] = pagination['limit'] * (pagination.pop('page') - 1)
+
+        return pagination
+
+    def format_page(self, page):
+        """
+        Return page (dict with total and results) if `pagination` feature is enabled.
+        Return `page['results']` (list) otherwise, for backwards compatibility.
+        """
+        if not self.is_enabled('pagination'):
+            return page['results']
+        page['count'] = len(page['results'])
+        return page
 
     def handle_exception(self, exception, debug, return_json=False): # pylint: disable=arguments-differ
         """
@@ -380,63 +398,15 @@ class RequestHandler(webapp2.RequestHandler):
         util.send_json_http_exception(self.response, message, code, request_id, custom=custom_errors)
 
     def log_user_access(self, access_type, cont_name=None, cont_id=None, filename=None, multifile=False, origin_override=None):
+        origin = origin_override if origin_override is not None else self.origin
+        ticket = self.get_param('ticket')
 
-        if not config.get_item('core', 'access_log_enabled'):
-            return
-
-        if not isinstance(access_type, AccessType):
-            raise Exception('Unknown access type.')
-
-        log_map = {
-            'access_type':      access_type.value,
-            'request_method':   self.request.method,
-            'request_path':     self.request.path,
-            'origin':           origin_override if origin_override is not None else self.origin,
-            'timestamp':        datetime.datetime.utcnow()
-        }
-
-        if access_type not in [AccessType.user_login, AccessType.user_logout]:
-
-            if cont_name is None or cont_id is None:
-                raise Exception('Container information not available.')
-
-            # Create a context tree for the container
-            context = {}
-
-            if cont_name in ['collection', 'collections']:
-                context['collection'] = {'id': cont_id}
-            else:
-                tree = get_parent_tree(cont_name, cont_id)
-
-                for k,v in tree.iteritems():
-                    context[k] = {'id': str(v['_id']), 'label': v.get('label')}
-                    if k == 'subject':
-                        context[k]['label'] = v.get('code')
-            if filename:
-                context['file'] = {'name': filename}
-            log_map['context'] = context
-
-        if access_type is AccessType.download_file and self.get_param('ticket') and not multifile:
-            # If this is a ticket download, log only once per ticket
-            ticket_id = self.get_param('ticket')
-            log_map['context']['ticket_id'] = ticket_id
-            try:
-                config.log_db.access_log.update(
-                    {'context.ticket_id': ticket_id},
-                    {'$setOnInsert': log_map},
-                    upsert=True
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                config.log.exception(e)
-                self.abort(500, 'Unable to log access.')
-
-        else:
-            try:
-                config.log_db.access_log.insert_one(log_map)
-            except Exception as e:  # pylint: disable=broad-except
-                config.log.exception(e)
-                self.abort(500, 'Unable to log access.')
-
+        try:
+            log_user_access(self.request, access_type, cont_name=cont_name, cont_id=cont_id,
+                    filename=filename, multifile=multifile, origin=origin, download_ticket=ticket)
+        except Exception as e:  # pylint: disable=broad-except
+            config.log.exception(e)
+            self.abort(500, 'Unable to log access.')
 
     def dispatch(self):
         """dispatching and request forwarding"""
