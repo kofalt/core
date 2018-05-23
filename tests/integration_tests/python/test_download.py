@@ -261,10 +261,9 @@ def test_filelist_range_download(data_builder, as_admin, file_form):
     assert r.ok
     ticket = r.json()['ticket']
 
-    # try to download single file's first byte w/o feature flag
+    # verify contents
     r = as_admin.get(session_files + '/one.csv',
-                     params={'ticket': ticket},
-                     headers={'Range': 'bytes=0-0'})
+                     params={'ticket': ticket})
     assert r.ok
     assert r.content == '123456789'
 
@@ -411,20 +410,21 @@ def test_filelist_range_download(data_builder, as_admin, file_form):
     assert r.ok
     ticket = r.json()['ticket']
 
-    # download multiple ranges
-    r = as_admin.get(session_files + '/one.csv',
-                     params={'ticket': ticket, 'view': 'true'},
-                     headers={'Range': 'bytes=1-2, 3-4'})
-    assert r.ok
-    boundary = r.headers.get('Content-Type').split('boundary=')[1]
-    assert r.content == '--{0}\n' \
-                        'Content-Type: text/csv\n' \
-                        'Content-Range: bytes 1-2/9\n\n' \
-                        '23\n' \
-                        '--{0}\n' \
-                        'Content-Type: text/csv\n' \
-                        'Content-Range: bytes 3-4/9\n\n' \
-                        '45\n'.format(boundary)
+    if os.getenv('SCITRAN_PERSISTENT_FS_URL', 'osfs').startswith('osfs'):
+        # download multiple ranges
+        r = as_admin.get(session_files + '/one.csv',
+                         params={'ticket': ticket, 'view': 'true'},
+                         headers={'Range': 'bytes=1-2, 3-4'})
+        assert r.ok
+        boundary = r.headers.get('Content-Type').split('boundary=')[1]
+        assert r.content == '--{0}\n' \
+                            'Content-Type: text/csv\n' \
+                            'Content-Range: bytes 1-2/9\n\n' \
+                            '23\n' \
+                            '--{0}\n' \
+                            'Content-Type: text/csv\n' \
+                            'Content-Range: bytes 3-4/9\n\n' \
+                            '45\n'.format(boundary)
 
 
 def test_analysis_download(data_builder, file_form, as_admin, as_drone, default_payload):

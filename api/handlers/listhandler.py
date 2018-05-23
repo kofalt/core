@@ -113,9 +113,6 @@ class ListHandler(base.RequestHandler):
     are specified in the routes defined in api.py
     """
 
-    def __init__(self, request=None, response=None):
-        super(ListHandler, self).__init__(request, response)
-
     def get(self, cont_name, list_name, **kwargs):
         _id = kwargs.pop('cid')
         permchecker, storage, _, _, keycheck = self._initialize_request(cont_name, list_name, _id, query_params=kwargs)
@@ -354,9 +351,6 @@ class FileListHandler(ListHandler):
     """
     This class implements a more specific logic for list of files as the api needs to interact with the filesystem.
     """
-
-    def __init__(self, request=None, response=None):
-        super(FileListHandler, self).__init__(request, response)
 
     def _check_ticket(self, ticket_id, _id, filename):
         ticket = config.db.downloads.find_one({'_id': ticket_id})

@@ -411,11 +411,10 @@ class RequestHandler(webapp2.RequestHandler):
     def dispatch(self):
         """dispatching and request forwarding"""
 
-
         self.request.logger.debug('from %s %s %s %s', self.uid, self.request.method, self.request.path, str(self.request.GET.mixed()))
         return super(RequestHandler, self).dispatch()
 
-
+    # pylint: disable=arguments-differ
     def abort(self, code, detail=None, **kwargs):
         if isinstance(detail, jsonschema.ValidationError):
             detail = {

@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 
+import fs.errors
 import fs.path
 
 from .web import base
@@ -249,7 +250,7 @@ class Upload(base.RequestHandler):
 
         removed = result.deleted_count
         if removed > 0:
-            log.info('Removed ' + str(removed) + ' expired packfile tokens')
+            log.info('Removed %s expired packfile tokens', removed)
 
         # Next, find token directories and remove any that don't map to a token.
 
@@ -262,7 +263,12 @@ class Upload(base.RequestHandler):
         folder = fs.path.join('tokens', 'packfile')
 
         util.mkdir_p(folder, config.fs)
-        paths = config.fs.listdir(folder)
+        try:
+            paths = config.fs.listdir(folder)
+        except fs.errors.ResourceNotFound:
+            # Non-local storages are used without 0-blobs for "folders" (mkdir_p is a noop)
+            paths = []
+
         cleaned = 0
 
         for token in paths:
@@ -278,7 +284,7 @@ class Upload(base.RequestHandler):
                 pass
 
             if result is None:
-                log.info('Cleaning expired token directory ' + token)
+                log.info('Cleaning expired token directory %s', token)
                 config.fs.removetree(path)
                 cleaned += 1
 
