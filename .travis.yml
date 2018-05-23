@@ -50,6 +50,9 @@ script:
     fi
   - docker save -o "$DOCKER_DIR/image-sdk.tar"
         $(docker history -q core:base | grep -v '<missing>')
+        $(docker history -q core:swagger | grep -v '<missing>');
+        $(docker history -q core:gradle | grep -v '<missing>');
+        $(docker history -q core:sdk_build | grep -v '<missing>');
         $(docker history -q core:dist | grep -v '<missing>')
         $(docker history -q core:testing | grep -v '<missing>');
 
