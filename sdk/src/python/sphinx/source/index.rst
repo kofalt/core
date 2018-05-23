@@ -8,6 +8,7 @@ Flywheel SDK Documentation
    getting_started
    data_model
    examples
+   data_views
    flywheel 
 
 
