@@ -15,52 +15,11 @@
 		"description": "The project label"
 	},
 	{
-		"name": "project.label",
-		"src": "project.label",
-		"description": "The project label"
-	},
-	{
 		"name": "project.info",
 		"src": "project.info",
 		"description": "The freeform project metadata"
 	},
 	
-	{
-		"name": "session",
-		"group": ["session.id", "session.label", "session.operator", "session.timestamp", "session.timezone"],
-		"description": "All column aliases belonging to session"
-	},
-	{
-		"name": "session.id",
-		"src": "session._id",
-		"description": "The session id"
-	},
-	{
-		"name": "session.label",
-		"src": "session.label",
-		"description": "The session label"
-	},
-	{
-		"name": "session.operator",
-		"src": "session.operator",
-		"description": "The session operator name"
-	},
-	{
-		"name": "session.timestamp",
-		"src": "session.timestamp",
-		"description": "The session timestamp"
-	},
-	{
-		"name": "session.timezone",
-		"src": "session.timezone",
-		"description": "The session timezone"
-	},
-	{
-		"name": "session.info",
-		"src": "session.info",
-		"description": "The freeform session metadata"
-	},
-
 	{
 		"name": "subject",
 		"group": ["subject.id", "subject.label", "subject.firstname", "subject.lastname", "subject.age", "subject.sex", "subject.race", "subject.ethnicity"],
@@ -112,6 +71,43 @@
 		"src": "subject.info",
 		"description": "The freeform subject metadata"
 	},
+
+	{
+		"name": "session",
+		"group": ["session.id", "session.label", "session.operator", "session.timestamp", "session.timezone"],
+		"description": "All column aliases belonging to session"
+	},
+	{
+		"name": "session.id",
+		"src": "session._id",
+		"description": "The session id"
+	},
+	{
+		"name": "session.label",
+		"src": "session.label",
+		"description": "The session label"
+	},
+	{
+		"name": "session.operator",
+		"src": "session.operator",
+		"description": "The session operator name"
+	},
+	{
+		"name": "session.timestamp",
+		"src": "session.timestamp",
+		"description": "The session timestamp"
+	},
+	{
+		"name": "session.timezone",
+		"src": "session.timezone",
+		"description": "The session timezone"
+	},
+	{
+		"name": "session.info",
+		"src": "session.info",
+		"description": "The freeform session metadata"
+	},
+
 
 	{
 		"name": "acquisition",
