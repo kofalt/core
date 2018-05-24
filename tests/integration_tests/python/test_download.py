@@ -4,6 +4,7 @@ import tarfile
 import zipfile
 
 from bson.objectid import ObjectId
+import pytest
 
 from api import config, util
 
@@ -333,17 +334,6 @@ def test_filelist_range_download(data_builder, as_admin, file_form):
     assert r.ok
     ticket = r.json()['ticket']
 
-    # download single file's last 5 bytes
-    r = as_admin.get(session_files + '/one.csv',
-                     params={'ticket': ticket, 'view': 'true'},
-                     headers={'Range': 'bytes=-5'})
-    assert r.ok
-    assert r.content == '56789'
-
-    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
-    assert r.ok
-    ticket = r.json()['ticket']
-
     # try to download single file with invalid unit
     r = as_admin.get(session_files + '/one.csv',
                      params={'ticket': ticket, 'view': 'true'},
@@ -360,7 +350,7 @@ def test_filelist_range_download(data_builder, as_admin, file_form):
     r = as_admin.get(session_files + '/one.csv',
                      params={'ticket': ticket, 'view': 'true'},
                      headers={'Range': 'bytes=0-500'})
-    assert r.status_code == 200
+    assert r.ok
     assert r.content == '123456789'
 
     r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
@@ -377,55 +367,11 @@ def test_filelist_range_download(data_builder, as_admin, file_form):
     assert r.ok
     ticket = r.json()['ticket']
 
-    # try to download single file with invalid range, in this case the whole file is returned
-    r = as_admin.get(session_files + '/one.csv',
-                     params={'ticket': ticket, 'view': 'true'},
-                     headers={'Range': 'bytes=-'})
-    assert r.status_code == 200
-    assert r.content == '123456789'
-
-    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
-    assert r.ok
-    ticket = r.json()['ticket']
-
     # try to download single file with invalid range first byte is greater than the last one
     r = as_admin.get(session_files + '/one.csv',
                      params={'ticket': ticket, 'view': 'true'},
                      headers={'Range': 'bytes=10-5'})
-    assert r.status_code == 200
-    assert r.content == '123456789'
-
-    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
     assert r.ok
-    ticket = r.json()['ticket']
-
-    # try to download single file with invalid range, can't parse first byte
-    r = as_admin.get(session_files + '/one.csv',
-                     params={'ticket': ticket, 'view': 'true'},
-                     headers={'Range': 'bytes=r-0'})
-    assert r.status_code == 200
-    assert r.content == '123456789'
-
-    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
-    assert r.ok
-    ticket = r.json()['ticket']
-
-    # try to download single file with invalid range, can't parse last byte
-    r = as_admin.get(session_files + '/one.csv',
-                     params={'ticket': ticket, 'view': 'true'},
-                     headers={'Range': 'bytes=0-bb'})
-    assert r.status_code == 200
-    assert r.content == '123456789'
-
-    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
-    assert r.ok
-    ticket = r.json()['ticket']
-
-    # try to download single file with invalid range syntax
-    r = as_admin.get(session_files + '/one.csv',
-                     params={'ticket': ticket, 'view': 'true'},
-                     headers={'Range': 'bytes=1+5'})
-    assert r.status_code == 200
     assert r.content == '123456789'
 
     r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
@@ -436,29 +382,99 @@ def test_filelist_range_download(data_builder, as_admin, file_form):
     r = as_admin.get(session_files + '/one.csv',
                      params={'ticket': ticket, 'view': 'true'},
                      headers={'Range': 'bytes-1+5'})
-    assert r.status_code == 200
+    assert r.ok
+    assert r.content == '123456789'
+
+
+@pytest.mark.skipif(not os.getenv('SCITRAN_PERSISTENT_FS_URL', 'osfs').startswith('osfs'),
+                    reason="Only OSFS supports all of these special range formats.")
+def test_filelist_advanced_range_download(data_builder, as_admin, file_form):
+    # We run this test only with OSFS because other backends don't support fully the RFS standard.
+    # Left comments about the found defects with the specific storage backends at the assertions.
+
+    session = data_builder.create_session()
+    session_files = '/sessions/' + session + '/files'
+    as_admin.post(session_files, files=file_form(('one.csv', '123456789')))
+
+    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # download single file's last 5 bytes
+    # ASFS returns the whole file, since it doesn't support this range format
+    r = as_admin.get(session_files + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=-5'})
+    assert r.ok
+    assert r.content == '56789'
+
+    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # try to download single file with invalid range, in this case the whole file is returned
+    # ASFS returns with status code 416
+    r = as_admin.get(session_files + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=-'})
+    assert r.ok
     assert r.content == '123456789'
 
     r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
     assert r.ok
     ticket = r.json()['ticket']
 
-    if os.getenv('SCITRAN_PERSISTENT_FS_URL', 'osfs').startswith('osfs'):
-        # download multiple ranges
-        r = as_admin.get(session_files + '/one.csv',
-                         params={'ticket': ticket, 'view': 'true'},
-                         headers={'Range': 'bytes=1-2, 3-4'})
-        assert r.ok
-        boundary = r.headers.get('Content-Type').split('boundary=')[1]
-        assert r.content == '--{0}\n' \
-                            'Content-Type: text/csv\n' \
-                            'Content-Range: bytes 1-2/9\n\n' \
-                            '23\n' \
-                            '--{0}\n' \
-                            'Content-Type: text/csv\n' \
-                            'Content-Range: bytes 3-4/9\n\n' \
-                            '45\n'.format(boundary)
+    # try to download single file with invalid range, can't parse first byte
+    # ASFS returns with status code 400
+    r = as_admin.get(session_files + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=r-0'})
+    assert r.ok
+    assert r.content == '123456789'
 
+    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # try to download single file with invalid range, can't parse last byte
+    # ASFS returns with status code 400
+    r = as_admin.get(session_files + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=0-bb'})
+    assert r.ok
+    assert r.content == '123456789'
+
+    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # try to download single file with invalid range syntax
+    # ASFS returns with status code 400
+    r = as_admin.get(session_files + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=1+5'})
+    assert r.ok
+    assert r.content == '123456789'
+
+    r = as_admin.get(session_files + '/one.csv', params={'ticket': ''})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # download multiple ranges
+    # GCSFS doesn't support multiple ranges
+    r = as_admin.get(session_files + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=1-2, 3-4'})
+    assert r.ok
+    boundary = r.headers.get('Content-Type').split('boundary=')[1]
+    assert r.content == '--{0}\n' \
+                        'Content-Type: text/csv\n' \
+                        'Content-Range: bytes 1-2/9\n\n' \
+                        '23\n' \
+                        '--{0}\n' \
+                        'Content-Type: text/csv\n' \
+                        'Content-Range: bytes 3-4/9\n\n' \
+                        '45\n'.format(boundary)
 
 def test_analysis_download(data_builder, file_form, as_admin, as_drone, default_payload):
     session = data_builder.create_session()
