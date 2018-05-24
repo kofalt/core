@@ -7,8 +7,6 @@ services:
 env:
   global:
     - DOCKER_DIR="$HOME/.cache/docker"
-    - NPM_CACHE="$HOME/.cache/npm"
-    - GRADLE_CACHE="$HOME/.cache/gradle"
   matrix:
     - BUILD_SDK=true
     - BUILD_SDK=false
@@ -16,8 +14,6 @@ env:
 cache:
   directories:
   - $DOCKER_DIR
-  - $NPM_CACHE
-  - $GRADLE_CACHE
 
 before_install:
 - sudo apt-get update
