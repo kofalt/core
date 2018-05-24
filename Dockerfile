@@ -1,22 +1,22 @@
 FROM node:9-alpine as swagger
 WORKDIR /local
-ARG DOC_VERSION=0.0.1
 COPY swagger ./swagger/
 COPY sdk ./sdk/
 WORKDIR /local/swagger
 ENV npm_config_cache=/npm
+ARG DOC_VERSION=0.0.1
 RUN npm install && npm run build -- --docs-version=$DOC_VERSION
 
 
 FROM gradle:4.5-jdk8-alpine as gradle
 WORKDIR /local
 ENV GRADLE_USER_HOME=/gradle
-ARG SDK_VERSION=0.0.1
 USER root
-COPY sdk .
-COPY --from=swagger /local/sdk/swagger.json /local/swagger.json
 RUN apk update && apk add git
 RUN git clone https://github.com/flywheel-io/JSONio src/matlab/JSONio && cd src/matlab/JSONio && git pull
+COPY sdk .
+COPY --from=swagger /local/sdk/swagger.json /local/swagger.json
+ARG SDK_VERSION=0.0.1
 RUN gradle --no-daemon -PsdkVersion=$SDK_VERSION clean build
 
 
