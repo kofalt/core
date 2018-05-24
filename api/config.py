@@ -23,6 +23,8 @@ logging.getLogger('requests').setLevel(logging.WARNING) # silence Requests libra
 logging.getLogger('paste.httpserver').setLevel(logging.WARNING) # silence Paste library
 logging.getLogger('elasticsearch').setLevel(logging.WARNING) # silence Elastic library
 logging.getLogger('urllib3').setLevel(logging.WARNING) # silence urllib3 library
+logging.getLogger('boto3').setLevel(logging.WARNING) # silence boto3 library
+logging.getLogger('botocore').setLevel(logging.WARNING) # silence botocore library
 
 # NOTE: Keep in sync with environment variables in sample.config file.
 DEFAULT_CONFIG = {
