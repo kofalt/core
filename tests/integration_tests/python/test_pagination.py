@@ -182,6 +182,7 @@ def test_sort(data_builder, as_admin):
 
 def test_filter(data_builder, as_admin):
     assert as_admin.get('/acquisitions?filter=foo').status_code == 422
+    assert as_admin.get('/acquisitions?filter=label=a&filter=label=b').status_code == 422
 
     a = data_builder.create_acquisition(label='a')
     b = data_builder.create_acquisition(label='b')
