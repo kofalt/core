@@ -287,4 +287,5 @@ def get_release_version():
 # Storage configuration
 fs = open_fs(__config['persistent']['fs_url'])
 local_fs = open_fs('osfs://' + __config['persistent']['data_path'])
+local_fs2 = open_fs('osfs://' + __config['persistent']['data_path'] + '/v1')
 support_legacy_fs = __config['persistent']['support_legacy_fs']
