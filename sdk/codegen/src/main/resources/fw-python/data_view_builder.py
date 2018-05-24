@@ -7,20 +7,20 @@ from .models import (
 )
 
 class DataViewBuilder(object):
+    """Builder class that assists in constructing a DataView object.
+
+    :param str label: The optional label, if saving this data view.
+    :param bool public: Whether or not to make this data view public when saving it.
+    :param str files: The simplified file filter match, see the files method
+    :param str match: The file match type, one of: first, last, newest, oldest, all
+    :param str zip_files: The zip file filter, see the zip_member_filter function
+    :param list columns: The columns or column groups to add
+    :param bool process_files: Whether or not to process files, default is true
+    :param bool include_ids: Whether or not to include id columns, default is true
+    :param bool include_labels: Whether or not to include label columns, default is true
+    """
     def __init__(self, label=None, public=False, files=None, match=None, zip_files=None,
                  columns=None, process_files=True, include_ids=True, include_labels=True):
-        """Builder class that assists in constructing a DataView object.
-
-        :param str label: The optional label, if saving this data view.
-        :param bool public: Whether or not to make this data view public when saving it.
-        :param str files: The simplified file filter match, see the files method
-        :param str match: The file match type, one of: first, last, newest, oldest, all
-        :param str zip_files: The zip file filter, see the zip_member_filter function
-        :param list columns: The columns or column groups to add
-        :param bool process_files: Whether or not to process files, default is true
-        :param bool include_ids: Whether or not to include id columns, default is true
-        :param bool include_labels: Whether or not to include label columns, default is true
-        """
         self._label = label
         self._public = public
         self._columns = []
@@ -120,7 +120,7 @@ class DataViewBuilder(object):
         """Shorthand for matching files, in the form of <container>:*.ext or <container>:<analysis filter>:*.
 
         Container is one of project, subject, session, acquisition
-        Filename filters can use the (*, ?) wildcards
+        Filename filters can use the (\*, ?) wildcards
         Analysis filter is matching against label, and also supports wildcards.
         :param str pattern: The file pattern to match
         :return: self
@@ -167,8 +167,8 @@ class DataViewBuilder(object):
     def analysis_filter(self, label=None, gear_name=None, regex=False):
         """Set the filter to use for matching analyses. If this is set, then analyses files will be matched instead of container.
 
-        :param str label: The label match string, wildcards (*, ?) are supported.
-        :param str gear_name: The gear name match string, wildcards (*, ?) are supported.
+        :param str label: The label match string, wildcards (\*, ?) are supported.
+        :param str gear_name: The gear name match string, wildcards (\*, ?) are supported.
         :param bool regex: Whether to treat the match string as a regular expression (default is False)
         :return: self
         """
@@ -186,7 +186,7 @@ class DataViewBuilder(object):
     def file_filter(self, value=None, regex=False):
         """Set the filter to use for matching files.
 
-        :param str value: The filename match string, wildcards (*, ?) are supported.
+        :param str value: The filename match string, wildcards (\*, ?) are supported.
         :param bool regex: Whether to treat the match string as a regular expression (default is False)
         :return: self
         """
@@ -196,7 +196,7 @@ class DataViewBuilder(object):
     def zip_member_filter(self, value=None, regex=False):
         """Set the filter to use for matching members of a zip file.
 
-        :param str value: The filename match string, wildcards (*, ?) are supported.
+        :param str value: The filename match string, wildcards (\*, ?) are supported.
         :param bool regex: Whether to treat the match string as a regular expression (default is False)
         :return: self
         """
