@@ -198,6 +198,11 @@ def test_get_all_containers(data_builder, as_admin, as_user, as_public, file_for
     assert r.ok
     assert all('avatar' in perm for proj in r.json() for perm in proj['permissions'])
 
+    # get all projects w/ join=origin
+    r = as_public.get('/projects', params={'join': 'origin'})
+    assert r.ok
+    assert all('join-origin' in proj for proj in r.json())
+
     # get all sessions for project w/ measurements=true and stats=true
     r = as_public.get('/projects/' + project_1 + '/sessions', params={
         'measurements': 'true',
