@@ -5,9 +5,10 @@ from .. import util
 from .. import validators
 from ..auth import groupauth, require_admin
 from ..dao import containerstorage
-from .containerhandler import ContainerHandler
+
 
 GROUP_ID_BLACKLIST = [ 'unknown', 'site' ]
+
 
 class GroupHandler(base.RequestHandler):
 
@@ -22,7 +23,7 @@ class GroupHandler(base.RequestHandler):
         if not self.superuser_request and not self.is_true('join_avatars'):
             self._filter_permissions([result], self.uid)
         if self.is_true('join_avatars'):
-            ContainerHandler.join_user_info([result])
+            self.storage.join_avatars([result])
         return result
 
     @require_admin
@@ -54,7 +55,7 @@ class GroupHandler(base.RequestHandler):
         if not self.superuser_request and not self.is_true('join_avatars') and not self.user_is_admin:
             self._filter_permissions(results, self.uid)
         if self.is_true('join_avatars'):
-            ContainerHandler.join_user_info(results)
+            self.storage.join_avatars(results)
         if 'projects' in self.request.params.getall('join'):
             for result in results:
                 self.handle_projects(result)

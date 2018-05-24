@@ -131,6 +131,9 @@ class AnalysesHandler(RefererHandler):
         if self.is_true('inflate_job'):
             self.storage.inflate_job_info(analysis)
 
+        if self.is_true('join_avatars'):
+            self.storage.join_avatars([analysis])
+
         self.log_user_access(AccessType.view_container, cont_name=analysis['parent']['type'], cont_id=analysis['parent']['id'])
         return analysis
 
@@ -168,11 +171,16 @@ class AnalysesHandler(RefererHandler):
                 parents = [pid for parent in parent_tree.keys() for pid in parent_tree[parent]]
             else:
                 parents = [pid for pid in parent_tree[cont_level]]
-            # We set User to None because we check for permission when finding the parents
             query = {'parent.id': {'$in': parents}}
         else:
             query = {'parent.id': cid, 'parent.type': singularize(cont_name)}
+
+        # We set User to None because we check for permission when finding the parents
         page = self.storage.get_all_el(query, None, {'info': 0, 'files.info': 0}, pagination=self.pagination)
+
+        if self.is_true('join_avatars'):
+            self.storage.join_avatars(page['results'])
+
         return self.format_page(page)
 
 

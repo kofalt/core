@@ -129,7 +129,7 @@ class CollectionsHandler(ContainerHandler):
         if not self.superuser_request and not self.is_true('join_avatars'):
             self._filter_all_permissions(results, self.uid)
         if self.is_true('join_avatars'):
-            ContainerHandler.join_user_info(results)
+            self.storage.join_avatars(results)
         if self.is_true('stats'):
             for result in results:
                 containerutil.get_stats(result, 'collections')
