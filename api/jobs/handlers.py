@@ -44,16 +44,16 @@ class GearsHandler(base.RequestHandler):
     def get(self):
         """List all gears."""
 
-        # Using pagination params and `?filter=single_input` together raises APIValidationException
-        page = get_gears(pagination=self.pagination)
-
+        # NOTE Filtering with `?filter=single_input` is not compatible with pagination
+        # because filtering after the query invalidates total and count.
+        # Ignoring any pagination headers/params for backwards compatibility.
         if 'single_input' in self.request.GET.getall('filter'):
-            page['results'] = [gear for gear in page['results'] if count_file_inputs(gear) <= 1]
+            gears = get_gears()
+            return [gear for gear in gears if count_file_inputs(gear) <= 1]
 
-            # Filtering with `?filter=single_input` invalidates the pagination total
-            del page['total']
+        gear_page = get_gears(pagination=self.pagination)
+        return self.format_page(gear_page)
 
-        return self.format_page(page)
 
     @require_login
     def check(self):
