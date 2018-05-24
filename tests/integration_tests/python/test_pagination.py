@@ -215,8 +215,8 @@ def test_filter(data_builder, as_admin):
     r = as_admin.get('/acquisitions?filter=created=' + b_created)
     assert {aq['_id'] for aq in r.json()} == {b}
 
-    r = as_admin.get('/gears?filter=gear.name=a&filter=single_input')
-    assert r.status_code == 422
+    r = as_admin.get('/gears?filter=single_input')
+    assert r.ok
 
     g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
     g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
