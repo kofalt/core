@@ -45,17 +45,20 @@ def main(*argv):
     log.info('Using mongo URI: %s', db_uri)
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
+    local_fs = open_fs('osfs://' + data_path)
+
+    ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
+    data_path2 = os.path.join(data_path, 'v1')
+    if os.path.exists(data_path2):
+        log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
+        local_fs2 = open_fs('osfs://' + data_path2)
+    else:
+        local_fs2 = None
+    ###
 
     fs_url = os.environ.get('SCITRAN_PERSISTENT_FS_URL', 'osfs://' + os.path.join(data_path, 'v1'))
     log.info('Migrate files from %s to %s', data_path, fs_url)
     target_fs = open_fs(fs_url)
-    local_fs = open_fs('osfs://' + data_path)
-    # makes possible migrating files from local storage which already uses pyfilesystem and still there are files
-    # with hash/uuid under PERSISTENT_DATA_PATH
-    try:
-        local_fs2 = open_fs('osfs://' + os.path.join(data_path, 'v1'))
-    except Exception:
-        local_fs2 = None
 
     try:
         if not (args.containers or args.gears):
@@ -88,6 +91,17 @@ def parse_args(argv):
     parser.add_argument('--log-level', default='info', metavar='PATH', help='log level [info]')
 
     return parser.parse_args(argv)
+
+
+def get_src_fs_by_file_path(file_path):
+    if local_fs.isfile(file_path):
+        return local_fs
+    ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
+    elif local_fs2 and local_fs2.isfile(file_path):
+        return local_fs2
+    ###
+    else:
+        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
 
 
 def get_files_by_prefix(document, prefix):
@@ -193,14 +207,7 @@ def migrate_file(f):
         file_path = util.path_from_uuid(file_id)
         if not target_fs.isfile(file_path):
             log.debug('    file aready has id field, just copy to target storage')
-
-            if local_fs.isfile(file_path):
-                src_fs = local_fs
-            elif local_fs2 and local_fs2.isfile(file_path):
-                src_fs = local_fs2
-            else:
-                raise errors.ResourceNotFound(file_path)
-
+            src_fs = get_src_fs_by_file_path(file_path)
             log.debug('    file found in %s' % src_fs)
 
             dst_dir = fs.path.dirname(file_path)
@@ -302,14 +309,7 @@ def migrate_gear_files(f):
         file_path = util.path_from_uuid(file_id)
         if not target_fs.isfile(file_path):
             log.debug('    file aready has id field, just copy to target storage')
-
-            if local_fs.isfile(file_path):
-                src_fs = local_fs
-            elif local_fs2 and local_fs2.isfile(file_path):
-                src_fs = local_fs2
-            else:
-                raise errors.ResourceNotFound(file_path)
-
+            src_fs = get_src_fs_by_file_path(file_path)
             log.debug('    file found in %s' % src_fs)
 
             dst_dir = fs.path.dirname(file_path)
