@@ -295,7 +295,7 @@ support_legacy_fs = __config['persistent']['support_legacy_fs']
 # 3. $SCITRAN_PERSISTENT_FS_URL/uu/id/uuid           (using abstract fs, with fs_url)
 data_path2 = __config['persistent']['data_path'] + '/v1'
 if os.path.exists(data_path2):
-    log.debug('Path %s exists - enabling 3-way split storage support', data_path2)
+    log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
     local_fs2 = open_fs('osfs://' + data_path2)
 else:
     local_fs2 = None
