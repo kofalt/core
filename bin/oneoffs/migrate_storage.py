@@ -17,7 +17,7 @@ from functools import wraps
 import fs.move
 import fs.path
 
-from fs import open_fs
+from fs import open_fs, errors
 
 from api import util
 
@@ -39,17 +39,23 @@ def main(*argv):
                         format=log_format,
                         level=getattr(logging, args.log_level.upper()))
 
-    global db, target_fs, legacy_fs, data_path
+    global db, target_fs, local_fs, local_fs2, data_path
     db_uri = os.environ['SCITRAN_PERSISTENT_DB_URI']
     data_path = os.environ['SCITRAN_PERSISTENT_DATA_PATH']
     log.info('Using mongo URI: %s', db_uri)
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
 
-    fs_url = os.environ.get('SCITRAN_PERSISTENT_FS_URL', os.path.join(data_path, 'v1'))
+    fs_url = os.environ.get('SCITRAN_PERSISTENT_FS_URL', 'osfs://' + os.path.join(data_path, 'v1'))
     log.info('Migrate files from %s to %s', data_path, fs_url)
     target_fs = open_fs(fs_url)
-    legacy_fs = open_fs('osfs://' + data_path)
+    local_fs = open_fs('osfs://' + data_path)
+    # makes possible migrating files from local storage which already uses pyfilesystem and still there are files
+    # with hash/uuid under PERSISTENT_DATA_PATH
+    try:
+        local_fs2 = open_fs('osfs://' + os.path.join(data_path, 'v1'))
+    except Exception:
+        local_fs2 = None
 
     try:
         if not (args.containers or args.gears):
@@ -64,7 +70,7 @@ def main(*argv):
 
         if args.delete_files:
             log.info('Delete legacy files')
-            legacy_fs.removetree(u'/')
+            local_fs.removetree(u'/')
 
         cleanup_empty_folders()
     except MigrationError:
@@ -188,9 +194,18 @@ def migrate_file(f):
         if not target_fs.isfile(file_path):
             log.debug('    file aready has id field, just copy to target storage')
 
+            if local_fs.isfile(file_path):
+                src_fs = local_fs
+            elif local_fs2 and local_fs2.isfile(file_path):
+                src_fs = local_fs2
+            else:
+                raise errors.ResourceNotFound(file_path)
+
+            log.debug('    file found in %s' % src_fs)
+
             dst_dir = fs.path.dirname(file_path)
             target_fs.makedirs(dst_dir, recreate=True)
-            fs.move.copy_file(src_fs=legacy_fs, src_path=file_path, dst_fs=target_fs, dst_path=file_path)
+            fs.move.copy_file(src_fs=src_fs, src_path=file_path, dst_fs=target_fs, dst_path=file_path)
         else:
             log.debug('    file is aready present in target storage, skipping')
     else:
@@ -204,7 +219,7 @@ def migrate_file(f):
         log.debug('    copy file to target storage')
         dst_dir = fs.path.dirname(f_new_path)
         target_fs.makedirs(dst_dir, recreate=True)
-        fs.move.copy_file(src_fs=legacy_fs, src_path=f_old_path, dst_fs=target_fs, dst_path=f_new_path)
+        fs.move.copy_file(src_fs=local_fs, src_path=f_old_path, dst_fs=target_fs, dst_path=f_new_path)
 
         update_set = {
             f['prefix'] + '.$.modified': datetime.datetime.utcnow(),
@@ -288,9 +303,18 @@ def migrate_gear_files(f):
         if not target_fs.isfile(file_path):
             log.debug('    file aready has id field, just copy to target storage')
 
+            if local_fs.isfile(file_path):
+                src_fs = local_fs
+            elif local_fs2 and local_fs2.isfile(file_path):
+                src_fs = local_fs2
+            else:
+                raise errors.ResourceNotFound(file_path)
+
+            log.debug('    file found in %s' % src_fs)
+
             dst_dir = fs.path.dirname(file_path)
             target_fs.makedirs(dst_dir, recreate=True)
-            fs.move.copy_file(src_fs=legacy_fs, src_path=file_path, dst_fs=target_fs, dst_path=file_path)
+            fs.move.copy_file(src_fs=src_fs, src_path=file_path, dst_fs=target_fs, dst_path=file_path)
         else:
             log.debug('    file is aready present in target storage, skipping')
     else:
@@ -305,7 +329,7 @@ def migrate_gear_files(f):
 
         dst_dir = fs.path.dirname(f_new_path)
         target_fs.makedirs(dst_dir, recreate=True)
-        fs.move.copy_file(src_fs=legacy_fs, src_path=f_old_path, dst_fs=target_fs, dst_path=f_new_path)
+        fs.move.copy_file(src_fs=local_fs, src_path=f_old_path, dst_fs=target_fs, dst_path=f_new_path)
 
         update_set = {
             'modified': datetime.datetime.utcnow(),
