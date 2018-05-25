@@ -332,6 +332,48 @@ class CASAuthProvider(AuthProvider):
         return username
 
 
+class TeamplayAuthProvider(AuthProvider):
+
+    def __init__(self):
+        super(TeamplayAuthProvider, self).__init__('teamplay')
+
+    def validate_code(self, code, **kwargs):
+
+        # r = requests.get(self.config['verify_endpoint'], headers={
+        #     'Authorization': 'Bearer ' + code,
+        #     'Ocp-Apim-Subscription-Key': self.config['client_secret']
+        #     })
+        # if not r.ok:
+        #     raise APIAuthProviderException('User token not valid')
+
+        uid = self.validate_user(code)
+
+        return {
+            'access_token': code,
+            'uid': uid,
+            'auth_type': self.auth_type,
+            'expires': datetime.datetime.utcnow() + datetime.timedelta(days=14)
+        }
+
+    def validate_user(self, token):
+        # r = requests.get(self.config['id_endpoint'], headers={
+        #     'Authorization': 'Bearer ' + token,
+        #     'Ocp-Apim-Subscription-Key': self.config['client_secret']
+        #     })
+        # if not r.ok:
+        #     raise APIAuthProviderException('User token not valid')
+        # identity = json.loads(r.content)
+        # uid = identity.get('LoginID')
+        uid = token
+        if not uid:
+            raise APIAuthProviderException('Auth provider did not provide user email')
+
+        self.ensure_user_exists(uid)
+        self.set_user_gravatar(uid, uid)
+
+        return uid
+
+
 
 class APIKeyAuthProvider(AuthProvider):
     """
@@ -373,5 +415,6 @@ AuthProviders = {
     'ldap'      : JWTAuthProvider,
     'wechat'    : WechatOAuthProvider,
     'api-key'   : APIKeyAuthProvider,
-    'cas'       : CASAuthProvider
+    'cas'       : CASAuthProvider,
+    'teamplay'  : TeamplayAuthProvider
 }
