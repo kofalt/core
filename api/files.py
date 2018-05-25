@@ -236,7 +236,11 @@ def get_fs_by_file_path(file_path):
         return config.fs
     elif config.support_legacy_fs and config.local_fs.isfile(file_path):
         return config.local_fs
-    elif config.support_legacy_fs and config.local_fs2.isfile(file_path):
+
+    ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
+    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.isfile(file_path):
         return config.local_fs2
+    ###
+
     else:
         raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
