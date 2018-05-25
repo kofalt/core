@@ -285,5 +285,16 @@ def get_release_version():
 # Storage configuration
 fs = open_fs(__config['persistent']['fs_url'])
 local_fs = open_fs('osfs://' + __config['persistent']['data_path'])
-local_fs2 = open_fs('osfs://' + __config['persistent']['data_path'] + '/v1')
 support_legacy_fs = __config['persistent']['support_legacy_fs']
+
+### Temp fix for 3-way split storages, where files exist in
+# 1. $SCITRAN_PERSISTENT_DATA_PATH/v0/ha/sh/v0-hash  (before abstract fs)
+# 2. $SCITRAN_PERSISTENT_DATA_PATH/v1/uu/id/uuid     (using abstract fs, without fs_url - defaulting to data_path/v1)
+# 3. $SCITRAN_PERSISTENT_FS_URL/uu/id/uuid           (using abstract fs, with fs_url)
+data_path2 = __config['persistent']['data_path'] + '/v1'
+if os.path.exists(data_path2):
+    log.debug('Path %s exists - enabling 3-way split storage support', data_path2)
+    local_fs2 = open_fs('osfs://' + data_path2)
+else:
+    local_fs2 = None
+###
