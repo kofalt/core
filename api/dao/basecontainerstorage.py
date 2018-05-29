@@ -93,6 +93,13 @@ class ContainerStorage(object):
             parent_name = child_name
         return parent_tree
 
+    @classmethod
+    def filter_container_files(cls, cont):
+        if cont is not None and cont.get('files', []):
+            cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
+            for f in cont['files']:
+                f.pop('measurements', None)
+
     def format_id(self, _id):
         if self.use_object_id:
             try:
@@ -292,8 +299,7 @@ class ContainerStorage(object):
         self._from_mongo(cont)
         if fill_defaults:
             self._fill_default_values(cont)
-        if cont is not None and cont.get('files', []):
-            cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
+        self.filter_container_files(cont)
         return cont
 
     def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
@@ -324,8 +330,7 @@ class ContainerStorage(object):
         results = page['results']
 
         for cont in results:
-            if cont.get('files', []):
-                cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
+            self.filter_container_files(cont)
             self._from_mongo(cont)
             if fill_defaults:
                 self._fill_default_values(cont)

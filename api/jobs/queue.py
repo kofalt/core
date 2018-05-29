@@ -247,7 +247,8 @@ class Queue(object):
                 # recreate `measurements` list on object
                 # Can be removed when `classification` key has been adopted everywhere
 
-                obj_projection.setdefault('measurements', [])
+                if not obj_projection.get('measurements', None):
+                    obj_projection['measurements'] = []
                 if obj_projection.get('classification'):
                     for v in obj_projection['classification'].itervalues():
                         obj_projection['measurements'].extend(v)

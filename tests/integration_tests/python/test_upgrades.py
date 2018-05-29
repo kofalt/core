@@ -353,6 +353,7 @@ def test_50(data_builder, api_db, as_admin, file_form, database):
     })
     assert r.ok
 
+    r_acquisition = api_db.acquisitions.find_one({'_id': bson.ObjectId(acquisition)})
     f = r_acquisition['files'][0]
     assert f['name'] == 'test_file1.csv'
     assert f['classification'] == {
