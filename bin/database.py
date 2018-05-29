@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 49 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 50 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1660,7 +1660,64 @@ def upgrade_to_49():
         cursor = config.db[cont_name].find({'files.classification.Contrast': {'$exists': True}})
         process_cursor(cursor, upgrade_files_to_49, context=cont_name)
 
+def upgrade_files_to_50(cont, cont_name):
+    """
+    For any file where measurements had moved to Custom classification, move it back to measurements
+    """
+    old_measurements = {
+        "anatomy_inplane",
+        "anatomy_ir",
+        "anatomy_pd",
+        "anatomy_t1w",
+        "anatomy_t2w",
+        "calibration",
+        "coil_survey",
+        "diffusion",
+        "diffusion_map",
+        "field_map",
+        "functional",
+        "functional_map",
+        "high_order_shim",
+        "localizer",
+        "non-image",
+        "perfusion",
+        "spectroscopy",
+        "screenshot"
+    }
 
+    files = cont['files']
+
+    for f in files:
+        classification = f.get('classification')
+
+        custom = classification.get('Custom', [])
+        if custom:
+            measurements = []
+            # Pop old measurements back into the measurements field
+            for value in old_measurements:
+                if value in custom:
+                    custom.remove(value)
+                    measurements.append(value)
+
+            # If we updated measurements, add it to the file
+            if measurements:
+                f['measurements'] = measurements
+
+            # Remove Custom if custom is now empty
+            if not custom:
+                classification.pop('Custom')
+
+    config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
+    return True
+
+def upgrade_to_50():
+    """
+    Move measurement values from custom back to measurements field for legacy support
+    """
+    for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
+        # Only operate on files with custom classification values
+        cursor = config.db[cont_name].find({'files.classification.Custom': {'$exists': True, '$ne': []}})
+        process_cursor(cursor, upgrade_files_to_50, context=cont_name)
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION
