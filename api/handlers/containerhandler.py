@@ -8,7 +8,6 @@ from .. import validators
 from ..auth import containerauth, always_ok
 from ..dao import containerstorage, containerutil, noop
 from ..dao.containerstorage import AnalysisStorage
-from ..jobs.gears import get_gear
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..types import Origin
@@ -235,68 +234,42 @@ class ContainerHandler(base.RequestHandler):
         analyses = AnalysisStorage().get_analyses('session', cont['_id'])
         acquisitions = cont.get('acquisitions', [])
 
-        results = []
         if not acquisitions and not analyses:
             # no jobs
-            return {'jobs': results}
+            return {'jobs': []}
 
         # Get query params
-        states      = self.request.GET.getall('states')
-        tags        = self.request.GET.getall('tags')
-        join_cont   = 'containers' in self.request.params.getall('join')
-        join_gears  = 'gears' in self.request.params.getall('join')
+        states = self.request.GET.getall('states')
+        tags = self.request.GET.getall('tags')
+        join_cont = 'containers' in self.request.params.getall('join')
+        join_gears = 'gears' in self.request.params.getall('join')
 
-        # search for jobs
-        if acquisitions:
-            id_array = [str(c['_id']) for c in acquisitions]
-            cont_array = [containerutil.ContainerReference('acquisition', cid) for cid in id_array]
-            results += Queue.search(cont_array, states=states, tags=tags)
+        cont_refs = [containerutil.ContainerReference(cont_type, str(cont_id)) for cont_type, cont_id in
+                        [('session', cont['_id'])] +
+                        [('analysis', an['_id']) for an in analyses] +
+                        [('acquisition', aq['_id']) for aq in acquisitions]
+                    ]
+        jobs = Queue.search(cont_refs, states=states, tags=tags)
 
-            # Also check the acquisition's session
-            results += Queue.search([containerutil.ContainerReference('session', str(cont['_id']))], states=states, tags=tags)
+        unique_jobs = {}
+        gear_ids = set()
+        for job in jobs:
+            if job['_id'] not in unique_jobs:
+                unique_jobs[job['_id']] = Job.load(job)
+                if job.get('gear_id') and job['gear_id'] not in gear_ids:
+                    gear_ids.add(job['gear_id'])
 
-        if analyses:
-            id_array = [str(c['_id']) for c in analyses]
-            cont_array = [containerutil.ContainerReference('analysis', cid) for cid in id_array]
-            results += Queue.search(cont_array, states=states, tags=tags)
-
-        # Stateful closure to remove search duplicates
-        # Eventually, this code should not call Queue.search and should instead do its own work.
-        def match_ids(x):
-            in_set = str(x['_id']) in match_ids.unique_job_ids
-            match_ids.unique_job_ids.add(str(x['_id']))
-            return not in_set
-
-        match_ids.unique_job_ids = set()
-        results = filter(match_ids, results)
-
-        # Ensure job uniqueness
-        seen_jobs = []
-        seen_gears = []
-        jobs = []
-        for j in results:
-            if j['_id'] not in seen_jobs:
-                job  = Job.load(j)
-                jobs.append(job)
-                seen_jobs.append(job.id_)
-            if j.get('gear_id') and j['gear_id'] not in seen_gears:
-                seen_gears.append(j['gear_id'])
-
-        jobs.sort(key=lambda j: j.created)
-
-        response = {'jobs': jobs}
+        response = {'jobs': sorted(unique_jobs.values(), key=lambda job: job.created)}
         if join_gears:
-            response['gears'] = {}
-            for g_id in seen_gears:
-                response['gears'][g_id] = get_gear(g_id)
+            gears = config.db.gears.find({'_id': {'$in': [bson.ObjectId(gear_id) for gear_id in gear_ids]}})
+            response['gears'] = {str(gear['_id']): gear for gear in gears}
         if join_cont:
             # create a map of analyses and acquisitions by _id
-            containers = dict((str(c['_id']), c) for c in analyses+acquisitions)
+            containers = {str(cont['_id']): cont for cont in analyses + acquisitions}
             for container in containers.itervalues():
                 # No need to return perm arrays
                 container.pop('permissions', None)
             response['containers'] = containers
-
         return response
 
     def get_all(self, cont_name, par_cont_name=None, par_id=None):

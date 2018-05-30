@@ -66,10 +66,11 @@ def paginate_find(collection, find_kwargs, pagination):
             find_kwargs['limit'] = pagination['limit']
 
     results = collection.find(**find_kwargs)
-    return {
+    page = {
         'total': results.count(),  # count ignores limit and skip by default
         'results': list(results),
     }
+    return page
 
 
 def paginate_pipe(collection, pipeline, pagination):
@@ -104,5 +105,4 @@ def paginate_pipe(collection, pipeline, pagination):
             pipeline.append({'$project': {'total': 1, 'results': {'$slice': ['$results'] + slice_args}}})
 
     page = next(collection.aggregate(pipeline), {'total': 0, 'results': []})
-    page['results'] = list(page['results'])
     return page
