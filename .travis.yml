@@ -56,8 +56,8 @@ after_success:
       bash <(curl -s https://codecov.io/bash) -c -X coveragepy -F python;
   fi
 
-# Build swagger docs and push them to gh-pages (Only for SDK builds)
-- if [ "$TRAVIS_EVENT_TYPE" == "push" ] || [ -n "$TRAVIS_TAG" ] && [ "$TEST_SDK" == "true" ]; then
+# Build swagger docs and push them to gh-pages regardless of sdk test results
+- if [ "$TRAVIS_EVENT_TYPE" == "push" ] || [ -n "$TRAVIS_TAG" ] && [ "$TEST_SDK" == "false" ]; then
       git config --global user.email "travis@travis-ci.org";
       git config --global user.name "Travis CI";
       git config --global push.default simple;
@@ -68,13 +68,13 @@ after_success:
   fi
 
 # Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
-- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TEST_SDK" == "true" ]; then
+- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TEST_SDK" == "false" ]; then
       docker tag core:dist flywheel/core:latest;
       docker tag core:testing flywheel/core:testing;
       docker push flywheel/core:latest;
       docker push flywheel/core:testing;
   fi
-- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TEST_SDK" == "true" ]; then
+- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TEST_SDK" == "false" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
       docker push flywheel/core:$TRAVIS_BRANCH.latest;
   fi
