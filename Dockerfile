@@ -8,7 +8,7 @@ ARG DOC_VERSION=0.0.1
 RUN npm install && npm run build -- --docs-version=$DOC_VERSION
 
 
-FROM gradle:4.5-jdk8-alpine as gradle
+FROM gradle:4.5-jdk8-alpine as sdk_generate
 WORKDIR /local
 ENV GRADLE_USER_HOME=/gradle
 USER root
@@ -23,9 +23,9 @@ RUN gradle --no-daemon -PsdkVersion=$SDK_VERSION clean build
 FROM python:3.4 as sdk_build
 COPY sdk/src /local/src
 WORKDIR /local/src
-COPY --from=gradle /local/src/python/gen /local/src/python/gen
-COPY --from=gradle /local/src/python/sphinx /local/src/python/sphinx
-COPY --from=gradle /local/src/matlab/build/gen /local/src/matlab/build/gen
+COPY --from=sdk_generate /local/src/python/gen /local/src/python/gen
+COPY --from=sdk_generate /local/src/python/sphinx /local/src/python/sphinx
+COPY --from=sdk_generate /local/src/matlab/build/gen /local/src/matlab/build/gen
 RUN ./build-wheel-and-docs.sh
 
 

@@ -34,7 +34,7 @@ script:
     fi;
   - echo "$DOC_VERSION $SDK_VERSION"
   - docker build -t core:swagger --target swagger --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
-  - docker build -t core:gradle --target gradle --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
+  - docker build -t core:sdk_generate --target sdk_generate --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
   - docker build -t core:sdk_build --target sdk_build --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
   - docker build -t core:base --target base --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
   - docker build -t core:dist --target dist --build-arg VCS_BRANCH="$TRAVIS_BRANCH" --build-arg VCS_COMMIT="$TRAVIS_COMMIT" --build-arg API_VERSION="$TRAVIS_TAG" --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
