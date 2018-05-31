@@ -8,8 +8,8 @@ env:
   global:
     - DOCKER_DIR="$HOME/.cache/docker"
   matrix:
-    - BUILD_SDK=true
-    - BUILD_SDK=false
+    - TEST_SDK=true
+    - TEST_SDK=false
 
 cache:
   directories:
@@ -39,7 +39,7 @@ script:
   - docker build -t core:base --target base --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
   - docker build -t core:dist --target dist --build-arg VCS_BRANCH="$TRAVIS_BRANCH" --build-arg VCS_COMMIT="$TRAVIS_COMMIT" --build-arg API_VERSION="$TRAVIS_TAG" --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
   - docker build -t core:testing --target testing --build-arg SDK_VERSION="$SDK_VERSION" --build-arg DOC_VERSION="$DOC_VERSION" .
-  - if [ "$BUILD_SDK" = "false" ]; then
+  - if [ "$TEST_SDK" = "false" ]; then
         ./tests/bin/docker-tests.sh --image core:testing;
     else
         ./bin/copy-sdk-dist.sh;
@@ -57,7 +57,7 @@ after_success:
   fi
 
 # Build swagger docs and push them to gh-pages (Only for SDK builds)
-- if [ "$TRAVIS_EVENT_TYPE" == "push" ] || [ -n "$TRAVIS_TAG" ] && [ "$BUILD_SDK" == "true" ]; then
+- if [ "$TRAVIS_EVENT_TYPE" == "push" ] || [ -n "$TRAVIS_TAG" ] && [ "$TEST_SDK" == "true" ]; then
       git config --global user.email "travis@travis-ci.org";
       git config --global user.name "Travis CI";
       git config --global push.default simple;
@@ -68,13 +68,13 @@ after_success:
   fi
 
 # Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
-- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "true" ]; then
+- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TEST_SDK" == "true" ]; then
       docker tag core:dist flywheel/core:latest;
       docker tag core:testing flywheel/core:testing;
       docker push flywheel/core:latest;
       docker push flywheel/core:testing;
   fi
-- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "true" ]; then
+- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TEST_SDK" == "true" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
       docker push flywheel/core:$TRAVIS_BRANCH.latest;
   fi
@@ -95,7 +95,7 @@ deploy:
     on:
       repo: flywheel-io/core
       tags: true
-      condition: $BUILD_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
+      condition: $TEST_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
   # Deploy python wheel
   - provider: script
     script: bash $TRAVIS_BUILD_DIR/sdk/scripts/deploy-wheel.sh $PYPI_USER $PYPI_PASS
@@ -103,5 +103,5 @@ deploy:
     on:
       repo: flywheel-io/core
       tags: true
-      condition: $BUILD_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
+      condition: $TEST_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
 
