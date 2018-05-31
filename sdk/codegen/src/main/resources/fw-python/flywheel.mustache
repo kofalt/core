@@ -32,8 +32,8 @@ def config_from_api_key(api_key):
 
     config = Configuration()
     config.host = '{}://{}:{}/api'.format(scheme, host, port)
-    config.api_key['Authorization'] = key
-    config.api_key_prefix['Authorization'] = 'scitran-user'
+    config.api_key = {'Authorization': key}
+    config.api_key_prefix = {'Authorization': 'scitran-user'}
     return config
 
 class Flywheel:
