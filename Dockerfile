@@ -104,6 +104,7 @@ RUN set -eux \
 COPY --from=sdk_build /local/src/python/sphinx/build /var/scitran/docs/python
 COPY --from=sdk_build /local/src/matlab/build/gen/sphinx/build /var/scitran/docs/matlab
 COPY --from=swagger /local/swagger/build/swagger-ui /var/scitran/docs/swagger
+COPY docs/static/images /var/scitran/docs/images
 
 
 FROM base as testing
