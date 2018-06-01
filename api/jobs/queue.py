@@ -355,23 +355,23 @@ class Queue(object):
     def search(containers, states=None, tags=None):
         """
         Search the queue for jobs that mention at least one of a set of containers and (optionally) match some set of states or tags.
-        Currently, all containers must be of the same type.
 
         @param containers: an array of ContainerRefs
         @param states: an array of strings
         @param tags: an array of strings
         """
 
-        # Limitation: container types must match.
-        type1 = containers[0].type
-        for container in containers:
-            if container.type != type1:
-                raise Exception('All containers passed to Queue.search must be of the same type')
+        conts_by_type = {}
+        for cont in containers:
+            conts_by_type.setdefault(cont.type, []).append(cont)
 
-        query = { '$or': [
-            {'inputs.id': {'$in': [x.id for x in containers]}, 'inputs.type': type1},
-            {'destination.id': {'$in': [x.id for x in containers]}, 'destination.type': type1},
-        ]}
+        filters = []
+        for cont_type, containers in conts_by_type.iteritems():
+            filters.extend([
+                {'inputs.id': {'$in': [cont.id for cont in containers]}, 'inputs.type': cont_type},
+                {'destination.id': {'$in': [cont.id for cont in containers]}, 'destination.type': cont_type},
+            ])
+        query = {'$or': filters}
 
         if states is not None and len(states) > 0:
             query['state'] = {"$in": states}

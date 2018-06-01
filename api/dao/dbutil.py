@@ -65,15 +65,16 @@ def paginate_find(collection, find_kwargs, pagination):
         if 'limit' in pagination:
             find_kwargs['limit'] = pagination['limit']
 
-    return {
-        'total': collection.count(find_kwargs.get('filter', {})),
-        'results': list(collection.find(**find_kwargs)),
+    results = collection.find(**find_kwargs)
+    page = {
+        'total': results.count(),  # count ignores limit and skip by default
+        'results': list(results),
     }
+    return page
 
 
 def paginate_pipe(collection, pipeline, pagination):
     """Return paginated `db.coll.aggregate()` results."""
-    total_pipeline = pipeline[:]
     if pagination:
         if 'pipe_key' in pagination:
             pipe_key = pagination.pop('pipe_key')
@@ -85,21 +86,23 @@ def paginate_pipe(collection, pipeline, pagination):
 
         if 'filter' in pagination:
             pipeline.append({'$match': pagination['filter']})
-            total_pipeline = pipeline[:]
 
         if 'sort' in pagination:
             pipeline.append({'$sort': collections.OrderedDict(pagination['sort'])})
 
-        if 'skip' in pagination:
-            pipeline.append({'$skip': pagination['skip']})
+    pipeline.append({'$group': {'_id': None, 'total': {'$sum': 1}, 'results': {'$push': '$$ROOT'}}})
 
-        if 'limit' in pagination:
-            pipeline.append({'$limit': pagination['limit']})
+    if pagination:
+        slice_args = None
+        if 'skip' in pagination and 'limit' in pagination:
+            slice_args = [pagination['skip'], pagination['limit']]
+        elif 'limit' in pagination:
+            slice_args = [pagination['limit']]
+        elif 'skip' in pagination:
+            # NOTE aggregation + pagination.skip without limit not supported
+            pass
+        if slice_args:
+            pipeline.append({'$project': {'total': 1, 'results': {'$slice': ['$results'] + slice_args}}})
 
-    # total_pipeline.append({'$count': 'total'})  # mongo 3.4+
-    total_pipeline.append({'$group': {'_id': None, 'total': {'$sum': 1}}})
-    total_result = list(collection.aggregate(total_pipeline))
-    return {
-        'total': total_result[0]['total'] if total_result else 0,
-        'results': list(collection.aggregate(pipeline)),
-    }
+    page = next(collection.aggregate(pipeline), {'total': 0, 'results': []})
+    return page

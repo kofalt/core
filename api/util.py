@@ -21,6 +21,13 @@ import pymongo
 
 BYTE_RANGE_RE = re.compile(r'^(?P<first>\d+)-(?P<last>\d+)?$')
 SUFFIX_BYTE_RANGE_RE = re.compile(r'^(?P<first>-\d+)$')
+DATETIME_RE = {
+    re.compile(r'^\d\d\d\d-\d\d-\d\d$'):                              '%Y-%m-%d',
+    re.compile(r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d$'):                    '%Y-%m-%dT%H:%M',
+    re.compile(r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d$'):               '%Y-%m-%dT%H:%M:%S',
+    re.compile(r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d$'): '%Y-%m-%dT%H:%M:%S.%f',
+}
+
 
 # If this is not called before templating, django throws a hissy fit
 settings.configure(
@@ -137,14 +144,8 @@ def datetime_from_str(s):
     Return datetime.datetime parsed from a string that is a prefix of isoformat.
     Return None if the string is not such a valid prefix.
     """
-    re_fmt = {
-        r'^\d\d\d\d-\d\d-\d\d$':                              '%Y-%m-%d',
-        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d$':                    '%Y-%m-%dT%H:%M',
-        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d$':               '%Y-%m-%dT%H:%M:%S',
-        r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d$': '%Y-%m-%dT%H:%M:%S.%f',
-    }
-    for date_re, date_fmt in re_fmt.iteritems():
-        if re.match(date_re, s):
+    for date_re, date_fmt in DATETIME_RE.iteritems():
+        if date_re.match(s):
             return datetime.datetime.strptime(s, date_fmt)
     return None
 
