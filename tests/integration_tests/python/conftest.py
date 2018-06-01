@@ -25,22 +25,32 @@ SCITRAN_SITE_API_URL = os.environ['SCITRAN_SITE_API_URL']
 SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
 
-
-@pytest.fixture(scope='session')
-def bootstrap_users(api_db):
-    """Create admin and non-admin users with api keys"""
-    global SCITRAN_ADMIN_API_KEY
-    session = BaseUrlSession()
-    r = session.post('/users', json={'_id': 'admin@user.com', 'firstname': 'Test', 'lastname': 'Admin'})
-    assert r.ok
-    SCITRAN_ADMIN_API_KEY = r.json()['key']
-    session.headers.update({'Authorization': 'scitran-user {}'.format(SCITRAN_ADMIN_API_KEY)})
-    data_builder = DataBuilder(session)
-    data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
-    yield data_builder
-    api_db.users.delete_many({})
-    api_db.singletons.delete_one({'_id': 'bootstrap'})
-
+if os.environ.get('CONFTEST_USE_BOOTSTRAP') == '0':
+    @pytest.fixture(scope='session')
+    def bootstrap_users(as_drone):
+        """Create admin and non-admin users with api keys"""
+        global SCITRAN_ADMIN_API_KEY
+        SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10))
+        data_builder = DataBuilder(as_drone)
+        data_builder.create_user(_id='admin@user.com', api_key=SCITRAN_ADMIN_API_KEY, root=True)
+        data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
+        yield data_builder
+        data_builder.teardown()
+else:
+    @pytest.fixture(scope='session')
+    def bootstrap_users(api_db):
+        """Create admin and non-admin users with api keys"""
+        global SCITRAN_ADMIN_API_KEY
+        session = BaseUrlSession()
+        r = session.post('/users', json={'_id': 'admin@user.com', 'firstname': 'Test', 'lastname': 'Admin'})
+        assert r.ok
+        SCITRAN_ADMIN_API_KEY = r.json()['key']
+        session.headers.update({'Authorization': 'scitran-user {}'.format(SCITRAN_ADMIN_API_KEY)})
+        data_builder = DataBuilder(session)
+        data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
+        yield data_builder
+        api_db.users.delete_many({})
+        api_db.singletons.delete_one({'_id': 'bootstrap'})
 
 @pytest.fixture(scope='session')
 def as_drone():

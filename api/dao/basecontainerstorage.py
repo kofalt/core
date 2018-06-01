@@ -339,7 +339,7 @@ class ContainerStorage(object):
 
         kwargs['filter'] = query
         kwargs['projection'] = projection
-        page = dbutil.paginate_find(self.DBC, kwargs, pagination)
+        page = dbutil.paginate_find(self.dbc, kwargs, pagination)
         results = page['results']
 
         for cont in results:

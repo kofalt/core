@@ -16,7 +16,7 @@ from ..auth import require_drone, require_login, require_admin, has_access
 from ..auth.apikeys import JobApiKey
 from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
-from ..util import humanize_validation_error, set_for_download
+from ..util import humanize_validation_error, set_for_download, add_container_type
 from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
@@ -69,7 +69,7 @@ class GearHandler(base.RequestHandler):
     @require_login
     def get(self, _id):
         result = get_gear(_id)
-        util.add_container_type(self.request, result)
+        add_container_type(self.request, result)
         return result
 
 
