@@ -283,8 +283,11 @@ class Download(base.RequestHandler):
         with tarfile.open(mode='w|', fileobj=stream) as archive:
             for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
                 file_system = files.get_fs_by_file_path(filepath)
-                with file_system.open(filepath, 'rb') as fd:
-                    yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
+                with file_system.openbin(filepath, 'rb') as fd:
+                    if hasattr(fd, 'gettarinfo'):
+                        yield fd.gettarinfo(arcname=arcpath).tobuf()
+                    else:
+                        yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
                     chunk = ''
                     for chunk in iter(lambda: fd.read(CHUNKSIZE), ''): # pylint: disable=cell-var-from-loop
                         yield chunk
