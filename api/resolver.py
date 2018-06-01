@@ -196,7 +196,7 @@ class ContainerNode(Node):
         
         child = results[0]
 
-        self.storage.filter_deleted_files(child)
+        self.storage.filter_container_files(child)
         child['container_type'] = self.container_type
         path_out.append(child)
 

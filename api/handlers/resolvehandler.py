@@ -75,7 +75,7 @@ class ResolveHandler(base.RequestHandler):
         if not self.superuser_request:
             for x in result["path"]:
                 ok = False
-                if x['container_type'] in ['acquisition', 'session', 'project', 'group', 'analysis']:
+                if x['container_type'] in ['acquisition', 'session', 'project', 'group']:
                     perms = x.get('permissions', [])
                     for y in perms:
                         if y.get('_id') == self.uid:
@@ -88,7 +88,7 @@ class ResolveHandler(base.RequestHandler):
             filtered_children = []
             for x in result["children"]:
                 ok = False
-                if x['container_type'] in ['acquisition', 'session', 'project', 'group', 'analysis']:
+                if x['container_type'] in ['acquisition', 'session', 'project', 'group']:
                     perms =  x.get('permissions', [])
                     for y in perms:
                         if y.get('_id') == self.uid:

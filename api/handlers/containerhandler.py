@@ -96,7 +96,7 @@ class ContainerHandler(base.RequestHandler):
 
         inflate_job_info = cont_name == 'sessions'
         if not self.is_enabled('Slim-Containers'):
-            result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
+            result['analyses'] = AnalysisStorage().get_analyses(None, cont_name, _id, inflate_job_info)
         self.handle_origin(result)
         util.add_container_type(self.request, result)
         return result

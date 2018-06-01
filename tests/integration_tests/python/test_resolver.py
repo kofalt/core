@@ -535,12 +535,13 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert result['container_type'] == 'analysis'
     assert result['_id'] == project_analysis 
     assert len(result['files']) == 1
+    project_analysis_file_id = result['files'][0]['_id']  # save the file id for later usage
 
     # resolve root/group/project/analysis/files
     r = as_admin.post('/resolve', json={'path': [group, project_label, 'analyses', project_analysis_name, 'files', analysis_file]})
     result = r.json()
     assert r.ok
-    assert path_in_result([group, project, project_analysis, analysis_file], result)
+    assert path_in_result([group, project, project_analysis, project_analysis_file_id], result)
     assert result['children'] == []
     
     # SESSION 
@@ -569,12 +570,13 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert result['container_type'] == 'analysis'
     assert result['_id'] == session_analysis 
     assert len(result['files']) == 1
+    session_analysis_file_id = result['files'][0]['_id']  # save the file id for later usage
 
     # resolve root/group/project/analysis/files
     r = as_admin.post('/resolve', json={'path': [group, project_label, session_label, 'analyses', session_analysis_name, 'files', analysis_file]})
     result = r.json()
     assert r.ok
-    assert path_in_result([group, project, session, session_analysis, analysis_file], result)
+    assert path_in_result([group, project, session, session_analysis, session_analysis_file_id], result)
     assert result['children'] == []
     
     # ACQUISITION 
@@ -602,6 +604,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert result['container_type'] == 'analysis'
     assert result['_id'] == acq_analysis 
     assert len(result['files']) == 1
+    acq_analysis_file_id = result['files'][0]['_id']  # save the file id for later usage
 
     # resolve root/group/project/analysis/id
     r = as_admin.post('/resolve', json={'path': [group, project_label, idz(session), acquisition_label, 'analyses', idz(acq_analysis)]})
@@ -623,7 +626,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     r = as_admin.post('/resolve', json={'path': [group, project_label, session_label, acquisition_label, 'analyses', acq_analysis_name, 'files', analysis_file]})
     result = r.json()
     assert r.ok
-    assert path_in_result([group, project, session, acquisition, acq_analysis, analysis_file], result)
+    assert path_in_result([group, project, session, acquisition, acq_analysis, acq_analysis_file_id], result)
     assert result['children'] == []
 
 
