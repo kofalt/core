@@ -272,3 +272,104 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
         },
         added_device_id_str: added_device
     }
+
+def test_50(data_builder, api_db, as_admin, file_form, database):
+    acquisition = data_builder.create_acquisition()
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test_file1.csv'))
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test_file2.csv'))
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test_file3.csv'))
+    assert r.ok
+
+    # Clean up modality
+    r = as_admin.delete('/modalities/MR')
+
+    payload = {
+        '_id': 'MR',
+        'classification': {
+            'Intent': ["Structural", "Functional", "Localizer"],
+            'Measurement': ["B0", "B1", "T1", "T2"]
+        }
+    }
+    r = as_admin.post('/modalities', json=payload)
+    assert r.ok
+
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/test_file1.csv/classification', json={
+        'modality': 'MR',
+        'replace': {
+            'Intent': ['Structural'],
+            'Measurement': ['T1'],
+            'Custom': ['anatomy_t1w', 'foobar']
+        }
+    })
+    assert r.ok
+
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/test_file2.csv/classification', json={
+        'modality': 'MR',
+        'replace': {
+            'Intent': ['Functional'],
+            'Measurement': ['T2'],
+            'Custom': ['functional']
+        }
+    })
+    assert r.ok
+
+    database.upgrade_to_50()
+
+    # Confirm that measurements is set and classification is updated
+    r_acquisition = api_db.acquisitions.find_one({'_id': bson.ObjectId(acquisition)})
+    f = r_acquisition['files'][0]
+    assert f['name'] == 'test_file1.csv'
+    assert f['classification'] == {
+        'Intent': ['Structural'],
+        'Measurement': ['T1'],
+        'Custom': ['foobar']
+    }
+    assert f['measurements'] == ['anatomy_t1w']
+
+    f = r_acquisition['files'][1]
+    assert f['name'] == 'test_file2.csv'
+    assert f['classification'] == {
+        'Intent': ['Functional'],
+        'Measurement': ['T2']
+    }
+    assert f['measurements'] == ['functional']
+
+    f = r_acquisition['files'][2]
+    assert f['name'] == 'test_file3.csv'
+    assert f['classification'] == {}
+    assert 'measurements' not in f
+
+    # Assert that changing modality resets measurements
+    r = as_admin.put('/acquisitions/' + acquisition + '/files/test_file1.csv', json={
+        'modality': None
+    })
+    assert r.ok
+
+    # Assert that changing classification resets measurements
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/test_file2.csv/classification', json={
+        'add': {
+            'Custom': ['myvalue']
+        }
+    })
+    assert r.ok
+
+    r_acquisition = api_db.acquisitions.find_one({'_id': bson.ObjectId(acquisition)})
+    f = r_acquisition['files'][0]
+    assert f['name'] == 'test_file1.csv'
+    assert f['classification'] == {
+        'Custom': ['foobar']
+    }
+    assert 'measurements' not in f
+
+    f = r_acquisition['files'][1]
+    assert f['name'] == 'test_file2.csv'
+    assert f['classification'] == {
+        'Intent': ['Functional'],
+        'Measurement': ['T2'],
+        'Custom': ['myvalue']
+    }
+    assert 'measurements' not in f
+
+    # Clean up modality
+    r = as_admin.delete('/modalities/MR')
+    assert r.ok

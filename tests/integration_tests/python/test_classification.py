@@ -1,4 +1,6 @@
-def test_modalities(data_builder, as_admin, as_user):
+import bson
+
+def test_modalities(data_builder, as_admin, as_user, api_db):
 
     payload = {
         '_id': 'MR',
@@ -55,7 +57,7 @@ def test_modalities(data_builder, as_admin, as_user):
     assert r.status_code == 404
 
 
-def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
+def test_edit_file_classification(data_builder, as_admin, as_user, file_form, api_db):
 
     ## Setup
 
@@ -70,6 +72,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
     assert r.ok
     assert r.json()['classification'] == {}
 
+    as_admin.delete('/modalities/MR')
 
     # add modality information
     payload = {
@@ -90,6 +93,31 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form):
         'modality': 'MR'
     })
 
+    api_db.projects.update({
+        '_id': bson.ObjectId(project),
+        'files': { '$elemMatch': { 'name': file_name } }
+    }, {
+        '$set': {'files.$.measurements': ['anatomy_t1w']}
+    })
+
+    # Ensure that file.measurements does not come back on list or singeleton endpoint
+    r = as_admin.get('/projects')
+    assert r.ok
+    r_project = None
+    for el in r.json():
+        if el['_id'] == project:
+            r_project = el
+            break
+
+    assert r_project is not None
+    assert r_project['files'][0]['name'] == file_name
+    assert 'measurements' not in r_project['files'][0]
+
+    r = as_admin.get('/projects/' + project)
+    assert r.ok
+    r_project = r.json()
+    assert r_project['files'][0]['name'] == file_name
+    assert 'measurements' not in r_project['files'][0]
 
     ## Classification editing
 
