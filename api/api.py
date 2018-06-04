@@ -336,8 +336,8 @@ endpoints = [
 
             route('/token', TeamplayHandler, h='get_token', m=['GET']),
 
-            route('/queue',            TeamplayHandler, h='get_queue', m=['GET']),
-            route('/queue/<_id:{oid}', TeamplayHandler, h='reap_item', m=['DELETE']),
+            route('/queue',             TeamplayHandler, h='get_queue', m=['GET']),
+            route('/queue/<_id:{oid}>', TeamplayHandler, h='reap_item', m=['DELETE']),
 
             # required status endpoins
             route('/ping',            TeamplayHandler, h='ping',        m=['GET']),

@@ -14,18 +14,15 @@ class TeamplayHandler(base.RequestHandler):
 
     @property
     def config(self):
-        config.get_auth('teamplay')
+        return config.get_auth('teamplay')
 
     def echo(self):
-        """Return `echo` query param value in plaintext. (see teamplay webhook spec)"""
-        def echo_handler(environ, start_response):
-            start_response('200 OK', [('Content-Type', 'text/plain; charset=utf-8')])
-            return self.request.GET.get('echo')
-        return echo_handler
+        """Return `echo` query param's value in plaintext. (see teamplay webhook spec)"""
+        self.response.write(self.request.GET.get('echo'))
 
     def event(self):
         """Create event doc in mongo from payload as-is. (see teamplay webhook spec)"""
-        secret = config.get_item('teamplay', 'webhook_secret')
+        secret = bytes(self.config['webhook_secret'])
         expected_hash = self.request.headers.get('ms-signature', '').replace('sha256=', '')
         computed_hash = hmac.new(secret, msg=self.request.body, digestmod=hashlib.sha256).hexdigest()
         if computed_hash != expected_hash:
@@ -59,7 +56,7 @@ class TeamplayHandler(base.RequestHandler):
     @require_drone
     def reap_item(self, _id):
         """"""
-        result = config.db.teamplay.update_one({'_id': bson.ObjectId(_id)}, {'deleted': datetime.datetime.utcnow()})
+        result = config.db.teamplay.update_one({'_id': bson.ObjectId(_id)}, {'$set': {'deleted': datetime.datetime.utcnow()}})
         if result.modified_count != 1:
             raise errors.APINotFoundException('Could not find queue item ' + _id)
         return {'deleted': 1}
