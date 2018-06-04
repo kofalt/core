@@ -1689,6 +1689,8 @@ def upgrade_files_to_50(cont, cont_name):
 
     for f in files:
         classification = f.get('classification')
+        if not classification:
+            continue
 
         custom = classification.get('Custom', [])
         if custom:
