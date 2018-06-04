@@ -17,6 +17,7 @@ from .handlers.resolvehandler           import ResolveHandler
 from .handlers.roothandler              import RootHandler
 from .handlers.schemahandler            import SchemaHandler
 from .handlers.userhandler              import UserHandler
+from .handlers.teamplayhandler          import TeamplayHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
@@ -326,6 +327,19 @@ endpoints = [
         route('/<par_cont_name:groups>/<par_id:{gid}>/<cont_name:projects>', ContainerHandler, h='get_all', m=['GET']),
         route('/<par_cont_name:{cname}>/<par_id:{oid}>/<cont_name:{cname}>', ContainerHandler, h='get_all', m=['GET']),
 
+
+        # Teamplay webhook + reap queue integration
+
+        prefix('/teamplay', [
+            route('/webhook', TeamplayHandler, h='echo',  m=['GET']),
+            route('/webhook', TeamplayHandler, h='event', m=['POST']),
+
+            route('/token', TeamplayHandler, h='get_token', m=['GET']),
+
+            route('/queue',            TeamplayHandler, h='get_queue', m=['GET']),
+            route('/queue/<_id:{oid}', TeamplayHandler, h='reap_item', m=['DELETE']),
+
+        ]),
 
     ]),
 ]
