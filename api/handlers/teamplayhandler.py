@@ -83,22 +83,22 @@ class TeamplayHandler(base.RequestHandler):
           - Reaper availability
           - Others?
         """
-        errors = []
+        err = []
 
         try:
             config.get_auth('teamplay')
         except KeyError:
-            errors.append('Teamplay SSO not configurated.')
+            err.append('Teamplay SSO not configurated.')
 
         try:
             config.get_item('teamplay', 'webhook_secret')
         except KeyError:
-            errors.append('Teamplay DICOM Webhook not configurated.')
+            err.append('Teamplay DICOM Webhook not configurated.')
 
         # Test reaper here
 
-        if errors:
-            return {'Reason': ' '.join(errors)}
+        if err:
+            return {'Reason': ' '.join(err)}
         else:
             return {}
 
