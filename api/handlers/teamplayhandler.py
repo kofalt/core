@@ -63,3 +63,42 @@ class TeamplayHandler(base.RequestHandler):
         if result.modified_count != 1:
             raise errors.APINotFoundException('Could not find queue item ' + _id)
         return {'deleted': 1}
+
+
+    def ping(self):
+        """
+        Return HTTP 200 Status Code when service is reachable through the network
+          - Teamplay documentation
+        """
+        return
+
+    def is_operable(self):
+        """
+        To detect whether the service is fully functional so that the integration will work for teamplay customers.
+          - Teamplay documentation
+
+        Assert proper config and service availability for:
+          - Teamplay auth conifg
+          - Teamplay webhook config
+          - Reaper availability
+          - Others?
+        """
+        errors = []
+
+        try:
+            config.get_auth('teamplay')
+        except KeyError:
+            errors.append('Teamplay SSO not configurated.')
+
+        try:
+            config.get_item('teamplay', 'webhook_secret')
+        except KeyError:
+            errors.append('Teamplay DICOM Webhook not configurated.')
+
+        # Test reaper here
+
+        if errors:
+            return {'Reason': ' '.join(errors)}
+        else:
+            return {}
+
