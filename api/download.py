@@ -297,7 +297,7 @@ class Download(base.RequestHandler):
                     else:
                         yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
                         chunk = ''
-                        for chunk in iter(lambda: fd.read(CHUNKSIZE*15), ''):  # pylint: disable=cell-var-from-loop
+                        for chunk in iter(lambda: fd.read(CHUNKSIZE), ''):  # pylint: disable=cell-var-from-loop
                             yield chunk
                         if len(chunk) % BLOCKSIZE != 0:
                             yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
