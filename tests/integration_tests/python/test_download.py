@@ -587,6 +587,94 @@ def test_analysis_download(data_builder, file_form, as_admin, as_drone, default_
     r = as_admin.delete('/sessions/' + session + '/analyses/' + analysis)
     assert r.ok
 
+
+def test_analyses_range_download(data_builder, as_admin, file_form):
+    session = data_builder.create_session()
+    zip_cont = cStringIO.StringIO()
+    with zipfile.ZipFile(zip_cont, 'w') as zip_file:
+        zip_file.writestr('two.csv', 'sample\ndata\n')
+    zip_cont.seek(0)
+
+    # create (legacy) analysis for testing the download functionality
+    r = as_admin.post('/sessions/' + session + '/analyses', files=file_form(('one.csv', '123456789'),
+                                                                            ('two.zip', zip_cont),
+                                                                            meta={
+                                                                                'label': 'test',
+                                                                                'inputs': [{'name': 'one.csv'}],
+                                                                                'outputs': [{'name': 'two.zip'}],
+                                                                            }))
+    assert r.ok
+    analysis = r.json()['_id']
+
+    analysis_inputs = '/analyses/' + analysis + '/inputs'
+
+    r = as_admin.get(analysis_inputs + '/one.csv', params={'ticket': ''})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # verify contents
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket})
+    assert r.ok
+    assert r.content == '123456789'
+
+    # download single file from byte 0 to end of file
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=0-'})
+    assert r.ok
+    assert r.content == '123456789'
+
+    # download single file's first byte by using lower case header
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'range': 'bytes=0-0'})
+    assert r.ok
+    assert r.content == '1'
+
+    # download single file's first two byte
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=0-1'})
+    assert r.ok
+    assert r.content == '12'
+
+    # try to download single file with invalid unit
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'lol=-5'})
+    assert r.status_code == 200
+    assert r.content == '123456789'
+
+    # try to download single file with invalid range where the last byte is greater then the size of the file
+    # in this case the whole file is returned
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=0-500'})
+    assert r.ok
+    assert r.content == '123456789'
+
+    # try to download single file with invalid range where the first byte is greater then the size of the file
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=500-'})
+    assert r.status_code == 416
+
+    # try to download single file with invalid range first byte is greater than the last one
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes=10-5'})
+    assert r.ok
+    assert r.content == '123456789'
+
+    # try to download single file with invalid range header syntax
+    r = as_admin.get(analysis_inputs + '/one.csv',
+                     params={'ticket': ticket, 'view': 'true'},
+                     headers={'Range': 'bytes-1+5'})
+    assert r.ok
+    assert r.content == '123456789'
+
+
 def test_filters(data_builder, file_form, as_admin):
 
     project = data_builder.create_project()
