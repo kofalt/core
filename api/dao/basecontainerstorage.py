@@ -392,3 +392,25 @@ class ContainerStorage(object):
             update['$set']['modified'] = datetime.datetime.utcnow()
 
         return self.dbc.update_one(query, update)
+
+    @staticmethod
+    def join_avatars(containers):
+        """
+        Given a list of containers, adds avatar and name context to each member of the permissions and notes lists
+        """
+
+        # Get list of all users, hash by uid
+        # TODO: This is not an efficient solution if there are hundreds of inactive users
+        users_list = ContainerStorage.factory('users').get_all_el({}, None, None)
+        users = {user['_id']: user for user in users_list}
+
+        for container in containers:
+            permissions = container.get('permissions', [])
+            notes = container.get('notes', [])
+
+            for item in permissions + notes:
+                uid = item.get('user', item['_id'])
+                user = users[uid]
+                item['avatar'] = user.get('avatar')
+                item['firstname'] = user.get('firstname', '')
+                item['lastname'] = user.get('lastname', '')

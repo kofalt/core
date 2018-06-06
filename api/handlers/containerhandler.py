@@ -106,7 +106,7 @@ class ContainerHandler(base.RequestHandler):
         if not self.superuser_request and not self.is_true('join_avatars'):
             self._filter_permissions(result, self.uid)
         if self.is_true('join_avatars'):
-            self.join_user_info([result])
+            self.storage.join_avatars([result])
 
         inflate_job_info = cont_name == 'sessions'
         result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
@@ -176,31 +176,6 @@ class ContainerHandler(base.RequestHandler):
                     result['join-origin'][j_type][j_id] = join_doc
 
         return result
-
-    @staticmethod
-    def join_user_info(results):
-        """
-        Given a list of containers, adds avatar and name context to each member of the permissions and notes lists
-        """
-
-        # Get list of all users, hash by uid
-        # TODO: This is not an efficient solution if there are hundreds of inactive users
-        users_list = containerstorage.UserStorage().get_all_el({}, None, None)
-        users = {user['_id']: user for user in users_list}
-
-        for r in results:
-            permissions = r.get('permissions', [])
-            notes = r.get('notes', [])
-
-            for p in permissions+notes:
-                uid = p['user'] if 'user' in p else p['_id']
-                user = users[uid]
-                p['avatar'] = user.get('avatar')
-                p['firstname'] = user.get('firstname', '')
-                p['lastname'] = user.get('lastname', '')
-
-
-        return results
 
     def _filter_permissions(self, result, uid):
         """
@@ -317,7 +292,7 @@ class ContainerHandler(base.RequestHandler):
                 containerutil.get_stats(result, cont_name)
 
         if self.is_true('join_avatars'):
-            self.join_user_info(results)
+            self.storage.join_avatars(results)
 
         return self.format_page(page)
 
