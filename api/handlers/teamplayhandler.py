@@ -24,7 +24,7 @@ class TeamplayHandler(base.RequestHandler):
         except KeyError:
             self.abort(503, 'Teamplay DICOM Webhook not configured')
 
-        expected_hash = self.request.headers.get('ms-signature', '').replace('sha256=', '')
+        expected_hash = self.request.headers.get('Ms-Signature', '').lower().replace('sha256=', '')
         computed_hash = hmac.new(secret, msg=self.request.body, digestmod=hashlib.sha256).hexdigest()
         if computed_hash != expected_hash:
             self.abort(401, 'Invalid signature')
