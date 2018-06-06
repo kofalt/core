@@ -322,7 +322,6 @@ class Download(base.RequestHandler):
                 self.response.app_iter = self.archivestream(ticket)
             self.response.headers['Content-Type'] = 'application/octet-stream'
             self.response.headers['Content-Disposition'] = 'attachment; filename=' + ticket['filename'].encode('ascii', errors='ignore')
-            util.enable_response_buffering(self.response)
         else:
 
             req_spec = self.request.json_body

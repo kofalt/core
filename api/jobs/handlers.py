@@ -204,7 +204,7 @@ class GearHandler(base.RequestHandler):
         })
 
         stream = file_system.open(file_path, 'rb')
-        set_for_download(self.response, stream=stream, filename='gear.tar', enable_buffering=True)
+        set_for_download(self.response, stream=stream, filename='gear.tar')
 
     @require_admin
     def post(self, _id):

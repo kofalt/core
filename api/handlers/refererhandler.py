@@ -381,7 +381,6 @@ class AnalysesHandler(RefererHandler):
                         with file_system.open(file_path, 'rb') as f:
                             with zipfile.ZipFile(f) as zf:
                                 self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
-                                util.enable_response_buffering(self.response)
                                 self.response.write(zf.open(zip_member).read())
                     except zipfile.BadZipfile:
                         self.abort(400, 'not a zip file')
@@ -399,7 +398,6 @@ class AnalysesHandler(RefererHandler):
                 else:
                     self.response.app_iter = file_system.open(file_path, 'rb')
                     self.response.headers['Content-Length'] = str(fileinfo['size']) # must be set after setting app_iter
-                    util.enable_response_buffering(self.response)
                     if self.is_true('view'):
                         self.response.headers['Content-Type'] = str(fileinfo.get('mimetype', 'application/octet-stream'))
                     else:
