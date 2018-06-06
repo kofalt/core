@@ -10,24 +10,29 @@ import fs.copy
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('path', help='path of the beackup folder')
+parser.add_argument('src', help='path of the source folder in the local file system')
+parser.add_argument('dest', help='path of the destination folder in the object storage')
 parser.add_argument('--mode','-m' , choices=['normal', 'no-delete'], default='normal', help='Sync mode; "normal": If a file is missing on the local side, it will be deleted in the cloud too. "no-delete": Files are never deleted from the cloud')
 args = parser.parse_args()
 
+print(args)
+
 SCITRAN_PERSISTENT_FS_URL = os.environ['SCITRAN_PERSISTENT_FS_URL']
 if not SCITRAN_PERSISTENT_FS_URL:
-    print ("Remote backup storage is not configured")
+    print ("Object storage is not configured")
+    print ("Set SCITRAN_PERSISTENT_FS_URL environment variable!")
     sys.exit()
 
 chunks = re.split('://|\?', SCITRAN_PERSISTENT_FS_URL)
 
 if chunks[0] == 'osfs':
-    print ("Remote backup storage is not configured")
+    print ("Object storage is not configured")
     sys.exit()
 
-cloud_fs_url = chunks[0] + "://" + chunks[1] + "/db_backup" + ("?" + chunks[2] if len(chunks)>=3 else '')
-local_fs_path = sys.argv[1]
-print ("Synchronize:" + local_fs_path + " --> " + cloud_fs_url)
+cloud_fs_url = chunks[0] + "://" + chunks[1] + args.dest + ("?" + chunks[2] if len(chunks)>=3 else '')
+local_fs_path = args.src
+print ("Synchronize:" + local_fs_path + " --> " + chunks[0] + "://" + chunks[1] + args.dest)
+print (chunks[2] if len(chunks)>=3 else 'No key')
 
 cloud_fs = open_fs(cloud_fs_url)
 local_fs = open_fs(local_fs_path)
