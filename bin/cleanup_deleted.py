@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 
+from bson.objectid import ObjectId
 import pymongo
 
 from fs import open_fs
@@ -43,28 +44,83 @@ def main(*argv):
     log.info('Using data path: %s', data_path)
     log.info('Using filesystem: %s', fs_url)
 
-    cleanup_files(args.include_user_uploads)
+    origins = []
+
+    if args.job:
+        origins.append('job')
+    if args.reaper:
+        origins.append('device')
+
+    if not (args.all or origins):
+        log.error('You have to specify at least one argument (--job, --reaper, --all)')
+        exit(1)
+
+    cleanup_files(args.all, origins)
 
 
-def cleanup_files(remove_all=False):
-    log.info('Cleanup deleted container (projects, acquisitions, sessions, subject, collections) files...')
+def cleanup_files(remove_all, origins):
+    log.info('Cleanup deleted container (projects, acquisitions, sessions, collections, analyses) files...')
 
     d = datetime.datetime.now() - datetime.timedelta(hours=72)
 
     for container in cont_names:
-        cursor = db.get_collection(container).find({'files.deleted': {'$lte': d}},
-                                                   {'files': {'$elemMatch': {'deleted': {'$lte': d}}}})
+        log.info("Cleaning up %s" % container)
 
-        if not cursor.count():
-            log.info('Nothing to remove from %s', container)
+        cursor = db.get_collection(container).aggregate([
+            {
+                "$match": {
+                    "$or": [
+                        {"files.deleted": {"$lte": d}},
+                        {"deleted": {"$lte": d}}
+                    ]
+                }
+            },
+            {
+                "$project": {
+                    "files": {
+                        "$ifNull": [
+                            {
+                                "$filter": {
+                                    "input": "$files",
+                                    "as": "item",
+                                    "cond": {
+                                        "$or": [
+                                            {
+                                                "$and": [
+                                                    # $lte return true if the deleted field not exists
+                                                    {"$lte": ["$$item.deleted", d]},
+                                                    {"$ifNull": ["$$item.deleted", False]}
+                                                ]
+                                            },
+                                            {
+                                                "$and": [
+                                                    # $lte return true if the deleted field not exists
+                                                    {"$lte": ["$deleted", d]},
+                                                    {"$ifNull": ["$deleted", False]}
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            []
+                        ]
+                    },
+                    "deleted": 1
+                }
+            }
+        ])
 
         for document in cursor:
-            for i, f in enumerate(document['files']):
-                if not remove_all and f['origin']['type'] == 'user':
-                    log.debug('  skipping %s/%s/%s since it was uploaded by a user',
-                              container, document['_id'], f['name'])
+            for i, f in enumerate(document.get('files', [])):
+                if not remove_all and f['origin']['type'] not in origins:
+                    log.debug('  skipping %s/%s/%s since it was uploaded by %s',
+                              container, document['_id'], f['name'], f['origin']['type'])
                     continue
 
+                log.debug('  file marked to delete: %s, parent marked to delete: %s',
+                          f.get('deleted', False),
+                          document.get('deleted', False))
                 log.debug('  removing %s/%s/%s', container, document['_id'], f['name'])
 
                 if f.get('_id'):
@@ -75,15 +131,17 @@ def cleanup_files(remove_all=False):
 
                     log.debug('    removing from database')
                     updated_doc = db.get_collection(container).update({'_id': document['_id']},
-                                                                      {'$pull': {'files': f}})
-                    if not updated_doc:
+                                                                      {'$pull': {'files': {'_id': f['_id']}}})
+                    if not updated_doc['nModified']:
                         log.error('    couldn\'t remove file from database')
                         exit(1)
 
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--include-user-uploads', action='store_true', help='Cleanup everything including files uploaded by a user')
+    parser.add_argument('--all', action='store_true', help='Cleanup everything including files uploaded by a user')
+    parser.add_argument('--job', action='store_true', help='Cleanup files with job origin')
+    parser.add_argument('--reaper', action='store_true', help='Cleanup files with reaper origin')
     parser.add_argument('--log-level', default='info', metavar='LEVEL', help='log level [info]')
 
     return parser.parse_args(argv)
