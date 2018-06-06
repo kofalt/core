@@ -238,6 +238,7 @@ def get_public_config():
     auth = copy.deepcopy(__config.get('auth'))
     for values in auth.itervalues():
         values.pop('client_secret', None)
+        values.pop('webhook_secret', None)
     return {
         'created': __config.get('created'),
         'modified': __config.get('modified'),
