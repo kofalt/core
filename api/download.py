@@ -7,6 +7,8 @@ import cStringIO
 
 import fs.path
 import fs.errors
+from fs.iotools import RawWrapper
+import requests
 
 from .web import base
 from .web.request import AccessType
@@ -283,18 +285,25 @@ class Download(base.RequestHandler):
         with tarfile.open(mode='w|', fileobj=stream) as archive:
             for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
                 file_system = files.get_fs_by_file_path(filepath)
-                with file_system.openbin(filepath, 'rb') as fd:
-                    if hasattr(fd, 'gettarinfo'):
-                        yield fd.gettarinfo(arcname=arcpath).tobuf()
+                with file_system.open(filepath, 'rb') as fd:
+                    if isinstance(fd, RawWrapper) and hasattr(fd._f, 'gettarinfo'):  # pylint: disable=protected-access
+                        yield fd._f.gettarinfo(arcname=arcpath).tobuf()  # pylint: disable=protected-access
+
+                        signed_url = files.get_signed_url(filepath, file_system)
+
+                        response = requests.get(signed_url, stream=True)
+                        for chunk in response.iter_content(chunk_size=CHUNKSIZE):
+                            yield chunk
                     else:
                         yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
-                    chunk = ''
-                    for chunk in iter(lambda: fd.read(CHUNKSIZE), ''): # pylint: disable=cell-var-from-loop
-                        yield chunk
-                    if len(chunk) % BLOCKSIZE != 0:
-                        yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+                        chunk = ''
+                        for chunk in iter(lambda: fd.read(CHUNKSIZE), ''):  # pylint: disable=cell-var-from-loop
+                            yield chunk
+                        if len(chunk) % BLOCKSIZE != 0:
+                            yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
-        yield stream.getvalue() # get tar stream trailer
+        yield stream.getvalue()  # get tar stream trailer
         stream.close()
 
     def symlinkarchivestream(self, ticket):
