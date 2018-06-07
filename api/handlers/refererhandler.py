@@ -405,6 +405,9 @@ class AnalysesHandler(RefererHandler):
 
                 # Request to download the file itself
                 else:
+                    # START of duplicated code
+                    # IMPORTANT: If you modify the below code reflect the code changes in
+                    # listhandler.py:FileListHandler's download method
                     signed_url = files.get_signed_url(file_path, file_system,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
@@ -481,6 +484,7 @@ class AnalysesHandler(RefererHandler):
                                         self.response.write('\n')
                                     else:
                                         self.response.write(data)
+            # END of duplicated code
 
             # log download if we haven't already for this ticket
             if ticket:
