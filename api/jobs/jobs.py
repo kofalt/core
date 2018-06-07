@@ -227,12 +227,12 @@ class Job(object):
 
         return d
 
-    def insert(self):
+    def insert(self, ignore_insertion_block=False):
         """
-        Warning: this will not stop you from inserting a job for a gear that has gear.custom.flywheel.invald set to true.
+        Warning: this will not stop you from inserting a job for a gear that has gear.custom.flywheel.invalid set to true.
         """
 
-        if self.id_ is not None:
+        if self.id_ is not None and not ignore_insertion_block:
             raise Exception('Cannot insert job that has already been inserted')
 
         result = config.db.jobs.insert_one(self.mongo())

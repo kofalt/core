@@ -100,6 +100,9 @@ class Queue(object):
         if job.state != 'failed':
             raise Exception('Can only retry a job that is failed')
 
+        if job.request is None:
+            raise Exception('Cannot retry a job without a request')
+
         # Race condition: jobs should only be marked as failed once a new job has been spawned for it (if any).
         # No transactions in our database, so we can't do that.
         # Instead, make a best-hope attempt.
@@ -123,7 +126,7 @@ class Queue(object):
         for i in new_job.request['inputs']:
             i['uri'] = i['uri'].replace(str(job.id_), str(new_job.id_))
 
-        new_id = new_job.insert()
+        new_id = new_job.insert(ignore_insertion_block=True)
         log.info('respawned job %s as %s (attempt %d)', job.id_, new_id, new_job.attempt)
 
         # If job is part of batch job run, update batch jobs list

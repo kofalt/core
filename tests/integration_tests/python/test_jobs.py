@@ -156,12 +156,13 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     # get next job with peek
     r = as_root.get('/jobs/next', params={'tags': 'test-tag', 'peek': True})
     assert r.ok
-    next_job_id = r.json()['id']
+    next_job_id_peek = r.json()['id']
 
     # get next job
     r = as_root.get('/jobs/next', params={'tags': 'test-tag'})
     assert r.ok
     next_job_id = r.json()['id']
+    assert next_job_id == next_job_id_peek
 
     # set next job to failed
     r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed'})
@@ -754,8 +755,6 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     assert type(config['config']) is dict
     api_key = config['inputs']['api_key']['key']
 
-    print api_key
-
     # ensure api_key works
     as_job_key = as_public
     as_job_key.headers.update({'Authorization': 'scitran-user ' + api_key})
@@ -779,6 +778,7 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     assert r.ok
     retried_job = r.json()
     retried_job_id = retried_job['id']
+    assert retried_job['previous_job_id'] is not None
 
     # Ensure the attempt is bumped and the config uri is for the new job
     assert retried_job['attempt'] == 2
