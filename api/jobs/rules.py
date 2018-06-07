@@ -302,7 +302,7 @@ def copy_site_rules_for_project(project_id):
 
 def validate_regexes(rule):
     invalid_patterns = set()
-    for match in rule.get('all', []) + rule.get('any', []):
+    for match in rule.get('all', []) + rule.get('any', []) + rule.get('not', []):
         if match.get('regex'):
             pattern = match['value']
             try:
