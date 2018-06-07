@@ -62,7 +62,6 @@ class GearsHandler(base.RequestHandler):
         check_for_gear_insertion(self.request.json)
         return None
 
-
 class GearHandler(base.RequestHandler):
     """Provide /gears/x API routes."""
 

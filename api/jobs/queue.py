@@ -68,6 +68,16 @@ class Queue(object):
         if 'state' in mutation and not valid_transition(job.state, mutation['state']):
             raise Exception('Mutating job from ' + job.state + ' to ' + mutation['state'] + ' not allowed.')
 
+
+        # Special case: when starting a job, actually start it. Should not be called this way.
+        if 'state' in mutation and mutation['state'] == 'running':
+
+            # !!!
+            # !!! DUPE WITH Queue.start_job
+            # !!!
+
+            mutation['request'] = job.generate_request(get_gear(job.gear_id))
+
         # Any modification must be a timestamp update
         mutation['modified'] = datetime.datetime.utcnow()
 
@@ -337,6 +347,9 @@ class Queue(object):
             return job
 
         # Create a new request formula
+        # !!!
+        # !!! DUPE WITH Queue.mutate
+        # !!!
         request = job.generate_request(get_gear(job.gear_id))
 
         if peek:
