@@ -446,6 +446,9 @@ class FileListHandler(ListHandler):
 
         # Authenticated or ticketed download request
         else:
+            # START of duplicated code
+            # IMPORTANT: If you modify the below code reflect the code changes in
+            # refererhandler.py:AnalysesHandler's download method
             signed_url = files.get_signed_url(file_path, file_system,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
@@ -475,7 +478,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Type'] = str(fileinfo.get('mimetype', 'application/octet-stream'))
                     else:
                         self.response.headers['Content-Type'] = 'application/octet-stream'
-                        self.response.headers['Content-Disposition'] = 'attachment; filename="' + filename + '"'
+                        self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
                 else:
                     self.response.status = 206
                     if len(ranges) > 1:
@@ -513,6 +516,7 @@ class FileListHandler(ListHandler):
                                 self.response.write('\n')
                             else:
                                 self.response.write(data)
+            # END of duplicated code
 
             # log download if we haven't already for this ticket
             if ticket:
