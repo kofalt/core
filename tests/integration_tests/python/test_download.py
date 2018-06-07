@@ -3,6 +3,10 @@ import os
 import tarfile
 import zipfile
 
+from bson.objectid import ObjectId
+
+from api import config, util
+
 
 def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     project = data_builder.create_project(label='project1')
@@ -114,7 +118,6 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
 
     tar.close()
 
-
     # Try to perform the download from a different IP
     update_result = api_db.downloads.update_one(
         {'_id': ticket},
@@ -180,6 +183,36 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     # Verify a single file in tar with correct file name
     for tarinfo in tar:
         assert os.path.basename(tarinfo.name) == file_name_legacy
+
+    tar.close()
+
+    # test missing file hangling
+
+    file_id = api_db.acquisitions.find_one({'_id': ObjectId(acquisition)})['files'][0]['_id']
+    config.fs.remove(util.path_from_uuid(file_id))
+
+    r = as_admin.post('/download', json={
+        'optional': False,
+        'nodes': [
+            {'level': 'acquisition', '_id': acquisition},
+            {'level': 'acquisition', '_id': acquisition3},
+        ]
+    })
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # Perform the download
+    r = as_admin.get('/download', params={'ticket': ticket})
+    assert r.ok
+
+    tar_file = cStringIO.StringIO(r.content)
+    tar = tarfile.open(mode="r", fileobj=tar_file)
+
+    # Verify a single file in tar with correct file name
+    tarinfo_list = list(tar)
+    # it contains two files
+    assert len(tarinfo_list) == 2
+    assert len([tarinfo for tarinfo in tarinfo_list if tarinfo.name.endswith('.MISSING')]) == 1
 
     tar.close()
 

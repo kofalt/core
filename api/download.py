@@ -288,29 +288,41 @@ class Download(base.RequestHandler):
             for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
                 try:
                     file_system = files.get_fs_by_file_path(filepath)
-                except fs.errors.ResourceNotFound:
-                    tarinfo = TarInfo()
-                    tarinfo.name = arcpath + '.MISSING'
-                    yield tarinfo.tobuf()
-                else:
                     with file_system.open(filepath, 'rb') as fd:
-                        if isinstance(fd, RawWrapper) and hasattr(fd._f, 'gettarinfo'):  # pylint: disable=protected-access
+                        signed_url = None
+                        if isinstance(fd, RawWrapper) and hasattr(fd._f,  # pylint: disable=protected-access
+                                                                  'gettarinfo'):
                             tarinfo = fd._f.gettarinfo(arcname=arcpath).tobuf()  # pylint: disable=protected-access
                             yield tarinfo
                             signed_url = files.get_signed_url(filepath, file_system)
-
-                            response = requests.get(signed_url, stream=True)
-                            for chunk in response.iter_content(chunk_size=CHUNKSIZE):
-                                yield chunk
-                                if len(chunk) % BLOCKSIZE != 0:
-                                    yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
                         else:
                             yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
+
+                        try:
+                            if signed_url:
+                                response = requests.get(signed_url, stream=True)
+                                f_iter = response.iter_content(chunk_size=CHUNKSIZE)
+                            else:
+                                f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
+
                             chunk = ''
-                            for chunk in iter(lambda: fd.read(CHUNKSIZE), ''):  # pylint: disable=cell-var-from-loop
+                            for chunk in f_iter:
                                 yield chunk
                             if len(chunk) % BLOCKSIZE != 0:
                                 yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+
+                        except (IOError, fs.errors.OperationFailed):
+                            msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                                   "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
+                            log.critical(msg)
+                            self.abort(500, msg)
+
+                except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
+                    log.critical("Couldn't find the file during creating archive stream: %s, "
+                                 "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
+                    tarinfo = TarInfo()
+                    tarinfo.name = arcpath + '.MISSING'
+                    yield tarinfo.tobuf()
 
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
         yield stream.getvalue()  # get tar stream trailer
