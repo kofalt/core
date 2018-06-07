@@ -11,10 +11,10 @@ from .. import config
 from .jobs import Job, Logs, JobTicket
 from .gears import get_gear, validate_gear_config, fill_gear_default_values
 from ..dao.containerutil import (
-    create_filereference_from_dictionary, create_containerreference_from_dictionary, 
+    create_filereference_from_dictionary, create_containerreference_from_dictionary,
     create_containerreference_from_filereference, FileReference
 )
-from .job_util import resolve_context_inputs 
+from .job_util import resolve_context_inputs
 from ..web.errors import InputValidationException
 
 
@@ -109,7 +109,7 @@ class Queue(object):
             raise Exception('Job ' + job.id_ + ' has already been retried as ' + str(found.id_))
 
         new_job = copy.deepcopy(job)
-        new_job.id_ = None
+        new_job.id_ = bson.ObjectId()
         new_job.previous_job_id = job.id_
 
         new_job.state = 'pending'
@@ -118,6 +118,10 @@ class Queue(object):
         now = datetime.datetime.utcnow()
         new_job.created = now
         new_job.modified = now
+
+        # update input uris that reference the old job id
+        for i in new_job.request['inputs']:
+            i['uri'] = i['uri'].replace(str(job.id_), str(new_job.id_))
 
         new_id = new_job.insert()
         log.info('respawned job %s as %s (attempt %d)', job.id_, new_id, new_job.attempt)
@@ -173,7 +177,7 @@ class Queue(object):
                 raise InputValidationException('Job input {} is not listed in gear manifest'.format(x))
 
             input_map = job_map['inputs'][x]
-            
+
             if gear['gear']['inputs'][x]['base'] == 'file':
                 try:
                     inputs[x] = create_filereference_from_dictionary(input_map)
@@ -198,7 +202,7 @@ class Queue(object):
                 if isinstance(inputs[key], FileReference):
                     destination = create_containerreference_from_filereference(inputs[key])
                     break
-            
+
             if not destination:
                 raise InputValidationException('Must specify destination if gear has no inputs.')
 

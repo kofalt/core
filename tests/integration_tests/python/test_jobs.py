@@ -702,8 +702,8 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     assert r.status_code == 200
     job_id = r.json()['_id']
 
-    # start job
-    r = as_root.put('/jobs/' + job_id, json={'state': 'running'})
+    # get next job as admin
+    r = as_root.get('/jobs/next')
     assert r.ok
 
     # get config
@@ -740,8 +740,8 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     assert r.status_code == 200
     job_id = r.json()['_id']
 
-    # start job
-    r = as_root.put('/jobs/' + job_id, json={'state': 'running'})
+    # get next job as admin
+    r = as_root.get('/jobs/next')
     assert r.ok
 
     # get config
@@ -774,18 +774,20 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     # Make sure there is only one job that is pending
     assert api_db.jobs.count({'state': 'pending'}) == 1
 
-    # # set next job to failed
-    # r = as_root.put('/jobs/' + job_id, json={'state': 'failed'})
-    # assert r.ok
-
-    # # retry failed job
-    # r = as_root.post('/jobs/' + job_id + '/retry')
-    # assert r.ok
-
     # get next job as admin
     r = as_root.get('/jobs/next')
     assert r.ok
-    retried_job_id = r.json()['id']
+    retried_job = r.json()
+    retried_job_id = retried_job['id']
+
+    # Ensure the attempt is bumped and the config uri is for the new job
+    assert retried_job['attempt'] == 2
+    found_config_uri = False
+    for i in retried_job['request']['inputs']:
+        if i['uri'] == '/jobs/' + retried_job_id + '/config.json':
+            found_config_uri = True
+            break
+    assert found_config_uri
 
     # get config
     r = as_root.get('/jobs/'+ retried_job_id +'/config.json')
