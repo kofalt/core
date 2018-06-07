@@ -200,6 +200,18 @@ def get_valid_file(file_info):
     :param file_info: dict, contains the _id and the hash of the file
     :return: (<file's path>, <filesystem>)
     """
+
+    file_path = get_file_path(file_info)
+    return file_path, get_fs_by_file_path(file_path)
+
+
+def get_file_path(file_info):
+    """
+    Get the file path. If the file has id then returns path_from_uuid otherwise path_from_hash.
+
+    :param file_info: dict, contains the _id and the hash of the file
+    :return: <file's path>
+    """
     file_id = file_info.get('_id', '')
     file_hash = file_info.get('hash', '')
     file_uuid_path = None
@@ -212,7 +224,7 @@ def get_valid_file(file_info):
         file_uuid_path = util.path_from_uuid(file_id)
 
     file_path = file_uuid_path or file_hash_path
-    return file_path, get_fs_by_file_path(file_path)
+    return file_path
 
 
 def get_signed_url(file_path, file_system, **kwargs):

@@ -5,6 +5,8 @@ import tarfile
 import datetime
 import cStringIO
 
+from tarfile import TarInfo
+
 import fs.path
 import fs.errors
 from fs.iotools import RawWrapper
@@ -52,7 +54,7 @@ class Download(base.RequestHandler):
                 if filtered:
                     continue
 
-            file_path, _ = files.get_valid_file(f)
+            file_path = files.get_file_path(f)
             if file_path:  # silently skip missing files
                 if cont_name == 'analyses':
                     targets.append((file_path, '{}/{}/{}'.format(prefix, file_group, f['name']), cont_name, str(container.get('_id')), f['size']))
@@ -100,7 +102,7 @@ class Download(base.RequestHandler):
                 log.warn("Expected file {} on Container {} {} to exist but it is missing. File will be skipped in download.".format(filename, cont_name, cont_id))
                 continue
 
-            file_path, _ = files.get_valid_file(file_obj)
+            file_path = files.get_file_path(file_obj)
             if file_path:  # silently skip missing files
                 targets.append((file_path, cont_name+'/'+cont_id+'/'+file_obj['name'], cont_name, cont_id, file_obj['size']))
                 total_size += file_obj['size']
@@ -284,23 +286,43 @@ class Download(base.RequestHandler):
         stream = cStringIO.StringIO()
         with tarfile.open(mode='w|', fileobj=stream) as archive:
             for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
-                file_system = files.get_fs_by_file_path(filepath)
-                with file_system.open(filepath, 'rb') as fd:
-                    if isinstance(fd, RawWrapper) and hasattr(fd._f, 'gettarinfo'):  # pylint: disable=protected-access
-                        yield fd._f.gettarinfo(arcname=arcpath).tobuf()  # pylint: disable=protected-access
+                try:
+                    file_system = files.get_fs_by_file_path(filepath)
+                    with file_system.open(filepath, 'rb') as fd:
+                        signed_url = None
+                        if isinstance(fd, RawWrapper) and hasattr(fd._f,  # pylint: disable=protected-access
+                                                                  'gettarinfo'):
+                            tarinfo = fd._f.gettarinfo(arcname=arcpath).tobuf()  # pylint: disable=protected-access
+                            yield tarinfo
+                            signed_url = files.get_signed_url(filepath, file_system)
+                        else:
+                            yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
 
-                        signed_url = files.get_signed_url(filepath, file_system)
+                        try:
+                            if signed_url:
+                                response = requests.get(signed_url, stream=True)
+                                f_iter = response.iter_content(chunk_size=CHUNKSIZE)
+                            else:
+                                f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
 
-                        response = requests.get(signed_url, stream=True)
-                        for chunk in response.iter_content(chunk_size=CHUNKSIZE):
-                            yield chunk
-                    else:
-                        yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
-                        chunk = ''
-                        for chunk in iter(lambda: fd.read(CHUNKSIZE), ''):  # pylint: disable=cell-var-from-loop
-                            yield chunk
-                        if len(chunk) % BLOCKSIZE != 0:
-                            yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+                            chunk = ''
+                            for chunk in f_iter:
+                                yield chunk
+                            if len(chunk) % BLOCKSIZE != 0:
+                                yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+
+                        except (IOError, fs.errors.OperationFailed):
+                            msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                                   "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
+                            log.critical(msg)
+                            self.abort(500, msg)
+
+                except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
+                    log.critical("Couldn't find the file during creating archive stream: %s, "
+                                 "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
+                    tarinfo = TarInfo()
+                    tarinfo.name = arcpath + '.MISSING'
+                    yield tarinfo.tobuf()
 
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
         yield stream.getvalue()  # get tar stream trailer
