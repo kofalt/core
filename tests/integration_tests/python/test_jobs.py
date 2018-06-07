@@ -372,6 +372,7 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
         'alg': gear2_name,
         'name': 'text-trigger',
         'any': [],
+        'not': [],
         'all': [{'type': 'file.type', 'value': 'text'}]
     })
     assert r.ok

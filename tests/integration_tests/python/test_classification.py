@@ -366,6 +366,7 @@ def test_classification_change_triggers_job(randstr, data_builder, as_admin, api
         'alg': gear_name,
         'name': 'classification-job-trigger-rule',
         'any': [],
+        'not': [],
         'all': [
             {'type': 'file.classification', 'value': 'Localizer'},
         ]
