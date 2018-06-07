@@ -744,13 +744,43 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     r = as_root.put('/jobs/' + job_id, json={'state': 'running'})
     assert r.ok
 
-    # set next job to failed
-    r = as_root.put('/jobs/' + job_id, json={'state': 'failed'})
+    # get config
+    r = as_root.get('/jobs/'+ job_id +'/config.json')
+    assert r.ok
+    config = r.json()
+
+    assert type(config['inputs']['dicom']) is dict
+    assert config['destination']['id'] == acquisition
+    assert type(config['config']) is dict
+    api_key = config['inputs']['api_key']['key']
+
+    print api_key
+
+    # ensure api_key works
+    as_job_key = as_public
+    as_job_key.headers.update({'Authorization': 'scitran-user ' + api_key})
+    r = as_job_key.get('/users/self')
     assert r.ok
 
-    # retry failed job
-    r = as_root.post('/jobs/' + job_id + '/retry')
-    assert r.ok
+    # Make sure there are no jobs that are pending
+    assert api_db.jobs.count({'state': 'pending'}) == 0
+
+    # set job as one that should be orphaned
+    api_db.jobs.update_one({'_id': bson.ObjectId(job_id)}, {'$set': {'modified': datetime.datetime(1980, 1, 1)}})
+
+    # reap orphans
+    r = as_root.post('/jobs/reap')
+
+    # Make sure there is only one job that is pending
+    assert api_db.jobs.count({'state': 'pending'}) == 1
+
+    # # set next job to failed
+    # r = as_root.put('/jobs/' + job_id, json={'state': 'failed'})
+    # assert r.ok
+
+    # # retry failed job
+    # r = as_root.post('/jobs/' + job_id + '/retry')
+    # assert r.ok
 
     # get next job as admin
     r = as_root.get('/jobs/next')
@@ -766,6 +796,8 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     assert config['destination']['id'] == acquisition
     assert type(config['config']) is dict
     api_key = config['inputs']['api_key']['key']
+
+    print api_key
 
     # ensure api_key works
     as_job_key = as_public
