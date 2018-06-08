@@ -217,7 +217,7 @@ class Job(object):
     def mongo(self):
         d = self.map()
         if d.get('id'):
-            d['id'] = bson.ObjectId(d['id'])
+            d['_id'] = bson.ObjectId(d.pop('id'))
         if d.get('inputs'):
             input_array = []
             for k, inp in d['inputs'].iteritems():
@@ -242,7 +242,7 @@ class Job(object):
     def save(self):
         self.modified = datetime.datetime.utcnow()
         update = self.mongo()
-        job_id = update.pop('id')
+        job_id = update.pop('_id')
         result = config.db.jobs.replace_one({'_id': job_id}, update)
         if result.modified_count != 1:
             raise Exception('Job modification not saved')

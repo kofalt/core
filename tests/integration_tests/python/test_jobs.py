@@ -799,8 +799,6 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     assert type(config['config']) is dict
     api_key = config['inputs']['api_key']['key']
 
-    print api_key
-
     # ensure api_key works
     as_job_key = as_public
     as_job_key.headers.update({'Authorization': 'scitran-user ' + api_key})
