@@ -16,6 +16,7 @@ from ..auth import require_drone, require_login, require_admin, has_access
 from ..auth.apikeys import JobApiKey
 from ..dao import hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
+from ..types import Origin
 from ..util import humanize_validation_error, set_for_download
 from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
@@ -467,6 +468,10 @@ class JobHandler(base.RequestHandler):
         j = Job.get(_id)
         mutation = self.request.json
 
+        if 'state' in mutation and mutation['state'] == 'running':
+            if self.origin.get('type', '') != Origin.device:
+                raise APIPermissionException('Only a drone can start a job with this endpoint')
+
         # If user is not superuser, can only cancel jobs they spawned
         if not self.superuser_request and not self.user_is_admin:
             if j.origin.get('id') != self.uid:
@@ -596,7 +601,6 @@ class JobHandler(base.RequestHandler):
         create_jobs(config.db, container_before, container, cont_name)
 
         self.log_user_access(AccessType.accept_failed_output, cont_name=j.destination.type, cont_id=j.destination.id, multifile=True)
-
 
 class BatchHandler(base.RequestHandler):
 

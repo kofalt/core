@@ -328,10 +328,15 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_ad
     assert isinstance(r.json()['analyses'][1]['job'], dict)
 
     # fail and retry analysis job to test auto-updating on analysis
-    analysis_job = r.json()['analyses'][1]['job']['id']
-    as_drone.put('/jobs/' + analysis_job, json={'state': 'running'})
-    as_drone.put('/jobs/' + analysis_job, json={'state': 'failed'})
-    as_drone.post('/jobs/' + analysis_job + '/retry')
+    analysis_job = r.json()['analyses'][1]['job']
+    analysis_job_id = analysis_job['id']
+
+    r = as_drone.put('/jobs/' + analysis_job_id, json={'state': 'running'})
+    assert r.ok
+    r = as_drone.put('/jobs/' + analysis_job_id, json={'state': 'failed'})
+    assert r.ok
+    r = as_drone.post('/jobs/' + analysis_job_id + '/retry')
+    assert r.ok
 
     # get session and check analyis job was updated
     r = as_admin.get('/sessions/' + session)
