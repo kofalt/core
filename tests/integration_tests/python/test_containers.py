@@ -795,6 +795,26 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     assert r.ok
     assert r.json()['info'] == {}
 
+    # NOTE: We should either fail on the first request or succeed on the second request
+    # Right now the second request results in 500 error
+
+    # Use replace to add empty fields
+    r = as_admin.post('/projects/' + project + '/info', json={
+        'replace': {
+            '': 'no-key'    
+        }
+    })
+    assert r.ok
+
+    # Try to set an empty field
+    r = as_admin.post('/projects/' + project + '/info', json={
+        'set': {
+            '': 'new-value'    
+        }
+    })
+    assert r.ok
+
+
 
 def test_edit_file_info(data_builder, as_admin, file_form):
     project = data_builder.create_project()
