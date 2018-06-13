@@ -18,6 +18,8 @@ import fs.path
 import fs.errors
 import pymongo
 
+from .web.errors import InputValidationException
+
 
 BYTE_RANGE_RE = re.compile(r'^(?P<first>\d+)-(?P<last>\d+)?$')
 SUFFIX_BYTE_RANGE_RE = re.compile(r'^(?P<first>-\d+)$')
@@ -97,6 +99,8 @@ def mongo_sanitize_fields(d):
         # not allowing dots nor dollar signs in fieldnames
         d = d.replace('.', '_')
         d = d.replace('$', '-')
+        if d is '':
+            raise InputValidationException("'' not allowed as Mongo key name")
         return d
     else:
         return d

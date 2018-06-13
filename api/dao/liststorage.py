@@ -223,11 +223,11 @@ class FileStorage(ListStorage):
             if set_payload:
                 update['$set'] = {}
                 for k,v in set_payload.items():
-                    update['$set'][self.list_name + '.$.info.' + k] = util.mongo_sanitize_fields(v)
+                    update['$set'][self.list_name + '.$.info.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
             if delete_payload:
                 update['$unset'] = {}
                 for k in delete_payload:
-                    update['$unset'][self.list_name + '.$.info.' + k] = ''
+                    update['$unset'][self.list_name + '.$.info.' + util.mongo_sanitize_fields(str(k))] = ''
 
         if self.use_object_id:
             _id = bson.objectid.ObjectId(_id)
