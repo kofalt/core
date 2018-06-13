@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 50 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 51 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1721,6 +1721,11 @@ def upgrade_to_50():
         cursor = config.db[cont_name].find({'files.classification.Custom': {'$exists': True, '$ne': []}})
         process_cursor(cursor, upgrade_files_to_50, context=cont_name)
 
+def upgrade_to_51():
+    """
+    Get rid of permissions on analyses
+    """
+    config.db.analyses.update_many({}, {"$unset": {"permissions": ""}})
 ###
 ### BEGIN RESERVED UPGRADE SECTION
 ###

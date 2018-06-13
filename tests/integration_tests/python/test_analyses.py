@@ -150,12 +150,10 @@ def test_analysis_join_avatars(as_admin, data_builder):
     r = as_admin.get('/analyses/' + analysis + '?join_avatars=true')
     assert r.ok
     assert 'avatar' in r.json()['notes'][0]
-    assert 'avatar' in r.json()['permissions'][0]
 
     r = as_admin.get('/sessions/' + session + '/analyses?join_avatars=true')
     assert r.ok
     assert 'avatar' in r.json()[0]['notes'][0]
-    assert 'avatar' in r.json()[0]['permissions'][0]
 
 
 def check_files(as_admin, analysis_id, filegroup, *filenames):
