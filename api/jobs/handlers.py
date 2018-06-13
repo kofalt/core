@@ -557,10 +557,13 @@ class JobHandler(base.RequestHandler):
         j = Job.get(_id)
 
         # Permission check
-        if not self.superuser_request and j.inputs is not None:
-            for x in j.inputs:
-                if hasattr(j.inputs[x], 'check_access'):
-                    j.inputs[x].check_access(self.uid, 'ro')
+        if not self.superuser_request:
+
+            if j.inputs is not None:
+                for x in j.inputs:
+                    if hasattr(j.inputs[x], 'check_access'):
+                        j.inputs[x].check_access(self.uid, 'ro')
+
             j.destination.check_access(self.uid, 'rw')
 
         new_id = Queue.retry(j, force=True)
