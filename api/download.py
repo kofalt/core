@@ -1,5 +1,6 @@
 import os
 import bson
+import copy
 import pytz
 import tarfile
 import datetime
@@ -219,8 +220,15 @@ class Download(base.RequestHandler):
                 total_size, file_cnt = self._append_targets(targets, 'acquisitions', acq, prefix, total_size, file_cnt, req_spec.get('filters'))
 
             elif item['level'] == 'analysis':
-                analysis = config.db.analyses.find_one(base_query, ['parent', 'label', 'inputs', 'files', 'uid', 'timestamp'])
-                if not analysis:
+                analysis_query = copy.deepcopy(base_query)
+                perm_query = analysis_query.pop('permissions._id')
+                analysis = config.db.analyses.find_one(analysis_query, ['parent', 'label', 'inputs', 'files', 'uid', 'timestamp'])
+                analysis_query["permissions._id"] = perm_query
+                if analysis:
+                    parent = config.db[pluralize(analysis.get('parent', {}).get('type'))].find_one({'deleted': {'$exists': False},
+                                                                                         "_id": analysis.get('parent', {}).get('id'),
+                                                                                         "permissions._id": perm_query})
+                if not analysis or not parent:
                     # silently(while logging it) skip missing objects/objects user does not have access to
                     log.warn("Expected anaylysis {} to exist but it is missing. Node will be skipped".format(item_id))
                     continue
