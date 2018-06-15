@@ -505,14 +505,40 @@ class FileListHandler(ListHandler):
                             raise util.RangeHeaderParseError('Invalid range')
 
                 except util.RangeHeaderParseError:
-                    self.response.app_iter = file_system.open(file_path, 'rb')
-                    self.response.headers['Content-Length'] = str(fileinfo['size'])  # must be set after setting app_iter
+                    is_view = self.is_true('view')
+                    request_id = self.request.id
+                    CHUNKSIZE = 2**20 
 
-                    if self.is_true('view'):
-                        self.response.headers['Content-Type'] = str(fileinfo.get('mimetype', 'application/octet-stream'))
-                    else:
-                        self.response.headers['Content-Type'] = 'application/octet-stream'
-                        self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
+                    def send_file(environ, start_response):
+                        from gevent.fileobject import FileObjectThread
+
+                        print('send_file {} begin'.format(request_id))
+                        headers = [
+                            ('Content-Length', str(fileinfo['size']))
+                        ]
+
+                        if is_view:
+                            headers.append(('Content-Type', str(fileinfo.get('mimetype', 'application/octet-stream'))))
+                        else:
+                            headers.append(('Content-Type', 'application/octet-stream'))
+                            headers.append(('Content-Disposition', 'attachment; filename="' + str(filename) + '"'))
+
+                        write = start_response('200 OK', headers)
+
+                        with file_system.open(file_path, 'rb') as f:
+                            fwrap = FileObjectThread(f, lock=False, close=False)
+                            while True:
+                                chunk = fwrap.read(CHUNKSIZE)
+                                if not chunk:
+                                    break
+
+                                write(chunk)
+
+                        print('send_file {} complete'.format(request_id))
+                        return []
+
+                    return send_file
+
                 else:
                     self.response.status = 206
                     if len(ranges) > 1:
