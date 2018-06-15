@@ -510,31 +510,19 @@ class FileListHandler(ListHandler):
                     CHUNKSIZE = 2**20 
 
                     def send_file(environ, start_response):
-                        from gevent.fileobject import FileObjectThread
-
-                        print('send_file {} begin'.format(request_id))
+                        sys_path = file_system.getsyspath(file_path)
                         headers = [
-                            ('Content-Length', str(fileinfo['size']))
-                        ]
+                            ('Content-Length', str(fileinfo['size'])),
+                            ('X-Sendfile', str(sys_path))
+                        ] 
 
                         if is_view:
                             headers.append(('Content-Type', str(fileinfo.get('mimetype', 'application/octet-stream'))))
                         else:
                             headers.append(('Content-Type', 'application/octet-stream'))
                             headers.append(('Content-Disposition', 'attachment; filename="' + str(filename) + '"'))
-
-                        write = start_response('200 OK', headers)
-
-                        with file_system.open(file_path, 'rb') as f:
-                            fwrap = FileObjectThread(f, lock=False, close=False)
-                            while True:
-                                chunk = fwrap.read(CHUNKSIZE)
-                                if not chunk:
-                                    break
-
-                                write(chunk)
-
-                        print('send_file {} complete'.format(request_id))
+                        
+                        start_response('200 OK', headers)
                         return []
 
                     return send_file
