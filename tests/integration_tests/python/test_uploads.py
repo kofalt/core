@@ -385,6 +385,84 @@ def test_reaper_project_search(data_builder, file_form, as_root):
     data_builder.delete_group('unknown', recursive=True)
 
 
+def test_reaper_reupload_deleted(data_builder, as_root, file_form):
+    group = data_builder.create_group(_id='reupload')
+    reap_data = file_form('reaped.txt', meta={
+        'group': {'_id': 'reupload'},
+        'project': {'label': 'reupload'},
+        'session': {'uid': 'reupload'},
+        'acquisition': {'uid': 'reupload',
+                        'files': [{'name': 'reaped.txt'}]}
+    })
+
+    # reaper upload
+    r = as_root.post('/upload/reaper', files=reap_data)
+    assert r.ok
+
+    ### test acquisition recreation
+    # get + delete acquisition
+    r = as_root.get('/acquisitions')
+    assert r.ok
+    acquisition = next(a['_id'] for a in r.json() if a['uid'] == 'reupload')
+    r = as_root.delete('/acquisitions/' + acquisition)
+    assert r.ok
+
+    # reaper re-upload
+    r = as_root.post('/upload/reaper', files=reap_data)
+    assert r.ok
+
+    # check new acquisition
+    r = as_root.get('/acquisitions')
+    assert r.ok
+    assert next(a for a in r.json() if a['uid'] == 'reupload')
+
+    ### test session recreation
+    # get + delete session
+    r = as_root.get('/sessions')
+    assert r.ok
+    session = next(s['_id'] for s in r.json() if s['uid'] == 'reupload')
+    r = as_root.delete('/sessions/' + session)
+    assert r.ok
+
+    # reaper re-upload
+    r = as_root.post('/upload/reaper', files=reap_data)
+    assert r.ok
+
+    # check new session and acquisition
+    r = as_root.get('/sessions')
+    assert r.ok
+    assert next(s for s in r.json() if s['uid'] == 'reupload')
+    r = as_root.get('/acquisitions')
+    assert r.ok
+    assert next(a for a in r.json() if a['uid'] == 'reupload')
+
+    ### test project recreation
+    # get + delete project
+    r = as_root.get('/projects')
+    assert r.ok
+    project = next(p['_id'] for p in r.json() if p['label'] == 'reupload')
+    r = as_root.delete('/projects/' + project)
+    assert r.ok
+
+    # reaper re-upload
+    r = as_root.post('/upload/reaper', files=reap_data)
+    assert r.ok
+
+    # check new project, session and acquisition
+    r = as_root.get('/projects')
+    assert r.ok
+    assert next(p for p in r.json() if p['label'] == 'reupload')
+    r = as_root.get('/sessions')
+    assert r.ok
+    assert next(s for s in r.json() if s['uid'] == 'reupload')
+    r = as_root.get('/acquisitions')
+    assert r.ok
+    assert next(a for a in r.json() if a['uid'] == 'reupload')
+
+    # cleanup
+    data_builder.delete_group(group, recursive=True)
+
+
 def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
     group = data_builder.create_group()
     project3_id = data_builder.create_project()
