@@ -72,7 +72,6 @@ except ImportError:
 log = config.log
 
 def dispatcher(router, request, response):
-    
     with RequestWrapper(request, response) as metrics:
         try:
             if uwsgi is not None:
@@ -92,7 +91,7 @@ def dispatcher(router, request, response):
                 response.headers['Content-Type'] = 'application/json; charset=utf-8'
         except webapp2.HTTPException as e:
             metrics.set_status(e.code)
-            util.send_json_http_exception(response, str(e), e.code, request.id)
+            util.send_json_http_exception(response, str(e), e.code, request.id)  # pylint: disable=no-member
         except Exception as e: # pylint: disable=broad-except
             request.logger.error("Error dispatching request", exc_info=True)
             if config.get_item('core', 'debug'):
@@ -101,6 +100,7 @@ def dispatcher(router, request, response):
                 message = 'Internal Server Error'
             metrics.set_status(500)
             util.send_json_http_exception(response, message, 500, request.id)
+
 
 def app_factory(*_, **__):
     # pylint: disable=protected-access,unused-argument

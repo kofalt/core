@@ -18,7 +18,7 @@ AccessType = util.Enum('AccessType', {
     'user_login':               'user_login',
     'user_logout':              'user_logout'
 })
-AccessTypeList = [type_name for type_name, member in AccessType.__members__.items()]
+AccessTypeList = [type_name for type_name, member in AccessType.__members__.items()]  # pylint: disable=no-member
 
 
 class SciTranRequest(Request):

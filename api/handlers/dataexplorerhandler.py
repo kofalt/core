@@ -546,7 +546,7 @@ class DataExplorerHandler(base.RequestHandler):
 
     def get_file_nodes(self, return_type, filters, search_string):
 
-        query = self._construct_file_query(return_type, filters, search_string)['query']
+        query = self._construct_query(return_type, filters, search_string)['query']
 
         nodes = []
         results = helpers.scan(client=config.es, query={'query': query}, scroll='5m', size=1000, index='data_explorer', doc_type='flywheel', _source=[return_type+'._id'])
