@@ -74,8 +74,10 @@ main() {
         # Pre-creating data_path/v1 folder to enable testing the fix
         mkdir -p $SCITRAN_PERSISTENT_DATA_PATH/v1
         # Setting and pre-creating fs_url
-        export SCITRAN_PERSISTENT_FS_URL=$SCITRAN_PERSISTENT_DATA_PATH/v2
-        mkdir -p $SCITRAN_PERSISTENT_FS_URL
+        if [ -z "${SCITRAN_PERSISTENT_FS_URL:-}" ]; then
+            export SCITRAN_PERSISTENT_FS_URL=$SCITRAN_PERSISTENT_DATA_PATH/v2
+            mkdir -p $SCITRAN_PERSISTENT_FS_URL
+        fi
         ###
 
         uwsgi --ini /var/scitran/config/uwsgi-config.ini --http [::]:9000 \
