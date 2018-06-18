@@ -1,0 +1,16 @@
+{
+      "metadata": {
+          "project": {
+                "label": "engine project",
+                "info": {"test": "p"},
+                "files": [
+                    {
+                        "name": "one.csv",
+                        "type": "engine type 0",
+                        "info": {"test": "f0"}
+                    }
+                ]
+            }
+      },
+      "filename": "one.csv"
+  }

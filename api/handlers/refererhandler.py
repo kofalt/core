@@ -330,7 +330,7 @@ class AnalysesHandler(RefererHandler):
         if ticket_id is None:
             permchecker(noop)('GET')
         elif ticket_id != '':
-            ticket = self._check_ticket(ticket_id, cid, filename)
+            ticket = self._check_download_ticket(ticket_id, cid, filename)
             if not self.origin.get('id'):
                 self.origin = ticket.get('origin')
 
@@ -496,7 +496,7 @@ class AnalysesHandler(RefererHandler):
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'])
 
 
-    def _check_ticket(self, ticket_id, _id, filename):
+    def _check_download_ticket(self, ticket_id, _id, filename):
         ticket = config.db.downloads.find_one({'_id': ticket_id})
         if not ticket:
             self.abort(404, 'no such ticket')

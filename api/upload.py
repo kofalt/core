@@ -23,8 +23,8 @@ Strategy = util.Enum('Strategy', {
     'engine'         : pl.EnginePlacer,         # Upload N files from the result of a successful job.
     'token'          : pl.TokenPlacer,          # Upload N files to a saved folder based on a token.
     'packfile'       : pl.PackfilePlacer,       # Upload N files as a new packfile to a container.
-    'labelupload'    : pl.LabelPlacer,
-    'uidupload'      : pl.UIDPlacer,
+    'label'          : pl.LabelPlacer,
+    'uid'            : pl.UIDPlacer,
     'uidmatch'       : pl.UIDMatchPlacer,
     'reaper'         : pl.UIDReaperPlacer,
     'analysis'       : pl.AnalysisPlacer,       # Upload N files to an analysis as input and output (no db updates - deprecated)
@@ -32,7 +32,9 @@ Strategy = util.Enum('Strategy', {
     'gear'           : pl.GearPlacer
 })
 
-def process_upload(request, strategy, access_logger, container_type=None, id_=None, origin=None, context=None, response=None, metadata=None):
+
+def process_upload(request, strategy, access_logger, container_type=None, id_=None, origin=None, context=None, response=None,
+                   metadata=None, file_fields=None, tempdir=None):
     """
     Universal file upload entrypoint.
 
@@ -67,7 +69,8 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     if id_ is not None and container_type == None:
         raise Exception('Unspecified container type')
 
-    if container_type is not None and container_type not in ('acquisition', 'session', 'project', 'collection', 'analysis', 'gear'):
+    if container_type is not None and container_type not in (
+    'acquisition', 'session', 'project', 'collection', 'analysis', 'gear'):
         raise Exception('Unknown container type')
 
     timestamp = datetime.datetime.utcnow()
@@ -85,20 +88,23 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
     # The vast majority of this function's wall-clock time is spent here.
     # Tempdir is deleted off disk once out of scope, so let's hold onto this reference.
-    file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token))
-    form = file_processor.process_form(request, use_filepath=use_filepath)
+    file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
+    if not file_fields:
+        form = file_processor.process_form(request, use_filepath=use_filepath)
+        # Non-file form fields may have an empty string as filename, check for 'falsy' values
+        file_fields = extract_file_fields(form)
 
-    if 'metadata' in form:
-        try:
-            metadata = json.loads(form['metadata'].value)
-        except Exception:
-            raise FileStoreException('wrong format for field "metadata"')
-        if isinstance(metadata, dict):
-            for f in metadata.get(container_type, {}).get('files', []):
-                f['name'] = name_fn(f['name'])
-        elif isinstance(metadata, list):
-            for f in metadata:
-                f['name'] = name_fn(f['name'])
+        if 'metadata' in form:
+            try:
+                metadata = json.loads(form['metadata'].value)
+            except Exception:
+                raise FileStoreException('wrong format for field "metadata"')
+            if isinstance(metadata, dict):
+                for f in metadata.get(container_type, {}).get('files', []):
+                    f['name'] = name_fn(f['name'])
+            elif isinstance(metadata, list):
+                for f in metadata:
+                    f['name'] = name_fn(f['name'])
 
     placer_class = strategy.value
     placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger)
@@ -108,27 +114,29 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     # or "file1", "file2", etc (if multiple). Following this convention is probably a good idea.
     # Here, we accept any
 
-    # Non-file form fields may have an empty string as filename, check for 'falsy' values
-    file_fields = extract_file_fields(form)
     # TODO: Change schemas to enabled targeted uploads of more than one file.
     # Ref docs from placer.TargetedPlacer for details.
     if strategy == Strategy.targeted and len(file_fields) > 1:
         raise FileFormException("Targeted uploads can only send one file")
 
     for field in file_fields:
-        field.file.close()
+        if hasattr(field, 'file'):
+            field.file.close()
+            field.hash = util.format_hash(files.DEFAULT_HASH_ALG, field.hasher.hexdigest())
+
+        if not hasattr(field, 'hash'):
+            field.hash = ''
         # Augment the cgi.FieldStorage with a variety of custom fields.
         # Not the best practice. Open to improvements.
         # These are presumbed to be required by every function later called with field as a parameter.
-        field.path	 = field.filename
+        field.path = field.filename
         if not file_processor.temp_fs.exists(field.path):
-            #tempdir_exists = os.path.exists(tempdir.name)
+            # tempdir_exists = os.path.exists(tempdir.name)
             raise Exception("file {} does not exist, files in tmpdir: {}".format(
                 field.path,
                 file_processor.temp_fs.listdir('/'),
             ))
         field.size = file_processor.temp_fs.getsize(field.path)
-        field.hash = util.format_hash(files.DEFAULT_HASH_ALG, field.hasher.hexdigest())
         field.uuid = str(uuid.uuid4())
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
@@ -137,9 +145,9 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Stands in for a dedicated object... for now.
         file_attrs = {
             '_id': field.uuid,
-            'name':	 field.filename,
+            'name': field.filename,
             'modified': field.modified,
-            'size':	 field.size,
+            'size': field.size,
             'mimetype': field.mimetype,
             'hash': field.hash,
             'origin': origin,
@@ -188,6 +196,37 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
 class Upload(base.RequestHandler):
 
+    def _create_upload_ticket(self):
+        if not hasattr(config.fs, 'get_signed_url'):
+            self.abort(405, 'Signed URLs are not supported with the current storage backend')
+
+        payload = self.request.json_body
+        metadata = payload.get('metadata', None)
+        filenames = payload.get('filenames', None)
+
+        if metadata is None or not filenames:
+            self.abort(400, 'metadata and at least one filename are required')
+
+        tempdir = str(uuid.uuid4())
+        # Upload into a temp folder, so we will be able to cleanup
+        signed_urls = {}
+        for filename in filenames:
+            signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename),
+                                                         config.fs,
+                                                         purpose='upload')
+
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filenames, metadata)
+        return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
+                'urls': signed_urls}
+
+    def _check_upload_ticket(self, ticket_id):
+        ticket = config.db.uploads.find_one({'_id': ticket_id})
+        if not ticket:
+            self.abort(404, 'no such ticket')
+        if ticket['ip'] != self.request.client_addr:
+            self.abort(403, 'ticket not for this resource or source IP')
+        return ticket
+
     def upload(self, strategy):
         """Receive a sortable reaper upload."""
 
@@ -196,20 +235,32 @@ class Upload(base.RequestHandler):
             if not user:
                 self.abort(403, 'Uploading requires login')
 
+        if strategy in ['label', 'uid', 'uid-match', 'reaper']:
+            strategy = strategy.replace('-', '')
+            strategy = getattr(Strategy, strategy)
+
         context = {'uid': self.uid if not self.superuser_request else None}
 
-        # TODO: what enum
-        if strategy == 'label':
-            strategy = Strategy.labelupload
-        elif strategy == 'uid':
-            strategy = Strategy.uidupload
-        elif strategy == 'uid-match':
-            strategy = Strategy.uidmatch
-        elif strategy == 'reaper':
-            strategy = Strategy.reaper
+        # Request for upload ticket
+        if self.get_param('ticket') == '':
+            return self._create_upload_ticket()
+
+        # Check ticket id and skip permissions check if it clears
+        ticket_id = self.get_param('ticket')
+        if ticket_id:
+            ticket = self._check_upload_ticket(ticket_id)
+            file_fields = []
+            for filename in ticket['filenames']:
+                file_fields.append(
+                    util.dotdict({
+                        'filename': filename
+                    })
+                )
+
+            return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
+                                  context=context, file_fields=file_fields, tempdir=ticket['tempdir'])
         else:
-            self.abort(500, 'strategy {} not implemented'.format(strategy))
-        return process_upload(self.request, strategy, self.log_user_access, origin=self.origin, context=context)
+            return process_upload(self.request, strategy, self.log_user_access, origin=self.origin, context=context)
 
     def engine(self):
         """Handles file uploads from the engine"""
@@ -226,12 +277,37 @@ class Upload(base.RequestHandler):
             self.abort(400, 'container id is required')
         else:
             cid = bson.ObjectId(cid)
+
         context = {
             'job_id': self.get_param('job'),
             'job_ticket_id': self.get_param('job_ticket'),
         }
-        strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
-        return process_upload(self.request, strategy, self.log_user_access, container_type=level, id_=cid, origin=self.origin, context=context)
+
+        # Request for upload ticket
+        if self.get_param('upload_ticket') == '':
+            return self._create_upload_ticket()
+
+        # Check ticket id and skip permissions check if it clears
+        ticket_id = self.get_param('upload_ticket')
+        if ticket_id:
+            ticket = self._check_upload_ticket(ticket_id)
+            file_fields = []
+            for filename in ticket['filenames']:
+                file_fields.append(
+                    util.dotdict({
+                        'filename': filename
+                    })
+                )
+
+            strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
+            return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
+                                  context=context, file_fields=file_fields, tempdir=ticket['tempdir'],
+                                  container_type=level, id_=cid)
+
+        else:
+            strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
+            return process_upload(self.request, strategy, self.log_user_access, container_type=level, id_=cid,
+                                  origin=self.origin, context=context)
 
     def clean_packfile_tokens(self):
         """Clean up expired upload tokens and invalid token directories.

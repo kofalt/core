@@ -185,6 +185,18 @@ def download_ticket(ip, origin, type_, target, filename, size, projects = None):
     }
 
 
+def upload_ticket(ip, origin, tempdir, filenames, metadata):
+    return {
+        '_id': str(uuid.uuid4()),
+        'timestamp': datetime.datetime.utcnow(),
+        'ip': ip,
+        'tempdir': tempdir,
+        'filenames': filenames,
+        'metadata': metadata,
+        'origin': origin
+    }
+
+
 def guess_mimetype(filepath):
     """Guess MIME type based on filename."""
     mime, _ = mimetypes.guess_type(filepath)
@@ -458,3 +470,8 @@ def parse_pagination_int_param(int_param):
         raise PaginationParseError('Invalid pagination int: {}'.format(e.message))
 
     return pagination_int
+
+
+class dotdict(dict):
+    def __getattr__(self, name):
+        return self[name]

@@ -1,12 +1,18 @@
 /upload/uid-match:
   post:
     summary: Multipart form upload with N file fields, each with their desired filename.
-    description: >
-      Accepts uploads to an existing data hierarchy, matched via Session
+    description: |
+      ### Default behavior:
+      > Accepts uploads to an existing data hierarchy, matched via Session and Acquisition UID
+        See ``api/schemas/input/uidmatchupload.json`` for the format of this metadata.
 
-      and Acquisition UID
+      ### Signed URL upload with ``ticket``
+      > Upload a single file directly to the storage backend. The workflow is the following:
 
-      See api/schemas/input/uidmatchupload.json for the format of this metadata.
+        - Send a request with an empty ``?ticket=`` query parameter to get an upload ticket and URL
+        - Upload the file using a PUT request to the upload URL
+        - Once done, send a POST request to this endpoint with the upload ticket to finalize the upload.
+        The file will be placed into the DB via this POST request.
     operationId: upload_match_uid
     tags:
     - files
@@ -23,6 +29,20 @@
     consumes:
       - multipart/form-data
     parameters:
+      - name: body
+        in: formData
+        type: string
+        description: >
+          Object encoded as a JSON string.
+
+          It is **required** and used **only** when the ``ticket`` parameter is used.
+
+          See ``schemas/input/signedurlmetadata.json`` for the format of the json payload.
       - in: formData
         name: formData
         type: string
+      - name: ticket
+        description: Use empty value to get a ticket, and provide the ticket id to finalize the upload
+        type: string
+        in: query
+        required: false
