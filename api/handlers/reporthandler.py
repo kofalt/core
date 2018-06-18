@@ -3,11 +3,8 @@ import copy
 import unicodecsv as csv
 import datetime
 import dateutil
-import os
 import pymongo
 import pytz
-
-from backports import tempfile
 
 from .. import config
 from .. import util
@@ -70,14 +67,14 @@ class ReportHandler(base.RequestHandler):
         if self.superuser_request or report.user_can_generate(self.uid):
 
             if self.is_true('csv'):
-                tempdir = tempfile.TemporaryDirectory(prefix='.tmp', dir=config.get_item('persistent', 'data_path'))
-                filepath = os.path.join(tempdir.name, report.csv_filename)
+                def write_report(_, start_response):
+                    headers = util.headers_for_download(filename=report.csv_filename, content_type='text/csv')
+                    write = start_response('200 OK', headers)
+                    report.build_csv(write)
 
-                report.build_csv(filepath)
+                    return []
 
-                self.response.app_iter = open(filepath, 'r')
-                self.response.headers['Content-Type'] = 'text/csv'
-                self.response.headers['Content-Disposition'] = 'attachment; filename="{}"'.format(report.csv_filename)
+                return write_report
             else:
                 return report.build()
         else:
@@ -108,7 +105,7 @@ class Report(object):
         """
         raise NotImplementedError()
 
-    def build_csv(self, filepath): # pylint: disable=unused-argument
+    def build_csv(self, write): # pylint: disable=unused-argument
         """
         Build and return a csv file of the report
         """
@@ -560,9 +557,8 @@ class AccessLogReport(Report):
 
         return config.log_db.access_log.find(query).limit(self.limit).sort('timestamp', pymongo.DESCENDING).batch_size(1000)
 
-    def build_csv(self, filepath):
-        csv_file = open(filepath, 'w+')
-        writer = csv.DictWriter(csv_file, ACCESS_LOG_FIELDS)
+    def build_csv(self, write):
+        writer = csv.DictWriter(util.WriteWrapper(write), ACCESS_LOG_FIELDS)
         writer.writeheader()
 
         for doc in self.build():
@@ -572,9 +568,6 @@ class AccessLogReport(Report):
 
             # mongo_dict flattens dictionaries using a dot notation
             writer.writerow(util.mongo_dict(doc))
-
-        # Need to close and reopen file to flush buffer into file
-        csv_file.close()
 
 
 

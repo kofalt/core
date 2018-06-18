@@ -17,7 +17,7 @@ from ..auth.apikeys import JobApiKey
 from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..types import Origin
-from ..util import humanize_validation_error, set_for_download
+from ..util import humanize_validation_error, headers_for_download, send_file, send_fileobj
 from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
@@ -208,8 +208,7 @@ class GearHandler(base.RequestHandler):
             'hash': 'v0-' + gear['exchange']['rootfs-hash'].replace(':', '-')
         })
 
-        stream = file_system.open(file_path, 'rb')
-        set_for_download(self.response, stream=stream, filename='gear.tar')
+        return send_file(file_system, file_path, filename='gear.tar')
 
     @require_admin
     def post(self, _id):
@@ -462,8 +461,7 @@ class JobHandler(base.RequestHandler):
 
         stream = StringIO.StringIO(encoded)
         length = len(encoded.encode('utf-8'))
-
-        set_for_download(self.response, stream=stream, filename='config.json', length=length)
+        return send_fileobj(stream, filename='config.json', length=length)
 
     @require_login
     def put(self, _id):
@@ -525,7 +523,9 @@ class JobHandler(base.RequestHandler):
         self._log_read_check(_id)
         filename = 'job-' + _id + '-logs.txt'
 
-        set_for_download(self.response, filename=filename)
+        for name, value in headers_for_download(filename=filename):
+            self.response.headers[name] = value
+        
         for output in Logs.get_text_generator(_id):
             self.response.write(output)
 

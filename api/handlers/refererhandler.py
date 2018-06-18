@@ -11,6 +11,7 @@ import zipfile
 import datetime
 import os
 from abc import ABCMeta, abstractproperty
+from gevent.fileobject import FileObjectThread
 
 from .. import config, files, upload, util, validators
 from ..auth import containerauth, always_ok
@@ -315,6 +316,7 @@ class AnalysesHandler(RefererHandler):
 
 
         """
+        send_file_fn = None
         _id = kwargs.get('_id')
         analysis = self.storage.get_container(_id)
         filegroup = kwargs.get('filegroup')
@@ -387,7 +389,7 @@ class AnalysesHandler(RefererHandler):
                 elif self.get_param('member') is not None:
                     zip_member = self.get_param('member')
                     try:
-                        with file_system.open(file_path, 'rb') as f:
+                        with FileObjectThread(file_system.open(file_path, 'rb'), lock=False) as f:
                             with zipfile.ZipFile(f) as zf:
                                 self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                                 self.response.write(zf.open(zip_member).read())
@@ -432,17 +434,13 @@ class AnalysesHandler(RefererHandler):
                                     raise util.RangeHeaderParseError('Invalid range')
 
                         except util.RangeHeaderParseError:
-                            self.response.app_iter = file_system.open(file_path, 'rb')
-                            self.response.headers['Content-Length'] = str(
-                                fileinfo['size'])  # must be set after setting app_iter
-
                             if self.is_true('view'):
-                                self.response.headers['Content-Type'] = str(
-                                    fileinfo.get('mimetype', 'application/octet-stream'))
+                                content_type = fileinfo.get('mimetype', 'application/octet-stream')
+                                filename = None
                             else:
-                                self.response.headers['Content-Type'] = 'application/octet-stream'
-                                self.response.headers['Content-Disposition'] = 'attachment; filename="' \
-                                                                               + str(filename) + '"'
+                                content_type = 'application/octet-stream'
+
+                            send_file_fn = util.send_file(file_system, file_path, filename=filename, length=fileinfo['size'], content_type=content_type)
                         else:
                             self.response.status = 206
                             if len(ranges) > 1:
@@ -456,7 +454,7 @@ class AnalysesHandler(RefererHandler):
                                                                                                          fileinfo[
                                                                                                              'size'])
 
-                            with file_system.open(file_path, 'rb') as f:
+                            with FileObjectThread(file_system.open(file_path, 'rb'), lock=False) as f:
                                 for first, last in ranges:
                                     mode = os.SEEK_SET
                                     if first < 0:
@@ -494,6 +492,9 @@ class AnalysesHandler(RefererHandler):
                     config.db.downloads.update_one({'_id': ticket_id}, {'$set': {'logged': True}})
             else:
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'])
+
+            if send_file_fn:
+                return send_file_fn
 
 
     def _check_download_ticket(self, ticket_id, _id, filename):

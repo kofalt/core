@@ -288,7 +288,7 @@ class Download(base.RequestHandler):
         ids_of_paths[_id] = path
         return path
 
-    def archivestream(self, ticket):
+    def archivestream(self, ticket, write):
         BLOCKSIZE = 512
         CHUNKSIZE = 2**20  # stream files in 1MB chunks
         stream = cStringIO.StringIO()
@@ -301,10 +301,10 @@ class Download(base.RequestHandler):
                         if isinstance(fd, RawWrapper) and hasattr(fd._f,  # pylint: disable=protected-access
                                                                   'gettarinfo'):
                             tarinfo = fd._f.gettarinfo(arcname=arcpath).tobuf()  # pylint: disable=protected-access
-                            yield tarinfo
+                            write(tarinfo)
                             signed_url = files.get_signed_url(filepath, file_system)
                         else:
-                            yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
+                            write(archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf())
 
                         try:
                             if signed_url:
@@ -315,9 +315,9 @@ class Download(base.RequestHandler):
 
                             chunk = ''
                             for chunk in f_iter:
-                                yield chunk
+                                write(chunk)
                             if len(chunk) % BLOCKSIZE != 0:
-                                yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+                                write((BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0')
 
                         except (IOError, fs.errors.OperationFailed):
                             msg = ("Error happened during sending file content in archive stream, file path: %s, "
@@ -330,23 +330,23 @@ class Download(base.RequestHandler):
                                  "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
                     tarinfo = TarInfo()
                     tarinfo.name = arcpath + '.MISSING'
-                    yield tarinfo.tobuf()
+                    write(tarinfo.tobuf())
 
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
-        yield stream.getvalue()  # get tar stream trailer
+        write(stream.getvalue())  # get tar stream trailer
         stream.close()
 
-    def symlinkarchivestream(self, ticket):
+    def symlinkarchivestream(self, ticket, write):
         for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
             t = tarfile.TarInfo(name=arcpath)
             t.type = tarfile.SYMTYPE
             t.linkname = fs.path.relpath(filepath)
-            yield t.tobuf()
+            write(t.tobuf())
             self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
         stream = cStringIO.StringIO()
         with tarfile.open(mode='w|', fileobj=stream) as _:
             pass
-        yield stream.getvalue() # get tar stream trailer
+        write(stream.getvalue()) # get tar stream trailer
         stream.close()
 
     def download(self):
@@ -358,12 +358,19 @@ class Download(base.RequestHandler):
                 self.abort(404, 'no such ticket')
             if ticket['ip'] != self.request.client_addr:
                 self.abort(400, 'ticket not for this source IP')
-            if self.get_param('symlinks'):
-                self.response.app_iter = self.symlinkarchivestream(ticket)
-            else:
-                self.response.app_iter = self.archivestream(ticket)
-            self.response.headers['Content-Type'] = 'application/octet-stream'
-            self.response.headers['Content-Disposition'] = 'attachment; filename=' + ticket['filename'].encode('ascii', errors='ignore')
+
+            is_symlinks = self.get_param('symlinks')
+
+            def send_archive(_, start_response):
+                filename = ticket['filename'].encode('ascii', errors='ignore')
+                write = start_response('200 OK', util.headers_for_download(filename=filename))
+                if is_symlinks:
+                    self.symlinkarchivestream(ticket, write)
+                else:
+                    self.archivestream(ticket, write)
+                return []
+
+            return send_archive
         else:
 
             req_spec = self.request.json_body

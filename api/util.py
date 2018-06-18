@@ -1,5 +1,6 @@
 import datetime
 import enum as baseEnum
+import gevent
 import hashlib
 import json
 import mimetypes
@@ -29,7 +30,7 @@ DATETIME_RE = {
     re.compile(r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d$'):               '%Y-%m-%dT%H:%M:%S',
     re.compile(r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d$'): '%Y-%m-%dT%H:%M:%S.%f',
 }
-
+SENDFILE_CHUNKSIZE = 2**20
 
 # If this is not called before templating, django throws a hissy fit
 settings.configure(
@@ -245,20 +246,22 @@ def obj_from_map(_map):
 
     return type('',(object,),_map)()
 
-def set_for_download(response, stream=None, filename=None, length=None):
+def headers_for_download(filename=None, length=None, content_type=None):
     """Takes a self.response, and various download options."""
+    headers = []
 
-    # If an app_iter is to be set, it MUST be before these other headers are set.
-    if stream is not None:
-        response.app_iter = stream
-
-    response.headers['Content-Type'] = 'application/octet-stream'
+    if content_type is not None:
+        headers.append(('Content-Type', str(content_type)))
+    else:
+        headers.append(('Content-Type', 'application/octet-stream'))
 
     if filename is not None:
-        response.headers['Content-Disposition'] = 'attachment; filename="' + filename + '"'
+        headers.append(('Content-Disposition', 'attachment; filename="' + str(filename) + '"'))
 
     if length is not None:
-        response.headers['Content-Length'] = str(length)
+        headers.append(('Content-Length', str(length)))
+
+    return headers
 
 def format_hash(hash_alg, hash_):
     """
@@ -475,7 +478,84 @@ def parse_pagination_int_param(int_param):
 
     return pagination_int
 
-
 class dotdict(dict):
     def __getattr__(self, name):
         return self[name]
+
+def send_file(file_system, file_path, filename=None, length=None, content_type=None):
+    """ Return a function to send a file.
+    Arguments:
+        file_system: The filesystem object
+        file_path: The file path, or file-like object
+        filename: The name of the file, if using attachment disposition
+        length: The optional file length
+        content_type: The optional content type
+
+    Returns:
+        A send file function that should be returned from the handler
+    """
+    def send_file_fn(_, start_response):
+        headers = headers_for_download(filename=filename, length=length, content_type=content_type)
+
+        try:
+            sys_path = file_system.getsyspath(file_path)
+        except fs.errors.NoSysPath:
+            sys_path = None
+
+        if sys_path:
+            headers.append(('X-Sendfile', str(sys_path)))
+            start_response('200 OK', headers)
+        else:
+            # Send the file using FileObjectThread
+            with gevent.fileobject.FileObjectThread(file_system.open(file_path, 'rb'), lock=False) as f:
+                write = start_response('200 OK', headers)
+                while True:
+                    chunk = f.read(SENDFILE_CHUNKSIZE)
+                    if not chunk:
+                        break
+                    write(chunk)
+
+        return []
+
+    return send_file_fn
+
+def send_fileobj(fileobj, filename=None, length=None, content_type=None, close=True):
+    """ Return a function to send a file, using a fileobj. 
+    
+    This function will close the file unless close is set to False.
+
+    Arguments:
+        fileobj: The file object (supports read, and optionally close)
+        filename: The name of the file, if using attachment disposition
+        length: The optional file length
+        content_type: The optional content type
+        close: Whether or not to close the fileobj (default is True)
+
+    Returns:
+        A send file function that should be returned from the handler
+    """
+    def send_file_fn(_, start_response):
+        try:
+            headers = headers_for_download(filename=filename, length=length, content_type=content_type)
+            write = start_response('200 OK', headers)
+            while True:
+                chunk = fileobj.read(SENDFILE_CHUNKSIZE)
+                if not chunk:
+                    break
+                write(chunk)
+        finally:
+            if close and hasattr(fileobj, 'close'):
+                fileobj.close()
+
+        return []
+
+    return send_file_fn
+
+class WriteWrapper(object):
+    """ Wrapper for write function """
+    def __init__(self, write_fn):
+        self.write_fn = write_fn
+
+    def write(self, data):
+        self.write_fn(data)
+

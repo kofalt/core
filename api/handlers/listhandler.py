@@ -8,6 +8,7 @@ import uuid
 import zipfile
 
 import fs.path
+from gevent.fileobject import FileObjectThread
 
 from ..web import base
 from .. import config, files, upload, util, validators
@@ -399,7 +400,7 @@ class FileListHandler(ListHandler):
         """
         Builds a json response containing member and comment info for a zipfile
         """
-        with file_system.open(file_path, 'rb') as f:
+        with FileObjectThread(file_system.open(file_path, 'rb'), lock=False) as f:
             with zipfile.ZipFile(f) as zf:
                 info = {
                     'comment': zf.comment,
@@ -416,6 +417,7 @@ class FileListHandler(ListHandler):
                 return info
 
     def get(self, cont_name, list_name, **kwargs):
+        send_file_fn = None
         _id = kwargs.pop('cid')
         permchecker, storage, _, _, keycheck = self._initialize_request(cont_name, list_name, _id)
         list_name = storage.list_name
@@ -462,7 +464,7 @@ class FileListHandler(ListHandler):
         elif self.get_param('member') is not None:
             zip_member = self.get_param('member')
             try:
-                with file_system.open(file_path, 'rb') as f:
+                with FileObjectThread(file_system.open(file_path, 'rb'), lock=False) as f:
                     with zipfile.ZipFile(f) as zf:
                         self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                         self.response.write(zf.open(zip_member).read())
@@ -505,28 +507,13 @@ class FileListHandler(ListHandler):
                             raise util.RangeHeaderParseError('Invalid range')
 
                 except util.RangeHeaderParseError:
-                    is_view = self.is_true('view')
-                    request_id = self.request.id
-                    CHUNKSIZE = 2**20 
+                    if self.is_true('view'):
+                        content_type = fileinfo.get('mimetype', 'application/octet-stream')
+                        filename = None
+                    else:
+                        content_type = 'application/octet-stream'
 
-                    def send_file(environ, start_response):
-                        sys_path = file_system.getsyspath(file_path)
-                        headers = [
-                            ('Content-Length', str(fileinfo['size'])),
-                            ('X-Sendfile', str(sys_path))
-                        ] 
-
-                        if is_view:
-                            headers.append(('Content-Type', str(fileinfo.get('mimetype', 'application/octet-stream'))))
-                        else:
-                            headers.append(('Content-Type', 'application/octet-stream'))
-                            headers.append(('Content-Disposition', 'attachment; filename="' + str(filename) + '"'))
-                        
-                        start_response('200 OK', headers)
-                        return []
-
-                    return send_file
-
+                    send_file_fn = util.send_file(file_system, file_path, filename=filename, length=fileinfo['size'], content_type=content_type)
                 else:
                     self.response.status = 206
                     if len(ranges) > 1:
@@ -537,7 +524,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
 
 
-                    with file_system.open(file_path, 'rb') as f:
+                    with FileObjectThread(file_system.open(file_path, 'rb'), lock=False) as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
                             if first < 0:
@@ -575,6 +562,9 @@ class FileListHandler(ListHandler):
                     config.db.downloads.update_one({'_id': ticket_id}, {'$set': {'logged': True}})
             else:
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=_id, filename=fileinfo['name'])
+
+            if send_file_fn:
+                return send_file_fn
 
 
     def get_info(self, cont_name, list_name, **kwargs):
