@@ -297,6 +297,7 @@ class RequestHandler(webapp2.RequestHandler):
         Return parsed pagination dict from request URL parameters.
 
         Query params:
+            ?after_id=id
             ?filter=k1=v1,k2>v2,k2<v3 [, ...]
             ?sort=k1,k2:desc [, ...]
             ?page=N
@@ -305,10 +306,11 @@ class RequestHandler(webapp2.RequestHandler):
         """
 
         pagination = {}
-        parsers = {'filter': util.parse_pagination_filter_param,
+        parsers = {'after_id': util.parse_pagination_value,
+                   'filter': util.parse_pagination_filter_param,
                    'sort': util.parse_pagination_sort_param}
 
-        for param_name in ('filter', 'sort', 'page', 'skip', 'limit'):
+        for param_name in ('after_id', 'filter', 'sort', 'page', 'skip', 'limit'):
             param_count = len(self.request.GET.getall(param_name))
             if param_count > 1:
                 raise errors.APIValidationException(error='Multiple "{}" query params not allowed'.format(param_name))
@@ -319,6 +321,11 @@ class RequestHandler(webapp2.RequestHandler):
                     pagination[param_name] = parse(param_value)
                 except util.PaginationParseError as e:
                     raise errors.APIValidationException(error=e.message)
+
+        if 'after_id' in pagination:
+            for param in ('sort', 'page', 'skip'):
+                if param in pagination:
+                    raise errors.APIValidationException({'error': '"after_id" query param cannot be used with "{}"'.format(param)})
 
         if 'page' in pagination:
             if 'skip' in pagination:

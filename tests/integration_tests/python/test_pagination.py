@@ -226,3 +226,90 @@ def test_filter(data_builder, as_admin):
     r = as_admin.get('/gears?filter=gear.name=a')
     assert r.ok
     assert {g['_id'] for g in r.json()} == {g_a1}
+
+
+def test_after_id(data_builder, as_admin, file_form):
+    assert as_admin.get('/users?after_id=foo&after_id=bar').status_code == 422
+    assert as_admin.get('/users?after_id=foo&sort=bar').status_code == 422
+
+    u1 = data_builder.create_user()
+    u2 = data_builder.create_user()
+    users = sorted(u['_id'] for u in as_admin.get('/users').json())
+    assert {u1, u2}.issubset(users)
+    users_after = sorted(u['_id'] for u in as_admin.get('/users?after_id=' + u1).json())
+    assert users_after == [u for u in users if u > u1]
+
+    g1 = data_builder.create_group()
+    g2 = data_builder.create_group()
+    groups = sorted(g['_id'] for g in as_admin.get('/groups').json())
+    assert {g1, g2}.issubset(groups)
+    groups_after = sorted(g['_id'] for g in as_admin.get('/groups?after_id=' + g1).json())
+    assert groups_after == [g for g in groups if g > g1]
+
+    p1 = data_builder.create_project()
+    p2 = data_builder.create_project()
+    assert len(as_admin.get('/projects').json()) > 1
+    assert len(as_admin.get('/projects?after_id=' + p1).json()) == 1
+    assert len(as_admin.get('/groups/' + g1 + '/projects').json()) > 1
+    assert len(as_admin.get('/groups/' + g1 + '/projects?after_id=' + p1).json()) == 1
+
+    s1 = data_builder.create_session()
+    s2 = data_builder.create_session()
+    assert len(as_admin.get('/sessions').json()) > 1
+    assert len(as_admin.get('/sessions?after_id=' + s1).json()) == 1
+    assert len(as_admin.get('/projects/' + p1 + '/sessions').json()) > 1
+    assert len(as_admin.get('/projects/' + p1 + '/sessions?after_id=' + s1).json()) == 1
+
+    aq1 = data_builder.create_acquisition()
+    aq2 = data_builder.create_acquisition()
+    assert len(as_admin.get('/acquisitions').json()) > 1
+    assert len(as_admin.get('/acquisitions?after_id=' + aq1).json()) == 1
+    assert len(as_admin.get('/sessions/' + s1 + '/acquisitions').json()) > 1
+    assert len(as_admin.get('/sessions/' + s1 + '/acquisitions?after_id=' + aq1).json()) == 1
+
+    an1 = as_admin.post('/sessions/' + s1 + '/analyses', files=file_form(
+        'a.csv', meta={'label': 'no-job', 'inputs': [{'name': 'a.csv'}]})).json()['_id']
+    an2 = as_admin.post('/sessions/' + s1 + '/analyses', files=file_form(
+        'b.csv', meta={'label': 'no-job', 'inputs': [{'name': 'b.csv'}]})).json()['_id']
+    assert len(as_admin.get('/sessions/' + s1 + '/analyses').json()) > 1
+    assert len(as_admin.get('/sessions/' + s1 + '/analyses?after_id=' + an1).json()) == 1
+
+    c1 = data_builder.create_collection()
+    c2 = data_builder.create_collection()
+    assert len(as_admin.get('/collections').json()) > 1
+    assert len(as_admin.get('/collections?after_id=' + c1).json()) == 1
+
+    g_a0 = data_builder.create_gear(gear={'name': 'a', 'version': '0.0.0'})
+    g_a1 = data_builder.create_gear(gear={'name': 'a', 'version': '1.0.0'})
+    g_b0 = data_builder.create_gear(gear={'name': 'b', 'version': '0.0.0'})
+    g_b1 = data_builder.create_gear(gear={'name': 'b', 'version': '1.0.0'})
+    assert len(as_admin.get('/gears').json()) > 1
+    assert as_admin.get('/gears?after_id=' + g_a1).status_code == 500
+    # TODO enable after_id for /gears if needed
+    # assert len(as_admin.get('/gears?after_id=' + g_a1).json()) == 1
+
+    rule_doc = {'alg': as_admin.get('/gears/' + g_a1).json()['gear']['name'],
+                'name': 'foo', 'any': [], 'all': [], 'not': []}
+    r1 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
+    r2 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
+    assert len(as_admin.get('/site/rules').json()) > 1
+    assert len(as_admin.get('/site/rules?after_id=' + r1).json()) == 1
+
+    assert as_admin.post('/acquisitions/' + aq1 + '/files', files=file_form('test.txt')).ok
+    batch_json = {'gear_id': g_a1, 'targets': [{'type': 'acquisition', 'id': aq1}]}
+    b1 = as_admin.post('/batch', json=batch_json).json()['_id']
+    b2 = as_admin.post('/batch', json=batch_json).json()['_id']
+    assert len(as_admin.get('/batch').json()) > 1
+    assert len(as_admin.get('/batch?after_id=' + b1).json()) == 1
+
+    job_json = {
+        'gear_id': g_a1,
+        'inputs': {'text': {'type': 'acquisition', 'id': aq1, 'name': 'test.txt'}},
+        'destination': {'type': 'acquisition', 'id': aq2}}
+    j1 = as_admin.post('/jobs/add', json=job_json).json()['_id']
+    j2 = as_admin.post('/jobs/add', json=job_json).json()['_id']
+    assert len(as_admin.get('/jobs').json()) > 1
+    assert len(as_admin.get('/jobs?after_id=' + j1).json()) == 1
+
+    assert as_admin.delete('/site/rules/' + r1).ok
+    assert as_admin.delete('/site/rules/' + r2).ok

@@ -44,9 +44,19 @@ def fault_tolerant_replace_one(db, coll_name, query, update, upsert=False):
     raise APIStorageException('Unable to replace object.')
 
 
+class PaginationError(Exception):
+    pass
+
+
 def paginate_find(collection, find_kwargs, pagination):
     """Return paginated `db.coll.find()` results."""
     if pagination:
+        if 'after_id' in pagination:
+            if find_kwargs.get('sort'):
+                raise PaginationError('pagination "after_id" does not support sorting')
+            pagination['filter'] = {'_id': {'$gt': pagination['after_id']}}
+            pagination['sort'] = [('_id', pymongo.ASCENDING)]
+
         if 'filter' in pagination:
             filter_ = find_kwargs.get('filter', {})
             filter_.update(pagination['filter'])
@@ -76,6 +86,12 @@ def paginate_find(collection, find_kwargs, pagination):
 def paginate_pipe(collection, pipeline, pagination):
     """Return paginated `db.coll.aggregate()` results."""
     if pagination:
+        if 'after_id' in pagination:
+            if any('$sort' in stage for stage in pipeline):
+                raise PaginationError('pagination "after_id" does not support sorting')
+            pagination['filter'] = {'_id': {'$gt': pagination['after_id']}}
+            pagination['sort'] = [('_id', pymongo.ASCENDING)]
+
         if 'pipe_key' in pagination:
             pipe_key = pagination.pop('pipe_key')
             for key in pagination.get('filter', {}).keys():
@@ -99,8 +115,7 @@ def paginate_pipe(collection, pipeline, pagination):
         elif 'limit' in pagination:
             slice_args = [pagination['limit']]
         elif 'skip' in pagination:
-            # NOTE aggregation + pagination.skip without limit not supported
-            pass
+            raise PaginationError('pagination "skip" without "limit" is not supported for pipelines')
         if slice_args:
             pipeline.append({'$project': {'total': 1, 'results': {'$slice': ['$results'] + slice_args}}})
 
