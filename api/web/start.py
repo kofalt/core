@@ -62,7 +62,7 @@ from .. import config
 from . import encoder
 from .. import util
 from .request import SciTranRequest
-from ..metrics.request_handler import RequestWrapper
+from ..metrics.request_wrapper import RequestWrapper
 
 try:
     import uwsgi
