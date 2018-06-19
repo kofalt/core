@@ -377,11 +377,11 @@ class ContainerStorage(object):
             if set_payload:
                 update['$set'] = {}
                 for k,v in set_payload.items():
-                    update['$set'][info_key + '.' + k] = util.mongo_sanitize_fields(v)
+                    update['$set'][info_key + '.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
             if delete_payload:
                 update['$unset'] = {}
                 for k in delete_payload:
-                    update['$unset'][info_key + '.' + k] = ''
+                    update['$unset'][info_key + '.' + util.mongo_sanitize_fields(str(k))] = ''
 
         _id = self.format_id(_id)
         query = {'_id': _id }

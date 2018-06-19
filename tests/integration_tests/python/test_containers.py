@@ -721,6 +721,12 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     })
     assert r.ok
 
+    # Try to set ''
+    r = as_admin.post('/projects/' + project + '/info', json={
+        'set': {'': False}
+    })
+    assert r.status_code == 400
+
     project_info['new'] = False
     r = as_admin.get('/projects/' + project)
     assert r.ok
@@ -791,6 +797,12 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     })
     assert r.ok
 
+    # Try to replace with '' as key name
+    r = as_admin.post('/projects/' + project + '/info', json={
+        'replace': {'': 'Hello'}
+    })
+    assert r.status_code == 400
+
     r = as_admin.get('/projects/' + project)
     assert r.ok
     assert r.json()['info'] == {}
@@ -840,6 +852,12 @@ def test_edit_file_info(data_builder, as_admin, file_form):
     })
     assert r.status_code == 400
 
+    # Set improper key names
+    r = as_admin.post('/projects/' + project + '/files/' + file_name + '/info', json={
+        'set': {'': 'cannot do this'}
+    })
+    assert r.status_code == 400
+
     # Attempt full replace of info
     file_info = {
         'a': 'b',
@@ -847,7 +865,8 @@ def test_edit_file_info(data_builder, as_admin, file_form):
         'map': {
             'a': 'b'
         },
-        'list': [1,2,3]
+        'list': [1,2,3],
+        '': False
     }
 
 
@@ -855,6 +874,14 @@ def test_edit_file_info(data_builder, as_admin, file_form):
     assert r.ok
 
     premodified_time = r.json().get('modified')
+
+    # Try to replace with '' in info
+    r = as_admin.post('/projects/' + project + '/files/' + file_name + '/info', json={
+        'replace': file_info
+    })
+    assert r.status_code == 400
+
+    file_info.pop('')
 
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/info', json={
         'replace': file_info
