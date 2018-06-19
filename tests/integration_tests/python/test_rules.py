@@ -455,7 +455,7 @@ def test_context_input_rule(randstr, data_builder, default_payload, api_db, as_a
     gear_doc = default_payload['gear']
     gear_doc['gear']['name'] = gear_name
     gear_doc['gear']['inputs'] = {
-        'test_context_value': {
+        'A': {
             'base': 'context'
         },
         'text-file': {
@@ -489,14 +489,14 @@ def test_context_input_rule(randstr, data_builder, default_payload, api_db, as_a
     job1 = gear_jobs[0]
     job1_id = job1['_id']
 
-    assert 'test_context_value' in job1['config']['inputs']
-    assert job1['config']['inputs']['test_context_value']['found'] == False
+    assert 'A' in job1['config']['inputs']
+    assert job1['config']['inputs']['A']['found'] == False
 
     # Create context value on session
     r = as_admin.post('/sessions/' + session + '/info', json={
         'set': {
             'context': {
-                'test_context_value': 'session_context_value'
+                'A': 'session_context_value'
             }
         }
     })
@@ -523,13 +523,13 @@ def test_context_input_rule(randstr, data_builder, default_payload, api_db, as_a
             project_job = job
 
     assert session_job is not None
-    assert 'test_context_value' in session_job['config']['inputs']
-    assert session_job['config']['inputs']['test_context_value']['found'] == True
-    assert session_job['config']['inputs']['test_context_value']['value'] == 'session_context_value'
+    assert 'A' in session_job['config']['inputs']
+    assert session_job['config']['inputs']['A']['found'] == True
+    assert session_job['config']['inputs']['A']['value'] == 'session_context_value'
 
     assert project_job is not None
-    assert 'test_context_value' in project_job['config']['inputs']
-    assert project_job['config']['inputs']['test_context_value']['found'] == False
+    assert 'A' in project_job['config']['inputs']
+    assert project_job['config']['inputs']['A']['found'] == False
 
     # Cleanup
     r = as_root.delete('/gears/' + gear)
