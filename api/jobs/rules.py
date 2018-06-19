@@ -160,7 +160,9 @@ def queue_job_legacy(algorithm_id, input_):
     if gears.count_file_inputs(gear) != 1:
         raise Exception("Legacy gear enqueue attempt of " + algorithm_id + " failed: must have exactly 1 file input in manifest")
 
-    input_name = gear['gear']['inputs'].keys()[0]
+    for x in gear['gear']['inputs'].keys():
+        if gear['gear']['inputs'][x]['base'] == 'file':
+            input_name = x
 
     inputs = {
         input_name: input_
