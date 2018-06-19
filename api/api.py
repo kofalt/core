@@ -18,6 +18,7 @@ from .handlers.roothandler              import RootHandler
 from .handlers.schemahandler            import SchemaHandler
 from .handlers.userhandler              import UserHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
+from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
 from .web.base                          import RequestHandler
 from . import config
@@ -317,6 +318,8 @@ endpoints = [
             ])
         ]),
 
+        # Metrics
+        route('/metrics', MetricsHandler, m=['GET']),
 
         # Misc (to be cleaned up later)
 
