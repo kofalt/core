@@ -53,7 +53,7 @@ main() {
 
     if [ -z "${DOCKER_IMAGE}" ]; then
         log "Building flywheel/core:testing ..."
-        docker build -t flywheel/core:testing .
+        docker build --target testing --tag flywheel/core:testing .
     else
         docker tag "$DOCKER_IMAGE" "flywheel/core:testing"
     fi

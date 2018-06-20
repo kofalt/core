@@ -80,21 +80,20 @@ main() {
         fi
         ###
 
-        uwsgi --ini /var/scitran/config/uwsgi-config.ini --http [::]:9000 \
+        uwsgi \
+            --ini /var/scitran/config/uwsgi-config.http.ini \
+            --http-keepalive \
             --env SCITRAN_COLLECT_ENDPOINTS=true \
             --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
             --env SCITRAN_CORE_LOG_LEVEL=debug \
             --env SCITRAN_RUNTIME_COVERAGE=true \
-            --processes 1 --threads 1 --enable-threads \
-            --http-keepalive --so-keepalive --add-header "Connection: Keep-Alive" \
-            --logformat '[%(ltime)] "%(method) %(uri) %(proto)" %(status) %(size) request_id=%(request_id)' \
             >/tmp/core.log 2>&1 &
         export CORE_PID=$!
         export SCITRAN_SITE_API_URL=http://localhost:9000/api
 
         if [ $RUN_SHELL = true ]; then
             log "INFO: Entering test shell ..."
-            bash
+            sh
             exit
         fi
 
@@ -141,7 +140,7 @@ allow_skip_all() {
 tail_logs_and_exit() {
     local PYTEST_EXIT_CODE=$?
     log "INFO: Tailing core logs ..."
-    tail --lines=50 /tmp/core.log
+    tail -n 50 /tmp/core.log
     exit $PYTEST_EXIT_CODE
 }
 
