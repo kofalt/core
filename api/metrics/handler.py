@@ -1,4 +1,6 @@
 """ Prometheus Client Metrics request handler """
+import uwsgi
+
 from prometheus_client import multiprocess
 from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST
 
@@ -13,6 +15,9 @@ class MetricsHandler(base.RequestHandler):
             multiprocess.MultiProcessCollector(registry)
 
             data = generate_latest(registry)
+
+            # Notify mule that metrics have been collected
+            uwsgi.farm_msg('metrics', 'collect-metrics')
 
             write = start_response('200 OK', [
                 ('Content-Type', CONTENT_TYPE_LATEST),
