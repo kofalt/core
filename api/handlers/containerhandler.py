@@ -109,7 +109,8 @@ class ContainerHandler(base.RequestHandler):
             self.storage.join_avatars([result])
 
         inflate_job_info = cont_name == 'sessions'
-        result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
+        if not self.is_enabled('Slim-Containers'):
+            result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
         return self.handle_origin(result)
 
     def handle_origin(self, result):
