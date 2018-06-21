@@ -938,7 +938,7 @@ class JobHandler(base.RequestHandler):
         for x in gear['gear'].get('inputs', {}).keys():
             input_ = gear['gear']['inputs'][x]
             if input_.get('base') == 'api-key':
-                if not self.user_is_admin and self.uid != j.origin['id']:
+                if not self.user_is_admin and str(self.uid) != j.origin['id']:
                     raise APIPermissionException('Only original scheduler or root user can retry a gear requiring an api key input')
 
         new_id = Queue.retry(j, force=True, only_failed=not self.is_true('ignoreState'))
@@ -1001,7 +1001,7 @@ class BatchHandler(base.RequestHandler):
             # Don't enforce permissions for site admin requests or drone requests
             query = {}
         else:
-            query = {'origin.id': self.uid}
+            query = {'origin.id': str(self.uid)}
         page = batch.get_all(query, {'proposal': 0}, pagination=self.pagination)
         return self.format_page(page)
 
@@ -1225,5 +1225,5 @@ class BatchHandler(base.RequestHandler):
 
     def _check_permission(self, batch_job):
         if not self.user_is_admin:
-            if batch_job['origin'].get('id') != self.uid:
+            if batch_job['origin'].get('id') != str(self.uid):
                 raise APIPermissionException('User does not have permission to access batch {}'.format(batch_job.get('_id')))

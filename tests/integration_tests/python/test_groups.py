@@ -1,13 +1,16 @@
 from dateutil.parser import parse
 
-def test_groups(as_user, as_admin, data_builder):
+def test_groups(as_user, as_admin, data_builder, api_db):
     # Cannot find a non-existant group
     r = as_admin.get('/groups/non-existent')
     assert r.status_code == 404
 
     group = data_builder.create_group()
-    user_id = data_builder.create_user(_id='test-user@user.com')
-    r = as_admin.post('/groups/' + group + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    new_user_id = data_builder.create_user(email='test-user@user.com')
+    admin_id = as_admin.get('/users/self').json()['_id']
+    user_id = as_user.get('/users/self').json()['_id']
+
+    r = as_admin.post('/groups/' + group + '/permissions', json={'_id': user_id, 'access': 'admin'})
     assert r.ok
 
     # Able to find new group
@@ -103,15 +106,20 @@ def test_groups(as_user, as_admin, data_builder):
     d6 = parse(six_modified)
     assert d6 > d5
 
+    # Add a permission to the group
+    user = {'access': 'rw', '_id': new_user_id}
+    r = as_user.post('/groups/' + group + '/permissions', json=user)
+    assert r.ok
+
     # Edit a permission in the group
-    user = {'access': 'ro', '_id': user_id}
+    user = {'access': 'ro', '_id': new_user_id}
     r = as_user.put('/groups/' + group + '/permissions/' + user['_id'], json=user)
     assert r.ok
 
     # Get all permissions for each group
-    r = as_admin.get('/users/admin@user.com/groups')
+    r = as_admin.get('/users/' + admin_id + '/groups')
     assert r.ok
-    assert r.json()[0].get("permissions")[0].get("_id") == "admin@user.com"
+    assert r.json()[0].get("permissions")[0].get("_id") == admin_id
 
     # Get the group again to compare timestamps for the Edit permission test groups
     r = as_user.get('/groups/' + group)
@@ -131,8 +139,9 @@ def test_groups(as_user, as_admin, data_builder):
     d8 = parse(eight_modified)
     assert d8 > d7
 
-    group2 = data_builder.create_group()
-    r = as_admin.post('/groups/' + group2 + '/permissions', json={'access':'admin','_id':'user@user.com'})
+    group2 = data_builder.create_group(label='group 2')
+    as_user_id = as_user.get('/users/self').json()["_id"]
+    r = as_admin.post('/groups/' + group2 + '/permissions', json={'access':'admin','_id':as_user_id})
     assert r.ok
 
     # Test User can get group2
@@ -171,4 +180,3 @@ def test_groups_blacklist(as_admin):
 
     r = as_admin.post('/groups', json={'_id': 'site', 'label': 'Site group'})
     assert r.status_code == 400
-

@@ -174,6 +174,7 @@ def initialize_db():
 
     db.users.create_index('api_key.key', **kwargs)
     db.users.create_index('deleted', **kwargs)
+    db.users.create_index('email', unique=True)
     db.apikeys.create_index([('type', 1), ('origin.id', 1)], **kwargs)
     db.queries.create_index('creator', **kwargs)
     db.projects.create_index([('group', 1), ('label', 1)], **kwargs)

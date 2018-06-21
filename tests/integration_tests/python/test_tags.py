@@ -1,7 +1,8 @@
 def test_tags(data_builder, as_admin, as_user):
     project = data_builder.create_project()
-    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'rw'})
-    assert r.ok
+
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
 
     tag = 'test_tag'
     new_tag = 'new_test_tag'

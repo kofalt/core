@@ -181,8 +181,8 @@ def list_permission_checker(handler):
             if handler.scope:
                 query['$or'] = [{'parents.{}'.format(handler.scope['level']): handler.scope['id']},
                                 {'_id': handler.scope['id']}, {'public': True}]
-            elif user and (user['_id'] != handler.uid):
-                handler.abort(403, 'User ' + handler.uid + ' may not see the Projects of User ' + user['_id'])
+            elif user and (user['_id'] != str(handler.uid)):
+                handler.abort(403, 'User {} may not see the Projects of User {}'.format(handler.uid, user['_id']))
             else:
                 query['permissions'] = {'$elemMatch': {'_id': handler.uid}}
             if handler.is_true('public'):

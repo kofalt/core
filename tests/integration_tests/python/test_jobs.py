@@ -731,7 +731,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert r.status_code == 403
 
     # try to update job (user may only cancel)
-    api_db.jobs.update_one({'_id': bson.ObjectId(job1_id)}, {'$set': {'origin.id': 'user@user.com'}})
+    api_db.jobs.update_one({'_id': bson.ObjectId(job1_id)}, {'$set': {'origin.id': user_id}})
     r = as_user.put('/jobs/' + job1_id, json={'test': 'invalid'})
     assert r.status_code == 403
 
@@ -2349,6 +2349,7 @@ def test_config_values(data_builder, default_payload, as_admin, file_form):
     assert r.ok
 
 def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, as_public, file_form):
+    user_id = as_user.get('/users/self').json()['_id']
     # Dupe of test_queue.py
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -2504,7 +2505,7 @@ def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, 
 
     # Add permission and verify access
     assert as_admin.post('/projects/' + project + '/permissions', json={
-        '_id': 'user@user.com',
+        '_id': user_id,
         'access': 'ro'
     }).ok
     r = as_user.get('/jobs/' + job + '/detail')
@@ -2669,4 +2670,3 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     r = as_admin.get('/jobs/' + job + '/logs')
     assert r.ok
     assert r.json()['logs'] == expected_job_logs
-

@@ -8,9 +8,9 @@ def test_switching_project_between_groups(data_builder, as_admin, as_user):
     user_id = as_user.get('/users/self').json()['_id']
 
     # Add User to permissions
-    as_admin.post('/groups/' + group_1 + '/permissions', json={'_id': user_id, 'access': 'admin'})
-    as_admin.post('/groups/' + group_2 + '/permissions', json={'_id': user_id, 'access': 'admin'})
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'})
+    assert as_admin.post('/groups/' + group_1 + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
+    assert as_admin.post('/groups/' + group_2 + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
 
     r = as_user.put('/projects/' + project, json={'group': group_2})
@@ -323,10 +323,12 @@ def test_get_all_containers(data_builder, as_user, as_admin, as_public, file_for
     project_2 = data_builder.create_project()
     session = data_builder.create_session(project=project_1)
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/groups/' + group + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
-    as_admin.post('/projects/' + project_1 + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
-    as_admin.post('/projects/' + project_2 + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/groups/' + group + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
+    assert as_admin.post('/projects/' + project_1 + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
+    assert as_admin.post('/projects/' + project_2 + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
     # get all projects w/ counts=true
     r = as_public.get('/projects', params={'counts': 'true'})
@@ -361,7 +363,7 @@ def test_get_all_containers(data_builder, as_user, as_admin, as_public, file_for
 
     # Test get_all analyses
     project_3 = data_builder.create_project(group=group, public=False)
-    as_admin.post('/projects/' + project_3 + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project_3 + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
     session_2 = data_builder.create_session(project=project_3, public=False)
 
     analysis_1 = as_user.post('/sessions/' + session_2 + '/analyses', files=file_form(
@@ -392,7 +394,7 @@ def test_get_all_containers(data_builder, as_user, as_admin, as_public, file_for
     assert len(r.json()) == 1
 
     # Delete User from permissions
-    as_admin.delete('/groups/' + group + '/permissions/user@user.com', params={'propagate': 'true'})
+    as_admin.delete('/groups/' + group + '/permissions/' + user_id,  params={'propagate': 'true'})
 
     r = as_user.get('/projects/' + project_3 + '/all/analyses')
     assert r.status_code == 403
@@ -419,8 +421,10 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_us
     project = data_builder.create_project()
     session = data_builder.create_session()
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id,  'access': 'admin'}).ok
 
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -527,9 +531,10 @@ def test_get_session_jobs(data_builder, default_payload, as_user, as_admin, file
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
     acquisition = data_builder.create_acquisition()
+    user_id = as_user.get('/users/self').json()['_id']
 
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id,  'access': 'admin'}).ok
 
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -598,10 +603,10 @@ def test_post_container(data_builder, as_admin, as_user):
     # set as_user perms to rw on group
     r = as_user.get('/users/self')
     assert r.ok
-    uid = r.json()['_id']
+    user_id = r.json()['_id']
 
     r = as_admin.post('/groups/' + group + '/permissions', json={
-        '_id': uid,
+        '_id': user_id,
         'access': 'rw'
     })
     assert r.ok
@@ -622,7 +627,7 @@ def test_post_container(data_builder, as_admin, as_user):
 
     # set as_user perms to rw on project
     r = as_user.get('/users/self')
-    r = as_admin.put('/groups/' + group + '/permissions/user@user.com', json={
+    r = as_admin.put('/groups/' + group + '/permissions/' + user_id,  json={
         'access': 'admin'
     })
     assert r.ok
@@ -699,8 +704,10 @@ def test_put_container(data_builder, as_user, as_admin):
     session = data_builder.create_session(project=project)
     session_2 = data_builder.create_session(project=project)
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id,  'access': 'admin'})
 
     # test empty update
     r = as_user.put('/sessions/' + session, json={})
@@ -819,9 +826,11 @@ def test_analysis_put(data_builder, default_payload, as_user, as_admin, file_for
         }
     }
     gear = data_builder.create_gear(gear=gear_doc)
+    user_id = as_user.get('/users/self').json()['_id']
 
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions',
+                         json={'_id': user_id, 'access': 'admin'}).ok
 
     # Add project file
     r = as_user.post('/projects/' + project + '/files', files=file_form('job_1.csv'))
@@ -855,12 +864,15 @@ def test_analysis_put(data_builder, default_payload, as_user, as_admin, file_for
     r = as_user.put('/sessions/'+session + '/analyses/' + analysis)
     assert r.status_code == 400
 
+
 def test_edit_file_attributes(data_builder, as_user, as_admin, file_form):
     project = data_builder.create_project()
     file_name = 'test_file.txt'
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
     assert as_user.post('/projects/' + project + '/files', files=file_form(file_name)).ok
 
@@ -911,9 +923,10 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     """
 
     project = data_builder.create_project()
+    user_id = as_user.get('/users/self').json()['_id']
 
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
 
     r = as_user.get('/projects/' + project)
@@ -1058,8 +1071,10 @@ def test_edit_file_info(data_builder, as_user, as_admin, file_form):
     file_name = 'test_file.txt'
     file_name_fwd = 'test/file.txt'
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
 
     # Assert getting file info 404s properly
@@ -1243,8 +1258,10 @@ def test_edit_subject_info(data_builder, as_user, as_admin):
     project = data_builder.create_project()
     session = data_builder.create_session()
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
     r = as_user.get('/sessions/' + session + '/subject')
     assert r.ok
@@ -1593,10 +1610,10 @@ def test_container_delete_tag(data_builder, default_payload, as_admin, as_user, 
     # Add user as rw
     r = as_user.get('/users/self')
     assert r.ok
-    uid = r.json()['_id']
+    user_id = r.json()['_id']
 
     r = as_admin.post('/projects/' + project + '/permissions', json={
-        '_id': uid,
+        '_id': user_id,
         'access': 'rw'
     })
     assert r.ok

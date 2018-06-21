@@ -40,10 +40,13 @@ def test_download_k(data_builder, file_form, as_admin, as_user, api_db, legacy_c
     acquisition3 = data_builder.create_acquisition(session=session3)
     acquisition4 = data_builder.create_acquisition(session=session4)
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # upload the same file to each container created and use different tags to
     # facilitate download filter tests:
     # acquisition: [], session: ['plus'], project: ['plus', 'minus']
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions',
+                         json={'_id': user_id, 'access': 'admin'}).ok
     file_name = 'test.csv'
     as_user.post('/acquisitions/' + acquisition + '/files', files=file_form(
         file_name, meta={'name': file_name, 'type': 'csv'}))
@@ -211,7 +214,8 @@ def test_download_k(data_builder, file_form, as_admin, as_user, api_db, legacy_c
     (project_legacy, file_name_legacy, file_content) = legacy_cas_file
 
     # Add user to leagcy project permissions
-    as_admin.post('/projects/' + project_legacy + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project_legacy + '/permissions',
+                         json={'_id': user_id, 'access': 'admin'}).ok
     r = as_user.post('/download', json={
         'optional': False,
         'nodes': [
@@ -268,8 +272,10 @@ def test_filelist_download(data_builder, file_form, as_user, as_admin, legacy_ca
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
     zip_cont = cStringIO.StringIO()
     with zipfile.ZipFile(zip_cont, 'w') as zip_file:
@@ -328,7 +334,7 @@ def test_filelist_download(data_builder, file_form, as_user, as_admin, legacy_ca
     # test legacy cas file handling
     (project, file_name, file_content) = legacy_cas_file
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
     r = as_user.get('/projects/' + project + '/files/' + file_name, params={'ticket': ''})
     assert r.ok
 
@@ -343,8 +349,10 @@ def test_filelist_range_download(data_builder, as_user, as_admin, file_form):
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add user to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
     session_files = '/sessions/' + session + '/files'
     as_user.post(session_files, files=file_form(('one.csv', '123456789')))
@@ -452,8 +460,10 @@ def test_filelist_advanced_range_download(data_builder, as_user, as_admin, file_
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
 
+    user_id = as_user.get('/users/self').json()['_id']
+
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
     session_files = '/sessions/' + session + '/files'
     as_user.post(session_files, files=file_form(('one.csv', '123456789')))
@@ -706,7 +716,8 @@ def test_analyses_range_download(data_builder, as_user, as_admin, file_form):
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
     zip_cont = cStringIO.StringIO()
     with zipfile.ZipFile(zip_cont, 'w') as zip_file:
         zip_file.writestr('two.csv', 'sample\ndata\n')
@@ -799,8 +810,9 @@ def test_filters(data_builder, file_form, as_user, as_admin):
     acquisition = data_builder.create_acquisition()
     acquisition2 = data_builder.create_acquisition()
 
+    user_id = as_user.get('/users/self').json()['_id']
     # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'admin'}).ok
 
     as_user.post('/acquisitions/' + acquisition + '/files', files=file_form(
         "test.csv", meta={'name': "test.csv", 'type': 'csv', 'tags': ['red', 'blue']}))
