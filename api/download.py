@@ -1,3 +1,6 @@
+from Queue import Empty
+from multiprocessing import Pool, Lock, Queue, Manager
+
 import os
 import bson
 import copy
@@ -5,7 +8,7 @@ import pytz
 import tarfile
 import datetime
 import cStringIO
-
+import time
 from tarfile import TarInfo
 
 import fs.path
@@ -21,6 +24,82 @@ from .dao.containerutil import pluralize
 log = config.log
 
 BYTES_IN_MEGABYTE = float(1<<20)
+
+
+class Sentinel(object):
+    def __init__(self):
+        pass
+
+
+class Abort(object):
+    def __init__(self):
+        pass
+
+
+def foo(l, q, filepath, arcpath, cont_name, cont_id):
+    BLOCKSIZE = 512
+    CHUNKSIZE = 2 ** 20
+
+    tarinfo = TarInfo()  # pylint: disable=protected-access
+    tarinfo.name = arcpath.lstrip('/')
+
+    signed_url = None
+    try:
+        signed_url = files.get_signed_url(filepath, config.fs)
+    except fs.errors.ResourceNotFound:
+        pass
+
+    if signed_url:
+        response = requests.get(signed_url, stream=True)
+        f_iter = response.iter_content(chunk_size=CHUNKSIZE)
+        l.acquire()
+        try:
+            q.put(tarinfo)
+            chunk = ''
+            for chunk in f_iter:
+                q.put(chunk)
+            if len(chunk) % BLOCKSIZE != 0:
+                q.put((BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0')
+            q.put(Sentinel())
+        except (IOError, fs.errors.OperationFailed):
+            msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                   "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
+            log.critical(msg)
+            q.put(Abort())
+            q.put(msg)
+        l.release()
+    else:
+        try:
+            file_system = files.get_fs_by_file_path(filepath)
+            with file_system.open(filepath) as fd:
+                f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
+                l.acquire()
+                try:
+                    q.put(tarinfo)
+                    chunk = ''
+                    for chunk in f_iter:
+                        q.put(chunk)
+                    if len(chunk) % BLOCKSIZE != 0:
+                        q.put((BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0')
+                    q.put(Sentinel())
+                except (IOError, fs.errors.OperationFailed):
+                    msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                               "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
+                    log.critical(msg)
+                    q.put(Abort())
+                    q.put(msg)
+                l.release()
+        except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError) as e:
+            log.error(type(e))
+            log.exception(e)
+            log.critical("Couldn't find the file during creating archive stream: %s, "
+                         "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
+            tarinfo = TarInfo()
+            tarinfo.name = arcpath + '.MISSING'
+            l.acquire()
+            q.put(tarinfo.tobuf())
+            l.release()
+
 
 def _filter_check(property_filter, property_values):
     minus = set(property_filter.get('-', []) + property_filter.get('minus', []))
@@ -289,50 +368,39 @@ class Download(base.RequestHandler):
         return path
 
     def archivestream(self, ticket):
-        BLOCKSIZE = 512
-        CHUNKSIZE = 2**20  # stream files in 1MB chunks
         stream = cStringIO.StringIO()
         with tarfile.open(mode='w|', fileobj=stream) as archive:
+            m = Manager()
+            q = m.Queue()
+            l = m.Lock()
+            pool = Pool()
+
             for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
-                try:
-                    file_system = files.get_fs_by_file_path(filepath)
-                    with file_system.open(filepath, 'rb') as fd:
-                        signed_url = None
-                        if isinstance(fd, RawWrapper) and hasattr(fd._f,  # pylint: disable=protected-access
-                                                                  'gettarinfo'):
-                            tarinfo = fd._f.gettarinfo(arcname=arcpath).tobuf()  # pylint: disable=protected-access
-                            yield tarinfo
-                            signed_url = files.get_signed_url(filepath, file_system)
-                        else:
-                            yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
-
-                        try:
-                            if signed_url:
-                                response = requests.get(signed_url, stream=True)
-                                f_iter = response.iter_content(chunk_size=CHUNKSIZE)
-                            else:
-                                f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
-
-                            chunk = ''
-                            for chunk in f_iter:
-                                yield chunk
-                            if len(chunk) % BLOCKSIZE != 0:
-                                yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
-
-                        except (IOError, fs.errors.OperationFailed):
-                            msg = ("Error happened during sending file content in archive stream, file path: %s, "
-                                   "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
-                            log.critical(msg)
-                            self.abort(500, msg)
-
-                except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
-                    log.critical("Couldn't find the file during creating archive stream: %s, "
-                                 "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
-                    tarinfo = TarInfo()
-                    tarinfo.name = arcpath + '.MISSING'
-                    yield tarinfo.tobuf()
-
+                pool.apply_async(foo, args=(l, q, filepath, arcpath, cont_name, cont_id))
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
+            pool.close()
+            processed = 0
+            while True:
+                try:
+                    data = q.get(block=True, timeout=10)
+                except Empty:
+                    self.abort(500, 'Unknown error happened during creating the archive')
+                    return
+
+                if type(data) == Sentinel:
+                    processed += 1
+                elif type(data) == Abort:
+                    # get the reason of the abort
+                    msg = q.get()
+                    self.abort(500, msg)
+                else:
+                    yield data
+
+                if processed == len(ticket['target']):
+                    break
+
+            pool.join()
+
         yield stream.getvalue()  # get tar stream trailer
         stream.close()
 
