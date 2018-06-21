@@ -5,13 +5,13 @@ from prometheus_client import Summary, Gauge, Counter
 # Labels: Method, Path, Code
 
 # Response Time
-RESPONSE_TIME = Summary('response_time_seconds', 'Observed time to complete response, in seconds', ['method', 'template', 'status'])
+RESPONSE_TIME = Summary('uwsgi_response_time_seconds', 'Observed time to complete response, in seconds', ['method', 'template', 'status'])
 # Response Size
-RESPONSE_SIZE = Summary('response_size_bytes', 'Observed response size, in bytes', ['method', 'template', 'status'])
+RESPONSE_SIZE = Summary('uwsgi_response_size_bytes', 'Observed response size, in bytes', ['method', 'template', 'status'])
 
 # ===== Search =====
 ELASTIC_VERSION = Gauge('elastic_version', 'The elastic version info', ['build_hash', 'lucene_version', 'version'], multiprocess_mode='livesum')
-ELASTIC_IS_UP = Gauge('elastic_is_up', 'Whether or not elastic is up, 1 for alive, 0 for dead', [], multiprocess_mode='livesum')
+ELASTIC_IS_UP = Gauge('elastic_up', 'Whether or not elastic is up, 1 for alive, 0 for dead', [], multiprocess_mode='livesum')
 
 # ===== UWSGI Workers ======
 # Labels: PID
@@ -51,13 +51,22 @@ SYSTEM_DISK_BYTES_FREE = Gauge('system_disk_bytes_free', 'Observed disk availabi
 
 # ===== DB Stats =====
 # DB Version
-DB_VERSION = Gauge('db_version', 'The database version', [], multiprocess_mode='livesum')
+DB_VERSION = Gauge('fw_db_version', 'The database version', [], multiprocess_mode='livesum')
 # App Version
-RELEASE_VERSION = Gauge('release_version', 'The app release version', ['version'], multiprocess_mode='livesum')
+RELEASE_VERSION = Gauge('fw_release_version', 'The app release version', ['version'], multiprocess_mode='livesum')
 # Job Counts (label=state)
-JOBS_BY_STATE = Gauge('job_counts_by_state', 'Total number of jobs in each state', ['state'], multiprocess_mode='livesum')
-# Counts: Users, Groups, Projects, Subjects, Sessions
-COLLECTION_COUNT = Gauge('collection_counts', 'Total number of documents in each collection', ['collection'], multiprocess_mode='livesum')
+JOBS_BY_STATE = Gauge('fw_jobs', 'Total number of jobs in each state', ['state'], multiprocess_mode='livesum')
+# Gear versions
+GEAR_VERSIONS = Gauge('fw_gear', 'Gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='livesum')
+# Counts: Users, Groups, Projects, Subjects, Sessions, Gears, Devices
+COLLECTION_COUNT = Gauge('fw_collection_count', 'Total number of documents in each collection', ['collection'], multiprocess_mode='livesum')
+# Device last seen
+DEVICE_TIME_SINCE_LAST_SEEN = Gauge('fw_device_since_last_seen_seconds', 'Time since a device was last seen, in seconds', ['type', 'name', 'id'], multiprocess_mode='livesum')
+# Device interval
+DEVICE_INTERVAL = Gauge('fw_device_interval_seconds', 'The device interval, in seconds', ['type', 'name', 'id'], multiprocess_mode='livesum')
+# Total number of active / passive devices
+DEVICE_STATUS_COUNT = Gauge('fw_device_status_counts', 'The number of devices by type and status', ['type', 'status'], multiprocess_mode='livesum')
 
 # ===== Meta =====
-COLLECT_METRICS_TIME = Summary('collect_metrics_time_seconds', 'Observed time to collect metrics, in seconds', [])
+COLLECT_METRICS_TIME = Summary('uwsgi_collect_metrics_time_seconds', 'Observed time to collect metrics, in seconds', [])
+
