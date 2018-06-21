@@ -1,6 +1,17 @@
+""" Metrics Mule Script
+
+This script runs as a separate process in uwsgi, collecting metrics from each worker.
+The metrics captured include response codes and timing, as well as various system counters and
+database statistics.
+
+References:
+    * UWSGI Mules: https://uwsgi-docs.readthedocs.io/en/latest/Mules.html
+    * Multiprocess Metrics: https://github.com/prometheus/client_python#multiprocess-mode-gunicorn
+"""
 import logging
 import psutil
 import time
+import uwsgi
 
 from prometheus_client import multiprocess
 
@@ -76,7 +87,6 @@ def collect_worker_metrics(workers):
         workers (dict): The current set of workers, as a map of pid -> Process
     """
     try:
-        import uwsgi
         # For now, just cleanup dead workers
         dead_workers = set(workers.keys())
         for worker in uwsgi.workers():
@@ -172,7 +182,8 @@ def run_mule():
             collect_elastic_metrics()
             collect_db_metrics()
 
-        time.sleep(POLL_INTERVAL)
+        # Wait for next message before polling
+        uwsgi.farm_get_msg()
 
 if __name__ == '__main__':
     run_mule()
