@@ -87,10 +87,7 @@ main() {
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
         core:testing \
-            uwsgi --ini /var/scitran/config/uwsgi-config.ini --http [::]:9000 \
-            --processes 1 --threads 1 --enable-threads \
-            --http-keepalive --so-keepalive --add-header "Connection: Keep-Alive" \
-            --logformat '[%(ltime)] "%(method) %(uri) %(proto)" %(status) %(size) request_id=%(request_id)'
+            uwsgi --ini /var/scitran/config/uwsgi-config.http.ini --http-keepalive
 
     # Run core test cmd
     local SDK_TEST_CMD
