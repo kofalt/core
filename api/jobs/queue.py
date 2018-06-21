@@ -149,6 +149,7 @@ class Queue(object):
 
         return new_id
 
+
     @staticmethod
     def enqueue_job(job_map, origin, perm_check_uid=None):
         """
@@ -296,7 +297,7 @@ class Queue(object):
             tags.append(gear_name)
 
         job = Job(str(gear['_id']), inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
-        job.insert()
+
         return job
 
     @staticmethod
