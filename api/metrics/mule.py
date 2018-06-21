@@ -11,11 +11,13 @@ References:
 import logging
 import psutil
 import time
-import uwsgi
 
+from datetime import datetime
 from prometheus_client import multiprocess
 
 from api import config
+from api.dao import containerstorage
+from api.handlers.devicehandler import get_device_statuses
 from api.metrics import values
 
 log = logging.getLogger('flywheel.metrics')
@@ -42,7 +44,7 @@ JOBS_BY_STATE_QUERY = [{'$group': {
 }}] 
 
 # The list of collections to collect raw counts for
-COUNT_COLLECTIONS = ['users', 'groups', 'projects', 'sessions', 'gears']
+COUNT_COLLECTIONS = ['users', 'groups', 'projects', 'sessions']
 
 def collect_system_metrics():
     """Collect system-level metrics (CPU, memory, io and disk usage)"""
@@ -87,6 +89,8 @@ def collect_worker_metrics(workers):
         workers (dict): The current set of workers, as a map of pid -> Process
     """
     try:
+        import uwsgi
+
         # For now, just cleanup dead workers
         dead_workers = set(workers.keys())
         for worker in uwsgi.workers():
@@ -168,10 +172,64 @@ def collect_db_metrics():
             count = config.db[collection_name].count()
             values.COLLECTION_COUNT.labels(collection_name).set(count)
 
+        # Get gear versions
+        gear_count = 0
+        for gear_doc in config.db.gears.find():
+            gear = gear_doc.get('gear', {})
+            name = gear.get('name', 'UNKNOWN')
+            version = gear.get('version', 'UNKNOWN')
+            created = str(gear_doc.get('created', 'UNKNOWN'))
+            values.GEAR_VERSIONS.labels(name, version, created).set(1)
+            gear_count = gear_count + 1
+        values.COLLECTION_COUNT.labels('gears').set(gear_count)
+
+        # Get devices
+        device_count = 0
+        device_storage = containerstorage.ContainerStorage('devices', use_object_id=True)
+        devices = device_storage.get_all_el(None, None, None)
+        device_statuses = get_device_statuses(devices)
+        status_counts = {}
+        for device in devices:
+            device_id = str(device['_id'])
+            device_type = device.get('type') or device.get('method') or 'UNKNOWN'
+            device_name = device.get('name', 'UNKNOWN')
+            last_seen = device.get('last_seen')
+            if last_seen:
+                since_last_seen = (datetime.now() - last_seen).total_seconds()
+            else:
+                since_last_seen = -1
+            interval = device.get('interval', -1)
+
+            # Set
+            device_label = [device_type, device_name, device_id]
+            values.DEVICE_TIME_SINCE_LAST_SEEN.labels(*device_label).set(since_last_seen)
+            values.DEVICE_INTERVAL.labels(*device_label).set(interval)
+
+            # Increment count by type
+            device_status = device_statuses[device_id]['status']
+            status_key = (device_type, device_status)
+            current_count = status_counts.setdefault(status_key, 0)
+            status_counts[status_key] = current_count + 1
+
+            device_count = device_count + 1
+
+        # Device count
+        values.COLLECTION_COUNT.labels('devices').set(device_count)
+
+        # Status count
+        for label, count in status_counts.items():
+            values.DEVICE_STATUS_COUNT.labels(*label).set(count)
+
     except: # pylint: disable=bare-except
         log.exception('Error collecting db metrics')
 
 def run_mule():
+    try:
+        import uwsgi
+    except ImportError:
+        log.warn('Unable to import uwsgi, falling back to poll interval')
+        uwsgi = None
+
     # Find workers
     workers = {}
 
@@ -183,7 +241,10 @@ def run_mule():
             collect_db_metrics()
 
         # Wait for next message before polling
-        uwsgi.farm_get_msg()
+        if uwsgi:
+            uwsgi.farm_get_msg()
+        else:
+            time.sleep(POLL_INTERVAL)
 
 if __name__ == '__main__':
     run_mule()
