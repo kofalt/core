@@ -318,7 +318,7 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_ad
     assert r.ok
     assert all('avatar' in perm for perm in r.json()['permissions'])
 
-    # create analyses for testing job inflation
+    # create analyses for testing job inflation and slim containers
     r = as_admin.post('/sessions/' + session + '/analyses', files=file_form(
         'analysis.csv', meta={'label': 'no-job', 'inputs': [{'name': 'analysis.csv'}]}))
     assert r.ok
@@ -331,7 +331,10 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_ad
             }
         }
     })
+    r = as_admin.post('/projects/' + project + '/analyses', files=file_form(
+        'analysis.csv', meta={'label': 'no-job', 'inputs': [{'name': 'analysis.csv'}]}))
     assert r.ok
+
 
     # get session and check analyis job inflation
     r = as_admin.get('/sessions/' + session)
@@ -353,6 +356,16 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_ad
     r = as_admin.get('/sessions/' + session)
     assert r.ok
     assert r.json()['analyses'][1]['job']['id'] != analysis_job
+
+    # get session with Slim-Containers header
+    r = as_admin.get('/sessions/' + session, headers={'X-Accept-Feature': 'slim-containers'})
+    assert r.ok
+    assert 'analyses' not in r.json()
+
+    # get project with Slim-Containers header
+    r = as_admin.get('/projects/' + project, headers={'X-Accept-Feature': 'slim-containers'})
+    assert r.ok
+    assert 'analyses' not in r.json()
 
 
 def test_get_session_jobs(data_builder, default_payload, as_admin, file_form):
