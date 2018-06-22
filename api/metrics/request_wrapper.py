@@ -98,8 +98,9 @@ class RequestWrapper(object):
             method = getattr(self._request, 'method', 'UNKNOWN')
 
             labels = [ method, template, str(self._status) ]
-            values.RESPONSE_TIME.labels(*labels).observe(response_time)
-            values.RESPONSE_SIZE.labels(*labels).observe(self._bytes_sent)
+            values.RESPONSE_TIME.labels(*labels).inc(response_time)
+            values.RESPONSE_SIZE.labels(*labels).inc(self._bytes_sent)
+            values.RESPONSE_COUNT.labels(*labels).inc(1)
 
         except: # pylint: disable=bare-except
             log.exception('Error recording metrics')

@@ -5,9 +5,11 @@ from prometheus_client import Summary, Gauge, Counter
 # Labels: Method, Path, Code
 
 # Response Time
-RESPONSE_TIME = Summary('uwsgi_response_time_seconds', 'Observed time to complete response, in seconds', ['method', 'template', 'status'])
+RESPONSE_TIME = Counter('uwsgi_response_time_seconds_sum', 'Observed time to complete response, in seconds', ['method', 'template', 'status'])
 # Response Size
-RESPONSE_SIZE = Summary('uwsgi_response_size_bytes', 'Observed response size, in bytes', ['method', 'template', 'status'])
+RESPONSE_SIZE = Counter('uwsgi_response_size_bytes_sum', 'Observed response size, in bytes', ['method', 'template', 'status'])
+# Response Count
+RESPONSE_COUNT = Counter('uwsgi_response_count', 'Observed response counts', ['method', 'template', 'status'])
 
 # ===== Search =====
 ELASTIC_VERSION = Gauge('elastic_version', 'The elastic version info', ['build_hash', 'lucene_version', 'version'], multiprocess_mode='livesum')
