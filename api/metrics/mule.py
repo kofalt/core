@@ -131,27 +131,6 @@ def collect_worker_metrics(workers):
     except: # pylint: disable=bare-except
         log.exception('Error collecting worker metrics')
 
-def collect_elastic_metrics():
-    """Collect basic elastic-search metrics (is-up, and version)"""
-    try:
-        from elasticsearch import TransportError
-        # If we got info, assume elastic is up
-        info = config.es.info()
-        values.ELASTIC_IS_UP.set(1)
-
-        version = info.get('version', {})
-        build_hash = version.get('build_hash', '')
-        lucene_version = version.get('lucene_version', '')
-        number = version.get('number', '')
-
-        # Capture elastic version
-        values.ELASTIC_VERSION.labels(build_hash, lucene_version, number).set(1)
-    except TransportError:
-        # Elastic is not available
-        values.ELASTIC_IS_UP.set(0)
-    except: # pylint: disable=bare-except
-        log.exception('Error collecting elastic metrics')
-
 def collect_db_metrics():
     """Collect metrics from mongodb, including version and job states"""
     try:
@@ -237,7 +216,6 @@ def run_mule():
         with values.COLLECT_METRICS_TIME.time():
             collect_system_metrics()
             collect_worker_metrics(workers)
-            collect_elastic_metrics()
             collect_db_metrics()
 
         # Wait for next message before polling

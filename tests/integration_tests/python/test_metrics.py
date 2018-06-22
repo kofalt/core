@@ -6,7 +6,7 @@ def test_metrics(as_drone):
     assert len(r.text) > 0
 
     # Check for existence of a few unlabeled values
-    expected_names = {'fw_db_version', 'elastic_up', 'worker_deaths'}
+    expected_names = {'fw_db_version', 'uwsgi_worker_deaths'}
 
     for family in text_string_to_metric_families(r.text):
         if family.name in expected_names:
