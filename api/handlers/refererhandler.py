@@ -525,7 +525,7 @@ class AnalysesHandler(RefererHandler):
             file_path, _ = files.get_valid_file(f)
             targets.append((file_path,
                             '/'.join([util.sanitize_string_to_filename(analysis['label']), dirname, f['name']]),
-                            'analyses', analysis['_id'], f['size']))
+                            'analyses', analysis['_id'], f['size'], f['modified']))
             total_size += f['size']
             total_cnt += 1
         return targets, total_size, total_cnt

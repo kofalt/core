@@ -1,5 +1,5 @@
 from Queue import Empty
-from multiprocessing import Pool, Lock, Queue, Manager
+from multiprocessing import Pool, Manager
 
 import os
 import bson
@@ -8,12 +8,11 @@ import pytz
 import tarfile
 import datetime
 import cStringIO
-import time
 from tarfile import TarInfo
 
 import fs.path
 import fs.errors
-from fs.iotools import RawWrapper
+from fs.time import datetime_to_epoch
 import requests
 
 from .web import base
@@ -36,12 +35,15 @@ class Abort(object):
         pass
 
 
-def foo(l, q, filepath, arcpath, cont_name, cont_id):
+def stream_file_worker(l, q, filepath, arcpath, cont_name, cont_id, f_size, f_modified):
     BLOCKSIZE = 512
     CHUNKSIZE = 2 ** 20
 
     tarinfo = TarInfo()  # pylint: disable=protected-access
     tarinfo.name = arcpath.lstrip('/')
+    tarinfo.size = f_size
+    tarinfo.mtime = datetime_to_epoch(f_modified)
+    tarinfo = tarinfo.tobuf()
 
     signed_url = None
     try:
@@ -71,7 +73,7 @@ def foo(l, q, filepath, arcpath, cont_name, cont_id):
     else:
         try:
             file_system = files.get_fs_by_file_path(filepath)
-            with file_system.open(filepath) as fd:
+            with file_system.open(filepath, 'rb') as fd:
                 f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
                 l.acquire()
                 try:
@@ -137,9 +139,13 @@ class Download(base.RequestHandler):
             file_path = files.get_file_path(f)
             if file_path:  # silently skip missing files
                 if cont_name == 'analyses':
-                    targets.append((file_path, '{}/{}/{}'.format(prefix, file_group, f['name']), cont_name, str(container.get('_id')), f['size']))
+                    targets.append((file_path, '{}/{}/{}'.format(prefix, file_group, f['name']),
+                                    cont_name,
+                                    str(container.get('_id')),
+                                    f['size'],
+                                    f['modified']))
                 else:
-                    targets.append((file_path, '{}/{}'.format(prefix, f['name']), cont_name, str(container.get('_id')), f['size']))
+                    targets.append((file_path, '{}/{}'.format(prefix, f['name']), cont_name, str(container.get('_id')), f['size'], f['modified']))
                 total_size += f['size']
                 total_cnt += 1
             else:
@@ -184,7 +190,7 @@ class Download(base.RequestHandler):
 
             file_path = files.get_file_path(file_obj)
             if file_path:  # silently skip missing files
-                targets.append((file_path, cont_name+'/'+cont_id+'/'+file_obj['name'], cont_name, cont_id, file_obj['size']))
+                targets.append((file_path, cont_name+'/'+cont_id+'/'+file_obj['name'], cont_name, cont_id, file_obj['size'], file_obj['modified']))
                 total_size += file_obj['size']
                 file_cnt += 1
 
@@ -369,14 +375,14 @@ class Download(base.RequestHandler):
 
     def archivestream(self, ticket):
         stream = cStringIO.StringIO()
-        with tarfile.open(mode='w|', fileobj=stream) as archive:
+        with tarfile.open(mode='w|', fileobj=stream):
             m = Manager()
             q = m.Queue()
             l = m.Lock()
             pool = Pool()
 
-            for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
-                pool.apply_async(foo, args=(l, q, filepath, arcpath, cont_name, cont_id))
+            for filepath, arcpath, cont_name, cont_id, f_size, f_modified in ticket['target']:
+                pool.apply_async(stream_file_worker, args=(l, q, filepath, arcpath, cont_name, cont_id, f_size, f_modified))
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
             pool.close()
             processed = 0
