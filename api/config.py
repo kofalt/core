@@ -27,6 +27,10 @@ logging.getLogger('urllib3').setLevel(logging.WARNING) # silence urllib3 library
 logging.getLogger('boto3').setLevel(logging.WARNING) # silence boto3 library
 logging.getLogger('botocore').setLevel(logging.WARNING) # silence botocore library
 
+# Increment counters for root logger. Increments for warning and higher
+from .metrics.log_handler import MetricsLogHandler
+logging.getLogger().addHandler(MetricsLogHandler())
+
 # NOTE: Keep in sync with environment variables in sample.config file.
 DEFAULT_CONFIG = {
     'core': {
