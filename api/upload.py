@@ -15,8 +15,6 @@ from . import placer as pl
 from . import util
 from .dao import hierarchy
 
-log = config.log
-
 Strategy = util.Enum('Strategy', {
     'targeted'       : pl.TargetedPlacer,       # Upload 1 files to a container.
     'targeted_multi' : pl.TargetedMultiPlacer,  # Upload N files to a container.
@@ -62,6 +60,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
         Creates a packfile from uploaded files |          |           |        |     X
     """
+    log = request.logger
 
     if not isinstance(strategy, Strategy):
         raise Exception('Unknown upload strategy')
@@ -326,7 +325,7 @@ class Upload(base.RequestHandler):
 
         removed = result.deleted_count
         if removed > 0:
-            log.info('Removed %s expired packfile tokens', removed)
+            self.log.info('Removed %s expired packfile tokens', removed)
 
         # Next, find token directories and remove any that don't map to a token.
 
@@ -360,7 +359,7 @@ class Upload(base.RequestHandler):
                 pass
 
             if result is None:
-                log.info('Cleaning expired token directory %s', token)
+                self.log.info('Cleaning expired token directory %s', token)
                 config.fs.removetree(path)
                 cleaned += 1
 

@@ -18,8 +18,6 @@ from .web.request import AccessType
 from . import config, files, util, validators
 from .dao.containerutil import pluralize
 
-log = config.log
-
 BYTES_IN_MEGABYTE = float(1<<20)
 
 def _filter_check(property_filter, property_values):
@@ -64,7 +62,7 @@ class Download(base.RequestHandler):
                 total_size += f['size']
                 total_cnt += 1
             else:
-                log.warn("Expected {} to exist but it is missing. File will be skipped in download.".format(file_path))
+                self.log.warn("Expected {} to exist but it is missing. File will be skipped in download.".format(file_path))
         return total_size, total_cnt
 
     def _bulk_preflight_archivestream(self, file_refs):
@@ -100,7 +98,7 @@ class Download(base.RequestHandler):
             except Exception: # pylint: disable=broad-except
                 # self.abort(404, 'File {} on Container {} {} not found'.format(filename, cont_name, cont_id))
                 # silently skip missing files/files user does not have access to
-                log.warn("Expected file {} on Container {} {} to exist but it is missing. File will be skipped in download.".format(filename, cont_name, cont_id))
+                self.log.warn("Expected file {} on Container {} {} to exist but it is missing. File will be skipped in download.".format(filename, cont_name, cont_id))
                 continue
 
             file_path = files.get_file_path(file_obj)
@@ -139,7 +137,7 @@ class Download(base.RequestHandler):
                 project = config.db.projects.find_one(base_query, ['group', 'label', 'files'])
                 if not project:
                     # silently(while logging it) skip missing objects/objects user does not have access to
-                    log.warn("Expected project {} to exist but it is missing. Node will be skipped".format(item_id))
+                    self.log.warn("Expected project {} to exist but it is missing. Node will be skipped".format(item_id))
                     continue
 
                 prefix = '/'.join([arc_prefix, project['group'], project['label']])
@@ -183,7 +181,7 @@ class Download(base.RequestHandler):
                 session = config.db.sessions.find_one(base_query, ['project', 'label', 'files', 'uid', 'timestamp', 'timezone', 'subject'])
                 if not session:
                     # silently(while logging it) skip missing objects/objects user does not have access to
-                    log.warn("Expected session {} to exist but it is missing. Node will be skipped".format(item_id))
+                    self.log.warn("Expected session {} to exist but it is missing. Node will be skipped".format(item_id))
                     continue
 
                 project = config.db.projects.find_one({'_id': session['project']}, ['group', 'label'])
@@ -207,7 +205,7 @@ class Download(base.RequestHandler):
                 acq = config.db.acquisitions.find_one(base_query, ['session', 'label', 'files', 'uid', 'timestamp', 'timezone'])
                 if not acq:
                     # silently(while logging it) skip missing objects/objects user does not have access to
-                    log.warn("Expected acquisition {} to exist but it is missing. Node will be skipped".format(item_id))
+                    self.log.warn("Expected acquisition {} to exist but it is missing. Node will be skipped".format(item_id))
                     continue
 
                 session = config.db.sessions.find_one({'_id': acq['session']}, ['project', 'label', 'uid', 'timestamp', 'timezone', 'subject'])
@@ -230,7 +228,7 @@ class Download(base.RequestHandler):
                                                                                          "permissions._id": perm_query})
                 if not analysis or not parent:
                     # silently(while logging it) skip missing objects/objects user does not have access to
-                    log.warn("Expected anaylysis {} to exist but it is missing. Node will be skipped".format(item_id))
+                    self.log.warn("Expected anaylysis {} to exist but it is missing. Node will be skipped".format(item_id))
                     continue
                 prefix = self._path_from_container("", analysis, ids_of_paths, util.sanitize_string_to_filename(analysis['label']))
                 filename = 'analysis_' + util.sanitize_string_to_filename(analysis['label']) + '.tar'
@@ -322,11 +320,11 @@ class Download(base.RequestHandler):
                         except (IOError, fs.errors.OperationFailed):
                             msg = ("Error happened during sending file content in archive stream, file path: %s, "
                                    "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
-                            log.critical(msg)
+                            self.log.critical(msg)
                             self.abort(500, msg)
 
                 except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
-                    log.critical("Couldn't find the file during creating archive stream: %s, "
+                    self.log.critical("Couldn't find the file during creating archive stream: %s, "
                                  "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
                     tarinfo = TarInfo()
                     tarinfo.name = arcpath + '.MISSING'
@@ -450,7 +448,7 @@ class Download(base.RequestHandler):
             try:
                 result = config.db.command('aggregate', cont_name, pipeline=pipeline)
             except Exception as e: # pylint: disable=broad-except
-                log.warning(e)
+                self.log.warning(e)
                 self.abort(500, "Failure to load summary")
 
             if result.get("ok"):

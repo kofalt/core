@@ -360,7 +360,7 @@ class RequestHandler(webapp2.RequestHandler):
         elif isinstance(exception, ElasticsearchException):
             code = 503
             message = "Search is currently down. Try again later."
-            self.request.logger.error(traceback.format_exc())
+            self.log.error(traceback.format_exc())
         elif isinstance(exception, KeyError):
             code = 500
             message = "Key {} was not found".format(str(exception))
@@ -369,7 +369,7 @@ class RequestHandler(webapp2.RequestHandler):
 
         if code == 500:
             tb = traceback.format_exc()
-            self.request.logger.error(tb)
+            self.log.error(tb)
 
         if return_json:
             return util.create_json_http_exception_response(message, code, request_id, core_status_code=core_status, custom=custom_errors)
@@ -390,7 +390,7 @@ class RequestHandler(webapp2.RequestHandler):
     def dispatch(self):
         """dispatching and request forwarding"""
 
-        self.request.logger.debug('from %s %s %s %s', self.uid, self.request.method, self.request.path, str(self.request.GET.mixed()))
+        self.log.debug('from %s %s %s %s', self.uid, self.request.method, self.request.path, str(self.request.GET.mixed()))
         return super(RequestHandler, self).dispatch()
 
     # pylint: disable=arguments-differ
@@ -402,5 +402,5 @@ class RequestHandler(webapp2.RequestHandler):
                 'validator': detail.validator,
                 'validator_value': detail.validator_value,
             }
-        self.request.logger.warning(str(self.uid) + ' ' + str(code) + ' ' + str(detail))
+        self.log.warning(str(self.uid) + ' ' + str(code) + ' ' + str(detail))
         webapp2.abort(code, detail=detail, **kwargs)
