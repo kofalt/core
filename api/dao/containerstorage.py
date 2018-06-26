@@ -368,27 +368,6 @@ class AcquisitionStorage(ContainerStorage):
     def __init__(self):
         super(AcquisitionStorage,self).__init__('acquisitions', use_object_id=True, use_delete_tag=True, parent_cont_name='session', child_cont_name=None)
 
-    def create_el(self, payload):
-        result = super(AcquisitionStorage, self).create_el(payload)
-        SessionStorage().recalc_session_compliance(payload['session'])
-        return result
-
-    def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
-        result = super(AcquisitionStorage, self).update_el(_id, payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata)
-        acquisition = self.get_container(_id)
-        if acquisition is None:
-            raise APINotFoundException('Could not find acquisition {}'.format(_id))
-        SessionStorage().recalc_session_compliance(acquisition['session'])
-        return result
-
-    def delete_el(self, _id):
-        acquisition = self.get_container(_id)
-        if acquisition is None:
-            raise APINotFoundException('Could not find acquisition {}'.format(_id))
-        result = super(AcquisitionStorage, self).delete_el(_id)
-        SessionStorage().recalc_session_compliance(acquisition['session'])
-        return result
-
     def get_all_for_targets(self, target_type, target_ids, user=None, projection=None, collection_id=None):
         """
         Given a container type and list of ids, get all acquisitions that are in those hierarchies.

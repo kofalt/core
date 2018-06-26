@@ -7,9 +7,8 @@ from ..web.errors import APIStorageException, APIConflictException, APINotFoundE
 from . import consistencychecker
 from .. import config
 from .. import util
-from ..jobs import rules
 from ..handlers.modalityhandler import check_and_format_classification
-from .containerstorage import SessionStorage, AcquisitionStorage
+from .containerevents import publishes_event
 
 log = config.log
 
@@ -123,31 +122,13 @@ class ListStorage(object):
         if result and result.get(self.list_name):
             return result.get(self.list_name)[0]
 
-    def _update_session_compliance(self, _id):
-        if self.cont_name in ['sessions', 'acquisitions']:
-            if self.cont_name == 'sessions':
-                session_id = _id
-            else:
-                session_id = AcquisitionStorage().get_container(_id).get('session')
-            SessionStorage().recalc_session_compliance(session_id)
-
-
 class FileStorage(ListStorage):
 
     def __init__(self, cont_name):
         super(FileStorage,self).__init__(cont_name, 'files', use_object_id=True)
 
-    def _create_jobs(self, container_before):
-        container_after = self.get_container(container_before['_id'])
-        return rules.create_jobs(config.db, container_before, container_after, self.cont_name)
-
-    def _update_el(self, _id, query_params, payload, exclude_params):
-        container_before = self.get_container(_id)
-        if not container_before:
-            raise APINotFoundException('Could not find {} {}, file not updated.'.format(
-                    _id, self.cont_name
-                ))
-
+    @publishes_event('container_files_updated', require_container_before=True)
+    def _update_el(self, _id, query_params, payload, exclude_params): 
         mod_elem = {}
         update = {}
 
@@ -177,22 +158,15 @@ class FileStorage(ListStorage):
         update['$set'] = mod_elem
 
         self.dbc.find_one_and_update(query, update)
-        self._update_session_compliance(_id)
-        jobs_spawned = self._create_jobs(container_before)
+        return { 'modified': 1 }
 
-        return {
-            'modified': 1,
-            'jobs_spawned': len(jobs_spawned)
-        }
-
+    @publishes_event('container_files_updated')
     def _delete_el(self, _id, query_params):
         files = self.get_container(_id).get('files', [])
         for f in files:
             if f['name'] == query_params['name']:
                 f['deleted'] = datetime.datetime.utcnow()
-        result = self.dbc.update_one({'_id': _id}, {'$set': {'files': files, 'modified': datetime.datetime.utcnow()}})
-        self._update_session_compliance(_id)
-        return result
+        return self.dbc.update_one({'_id': _id}, {'$set': {'files': files, 'modified': datetime.datetime.utcnow()}})
 
     def _get_el(self, _id, query_params):
         query_params_nondeleted = query_params.copy()
@@ -203,6 +177,7 @@ class FileStorage(ListStorage):
         if result and result.get(self.list_name):
             return result.get(self.list_name)[0]
 
+    @publishes_event('container_files_updated')
     def modify_info(self, _id, query_params, payload):
         update = {}
         set_payload = payload.get('set')
@@ -240,14 +215,9 @@ class FileStorage(ListStorage):
             update['$set']['files.$.modified'] = datetime.datetime.utcnow()
 
         result = self.dbc.update_one(query, update)
-        self._update_session_compliance(_id)
+        return { 'modified': result.modified_count }
 
-        return {
-            'modified': result.modified_count,
-            'jobs_spawned': 0
-        }
-
-
+    @publishes_event('container_files_updated', container_before=True)
     def modify_classification(self, _id, query_params, payload):
         """
         Apply a classification update for a file. The payload format is:
@@ -259,7 +229,6 @@ class FileStorage(ListStorage):
         }
         NOTE: add and/or delete OR replace can be specified, never both in the same payload
         """
-        container_before = self.get_container(_id)
         update = {
             '$set': {'modified': datetime.datetime.utcnow()},
             '$unset': {self.list_name + '.$.measurements': True}
@@ -308,15 +277,7 @@ class FileStorage(ListStorage):
                     d_update['$pullAll'][self.list_name + '.$.classification.' + k] = v
 
                 self.dbc.update_one(query, d_update)
-
-        self._update_session_compliance(_id)
-        jobs_spawned = self._create_jobs(container_before)
-
-        return {
-            'modified': 1,
-            'jobs_spawned': len(jobs_spawned)
-        }
-
+        return { 'modified': 1 }
 
 
 class StringListStorage(ListStorage):

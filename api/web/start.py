@@ -105,3 +105,7 @@ def app_factory(*_, **__):
     application.router.set_dispatcher(dispatcher)
     application.request_class = SciTranRequest
     return application
+
+# ===== Container Event Handler Registration =====
+from ..dao import containereventhandlers
+containereventhandlers.register()

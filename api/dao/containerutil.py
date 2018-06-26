@@ -28,6 +28,7 @@ SINGULAR_TO_PLURAL = {
     'session':     'sessions',
     'subject':     'subjects',
     'user':        'users',
+    'modality':    'modalities',
 }
 PLURAL_TO_SINGULAR = {p: s for s, p in SINGULAR_TO_PLURAL.iteritems()}
 PLURAL_CONT_TYPES = [ SINGULAR_TO_PLURAL[_type] for _type in CONT_TYPES ]

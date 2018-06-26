@@ -9,6 +9,7 @@ from . import dbutil
 from .. import config
 from .. import util
 
+from .containerevents import publishes_event
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
 
 log = config.log
@@ -241,6 +242,7 @@ class ContainerStorage(object):
             return self.create_el(payload)
         raise ValueError('action should be one of GET, POST, PUT, DELETE')
 
+    @publishes_event('container_created', id_from_result=True, container_param=1)
     def create_el(self, payload):
         self._to_mongo(payload)
         try:
@@ -249,6 +251,7 @@ class ContainerStorage(object):
             raise APIConflictException('Object with id {} already exists.'.format(payload['_id']))
         return result
 
+    @publishes_event('container_updated')
     def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
         replace = None
         if replace_metadata:
@@ -277,11 +280,12 @@ class ContainerStorage(object):
 
         return self.dbc.update_one({'_id': _id}, update)
 
+    @publishes_event('container_updated')
     def replace_el(self, _id, payload):
         payload['_id'] = self.format_id(_id)
         return self.dbc.replace_one({'_id': _id}, payload)
 
-
+    @publishes_event('container_deleted', container_before=True)
     def delete_el(self, _id):
         _id = self.format_id(_id)
         self.cleanup_ancillary_data(_id)
