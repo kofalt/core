@@ -15,8 +15,6 @@ from ..web import base
 from ..web.errors import APIPermissionException
 from ..web.request import log_access, AccessType
 
-log = config.log
-
 
 class ContainerHandler(base.RequestHandler):
     """
@@ -531,7 +529,7 @@ class ContainerHandler(base.RequestHandler):
 
     def calculate_project_compliance(self, **kwargs):
         project_id = kwargs.pop('cid', None)
-        log.debug("project_id is {}".format(project_id))
+        self.log.debug("project_id is {}".format(project_id))
         self.config = self.container_handler_configurations['projects']
         self.storage = self.config['storage']
         return {'sessions_changed': self.storage.recalc_sessions_compliance(project_id=project_id)}

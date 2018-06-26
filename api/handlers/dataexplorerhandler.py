@@ -7,8 +7,7 @@ from ..web import base
 from .. import config
 from ..auth import require_login, require_superuser
 
-log = config.log
-
+# pylint: disable=pointless-string-statement
 """
 EXAMPLE_SESSION_QUERY = {
   "size": 0,
@@ -421,7 +420,7 @@ class DataExplorerHandler(base.RequestHandler):
         try:
             field = config.es.get(index='data_explorer_fields', id=field_name, doc_type='flywheel_field')
         except TransportError as e:
-            log.warning(e)
+            self.log.warning(e)
             self.abort(404, 'Could not find mapping for field {}.'.format(field_name))
         field_type = field['_source']['type']
         search_string = self.request.json_body.get('search_string', None)
@@ -573,7 +572,7 @@ class DataExplorerHandler(base.RequestHandler):
                 body=es_query
             )
         except TransportError as e:
-            config.log.warning('Fields not yet indexed for search: {}'.format(e))
+            self.log.warning('Fields not yet indexed for search: {}'.format(e))
             return []
 
         results = []
@@ -830,7 +829,7 @@ class DataExplorerHandler(base.RequestHandler):
 
         # Sometimes we might want to clear out what is there...
         if self.is_true('hard-reset') and config.es.indices.exists('data_explorer_fields'):
-            config.log.debug('Removing existing data explorer fields index...')
+            self.log.debug('Removing existing data explorer fields index...')
             try:
                 config.es.indices.delete(index='data_explorer_fields')
             except ElasticsearchException as e:
@@ -853,7 +852,7 @@ class DataExplorerHandler(base.RequestHandler):
                 }
             }
 
-            config.log.debug('creating data_explorer_fields index ...')
+            self.log.debug('creating data_explorer_fields index ...')
             try:
                 config.es.indices.create(index='data_explorer_fields', body=request)
             except ElasticsearchException:

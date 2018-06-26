@@ -9,6 +9,7 @@ import elasticsearch
 from fs import open_fs
 
 from . import util
+from . import logutil
 from .dao.dbutil import try_replace_one
 
 logging.basicConfig(
@@ -16,7 +17,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     level=logging.DEBUG,
 )
-log = logging.getLogger('scitran.api')
+log = logutil.getContextLogger('scitran.api')
 
 logging.getLogger('MARKDOWN').setLevel(logging.WARNING) # silence Markdown library
 logging.getLogger('requests').setLevel(logging.WARNING) # silence Requests library
