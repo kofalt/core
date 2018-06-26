@@ -1,5 +1,7 @@
 """ Container Events """
 import collections
+import functools
+
 from .. import util
 from ..web.errors import APINotFoundException
 
@@ -276,11 +278,15 @@ def publishes_event(event_type, id_param=1, container_param=None,
         id_from_result (bool): True if id should be taken from result instead
     """
     def decorator(fn):
+        @functools.wraps(fn)
         def wrapper(*args, **kwargs):
+            # _self is the first argument, assumed to be storage of some sort (container or file)
             _self = args[0]
+            # _id is often (except for creation) the second argument
             _id = None if id_from_result else args[id_param]
             event_args = {}
 
+            # Some events require that we capture the container before modification
             if container_before or require_container_before:
                 cont_before = _self.get_container(_id)
 
@@ -291,15 +297,18 @@ def publishes_event(event_type, id_param=1, container_param=None,
 
                 event_args['container_before'] = cont_before
 
+            # In the creation case, we get the container as the first argument
             if container_param is not None:
                 event_args['container'] = args[container_param]
 
+            # Invoke the wrapped function
             result = fn(*args, **kwargs)
 
-            # Extract container id
+            # Extract container id (for creation)
             if id_from_result:
                 _id = result.inserted_id
 
+            # Notify observers (which may modify the result)
             return notify_container_observers(result, _self.cont_name, event_type, _id, **event_args)
 
         return wrapper

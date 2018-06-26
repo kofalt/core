@@ -8,9 +8,11 @@ def register():
     # Create jobs when files are updated (any container)
     register_container_observer(create_jobs_event_handler, event_types=['container_files_updated'])
 
+    # Update session compliance when the file list changes
     register_container_observer(update_session_compliance_handler_for_files, 
         cont_types=['session', 'acquisition'], event_types=['container_files_updated'])
 
+    # Update session compliance with acquisitions are created, updated or deleted
     register_container_observer(update_session_compliance_handler_for_acquisition, 
         cont_types=['acquisition'], event_types=['container_created', 'container_updated', 'container_deleted'])
 
