@@ -19,6 +19,24 @@ Status = util.Enum('Status', {
 })
 
 
+def get_device_statuses(devices):
+    now = dt.datetime.now()
+    statuses = {}
+    for device in devices:
+        status = {'last_seen': device.get('last_seen')}
+        if device.get('errors'):
+            status['status'] = str(Status.error)
+            status['errors'] = device['errors']
+        elif not device.get('interval') or not device.get('last_seen'):
+            status['status'] = str(Status.unknown)
+        elif (now - device['last_seen']).seconds > device['interval']:
+            status['status'] = str(Status.missing)
+        else:
+            status['status'] = str(Status.ok)
+        statuses[str(device['_id'])] = status
+
+    return statuses
+
 class DeviceHandler(base.RequestHandler):
 
     def __init__(self, request=None, response=None):
@@ -70,22 +88,7 @@ class DeviceHandler(base.RequestHandler):
 
     @require_login
     def get_status(self):
-        now = dt.datetime.now()
-        statuses = {}
-        for device in self.storage.get_all_el(None, None, None):
-            status = {'last_seen': device.get('last_seen')}
-            if device.get('errors'):
-                status['status'] = str(Status.error)
-                status['errors'] = device['errors']
-            elif not device.get('interval') or not device.get('last_seen'):
-                status['status'] = str(Status.unknown)
-            elif (now - device['last_seen']).seconds > device['interval']:
-                status['status'] = str(Status.missing)
-            else:
-                status['status'] = str(Status.ok)
-            statuses[str(device['_id'])] = status
-
-        return statuses
+        return get_device_statuses(self.storage.get_all_el(None, None, None))
 
     @require_drone
     def put_self(self):
