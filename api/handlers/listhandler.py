@@ -82,7 +82,7 @@ def initialize_list_configurations():
         'acquisitions': copy.deepcopy(container_default_configurations),
         'collections': copy.deepcopy(container_default_configurations),
         'analyses': copy.deepcopy(container_default_configurations),
-        'savesearches': copy.deepcopy(container_default_configurations),
+        'queries': copy.deepcopy(container_default_configurations),
     }
     # preload the Storage instances for all configurations
     for cont_name, cont_config in list_container_configurations.iteritems():
@@ -170,6 +170,7 @@ class ListHandler(base.RequestHandler):
         5) the mongo_validator that will check what will be sent to mongo against a json schema
         6) the keycheck decorator validating the request key
         """
+        cont_name = os.path.basename(cont_name)
         conf = list_handler_configurations[cont_name][list_name]
         storage = conf['storage']
         permchecker = conf['permchecker']

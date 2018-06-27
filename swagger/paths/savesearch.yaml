@@ -1,4 +1,4 @@
-/savesearch:
+/dataexplorer/queries:
   post:
     summary: Save a search query
     operationId: save-search
@@ -26,7 +26,7 @@
         description: 'Returns a list of all known batch jobs for the user'
         schema:
           $ref: schemas/output/save-search-list.json
-/savesearch/{SearchId}:
+/dataexplorer/queries/{SearchId}:
   put:
     summary: Replace a search query
     operationId: replace-search

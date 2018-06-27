@@ -6,7 +6,7 @@ from .handlers.abstractcontainerhandler import AbstractContainerHandler
 from .handlers.collectionshandler       import CollectionsHandler
 from .handlers.confighandler            import Config, Version
 from .handlers.containerhandler         import ContainerHandler
-from .handlers.dataexplorerhandler      import DataExplorerHandler
+from .handlers.dataexplorerhandler      import DataExplorerHandler, SearchQueryHandler
 from .handlers.devicehandler            import DeviceHandler
 from .handlers.grouphandler             import GroupHandler
 from .handlers.listhandler              import FileListHandler, NotesListHandler, PermissionsListHandler, TagsListHandler
@@ -15,7 +15,6 @@ from .handlers.refererhandler           import AnalysesHandler
 from .handlers.reporthandler            import ReportHandler
 from .handlers.resolvehandler           import ResolveHandler
 from .handlers.roothandler              import RootHandler
-from .handlers.savesearchhandler       import SaveSearchHandler
 from .handlers.schemahandler            import SchemaHandler
 from .handlers.userhandler              import UserHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
@@ -117,10 +116,10 @@ endpoints = [
         route('/dataexplorer/index/fields',             DataExplorerHandler,   h='index_field_names',      m=['POST']),
 
         # Search Saving
-        route('/savesearches',                            SaveSearchHandler,                                m=['POST']),
-        route('/savesearches',                            SaveSearchHandler,     h='get_all',               m=['GET']),
-        route('/savesearches/<sid:{oid}>',                SaveSearchHandler,                                m=['GET','DELETE']),
-        route('/savesearches/<sid:{oid}>',                SaveSearchHandler,                                m=['PUT']),
+        route('/dataexplorer/queries',                            SearchQueryHandler,                                m=['POST']),
+        route('/dataexplorer/queries',                            SearchQueryHandler,     h='get_all',               m=['GET']),
+        route('/dataexplorer/queries/<sid:{oid}>',                SearchQueryHandler,                                m=['GET','DELETE']),
+        route('/dataexplorer/queries/<sid:{oid}>',                SearchQueryHandler,                                m=['PUT']),
 
         # Users
 
@@ -264,7 +263,7 @@ endpoints = [
 
         # Collections / Projects
 
-        prefix('/<cont_name:collections|projects|savesearches>', [
+        prefix('/<cont_name:collections|projects|dataexplorer/queries>', [
             prefix('/<cid:{oid}>', [
                 route('/<list_name:permissions>',                          PermissionsListHandler, m=['POST']),
                 route('/<list_name:permissions>/<_id:{uid}>',              PermissionsListHandler, m=['GET', 'PUT', 'DELETE']),

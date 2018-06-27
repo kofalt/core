@@ -1,5 +1,4 @@
 import datetime
-import pymongo
 import bson
 import copy
 
@@ -11,7 +10,7 @@ from ..util import deep_update
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..jobs.rules import copy_site_rules_for_project
-from ..web.errors import APIStorageException, APINotFoundException, APIValidationException, APIConflictException
+from ..web.errors import APIStorageException, APINotFoundException, APIValidationException
 from .basecontainerstorage import ContainerStorage
 
 log = config.log
@@ -572,12 +571,4 @@ class AnalysisStorage(ContainerStorage):
 class SearchStorage(ContainerStorage):
 
     def __init__(self):
-        super(SearchStorage, self).__init__('savesearches', use_object_id=True)
-
-    def create_el(self, payload):
-        try:
-            result = self.dbc.insert_one(payload)
-        except pymongo.errors.DuplicateKeyError:
-            raise APIConflictException('Object with id {} already exists.'.format(payload['_id']))
-        return result
-
+        super(SearchStorage, self).__init__('queries', use_object_id=True)
