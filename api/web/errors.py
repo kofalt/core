@@ -19,6 +19,12 @@ class APIException(Exception):
     default_msg = 'There was an error processing the request.'
 
     def __init__(self, msg=None, errors=None):
+        """Construct an APIException
+
+        Arguments:
+            msg (str): The optional message (otherwise default_msg will be used)
+            errors (dict): An optional dictionary of additional error properties to include in the response
+        """
         if not msg:
             msg = self.default_msg
         super(APIException, self).__init__(msg)
@@ -63,6 +69,19 @@ class InputValidationException(APIException):
     default_msg = 'Input does not match input schema.'
 
     def __init__(self, msg=None, reason=None, key=None, error=None, cause=None, **kwargs):
+        """Construct an InputValidationException
+
+        If a cause is specified, then an attempt will be made to extract additional fields
+        from that exception. (e.g. key, error and msg from ValidationError)
+
+        Arguments:
+            msg (str): The optional message (otherwise default_msg will be used)
+            reason (str): The optional reason portion of the error message
+            key (str): The key or keys that caused the validation error
+            error (str): The specific validation error that occurred
+            cause (Exception): The root cause of the error (for example jsonschema.ValidationError)
+            **kwargs: Additional key-value properties to add to the response
+        """
         if cause:
             # Extract validation error details from cause
             if isinstance(cause, ValidationError):
