@@ -4,7 +4,6 @@ import datetime
 from .. import config
 from ..auth import containerauth, always_ok
 from ..dao import containerstorage, containerutil, noop
-from ..web.errors import APIStorageException
 from ..validators import verify_payload_exists
 
 from .containerhandler import ContainerHandler
@@ -64,10 +63,7 @@ class CollectionsHandler(ContainerHandler):
         payload_validator(payload, 'PUT')
         permchecker = self._get_permchecker(container=container)
         payload['modified'] = datetime.datetime.utcnow()
-        try:
-            result = mongo_validator(permchecker(self.storage.exec_op))('PUT', _id=_id, payload=payload)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        result = mongo_validator(permchecker(self.storage.exec_op))('PUT', _id=_id, payload=payload)
 
         if result.modified_count == 1:
             self._add_contents(contents, _id)
@@ -103,12 +99,9 @@ class CollectionsHandler(ContainerHandler):
         container = self._get_container(_id)
         container['has_children'] = container.get('files') or container.get('analyses')
         permchecker = self._get_permchecker(container, None)
-        try:
-            # This line exec the actual delete checking permissions using the decorator permchecker
-            result = permchecker(self.storage.exec_op)('DELETE', _id)
-            config.db.acquisitions.update_many({'collections': _id}, {'$pull': {'collections': _id}})
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        # This line exec the actual delete checking permissions using the decorator permchecker
+        result = permchecker(self.storage.exec_op)('DELETE', _id)
+        config.db.acquisitions.update_many({'collections': _id}, {'$pull': {'collections': _id}})
 
         if result.modified_count == 1:
             return {'deleted': 1}

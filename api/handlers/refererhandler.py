@@ -18,7 +18,7 @@ from ..dao import containerstorage, noop
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
 from ..web import base
-from ..web.errors import APIStorageException, InputValidationException
+from ..web.errors import InputValidationException
 from ..web.request import log_access, AccessType
 from .listhandler import FileListHandler
 
@@ -191,10 +191,7 @@ class AnalysesHandler(RefererHandler):
         permchecker = self.get_permchecker(parent)
         permchecker(noop)('DELETE')
 
-        try:
-            result = self.storage.delete_el(_id)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        result = self.storage.delete_el(_id)
         if result.modified_count == 1:
             return {'deleted': result.modified_count}
         else:

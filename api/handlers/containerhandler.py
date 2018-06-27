@@ -12,7 +12,7 @@ from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..types import Origin
 from ..web import base
-from ..web.errors import APIStorageException, APIPermissionException
+from ..web.errors import APIPermissionException
 from ..web.request import log_access, AccessType
 
 log = config.log
@@ -96,11 +96,8 @@ class ContainerHandler(base.RequestHandler):
         container = self._get_container(_id)
 
         permchecker = self._get_permchecker(container)
-        try:
-            # This line exec the actual get checking permissions using the decorator permchecker
-            result = permchecker(self.storage.exec_op)('GET', _id)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        # This line exec the actual get checking permissions using the decorator permchecker
+        result = permchecker(self.storage.exec_op)('GET', _id)
         if result is None:
             self.abort(404, 'Element not found in container {} {}'.format(self.storage.cont_name, _id))
         if not self.superuser_request and not self.is_true('join_avatars'):
@@ -330,10 +327,7 @@ class ContainerHandler(base.RequestHandler):
         user = {
             '_id': uid
         }
-        try:
-            results = permchecker(self.storage.exec_op)('GET', query=query, user=user, projection=projection)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        results = permchecker(self.storage.exec_op)('GET', query=query, user=user, projection=projection)
         if results is None:
             self.abort(404, 'Element not found in container {} {}'.format(self.storage.cont_name, uid))
         self._filter_all_permissions(results, uid)
@@ -425,13 +419,10 @@ class ContainerHandler(base.RequestHandler):
 
         # Specifies wether the metadata fields should be replaced or patched with payload value
         replace_metadata = self.get_param('replace_metadata', default=False)
-        try:
-            # This line exec the actual request validating the payload that will update the container
-            # and checking permissions using respectively the two decorators, mongo_validator and permchecker
-            result = mongo_validator(permchecker(self.storage.exec_op))('PUT',
-                        _id=_id, payload=payload, recursive=rec, r_payload=r_payload, replace_metadata=replace_metadata)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        # This line exec the actual request validating the payload that will update the container
+        # and checking permissions using respectively the two decorators, mongo_validator and permchecker
+        result = mongo_validator(permchecker(self.storage.exec_op))('PUT',
+                    _id=_id, payload=payload, recursive=rec, r_payload=r_payload, replace_metadata=replace_metadata)
 
         if result.modified_count == 1:
             return {'modified': result.modified_count}
@@ -489,11 +480,8 @@ class ContainerHandler(base.RequestHandler):
             # User only wanted to check permissions, respond with 200
             return
 
-        try:
-            # This line exec the actual delete checking permissions using the decorator permchecker
-            result = self.storage.exec_op('DELETE', _id)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        # This line exec the actual delete checking permissions using the decorator permchecker
+        result = self.storage.exec_op('DELETE', _id)
         if result.modified_count == 1:
             deleted_at = config.db[cont_name].find_one({'_id': bson.ObjectId(_id)})['deleted']
             # Don't overwrite deleted timestamp for already deleted children
@@ -572,10 +560,7 @@ class ContainerHandler(base.RequestHandler):
         return parent_container, parent_id_property
 
     def _get_container(self, _id, projection=None, get_children=False):
-        try:
-            container = self.storage.get_container(_id, projection=projection, get_children=get_children)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        container = self.storage.get_container(_id, projection=projection, get_children=get_children)
         if container is not None:
             files = container.get('files', [])
             if files:

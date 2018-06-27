@@ -129,7 +129,7 @@ class APIConsistencyException(APIException):
 
 class APIStorageException(APIException):
     """An error occurred while performing a CRUD action in the storage layer"""
-    pass
+    status_code = 400
 
 class DBValidationException(APIException):
     """Legacy exception: payload did not match mongo json schema due to developer error"""
