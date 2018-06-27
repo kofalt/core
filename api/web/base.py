@@ -367,7 +367,9 @@ class RequestHandler(webapp2.RequestHandler):
         else:
             code = 500
 
-        if code == 500:
+        if code >= 400 and code < 500:
+            self.log.debug('client error: {}'.format(exception))
+        elif code == 500:
             tb = traceback.format_exc()
             self.log.error(tb)
 
