@@ -8,7 +8,7 @@ import fs.errors
 import fs.path
 
 from .web import base
-from .web.errors import FileStoreException, FileFormException
+from .web.errors import FileFormException
 from . import config
 from . import files
 from . import placer as pl
@@ -98,7 +98,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             try:
                 metadata = json.loads(form['metadata'].value)
             except Exception:
-                raise FileStoreException('wrong format for field "metadata"')
+                raise FileFormException('wrong format for field "metadata"')
             if isinstance(metadata, dict):
                 for f in metadata.get(container_type, {}).get('files', []):
                     f['name'] = name_fn(f['name'])

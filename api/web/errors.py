@@ -105,10 +105,6 @@ class FileFormException(APIException):
     status_code = 400
     default_msg = 'File form upload request is incorrect.'
 
-class FileStoreException(APIException):
-    """?"""
-    status_code = 400
-
 
 ###
 # API Server Exceptions
