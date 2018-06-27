@@ -529,7 +529,13 @@ class AnalysisStorage(ContainerStorage):
             try:
                 job = Queue.enqueue_job(job, origin, perm_check_uid=uid)
                 job.insert()
-                self.update_el(analysis['_id'], {'job': job.id_}, None)
+                self.update_el(analysis['_id'], {
+                    'job': job.id_,
+                    'gear_id': job.gear_id,
+                    'gear_category': job.gear_category,
+                    'gear_name': job.gear_name,
+                    'gear_version': job.gear_version,
+                }, None)
             except:
                 # NOTE #775 remove unusable analysis - until jobs have a 'hold' state
                 self.delete_el(analysis['_id'])

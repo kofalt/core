@@ -168,7 +168,7 @@ def queue_job_legacy(algorithm_id, input_):
         input_name: input_
     }
 
-    job = Job(str(gear['_id']), inputs, tags=['auto', algorithm_id])
+    job = Job(gear, inputs, tags=['auto', algorithm_id])
     return job
 
 def find_type_in_container(container, type_):
@@ -212,7 +212,7 @@ def create_potential_jobs(db, container, container_type, file_):
                     inputs[input_name] = FileReference(type=container_type, id=str(container['_id']), name=match['name'])
 
                 gear = gears.get_gear_by_name(alg_name)
-                job = Job(str(gear['_id']), inputs, tags=['auto', alg_name])
+                job = Job(gear, inputs, tags=['auto', alg_name])
 
             potential_jobs.append({
                 'job': job,

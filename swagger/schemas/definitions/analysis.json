@@ -79,13 +79,17 @@
 						"$ref": "job.json#/definitions/job-output"
 					}
 				},
-				"notes":       {"$ref":"note.json#/definitions/notes-list-output"},
-				"tags":        {"$ref":"tag.json#/definitions/tag-list"},
-				"info":        {"$ref":"container.json#/definitions/info"},
-				"description": {"$ref":"common.json#/definitions/description"},
-				"label":       {"$ref":"common.json#/definitions/label"},
-				"created":     {"$ref":"created-modified.json#/definitions/created"},
-				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
+				"gear_id":       {"$ref":"job.json#/definitions/gear_id"},
+		        "gear_category": {"$ref":"gear.json#/definitions/gear-category"},
+		        "gear_name":     {"$ref":"gear.json#/definitions/gear-name"},
+		        "gear_version":  {"$ref":"gear.json#/definitions/gear-version"},
+				"notes":         {"$ref":"note.json#/definitions/notes-list-output"},
+				"tags":          {"$ref":"tag.json#/definitions/tag-list"},
+				"info":          {"$ref":"container.json#/definitions/info"},
+				"description":   {"$ref":"common.json#/definitions/description"},
+				"label":         {"$ref":"common.json#/definitions/label"},
+				"created":       {"$ref":"created-modified.json#/definitions/created"},
+				"modified":      {"$ref":"created-modified.json#/definitions/modified"}
 			},
 			"required":["_id", "label", "created", "modified"]
 		},
@@ -101,12 +105,16 @@
 					"type":"array",
 					"items":{"$ref":"file.json#/definitions/file-entry"}
 				},
-				"job":         {"$ref":"common.json#/definitions/objectid"},
-				"notes":       {"$ref":"note.json#/definitions/notes-list-output"},
-				"description": {"$ref":"common.json#/definitions/description"},
-				"label":       {"$ref":"common.json#/definitions/label"},
-				"created":     {"$ref":"created-modified.json#/definitions/created"},
-				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
+				"job":           {"$ref":"common.json#/definitions/objectid"},
+				"gear_id":       {"$ref":"job.json#/definitions/gear_id"},
+		        "gear_category": {"$ref":"gear.json#/definitions/gear-category"},
+		        "gear_name":     {"$ref":"gear.json#/definitions/gear-name"},
+		        "gear_version":  {"$ref":"gear.json#/definitions/gear-version"},
+				"notes":         {"$ref":"note.json#/definitions/notes-list-output"},
+				"description":   {"$ref":"common.json#/definitions/description"},
+				"label":         {"$ref":"common.json#/definitions/label"},
+				"created":       {"$ref":"created-modified.json#/definitions/created"},
+				"modified":      {"$ref":"created-modified.json#/definitions/modified"}
 			},
 			"required":["_id", "label", "created", "modified"]
 		},		

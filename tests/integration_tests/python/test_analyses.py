@@ -19,6 +19,14 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     })
     assert r.status_code == 404
 
+    # Try to create job-based analysis with invalid gear id
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': '000000000000000000000000',
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.status_code == 400
+
     # Create job-based analysis
     r = as_admin.post('/sessions/' + session + '/analyses', json={
         'label': 'online',
@@ -33,6 +41,11 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     assert r.ok
     job = r.json().get('job')
     assert job
+
+    # Verify that gear info was stored
+    assert gear == r.json().get('gear_id')
+    assert r.json().get('gear_name')
+    assert r.json().get('gear_version') == '0.0.1'
 
     check_files(as_admin, analysis, 'inputs', 'input.csv')
 
