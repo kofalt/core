@@ -313,7 +313,7 @@ def validate_regexes(rule):
             except re.error:
                 invalid_patterns.add(pattern)
     if invalid_patterns:
-        raise APIValidationException({
+        raise APIValidationException(errors={
             'reason': 'Cannot compile regex patterns',
             'patterns': sorted(invalid_patterns),
         })

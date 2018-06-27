@@ -12,10 +12,11 @@ class APIException(Exception):
     # default response msg
     default_msg = 'There was an error processing the request.'
 
-    def __init__(self, msg):
+    def __init__(self, msg=None, errors=None):
         if not msg:
-            msg = default_msg
+            msg = self.default_msg
         super(APIException, self).__init__(msg)
+        self.errors = errors
 
 ###
 # Auth Exceptions
@@ -70,11 +71,6 @@ class APIValidationException(APIException):
     """Specially formatted reponse to allow clients to provide detailed information about input vaidation issue"""
     status_code = 422
     default_msg = 'Input does not match input schema.'
-
-    def __init__(self, errors):
-
-        super(APIValidationException, self).__init__('Validation Error.')
-        self.errors = errors
 
 class FileFormException(APIException):
     """File Form for upload requests made by client is incorrect"""
