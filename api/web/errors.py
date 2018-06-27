@@ -66,6 +66,7 @@ class APIRefreshTokenException(APIException):
 class InputValidationException(APIException):
     """Payload for a POST or PUT does not match input json schema"""
     status_code = 400
+    core_status_code = 'input_validation_error'
     default_msg = 'Input does not match input schema.'
 
     def __init__(self, msg=None, reason=None, key=None, error=None, cause=None, **kwargs):
@@ -82,6 +83,8 @@ class InputValidationException(APIException):
             cause (Exception): The root cause of the error (for example jsonschema.ValidationError)
             **kwargs: Additional key-value properties to add to the response
         """
+        self.cause = cause
+
         if cause:
             # Extract validation error details from cause
             if isinstance(cause, ValidationError):
@@ -94,7 +97,7 @@ class InputValidationException(APIException):
 
                 error = cause.message.replace("u'", "'")
                 if not msg:
-                    msg = '{} on key {}: {}'.format(reason, key, error)
+                    msg = "{} on key '{}': {}.".format(reason, key, error)
             elif not msg:
                 msg = str(cause)
 
