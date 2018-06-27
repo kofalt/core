@@ -1,3 +1,9 @@
+from jsonschema import ValidationError
+
+###
+# Base Exception
+###
+
 class APIException(Exception):
     """Base core exception class"""
 
@@ -37,11 +43,6 @@ class APIPermissionException(APIException):
     status_code = 403
     default_msg = 'User does not have permission to perform requested action.'
 
-    def __init__(self, msg, errors=None):
-
-        super(APIPermissionException, self).__init__(msg)
-        self.errors = errors
-
 class APIRefreshTokenException(APIException):
     """
     Specifically alert a client when the user's refresh token expires
@@ -61,16 +62,43 @@ class InputValidationException(APIException):
     status_code = 400
     default_msg = 'Input does not match input schema.'
 
+    def __init__(self, msg=None, reason=None, key=None, error=None, cause=None, **kwargs):
+        if cause:
+            # Extract validation error details from cause
+            if isinstance(cause, ValidationError):
+                if not reason:
+                    reason = 'Object does not match schema'
+
+                key = 'none'
+                if len(cause.relative_path) > 0:
+                    key = cause.relative_path[0]
+
+                error = cause.message.replace("u'", "'")
+                if not msg:
+                    msg = '{} on key {}: {}'.format(reason, key, error)
+            elif not msg:
+                msg = str(cause)
+
+        # Error Details
+        details = dict(kwargs)
+        if reason:
+            details['reason'] = reason
+        if key:
+            details['key'] = key
+        if error:
+            details['error'] = error
+
+        super(InputValidationException, self).__init__(msg=msg, errors=(details if details else None))
+
 # Probably doesn't need to be it's own class, should use InputValidationException
 class APIReportParamsException(APIException):
     """Invalid or missing parameters for a report request"""
     status_code = 400
     default_msg = 'Report parameters are invalid.'
 
-class APIValidationException(APIException):
+class APIValidationException(InputValidationException):
     """Specially formatted reponse to allow clients to provide detailed information about input vaidation issue"""
     status_code = 422
-    default_msg = 'Input does not match input schema.'
 
 class FileFormException(APIException):
     """File Form for upload requests made by client is incorrect"""

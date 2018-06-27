@@ -104,7 +104,7 @@ class DeviceHandler(base.RequestHandler):
         # New devices created via POST may have `type` not set. Devices are allowed to initialize
         # the field themselves, but not allowed to change it (which implies a different device).
         if 'type' in payload and device.get('type') not in (None, payload['type']):
-            raise APIValidationException({'reason': 'Cannot change device type'})
+            raise APIValidationException(reason='Cannot change device type')
 
         result = self.storage.update_el(device_id, payload)
         return {'modified': result.modified_count}

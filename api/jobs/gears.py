@@ -122,15 +122,7 @@ def validate_gear_config(gear, config_):
         try:
             validator.validate(config_)
         except ValidationError as err:
-            key = None
-            if len(err.relative_path) > 0:
-                key = err.relative_path[0]
-
-            raise APIValidationException({
-                'reason': 'config did not match manifest',
-                'error': err.message.replace("u'", "'"),
-                'key': key
-            })
+            raise APIValidationException(reason='config did not match manifest', cause=err)
     return True
 
 def fill_gear_default_values(gear, config_):

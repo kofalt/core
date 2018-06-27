@@ -225,18 +225,6 @@ def sanitize_path(filepath):
     """
     return os.path.normpath('/'+filepath).lstrip('/')
 
-def humanize_validation_error(val_err):
-    """
-    Takes a jsonschema.ValidationError, returns a human-friendly string
-    """
-
-    key = 'none'
-    if len(val_err.relative_path) > 0:
-        key = val_err.relative_path[0]
-    message = val_err.message.replace("u'", "'")
-
-    return 'Object does not match schema on key ' + key + ': ' + message
-
 def obj_from_map(_map):
     """
     Creates an anonymous object with properties determined by the passed (shallow) map.

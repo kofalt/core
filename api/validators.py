@@ -79,7 +79,7 @@ def from_schema_path(schema_url):
             try:
                 _validate_json(payload, _schema, resolver)
             except jsonschema.ValidationError as e:
-                raise InputValidationException(str(e))
+                raise InputValidationException(cause=e)
     return g
 
 def key_check(schema_url):
@@ -108,7 +108,7 @@ def key_check(schema_url):
                 try:
                     exclude_params = _post_exclude_params(schema.get('key_fields', []), payload)
                 except KeyError as e:
-                    raise InputValidationException('missing key {} in payload'.format(e.args))
+                    raise InputValidationException('missing key {} in payload'.format(e.args), reason='missing key', key=str(e.args))
             else:
                 _check_query_params(schema.get('key_fields'), query_params)
                 if method == 'PUT' and schema.get('key_fields'):

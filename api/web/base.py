@@ -310,20 +310,20 @@ class RequestHandler(webapp2.RequestHandler):
         for param_name in ('filter', 'sort', 'page', 'skip', 'limit'):
             param_count = len(self.request.GET.getall(param_name))
             if param_count > 1:
-                raise errors.APIValidationException({'error': 'Multiple "{}" query params not allowed'.format(param_name)})
+                raise errors.APIValidationException(error='Multiple "{}" query params not allowed'.format(param_name))
             if param_count > 0:
                 param_value = self.request.GET.get(param_name)
                 parse = parsers.get(param_name, util.parse_pagination_int_param)
                 try:
                     pagination[param_name] = parse(param_value)
                 except util.PaginationParseError as e:
-                    raise errors.APIValidationException({'error': e.message})
+                    raise errors.APIValidationException(error=e.message)
 
         if 'page' in pagination:
             if 'skip' in pagination:
-                raise errors.APIValidationException({'error': '"page" and "skip" query params are mutually exclusive'})
+                raise errors.APIValidationException(error='"page" and "skip" query params are mutually exclusive')
             if 'limit' not in pagination:
-                raise errors.APIValidationException({'error': '"limit" query param is required with "page"'})
+                raise errors.APIValidationException(error='"limit" query param is required with "page"')
             pagination['skip'] = pagination['limit'] * (pagination.pop('page') - 1)
 
         return pagination

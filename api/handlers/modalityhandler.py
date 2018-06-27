@@ -54,8 +54,7 @@ class APIClassificationException(APIValidationException):
         else:
             error_msg = 'Classification does not match format for modality {}. Unallowable key-value pairs: {}'.format(modality, errors)
 
-        super(APIClassificationException, self).__init__(error_msg)
-        self.errors = {'unaccepted_keys': errors}
+        super(APIClassificationException, self).__init__(error_msg, unaccepted_keys=errors)
 
 
 def case_insensitive_search(classifications, proposed_key, proposed_value):
