@@ -60,10 +60,7 @@ class ReportHandler(base.RequestHandler):
 
         if report_type in ReportTypes:
             report_class = ReportTypes[report_type]
-            try:
-                report = report_class(self.request.params)
-            except APIReportParamsException as e:
-                self.abort(400, e.message)
+            report = report_class(self.request.params)
         else:
             raise NotImplementedError('Report type {} is not supported'.format(report_type))
 

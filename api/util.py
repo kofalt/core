@@ -225,18 +225,6 @@ def sanitize_path(filepath):
     """
     return os.path.normpath('/'+filepath).lstrip('/')
 
-def humanize_validation_error(val_err):
-    """
-    Takes a jsonschema.ValidationError, returns a human-friendly string
-    """
-
-    key = 'none'
-    if len(val_err.relative_path) > 0:
-        key = val_err.relative_path[0]
-    message = val_err.message.replace("u'", "'")
-
-    return 'Object does not match schema on key ' + key + ': ' + message
-
 def obj_from_map(_map):
     """
     Creates an anonymous object with properties determined by the passed (shallow) map.
@@ -266,19 +254,21 @@ def format_hash(hash_alg, hash_):
     """
     return '-'.join(('v0', hash_alg, hash_))
 
-def create_json_http_exception_response(message, code, request_id, custom=None):
+def create_json_http_exception_response(message, code, request_id, core_status_code=None, custom=None):
     content = {
         'message': message,
         'status_code': code,
         'request_id': request_id
     }
+    if core_status_code:
+        content['core_status_code'] = core_status_code
     if custom:
         content.update(custom)
     return content
 
-def send_json_http_exception(response, message, code, request_id, custom=None):
+def send_json_http_exception(response, message, code, request_id, core_status_code=None, custom=None):
     response.set_status(code)
-    json_content = json.dumps(create_json_http_exception_response(message, code, request_id, custom))
+    json_content = json.dumps(create_json_http_exception_response(message, code, request_id, core_status_code, custom))
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
     response.write(json_content)
 

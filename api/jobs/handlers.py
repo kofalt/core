@@ -17,7 +17,7 @@ from ..auth.apikeys import JobApiKey
 from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..types import Origin
-from ..util import humanize_validation_error, set_for_download
+from ..util import set_for_download
 from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
@@ -231,7 +231,7 @@ class GearHandler(base.RequestHandler):
             return { '_id': str(result) }
 
         except ValidationError as err:
-            raise InputValidationException(humanize_validation_error(err))
+            raise InputValidationException(cause=err)
 
     @require_admin
     def delete(self, _id):

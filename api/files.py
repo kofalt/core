@@ -170,9 +170,6 @@ def get_single_file_field_storage(file_system, use_filepath=False):
 
     return SingleFileFieldStorage
 
-class FileStoreException(Exception):
-    pass
-
 # File extension --> scitran file type detection hueristics.
 # Listed in precendence order.
 with open(os.path.join(os.path.dirname(__file__), 'filetypes.json')) as fd:

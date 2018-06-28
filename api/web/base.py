@@ -310,20 +310,20 @@ class RequestHandler(webapp2.RequestHandler):
         for param_name in ('filter', 'sort', 'page', 'skip', 'limit'):
             param_count = len(self.request.GET.getall(param_name))
             if param_count > 1:
-                raise errors.APIValidationException({'error': 'Multiple "{}" query params not allowed'.format(param_name)})
+                raise errors.APIValidationException(error='Multiple "{}" query params not allowed'.format(param_name))
             if param_count > 0:
                 param_value = self.request.GET.get(param_name)
                 parse = parsers.get(param_name, util.parse_pagination_int_param)
                 try:
                     pagination[param_name] = parse(param_value)
                 except util.PaginationParseError as e:
-                    raise errors.APIValidationException({'error': e.message})
+                    raise errors.APIValidationException(error=e.message)
 
         if 'page' in pagination:
             if 'skip' in pagination:
-                raise errors.APIValidationException({'error': '"page" and "skip" query params are mutually exclusive'})
+                raise errors.APIValidationException(error='"page" and "skip" query params are mutually exclusive')
             if 'limit' not in pagination:
-                raise errors.APIValidationException({'error': '"limit" query param is required with "page"'})
+                raise errors.APIValidationException(error='"limit" query param is required with "page"')
             pagination['skip'] = pagination['limit'] * (pagination.pop('page') - 1)
 
         return pagination
@@ -349,35 +349,13 @@ class RequestHandler(webapp2.RequestHandler):
         request_id = self.request.id
         custom_errors = None
         message = str(exception)
+        core_status = None
         if isinstance(exception, webapp2.HTTPException):
             code = exception.code
-        elif isinstance(exception, errors.InputValidationException):
-            code = 400
-        elif isinstance(exception, errors.APIAuthProviderException):
-            code = 401
-        elif isinstance(exception, errors.APIRefreshTokenException):
-            code = 401
+        elif isinstance(exception, errors.APIException):
+            code = exception.status_code
+            core_status = exception.core_status_code
             custom_errors = exception.errors
-        elif isinstance(exception, errors.APIUnknownUserException):
-            code = 402
-        elif isinstance(exception, errors.APIConsistencyException):
-            code = 400
-        elif isinstance(exception, errors.APIPermissionException):
-            custom_errors = exception.errors
-            code = 403
-        elif isinstance(exception, errors.APINotFoundException):
-            code = 404
-        elif isinstance(exception, errors.APIConflictException):
-            code = 409
-        elif isinstance(exception, errors.APIValidationException):
-            code = 422
-            custom_errors = exception.errors
-        elif isinstance(exception, errors.FileStoreException):
-            code = 400
-        elif isinstance(exception, errors.FileFormException):
-            code = 400
-        elif isinstance(exception, errors.FileFormException):
-            code = 400
         elif isinstance(exception, ElasticsearchException):
             code = 503
             message = "Search is currently down. Try again later."
@@ -393,9 +371,9 @@ class RequestHandler(webapp2.RequestHandler):
             self.request.logger.error(tb)
 
         if return_json:
-            return util.create_json_http_exception_response(message, code, request_id, custom=custom_errors)
+            return util.create_json_http_exception_response(message, code, request_id, core_status_code=core_status, custom=custom_errors)
 
-        util.send_json_http_exception(self.response, message, code, request_id, custom=custom_errors)
+        util.send_json_http_exception(self.response, message, code, request_id, core_status_code=core_status, custom=custom_errors)
 
     def log_user_access(self, access_type, cont_name=None, cont_id=None, filename=None, multifile=False, origin_override=None):
         origin = origin_override if origin_override is not None else self.origin

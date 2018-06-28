@@ -118,10 +118,7 @@ class ListHandler(base.RequestHandler):
     def get(self, cont_name, list_name, **kwargs):
         _id = kwargs.pop('cid')
         permchecker, storage, _, _, keycheck = self._initialize_request(cont_name, list_name, _id, query_params=kwargs)
-        try:
-            result = keycheck(permchecker(storage.exec_op))('GET', _id, query_params=kwargs)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        result = keycheck(permchecker(storage.exec_op))('GET', _id, query_params=kwargs)
 
         if result is None:
             self.abort(404, 'Element not found in list {} of container {} {}'.format(storage.list_name, storage.cont_name, _id))
@@ -146,10 +143,7 @@ class ListHandler(base.RequestHandler):
 
         payload = self.request.json_body
         payload_validator(payload, 'PUT')
-        try:
-            result = keycheck(mongo_validator(permchecker(storage.exec_op)))('PUT', _id=_id, query_params=kwargs, payload=payload)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        result = keycheck(mongo_validator(permchecker(storage.exec_op)))('PUT', _id=_id, query_params=kwargs, payload=payload)
         # abort if the query of the update wasn't able to find any matching documents
         if result.matched_count == 0:
             self.abort(404, 'Element not updated in list {} of container {} {}'.format(storage.list_name, storage.cont_name, _id))
@@ -159,10 +153,7 @@ class ListHandler(base.RequestHandler):
     def delete(self, cont_name, list_name, **kwargs):
         _id = kwargs.pop('cid')
         permchecker, storage, _, _, keycheck = self._initialize_request(cont_name, list_name, _id, query_params=kwargs)
-        try:
-            result = keycheck(permchecker(storage.exec_op))('DELETE', _id, query_params=kwargs)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        result = keycheck(permchecker(storage.exec_op))('DELETE', _id, query_params=kwargs)
         if result.modified_count == 1:
             return {'modified': result.modified_count}
         else:
@@ -250,10 +241,7 @@ class PermissionsListHandler(ListHandler):
         method to propagate permissions from a container/group to its sessions and acquisitions
         """
         if cont_name == 'groups':
-            try:
-                containerutil.propagate_changes(cont_name, _id, query, update)
-            except APIStorageException as e:
-                self.abort(400, e.message)
+            containerutil.propagate_changes(cont_name, _id, query, update)
         elif cont_name == 'projects':
             try:
                 oid = bson.ObjectId(_id)
@@ -432,10 +420,7 @@ class FileListHandler(ListHandler):
             permchecker = always_ok
 
         # Grab fileinfo from db
-        try:
-            fileinfo = keycheck(permchecker(storage.exec_op))('GET', _id, query_params=kwargs)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        fileinfo = keycheck(permchecker(storage.exec_op))('GET', _id, query_params=kwargs)
         if not fileinfo:
             self.abort(404, 'no such file')
 
@@ -579,11 +564,8 @@ class FileListHandler(ListHandler):
 
         validators.validate_data(payload, 'info_update.json', 'input', 'POST')
 
-        try:
-            permchecker(noop)('PUT', _id=_id, query_params=kwargs, payload=payload)
-            result = storage.modify_info(_id, kwargs, payload)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        permchecker(noop)('PUT', _id=_id, query_params=kwargs, payload=payload)
+        result = storage.modify_info(_id, kwargs, payload)
         return result
 
 
@@ -659,10 +641,7 @@ class FileListHandler(ListHandler):
                 errors={'reason': 'analysis_conflict'})
 
         self.log_user_access(AccessType.delete_file, cont_name=cont_name, cont_id=_id, filename=filename)
-        try:
-            result = keycheck(storage.exec_op)('DELETE', _id, query_params=kwargs)
-        except APIStorageException as e:
-            self.abort(400, e.message)
+        result = keycheck(storage.exec_op)('DELETE', _id, query_params=kwargs)
         if result.modified_count == 1:
             return {'modified': result.modified_count}
         else:
