@@ -43,9 +43,10 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     assert job
 
     # Verify that gear info was stored
-    assert gear == r.json().get('gear_id')
-    assert r.json().get('gear_name')
-    assert r.json().get('gear_version') == '0.0.1'
+    gear_info = r.json().get('gear_info')
+    assert gear_info.get('id') == gear
+    assert gear_info.get('name')
+    assert gear_info.get('version') == '0.0.1'
 
     check_files(as_admin, analysis, 'inputs', 'input.csv')
 

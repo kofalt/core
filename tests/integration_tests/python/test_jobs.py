@@ -76,8 +76,8 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert r.ok
 
     job = r.json()
-    assert job['gear_name']
-    assert job['gear_version'] == '0.0.1'
+    assert job['gear_info']['name']
+    assert job['gear_info']['version'] == '0.0.1'
 
     # get job log (empty)
     r = as_admin.get('/jobs/' + job1_id + '/logs')

@@ -89,10 +89,15 @@ class Job(object):
                 'id': None
             }
 
+        # Partial join of gear info at time of execution
+        gear_info = {
+            'category': gear.get('category'),
+            'name': gear['gear'].get('name'),
+            'version': gear['gear'].get('version')
+        }
+
         self.gear_id            = gear_id
-        self.gear_category      = gear.get('category')
-        self.gear_name          = gear['gear'].get('name')
-        self.gear_version       = gear['gear'].get('version')
+        self.gear_info          = gear_info
         self.inputs             = inputs
         self.destination        = destination
         self.tags               = tags
@@ -157,12 +162,13 @@ class Job(object):
 
         d['_id'] = str(d['_id'])
 
+        gear_info = d.get('gear_info', {})
         gear_doc = {
             '_id': d['gear_id'],
-            'category': d.get('gear_category'),
+            'category': gear_info.get('category'),
             'gear': {
-                'name': d.get('gear_name'),
-                'version': d.get('gear_version')
+                'name': gear_info.get('name'),
+                'version': gear_info.get('version')
             }
         }
 

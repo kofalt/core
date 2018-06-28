@@ -413,20 +413,20 @@ def test_52(data_builder, api_db, as_admin, file_form, database, default_payload
     database.upgrade_to_52()
 
     job1 = api_db.jobs.find_one({'_id': job1_id})
-    assert job1['gear_name'] == 'test-52-upgrade-gear'
-    assert job1['gear_version'] == '0.0.1'
-    assert job1['gear_category'] == 'analysis'
+    gear_info = job1['gear_info']
+    assert gear_info['name'] == 'test-52-upgrade-gear'
+    assert gear_info['version'] == '0.0.1'
+    assert gear_info['category'] == 'analysis'
 
     job2 = api_db.jobs.find_one({'_id': job2_id})
-    assert 'gear_name' not in job2
-    assert 'gear_version' not in job2
-    assert 'gear_category' not in job2
+    assert 'gear_info' not in job2
 
     analysis = api_db.analyses.find_one({'_id': analysis_id})
-    assert analysis['gear_id'] == str(gear_id)
-    assert analysis['gear_name'] == 'test-52-upgrade-gear'
-    assert analysis['gear_version'] == '0.0.1'
-    assert analysis['gear_category'] == 'analysis'
+    gear_info = analysis['gear_info']
+    assert gear_info['id'] == str(gear_id)
+    assert gear_info['name'] == 'test-52-upgrade-gear'
+    assert gear_info['version'] == '0.0.1'
+    assert gear_info['category'] == 'analysis'
 
     api_db.gears.delete_one({'_id': gear_id})
     api_db.analyses.delete_one({'_id': analysis_id})

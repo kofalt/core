@@ -51,9 +51,10 @@ class JobsTestCases(SdkTestCase):
         # Get
         r_job = fw.get_job(job_id)
         self.assertEqual(r_job.gear_id, self.gear_id)
-        self.assertEqual(r_job.gear_category, gear.category)
-        self.assertEqual(r_job.gear_name, gear.gear.name)
-        self.assertEqual(r_job.gear_version, gear.gear.version)
+        gear_info = r_job.gear_info
+        self.assertEqual(gear_info.category, gear.category)
+        self.assertEqual(gear_info.name, gear.gear.name)
+        self.assertEqual(gear_info.version, gear.gear.version)
         self.assertEqual(r_job.state, 'pending')
         self.assertEqual(r_job.attempt, 1)
         self.assertIsNotNone(r_job.origin)

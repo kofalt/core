@@ -1738,12 +1738,14 @@ def upgrade_job_to_52(job, gears):
 
     gear = gear_doc.get('gear', {})
     update_doc = {'$set': {
-        'gear_id': gear_id,
-        'gear_category': gear_doc.get('category'),
-        'gear_name': gear.get('name'),
-        'gear_version': gear.get('version'),
+        'gear_info': {
+            'category': gear_doc.get('category'),
+            'name': gear.get('name'),
+            'version': gear.get('version')
+        }
     }}
     config.db.jobs.update_one({'_id': job_id}, update_doc)
+    update_doc['$set']['gear_info']['id'] = gear_id
     config.db.analyses.update_one({'job': job_id}, update_doc)
     return True
 
