@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type":"array",
+    "items":{
+        "allOf":[{"$ref":"../definitions/report.json#/definitions/report-access-type"}]
+    },
+    "example": [
+        "accept_failed_output", 
+        "delete_analysis", 
+        "delete_container", 
+        "delete_file", 
+        "download_file", 
+        "replace_file", 
+        "user_login", 
+        "user_logout", 
+        "view_container", 
+        "view_file", 
+        "view_subject"
+    ]
+}

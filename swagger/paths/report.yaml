@@ -32,3 +32,89 @@
         description: ''
         schema:
           $ref: schemas/output/report-project.json
+
+/report/accesslog:
+  get:
+    summary: Get a report of access log entries for the given parameters
+    operationId: get_access_log_report
+    tags:
+    - 'reports'
+    parameters:
+      - in: query
+        type: string
+        name: start_date
+        description: An ISO formatted timestamp for the start time of the report
+      - in: query
+        type: string
+        name: end_date
+        description: An ISO formatted timestamp for the end time of the report
+      - in: query
+        type: string
+        name: uid
+        description: User id of the target user
+      - in: query
+        type: integer
+        name: limit
+        description: Maximum number of records to return
+      - in: query
+        type: string
+        name: subject
+        description: Limit the report to the subject code of session accessed
+      - in: query
+        type: array
+        items:
+          type: string
+        collectionFormat: multi
+        name: access_type
+        description: The list of access_types to filter logs
+      - in: query
+        type: boolean
+        name: csv
+        description: Set to download a csv file instead of json
+    responses:
+      '200':
+        description: A report of access log usage
+        schema:
+          $ref: schemas/output/report-access-log.json
+
+/report/accesslog/types:
+  get:
+    summary: Get the list of types of access log entries
+    operationId: get_access_log_types
+    tags:
+    - 'reports'
+    responses:
+      '200':
+        description: Returns the list of access log types
+        schema:
+          $ref: schemas/output/report-access-type-list.json
+
+/report/usage:
+  get:
+    summary: Get a usage report for the site grouped by month or project
+    operationId: get_usage_report
+    tags:
+    - 'reports'
+    parameters:
+      - in: query
+        type: string
+        enum:
+          - project
+          - month
+        required: true
+        name: type
+        description: The type of usage report to generate
+      - in: query
+        type: string
+        name: start_date
+        description: An ISO formatted timestamp for the start time of the report
+      - in: query
+        type: string
+        name: end_date
+        description: An ISO formatted timestamp for the end time of the report
+    responses:
+      '200':
+        description: Returns the usage report
+        schema:
+          $ref: schemas/output/report-usage.json
+

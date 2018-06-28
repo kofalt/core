@@ -107,6 +107,114 @@
             },
             "additionalProperties":false,
             "required":["group_count", "groups"]            
+        },
+        "report-access-type": {
+            "type": "string",
+            "description": "A named field used in the access log report"
+        },
+        "report-access-log-context-entry": {
+            "type": "object",
+            "properties": {
+                "id": {"$ref":"container.json#/definitions/_id"},
+                "label": {"$ref": "common.json#/definitions/label"}
+            },
+            "required": ["id"]
+        },
+        "report-access-log-context-file-entry": {
+            "type": "object",
+            "properties": {
+                "name": {"$ref": "file.json#/definitions/name"}
+            },
+            "required": ["name"]
+        },
+        "report-access-log-context": {
+            "properties": {
+                "group":       {"$ref":"#/definitions/report-access-log-entry"},
+                "project":     {"$ref":"#/definitions/report-access-log-entry"},
+                "subject":     {"$ref":"#/definitions/report-access-log-entry"},
+                "session":     {"$ref":"#/definitions/report-access-log-entry"},
+                "acquisition": {"$ref":"#/definitions/report-access-log-entry"},
+                "file":        {"$ref":"#/definitions/report-access-log-context-file-entry"}
+            },
+            "required": ["group", "project"],
+            "description": "The context for a logged request, describing the members of the accessed hierarchy"
+        },
+        "report-access-log-origin": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "The origin type (e.g. user)"
+                },
+                "id": {
+                    "type": "string",
+                    "description": "The origin id (e.g. user id)"
+                }
+            },
+            "required": [ "type" ],
+            "additionalProperties": false,
+            "description": "The origin of a logged request (e.g. a user id)"
+        },
+        "report-access-log-entry": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string",
+                    "description": "The access log entry id"
+                },
+                "access_type": {"$ref":"#/definitions/report-access-type"},
+                "context":     {"$ref":"#/definitions/report-access-log-context"},
+                "origin":      {"$ref":"#/definitions/report-access-log-origin"},
+                "request_method": {
+                    "type": "string",
+                    "description": "The http request method (e.g. GET, PUT, POST, DELETE)"
+                },
+                "request_path": {
+                    "type": "string",
+                    "description": "The HTTP request path (e.g. /api/projects)"
+                },
+                "timestamp": {"$ref":"common.json#/definitions/timestamp"}
+            },
+            "description": "A single entry in the access log report"
+        },
+        "report-usage-project-entry": {
+            "type": "object",
+            "properties": {
+                "_id": {"$ref":"container.json#/definitions/_id"},
+                "label": {"$ref": "common.json#/definitions/label"}
+            },
+            "required": ["_id"],
+            "description": "The project that this entry reports on"
+        },        
+        "report-usage-entry": {
+            "type": "object",
+            "properties": {
+                "file_mbs": {
+                    "type": "number",
+                    "description": "File storage usage, in megabytes"
+                },
+                "gear_execution_count": {
+                    "type": "integer",
+                    "description": "The number of gears executed"
+                },
+                "session_count": {
+                    "type": "integer",
+                    "description": "The number of sessions created"
+                },
+                "year": {
+                    "type": "string",
+                    "description": "The year portion of the entry date"
+                },
+                "month": {
+                    "type": "string",
+                    "description": "The month portion of the entry date"
+                },
+                "project": {
+                    "$ref": "#/definitions/report-usage-project-entry"
+                }
+            },
+            "required": ["file_mbs", "gear_execution_count", "session_count"],
+            "description": "An entry in the usage report, describing storage and gear usage"
         }
     }
 }
