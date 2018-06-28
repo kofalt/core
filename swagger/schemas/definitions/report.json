@@ -129,11 +129,11 @@
         },
         "report-access-log-context": {
             "properties": {
-                "group":       {"$ref":"#/definitions/report-access-log-entry"},
-                "project":     {"$ref":"#/definitions/report-access-log-entry"},
-                "subject":     {"$ref":"#/definitions/report-access-log-entry"},
-                "session":     {"$ref":"#/definitions/report-access-log-entry"},
-                "acquisition": {"$ref":"#/definitions/report-access-log-entry"},
+                "group":       {"$ref":"#/definitions/report-access-log-context-entry"},
+                "project":     {"$ref":"#/definitions/report-access-log-context-entry"},
+                "subject":     {"$ref":"#/definitions/report-access-log-context-entry"},
+                "session":     {"$ref":"#/definitions/report-access-log-context-entry"},
+                "acquisition": {"$ref":"#/definitions/report-access-log-context-entry"},
                 "file":        {"$ref":"#/definitions/report-access-log-context-file-entry"}
             },
             "required": ["group", "project"],
