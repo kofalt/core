@@ -118,6 +118,8 @@ class AnalysisTestCases(SdkTestCase):
 
     def test_job_based_analysis(self):
         fw = self.fw
+
+        gear = fw.get_gear(self.gear_id)
         
         # Upload to session
         poem = 'A gaze blank and pitiless as the sun,'
@@ -150,6 +152,10 @@ class AnalysisTestCases(SdkTestCase):
 
         r_analysis = session.analyses[0]
         self.assertEqual(r_analysis.id, analysis_id)
+        self.assertEqual(r_analysis.gear_id, self.gear_id)
+        self.assertEqual(r_analysis.gear_category, gear.category)
+        self.assertEqual(r_analysis.gear_name, gear.gear.name)
+        self.assertEqual(r_analysis.gear_version, gear.gear.version)
         self.assertEqual(r_analysis.job.state, 'pending')
         self.assertTimestampBeforeNow(r_analysis.created)
         self.assertGreaterEqual(r_analysis.modified, r_analysis.created)
