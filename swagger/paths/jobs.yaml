@@ -207,8 +207,8 @@
       in: path
       name: JobId
   post:
-    summary: Create a ticket with the job id and its status.
-    operationId: prepare_compete
+    summary: Create a ticket for completing a job, with id and status.
+    operationId: prepare_compete_job
     tags:
     - jobs
     parameters:
@@ -216,11 +216,9 @@
         in: body
         required: true
         schema:
-          example:
-            success: True
+          $ref: schemas/input/job-completion.json
     responses:
       '200':
         description: 'Returns a ticket'
         schema:
-          example:
-            ticket: 579e97738120be2ada087feb
+          $ref: schemas/output/job-completion-ticket.json
