@@ -23,6 +23,7 @@ class RequestHandler(webapp2.RequestHandler):
 
     def __init__(self, request=None, response=None): # pylint: disable=super-init-not-called
         """Set uid, public_request, and superuser"""
+        self.log = request.logger if request else config.log
         self.initialize(request, response)
 
         self.uid = None
@@ -45,10 +46,9 @@ class RequestHandler(webapp2.RequestHandler):
             error = self.handle_exception(e, self.app.debug, return_json=True)
             self.abort(error['status_code'], error['message'])
 
-
     def initialize(self, request, response):
         super(RequestHandler, self).initialize(request, response)
-        request.logger.debug("Initialized request")
+        self.log.debug("Initialized request")
 
     def initialization_auth(self):
         drone_request = False
@@ -149,7 +149,8 @@ class RequestHandler(webapp2.RequestHandler):
             self.origin['via']['type']  = str(self.origin['via']['type'])
             self.origin['via']['id']    = str(self.origin['via']['id'])
 
-
+        # Add origin to log context
+        self.log = self.log.with_context(origin=util.origin_to_str(self.origin))
 
     def authenticate_user_token(self, session_token):
         """
@@ -359,16 +360,18 @@ class RequestHandler(webapp2.RequestHandler):
         elif isinstance(exception, ElasticsearchException):
             code = 503
             message = "Search is currently down. Try again later."
-            self.request.logger.error(traceback.format_exc())
+            self.log.error(traceback.format_exc())
         elif isinstance(exception, KeyError):
             code = 500
             message = "Key {} was not found".format(str(exception))
         else:
             code = 500
 
-        if code == 500:
+        if code >= 400 and code < 500:
+            self.log.debug('client error: {}'.format(exception))
+        elif code == 500:
             tb = traceback.format_exc()
-            self.request.logger.error(tb)
+            self.log.error(tb)
 
         if return_json:
             return util.create_json_http_exception_response(message, code, request_id, core_status_code=core_status, custom=custom_errors)
@@ -383,13 +386,13 @@ class RequestHandler(webapp2.RequestHandler):
             log_user_access(self.request, access_type, cont_name=cont_name, cont_id=cont_id,
                     filename=filename, multifile=multifile, origin=origin, download_ticket=ticket)
         except Exception as e:  # pylint: disable=broad-except
-            config.log.exception(e)
+            self.log.exception(e)
             self.abort(500, 'Unable to log access.')
 
     def dispatch(self):
         """dispatching and request forwarding"""
 
-        self.request.logger.debug('from %s %s %s %s', self.uid, self.request.method, self.request.path, str(self.request.GET.mixed()))
+        self.log.debug('from %s %s %s %s', self.uid, self.request.method, self.request.path, str(self.request.GET.mixed()))
         return super(RequestHandler, self).dispatch()
 
     # pylint: disable=arguments-differ
@@ -401,5 +404,5 @@ class RequestHandler(webapp2.RequestHandler):
                 'validator': detail.validator,
                 'validator_value': detail.validator_value,
             }
-        self.request.logger.warning(str(self.uid) + ' ' + str(code) + ' ' + str(detail))
+        self.log.warning(str(self.uid) + ' ' + str(code) + ' ' + str(detail))
         webapp2.abort(code, detail=detail, **kwargs)

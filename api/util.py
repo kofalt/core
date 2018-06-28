@@ -469,3 +469,13 @@ def parse_pagination_int_param(int_param):
 class dotdict(dict):
     def __getattr__(self, name):
         return self[name]
+
+def origin_to_str(origin):
+    """Format an origin dictionary as a string"""
+    result = str(origin['type'])
+    origin_id = origin.get('id')
+    if origin_id:
+        result += ':%s' % origin_id
+    if 'via' in origin:
+        result += ' (via %s)' % origin_to_str(origin['via'])
+    return result
