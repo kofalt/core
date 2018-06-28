@@ -10,6 +10,8 @@ RESPONSE_TIME = Counter('fw_core_response_time_seconds_sum', 'Observed time to c
 RESPONSE_SIZE = Counter('fw_core_response_size_bytes_sum', 'Observed response size, in bytes', ['method', 'template', 'status'])
 # Response Count
 RESPONSE_COUNT = Counter('fw_core_response_count', 'Observed response counts', ['method', 'template', 'status'])
+# Log Counter
+LOG_MESSAGE_COUNT = Counter('fw_core_log_message_count', 'Observed log statement counts', ['name', 'level'])
 
 # ===== UWSGI Workers ======
 # Labels: PID
