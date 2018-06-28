@@ -878,7 +878,7 @@ class SearchQueryHandler(base.RequestHandler):
     @require_login
     def post(self):
         payload = self.request.json_body
-        validators.validate_data(payload, 'save-search-input.json', 'input', 'POST')
+        validators.validate_data(payload, 'save-query-input.json', 'input', 'POST')
         payload['permissions'] = [{"_id": self.uid, "access": "admin"}]
         result = self.storage.create_el(payload)
         if result.acknowledged:
@@ -888,7 +888,6 @@ class SearchQueryHandler(base.RequestHandler):
             raise APIStorageException("Failed to save the search")
 
     def get_all(self):
-        log.debug(self.uid)
         return self.storage.get_all_el({}, {'_id': self.uid}, {'label': 1})
 
     def get(self, sid):
@@ -909,13 +908,11 @@ class SearchQueryHandler(base.RequestHandler):
 
     def put(self, sid):
         payload = self.request.json_body
-        log.debug(payload)
-        validators.validate_data(payload, 'save-search-update.json', 'input', 'PUT')
+        validators.validate_data(payload, 'save-query-update.json', 'input', 'PUT')
         permchecker = groupauth.default(self, payload)
         permchecker(noop)('PUT', sid)
         result = self.storage.update_el(sid, payload)
-        log.debug(result)
-        if result.modified_count == 1:
+        if result.matched_count == 1:
             return {'modified': result.modified_count}
         else:
-            self.abort(404, 'Saved search {} not updated'.format(sid))
+            self.abort(404, 'Search query {} not updated'.format(sid))
