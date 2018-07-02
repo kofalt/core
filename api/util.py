@@ -405,6 +405,21 @@ class PaginationParseError(ValueError):
     pass
 
 
+def parse_pagination_value(value):
+    """Return casted value (ObjectId|datetime|float) from user input (str) for use in mongo queries."""
+    if bson.ObjectId.is_valid(value):
+        return bson.ObjectId(value)
+    elif datetime_from_str(value):
+        return datetime_from_str(value)
+    else:
+        try:
+            # Note: querying for floats also yields ints (=> no need for int casting here)
+            return float(value)
+        except ValueError:
+            pass
+    return value
+
+
 def parse_pagination_filter_param(filter_param):
     """Return parsed pagination filter (dict) from filter param (str)."""
     pagination_filter = {}
@@ -420,18 +435,7 @@ def parse_pagination_filter_param(filter_param):
             if op:
                 if key not in pagination_filter:
                     pagination_filter[key] = {}
-                if bson.ObjectId.is_valid(value):
-                    value = bson.ObjectId(value)
-                elif datetime_from_str(value):
-                    value = datetime_from_str(value)
-                else:
-                    try:
-                        # Note: querying for floats also yields ints (=> no need for int casting here)
-                        value = float(value)
-                    except ValueError:
-                        pass
-                # TODO cast other types?
-                pagination_filter[key].update({filter_ops[op]: value})
+                pagination_filter[key].update({filter_ops[op]: parse_pagination_value(value)})
                 break
         else:
             raise PaginationParseError('Invalid pagination filter: {} (operator missing)'.format(filter_str))
