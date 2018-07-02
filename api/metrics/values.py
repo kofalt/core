@@ -29,6 +29,7 @@ def remove_worker_label(pid):
     Arguments:
         pid (string): The worker process id
     """
+    # pylint: disable=no-member
     WORKER_CPU_USAGE.remove(pid)
     WORKER_MEMORY_USAGE.remove(pid)
 
