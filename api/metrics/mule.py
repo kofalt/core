@@ -89,6 +89,7 @@ def collect_worker_metrics(workers):
         workers (dict): The current set of workers, as a map of pid -> Process
     """
     try:
+        # pylint: disable=import-error
         import uwsgi
 
         # For now, just cleanup dead workers

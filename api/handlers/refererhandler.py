@@ -31,6 +31,7 @@ class RefererHandler(base.RequestHandler):
 
     storage = abstractproperty()
     payload_schema_file = abstractproperty()
+    update_payload_schema_file = abstractproperty()
     permchecker = containerauth.default_referer
 
     @property

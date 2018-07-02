@@ -366,7 +366,7 @@ class ProjectReport(Report):
                 if perm.get('access') == 'admin':
                     admins.append(perm.get('_id'))
             admin_objs = config.db.users.find({'_id': {'$in': admins}})
-            project['admins'] = map(lambda x: x.get('firstname','')+' '+x.get('lastname',''), admin_objs) # pylint: disable=bad-builtin, deprecated-lambda
+            project['admins'] = [a.get('firstname', '') + ' ' + a.get('lastname', '') for a in admin_objs]
 
             base_query = self._base_query(p['_id'])
             project['session_count'] = config.db.sessions.count(base_query)

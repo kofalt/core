@@ -114,6 +114,8 @@ __config = apply_env_variables(copy.deepcopy(DEFAULT_CONFIG))
 __config_persisted = False
 __last_update = datetime.datetime.utcfromtimestamp(0)
 
+log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
+
 if not os.path.exists(__config['persistent']['data_path']):
     os.makedirs(__config['persistent']['data_path'])
 log.debug('Persistent data path: %s', __config['persistent']['data_path'])
@@ -123,8 +125,7 @@ if not __config['persistent']['fs_url']:
     if not os.path.exists(_path):
         os.makedirs(_path)
     __config['persistent']['fs_url'] = 'osfs://' + _path
-
-log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
+log.debug('Persistent fs url: %s', __config['persistent']['fs_url'])
 
 db = pymongo.MongoClient(
     __config['persistent']['db_uri'],

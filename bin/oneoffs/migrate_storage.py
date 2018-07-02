@@ -21,8 +21,6 @@ from fs import open_fs, errors
 
 from api import util
 
-from google.cloud.exceptions import GoogleCloudError
-
 log = logging.getLogger('migrate_storage')
 
 def main(*argv):
@@ -39,7 +37,7 @@ def main(*argv):
                         format=log_format,
                         level=getattr(logging, args.log_level.upper()))
 
-    global db, target_fs, local_fs, local_fs2, data_path
+    global db, target_fs, local_fs, local_fs2, data_path, migrate_file
     db_uri = os.environ['SCITRAN_PERSISTENT_DB_URI']
     data_path = os.environ['SCITRAN_PERSISTENT_DATA_PATH']
     log.info('Using mongo URI: %s', db_uri)
@@ -59,6 +57,11 @@ def main(*argv):
     fs_url = os.environ.get('SCITRAN_PERSISTENT_FS_URL', 'osfs://' + os.path.join(data_path, 'v1'))
     log.info('Migrate files from %s to %s', data_path, fs_url)
     target_fs = open_fs(fs_url)
+
+    if fs_url.startswith('gc://'):
+        # Late import storage error class and decorate retry
+        from google.cloud.exceptions import GoogleCloudError
+        migrate_file = retry(GoogleCloudError, tries=4)(migrate_file)
 
     try:
         if not (args.containers or args.gears):
@@ -200,7 +203,6 @@ def retry(exception_to_check, tries=4, delay=3, backoff=2):
     return deco_retry
 
 
-@retry(GoogleCloudError, tries=4)
 def migrate_file(f):
     file_id = f['fileinfo'].get('_id', '')
     if file_id:

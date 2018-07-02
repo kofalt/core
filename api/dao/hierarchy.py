@@ -6,7 +6,6 @@ import difflib
 import pymongo
 import re
 
-from .. import files
 from .. import util
 from .. import config
 from .basecontainerstorage import ContainerStorage
@@ -581,22 +580,3 @@ def _update_container_nulls(base_query, update, container_type):
         bulk.find(q).update_one(u)
     bulk.execute()
     return config.db[coll_name].find_one(base_query)
-
-
-# NOTE skip coverage since this function is currently not used
-def merge_fileinfos(parsed_files, infos): # pragma: no cover
-    """it takes a dictionary of "hard_infos" (file size, hash)
-    merging them with infos derived from a list of infos on the same or on other files
-    """
-    merged_files = {}
-    for info in infos:
-        parsed = parsed_files.get(info['name'])
-        if parsed:
-            path = parsed.path
-            new_infos = copy.deepcopy(parsed.info)
-        else:
-            path = None
-            new_infos = {}
-        new_infos.update(info)
-        merged_files[info['name']] = files.ParsedFile(new_infos, path)
-    return merged_files
