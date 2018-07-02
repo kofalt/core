@@ -49,7 +49,11 @@ class PaginationError(Exception):
 
 
 def paginate_find(collection, find_kwargs, pagination):
-    """Return paginated `db.coll.find()` results."""
+    """Return paginated `db.coll.find()` results.
+
+    Raises PaginationError if the query is incompatible with the pagination:
+     * `sort` in find_kwargs and `after_id` in pagination
+    """
     if pagination:
         if 'after_id' in pagination:
             if find_kwargs.get('sort'):
@@ -84,7 +88,12 @@ def paginate_find(collection, find_kwargs, pagination):
 
 
 def paginate_pipe(collection, pipeline, pagination):
-    """Return paginated `db.coll.aggregate()` results."""
+    """Return paginated `db.coll.aggregate()` results.
+
+    Raises PaginationError if the query is incompatible with the pagination:
+     * any pipeline stage is `$sort` and `after_id` in pagination
+     * pagination skip used without limit
+    """
     if pagination:
         if 'after_id' in pagination:
             if any('$sort' in stage for stage in pipeline):
