@@ -9,6 +9,7 @@ RUN set -eux \
         curl \
         git \
         libffi-dev \
+        linux-headers \
         openssl-dev \
         py2-pip \
         python2-dev \
