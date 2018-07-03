@@ -7,7 +7,7 @@ from ..web import base
 from .. import config, validators
 from ..auth import require_login, require_superuser, groupauth
 from ..dao import noop
-from ..dao.containerstorage import SearchStorage
+from ..dao.containerstorage import QueryStorage
 from ..web.errors import APIStorageException
 
 # pylint: disable=pointless-string-statement
@@ -869,21 +869,21 @@ class DataExplorerHandler(base.RequestHandler):
 
         self._handle_properties(fw_mappings, '')
 
-class SearchQueryHandler(base.RequestHandler):
+class QueryHandler(base.RequestHandler):
 
     def __init__(self, request=None, response=None):
-        super(SearchQueryHandler, self).__init__(request, response)
-        self.storage = SearchStorage()
+        super(QueryHandler, self).__init__(request, response)
+        self.storage = QueryStorage()
 
     @require_login
     def post(self):
         payload = self.request.json_body
         validators.validate_data(payload, 'save-query-input.json', 'input', 'POST')
+        payload['uid'] = self.uid
         payload['permissions'] = [{"_id": self.uid, "access": "admin"}]
         result = self.storage.create_el(payload)
-        if result.acknowledged:
-            if result.inserted_id:
-                return {'_id': result.inserted_id}
+        if result.inserted_id:
+            return {'_id': result.inserted_id}
         else:
             raise APIStorageException("Failed to save the search")
 
@@ -891,10 +891,7 @@ class SearchQueryHandler(base.RequestHandler):
         return self.storage.get_all_el({}, {'_id': self.uid}, {'label': 1})
 
     def get(self, sid):
-        result = self.storage.get_el(sid)
-        if result is None:
-            self.abort(404, 'Element {} not found'.format(sid))
-        return result
+        return self.storage.get_container(sid)
 
     def delete(self, sid):
         search = self.storage.get_container(sid)

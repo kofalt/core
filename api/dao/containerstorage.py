@@ -568,7 +568,7 @@ class AnalysisStorage(ContainerStorage):
         analysis['job'] = job
         return analysis
 
-class SearchStorage(ContainerStorage):
+class QueryStorage(ContainerStorage):
 
     def __init__(self):
-        super(SearchStorage, self).__init__('queries', use_object_id=True)
+        super(QueryStorage, self).__init__('queries', use_object_id=True)
