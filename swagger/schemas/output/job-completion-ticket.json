@@ -1,0 +1,8 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf": [{"$ref": "../definitions/job.json#/definitions/job-completion-ticket"}],
+    "example": {
+        "ticket": "579e97738120be2ada087feb"
+    }
+}

@@ -1,0 +1,26 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "array",
+    "items": {"$ref":"../definitions/report.json#/definitions/report-access-log-entry"},
+    "example": [{
+        "origin": {
+            "type": "user",
+            "id": "canakgun@flywheel.io"
+        },
+        "timestamp": "2018-06-28T14:23:13.625000+00:00",
+        "access_type": "view_container",
+        "request_method": "GET",
+        "context": {
+            "project": {
+                "id": "5b02d7689f44840016473476",
+                "label": "Anxiety Study"
+            },
+            "group": {
+                "id": "psychology",
+                "label": "Psychology Group"
+            }
+        },
+        "_id": "5b34ef519c65a5001543a983",
+        "request_path": "/api/projects/5b02d7689f44840016473476"
+    }]
+}

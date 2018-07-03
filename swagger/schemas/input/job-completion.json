@@ -1,0 +1,10 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "allOf":[
+    {"$ref":"../definitions/job.json#/definitions/job-completion-input"}
+  ],
+  "example": {
+      "success": false,
+      "elapsed": 1342
+    }
+}

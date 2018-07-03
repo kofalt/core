@@ -173,6 +173,32 @@
         "destination", "tags", "state", "attempt"
       ],
       "x-sdk-model":"job"
+    },
+    "job-completion-input": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether or not the job succeeded"
+        },
+        "elapsed": {
+          "type": "integer",
+          "description": "The elapsed time of the job, in seconds"
+        }
+      },
+      "required": ["success", "elapsed"]
+    },
+    "job-completion-ticket": {
+        "type":"object",
+        "properties":{
+            "ticket":{
+                "type":"string",
+                "description": "The ticket to use to perform file uploads to a job"
+            }
+        },
+        "additionalProperties":false,
+        "required":["ticket"],
+        "description": "A ticket for uploading files and completing a job"
     }
   }
 }
