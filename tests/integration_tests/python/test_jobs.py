@@ -62,6 +62,10 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     r = as_admin.post('/jobs/add', json=job0)
     assert r.status_code == 400
 
+    # try to add job without login
+    r = as_public.post('/jobs/add', json=job_data)
+    assert r.status_code == 403
+
     # add job with explicit destination
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok

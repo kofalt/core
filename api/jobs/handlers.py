@@ -359,6 +359,7 @@ class JobsHandler(base.RequestHandler):
         page = dbutil.paginate_find(config.db.jobs, {}, self.pagination)
         return self.format_page(page)
 
+    @require_login
     def add(self):
         """Add a job to the queue."""
         payload = self.request.json
