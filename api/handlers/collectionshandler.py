@@ -2,7 +2,7 @@ import bson
 import datetime
 
 from .. import config
-from ..auth import containerauth, always_ok
+from ..auth import containerauth, always_ok, require_login
 from ..dao import containerstorage, containerutil, noop
 from ..web.errors import APIStorageException
 from ..validators import verify_payload_exists
@@ -33,6 +33,7 @@ class CollectionsHandler(ContainerHandler):
     def get(self, **kwargs):
         return super(CollectionsHandler, self).get('collections', **kwargs)
 
+    @require_login
     def post(self):
         mongo_validator, payload_validator = self._get_validators()
 

@@ -344,6 +344,7 @@ class JobsHandler(base.RequestHandler):
         """List all jobs."""
         return list(config.db.jobs.find())
 
+    @require_login
     def add(self):
         """Add a job to the queue."""
         payload = self.request.json
