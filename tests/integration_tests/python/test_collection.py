@@ -1,6 +1,12 @@
-def test_collections(data_builder, as_admin, as_user):
+def test_collections(data_builder, as_admin, as_user, as_public):
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
+
+    # try to create collection as public
+    r = as_public.post('/collections', json={
+        'label': 'SciTran/Testing'
+    })
+    assert r.status_code == 403
 
     # create collection
     r = as_admin.post('/collections', json={
