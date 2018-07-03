@@ -31,6 +31,11 @@ def test_groups(as_user, as_admin, data_builder):
     d2 = parse(second_modified)
     assert d2 > d1
 
+    # Try adding a tag with a slash
+    tag_name = 'Grey/2'
+    r = as_admin.post('/groups/' + group + '/tags', json={'value': tag_name})
+    assert r.status_code == 400
+
     # Add a tag to the group
     tag_name = 'Grey2'
     r = as_admin.post('/groups/' + group + '/tags', json={'value': tag_name})
@@ -42,6 +47,11 @@ def test_groups(as_user, as_admin, data_builder):
     third_modified = r.json()['modified']
     d3 = parse(third_modified)
     assert d3 > d2
+
+    # Try editting the tag so that it includes a slash
+    new_tag_name = 'B/rown'
+    r = as_admin.put('/groups/' + group + '/tags/' + tag_name, json={'value': new_tag_name})
+    assert r.status_code == 400
 
     # Edit the tag
     new_tag_name = 'Brown'
