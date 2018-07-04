@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Delete files from the filesystem and the database which have been deleted more than 72 hours ago
+"""
 
 import argparse
 import datetime
@@ -6,7 +9,6 @@ import logging
 import os
 import sys
 
-from bson.objectid import ObjectId
 import pymongo
 
 from fs import open_fs
