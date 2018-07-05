@@ -124,6 +124,14 @@ public class FlywheelCodegenSupport {
                 } else if( op.vendorExtensions.containsKey("x-sdk-download-file-param") ) {
                     String paramName = op.vendorExtensions.get("x-sdk-download-file-param").toString();
                     op.vendorExtensions.put("x-sdk-download-file-param", gen.toParamName(paramName));
+
+                    // Update the response as well, so that the download handler is generated for matlab
+                    for(int i = 0; i < op.responses.size(); i++ ) {
+                        CodegenResponse resp = op.responses.get(i);
+                        if( "200".equals(resp.code) ) {
+                            resp.vendorExtensions.put("x-sdk-download-file-param", gen.toParamName(paramName));
+                        }
+                    }
                 }
             }
             ++idx;
