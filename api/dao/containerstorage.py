@@ -1,5 +1,4 @@
 import datetime
-
 import bson
 import copy
 
@@ -568,3 +567,8 @@ class AnalysisStorage(ContainerStorage):
 
         analysis['job'] = job
         return analysis
+
+class QueryStorage(ContainerStorage):
+
+    def __init__(self):
+        super(QueryStorage, self).__init__('queries', use_object_id=True)

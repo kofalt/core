@@ -26,6 +26,30 @@
 	    	},
 	    	"required": ["return_type"]
     	},
+        "save-search":{
+            "type":       "object",
+            "properties": {
+                "label":        {"$ref":"common.json#/definitions/label"},
+                "search":       {"$ref": "#/definitions/search-query"},
+                "_id":          {"$ref":"common.json#/definitions/objectid"},
+                "uid":          {"$ref":"container.json#/definitions/uid"},
+                "created":      {"$ref":"created-modified.json#/definitions/created"},
+                "modified":     {"$ref":"created-modified.json#/definitions/modified"},
+                "permissions":{
+                  "type":"array",
+                  "items":{"$ref":"permission.json#/definitions/permission-output-default-required"}
+                }
+            },
+            "additionalProperties": false
+        },
+        "save-search-update": {
+            "type":         "object",
+            "properties":   {
+                "label":        {"$ref":"common.json#/definitions/label"},
+                "search":       {"$ref": "#/definitions/search-query"}
+            },
+            "additionalProperties": false
+        },
     	"search-project-response": {
     		"type": "object",
     		"properties": {

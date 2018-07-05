@@ -6,7 +6,7 @@ from .handlers.abstractcontainerhandler import AbstractContainerHandler
 from .handlers.collectionshandler       import CollectionsHandler
 from .handlers.confighandler            import Config, Version
 from .handlers.containerhandler         import ContainerHandler
-from .handlers.dataexplorerhandler      import DataExplorerHandler
+from .handlers.dataexplorerhandler      import DataExplorerHandler, QueryHandler
 from .handlers.devicehandler            import DeviceHandler
 from .handlers.grouphandler             import GroupHandler
 from .handlers.listhandler              import FileListHandler, NotesListHandler, PermissionsListHandler, TagsListHandler
@@ -114,6 +114,12 @@ endpoints = [
         route('/dataexplorer/search/fields/aggregate',  DataExplorerHandler,   h='aggregate_field_values', m=['POST']),
         route('/dataexplorer/search/nodes',             DataExplorerHandler,   h='get_nodes',              m=['POST']),
         route('/dataexplorer/index/fields',             DataExplorerHandler,   h='index_field_names',      m=['POST']),
+
+        # Search Saving
+        route('/dataexplorer/queries',                            QueryHandler,                                m=['POST']),
+        route('/dataexplorer/queries',                            QueryHandler,     h='get_all',               m=['GET']),
+        route('/dataexplorer/queries/<sid:{oid}>',                QueryHandler,                                m=['GET','DELETE']),
+        route('/dataexplorer/queries/<sid:{oid}>',                QueryHandler,                                m=['PUT']),
 
         # Users
 
@@ -257,7 +263,7 @@ endpoints = [
 
         # Collections / Projects
 
-        prefix('/<cont_name:collections|projects>', [
+        prefix('/<cont_name:collections|projects|dataexplorer/queries>', [
             prefix('/<cid:{oid}>', [
                 route('/<list_name:permissions>',                          PermissionsListHandler, m=['POST']),
                 route('/<list_name:permissions>/<_id:{uid}>',              PermissionsListHandler, m=['GET', 'PUT', 'DELETE']),
