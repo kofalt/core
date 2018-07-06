@@ -8,7 +8,7 @@
                     "type": "string"
                 },
                 "ssl_cert": {
-                    "type": "string"
+                    "type": ["null", "string"]
                 },
                 "api_url": {
                     "type": "string"
