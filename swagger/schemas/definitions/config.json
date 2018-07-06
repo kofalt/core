@@ -66,6 +66,10 @@
                 },
                 "created": {
                     "type": "string"
+                },
+                "signed_url": {
+                    "type": "boolean",
+                    "description": "Whether or not this server supports signed url uploads"
                 }
             },
             "required": [
