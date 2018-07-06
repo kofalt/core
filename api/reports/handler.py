@@ -21,7 +21,7 @@ class ReportHandler(base.RequestHandler):
         else:
             raise NotImplementedError('Report type {} is not supported'.format(report_type))
 
-        if self.superuser_request or report.user_can_generate(self.uid):
+        if self.user_is_admin or report.user_can_generate(self.uid):
             if self.is_true('csv'):
                 download_format = 'csv'
             else:
