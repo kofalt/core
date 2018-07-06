@@ -8,7 +8,7 @@
                     "type": "string"
                 },
                 "ssl_cert": {
-                    "type": ["null", "string"]
+                    "type": "string"
                 },
                 "api_url": {
                     "type": "string"
@@ -25,7 +25,6 @@
             },
             "required": [
                 "central_url",
-                "ssl_cert",
                 "api_url",
                 "registered",
                 "id",
