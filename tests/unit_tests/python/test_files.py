@@ -35,3 +35,7 @@ def test_eeg():
     assert files.guess_type_from_filename('example.eeg') == 'eeg data'
     assert files.guess_type_from_filename('example.vmrk') == 'eeg marker'
     assert files.guess_type_from_filename('example.vhdr') == 'eeg header'
+
+def test_paravision():
+    assert files.guess_type_from_filename('1.pv5.zip') == 'paravision'
+    assert files.guess_type_from_filename('1.pv6.zip') == 'paravision'
