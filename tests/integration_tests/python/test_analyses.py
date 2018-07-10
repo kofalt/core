@@ -152,6 +152,32 @@ def test_analysis_download(data_builder, as_admin, file_form, api_db):
         assert set(m.name for m in tar.getmembers()) == set(['legacy/input/input.csv', 'legacy/output/output.csv'])
 
 
+def test_analysis_inflate_job(data_builder, file_form, as_admin):
+    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
+
+    # Create job-based analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'inflate',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Verify ?inflate_jobs=true works for one analysis
+    r = as_admin.get('/analyses/' + analysis + '?inflate_job=true')
+    assert r.ok
+    assert 'id' in r.json().get('job', {})
+
+    # Verify ?inflate_jobs=true works for multiple analyses
+    r = as_admin.get('/sessions/' + session + '/analyses?inflate_job=true')
+    assert r.ok
+    assert all('id' in a.get('job', {}) for a in r.json())
+
+
 def test_analysis_join_avatars(as_admin, data_builder):
     session = data_builder.create_session()
     r = as_admin.post('/sessions/' + session + '/analyses', json={'label': 'join-avatars'})

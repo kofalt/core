@@ -180,6 +180,10 @@ class AnalysesHandler(RefererHandler):
         # We set User to None because we check for permission when finding the parents
         page = self.storage.get_all_el(query, None, {'info': 0, 'files.info': 0}, pagination=self.pagination)
 
+        if self.is_true('inflate_job'):
+            for analysis in page['results']:
+                self.storage.inflate_job_info(analysis)
+
         if self.is_true('join_avatars'):
             self.storage.join_avatars(page['results'])
 
