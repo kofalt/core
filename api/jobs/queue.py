@@ -296,7 +296,7 @@ class Queue(object):
         if gear_name not in tags:
             tags.append(gear_name)
 
-        job = Job(str(gear['_id']), inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
+        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
 
         return job
 

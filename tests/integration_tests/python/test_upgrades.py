@@ -373,3 +373,62 @@ def test_50(data_builder, api_db, as_admin, file_form, database):
     # Clean up modality
     r = as_admin.delete('/modalities/MR')
     assert r.ok
+
+def test_52(data_builder, api_db, as_admin, file_form, database, default_payload):
+    # Create a valid gear
+    gear_doc = default_payload['gear']
+    gear_doc['gear']['name'] = 'test-52-upgrade-gear'
+    gear_doc['category'] = 'analysis'
+    gear_id = api_db.gears.insert_one(gear_doc).inserted_id
+    assert gear_id
+
+    # Create project
+    session = data_builder.create_session()
+
+    # Create job with existing gear
+    job_data = {
+        'gear_id': str(gear_id),
+        'inputs': {},
+        'config': { 'two-digit multiple of ten': 20 },
+    }
+
+    job1_id = api_db.jobs.insert_one(job_data).inserted_id
+    if '_id' in job_data:
+        del job_data['_id']
+    assert job1_id
+
+    # Create analysis
+    analysis_id = api_db.analyses.insert_one({
+        'job': job1_id,
+        'inputs': []
+    }).inserted_id
+    assert analysis_id
+
+    # Create job with invalid gear id
+    job_data['gear_id'] = '000000000000000000000000'
+    job2_id = api_db.jobs.insert_one(job_data).inserted_id
+    assert job2_id
+
+    # Perform the upgrade
+    database.upgrade_to_52()
+
+    job1 = api_db.jobs.find_one({'_id': job1_id})
+    gear_info = job1['gear_info']
+    assert gear_info['name'] == 'test-52-upgrade-gear'
+    assert gear_info['version'] == '0.0.1'
+    assert gear_info['category'] == 'analysis'
+
+    job2 = api_db.jobs.find_one({'_id': job2_id})
+    assert 'gear_info' not in job2
+
+    analysis = api_db.analyses.find_one({'_id': analysis_id})
+    gear_info = analysis['gear_info']
+    assert gear_info['id'] == str(gear_id)
+    assert gear_info['name'] == 'test-52-upgrade-gear'
+    assert gear_info['version'] == '0.0.1'
+    assert gear_info['category'] == 'analysis'
+
+    api_db.gears.delete_one({'_id': gear_id})
+    api_db.analyses.delete_one({'_id': analysis_id})
+    api_db.jobs.delete_one({'_id': job1_id})
+    api_db.jobs.delete_one({'_id': job2_id})

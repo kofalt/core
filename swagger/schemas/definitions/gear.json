@@ -59,6 +59,16 @@
             "type": "string",
             "description": "A valid URI, or empty string."
         },
+        "gear-info": {
+            "type": "object",
+            "properties": {
+                "id":       {"$ref":"job.json#/definitions/gear_id"},
+                "category": {"$ref":"#/definitions/gear-category"},
+                "name":     {"$ref":"#/definitions/gear-name"},
+                "version":  {"$ref":"#/definitions/gear-version"}
+            },
+            "description": "Optional information about a gear"
+        },
         "gear-input-item": {
             "description": "Describes a gear input",
             "properties": {

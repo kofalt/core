@@ -136,6 +136,7 @@
         "id":{"$ref":"common.json#/definitions/objectid"},
         "origin":{"$ref":"#/definitions/job-origin"},
         "gear_id":{"$ref":"#/definitions/gear_id"},
+        "gear_info":{"$ref":"gear.json#/definitions/gear-info"},
         "previous_job_id":{"type":"string"},
         "inputs":{"$ref":"#/definitions/inputs-object"},
         "destination":{"$ref":"#/definitions/destination"},

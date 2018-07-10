@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 51 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 52 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1726,6 +1726,41 @@ def upgrade_to_51():
     Get rid of permissions on analyses
     """
     config.db.analyses.update_many({}, {"$unset": {"permissions": ""}})
+
+def upgrade_job_to_52(job, gears):
+    job_id = job.get('_id')
+    gear_id = str(job.get('gear_id'))
+    gear_doc = gears.get(gear_id)
+
+    if not gear_doc:
+        logging.warn('Unable to upgrade job {} to 52 - gear {} does not exist!'.format(job['_id'], gear_id))
+        return True
+
+    gear = gear_doc.get('gear', {})
+    update_doc = {'$set': {
+        'gear_info': {
+            'category': gear_doc.get('category'),
+            'name': gear.get('name'),
+            'version': gear.get('version')
+        }
+    }}
+    config.db.jobs.update_one({'_id': job_id}, update_doc)
+    update_doc['$set']['gear_info']['id'] = gear_id
+    config.db.analyses.update_one({'job': job_id}, update_doc)
+    return True
+
+def upgrade_to_52():
+    """
+    Copy gear category, name and version to job and analysis
+    """
+    # Preload gears
+    gears = {}
+    for gear in config.db.gears.find():
+        gears[str(gear['_id'])] = gear
+
+    cursor = config.db.jobs.find()
+    process_cursor(cursor, upgrade_job_to_52, context=gears)
+
 ###
 ### BEGIN RESERVED UPGRADE SECTION
 ###

@@ -16,7 +16,7 @@ from ..web.errors import APINotFoundException
 
 
 class Job(object):
-    def __init__(self, gear_id, inputs, destination=None, tags=None,
+    def __init__(self, gear, inputs, destination=None, tags=None,
                  attempt=1, previous_job_id=None, created=None,
                  modified=None, state='pending', request=None,
                  id_=None, config_=None, origin=None,
@@ -27,8 +27,8 @@ class Job(object):
 
         Parameters
         ----------
-        gear_id: string
-            Unique gear_id of the algorithm
+        gear: map
+            The gear doc (includes unique _id)
         inputs: string -> FileReference map
             The inputs to be used by this job
         destination: ContainerReference (optional)
@@ -56,8 +56,7 @@ class Job(object):
 
         # TODO: validate inputs against the manifest
 
-        if type(gear_id) is bson.ObjectId:
-            raise Exception('gear_id should be a string, not an ObjectId.')
+        gear_id = str(gear['_id'])
 
         time_now = datetime.datetime.utcnow()
 
@@ -90,7 +89,15 @@ class Job(object):
                 'id': None
             }
 
+        # Partial join of gear info at time of execution
+        gear_info = {
+            'category': gear.get('category'),
+            'name': gear['gear'].get('name'),
+            'version': gear['gear'].get('version')
+        }
+
         self.gear_id            = gear_id
+        self.gear_info          = gear_info
         self.inputs             = inputs
         self.destination        = destination
         self.tags               = tags
@@ -155,7 +162,17 @@ class Job(object):
 
         d['_id'] = str(d['_id'])
 
-        return cls(d['gear_id'], d.get('inputs'),
+        gear_info = d.get('gear_info', {})
+        gear_doc = {
+            '_id': d['gear_id'],
+            'category': gear_info.get('category'),
+            'gear': {
+                'name': gear_info.get('name'),
+                'version': gear_info.get('version')
+            }
+        }
+
+        return cls(gear_doc, d.get('inputs'),
             destination=d.get('destination'),
             tags=d['tags'], attempt=d['attempt'],
             previous_job_id=d.get('previous_job_id'),

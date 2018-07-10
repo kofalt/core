@@ -79,6 +79,7 @@
 						"$ref": "job.json#/definitions/job-output"
 					}
 				},
+				"gear_info":   {"$ref":"gear.json#/definitions/gear-info"},
 				"notes":       {"$ref":"note.json#/definitions/notes-list-output"},
 				"tags":        {"$ref":"tag.json#/definitions/tag-list"},
 				"info":        {"$ref":"container.json#/definitions/info"},
@@ -102,6 +103,7 @@
 					"items":{"$ref":"file.json#/definitions/file-entry"}
 				},
 				"job":         {"$ref":"common.json#/definitions/objectid"},
+				"gear_info":   {"$ref":"gear.json#/definitions/gear-info"},
 				"notes":       {"$ref":"note.json#/definitions/notes-list-output"},
 				"description": {"$ref":"common.json#/definitions/description"},
 				"label":       {"$ref":"common.json#/definitions/label"},
