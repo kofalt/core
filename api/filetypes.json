@@ -11,6 +11,7 @@
     "MATLAB data":  [ ".mat" ],
     "MGH data":     [ ".mgh", ".mgz", ".mgh.gz" ],
     "nifti":        [ ".nii.gz", ".nii" ],
+    "ParaVision":   [ ".pv5.zip", ".pv6.zip" ],
     "parrec":       [ ".parrec.zip", ".par-rec.zip" ],
     "pfile":        [ ".7.gz", ".7", ".7.zip" ],
     "PsychoPy data":  [ ".psydat" ],
