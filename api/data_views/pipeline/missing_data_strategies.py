@@ -14,11 +14,11 @@ class DropRowStrategy(PipelineStage):
     Expects flattend rows.
     Emits flattened rows.
     """
-    def process(self, context):
-        if context != EndOfPayload and contains_nil(context):
+    def process(self, payload):
+        if payload != EndOfPayload and contains_nil(payload):
             return
 
-        self.emit(context)
+        self.emit(payload)
 
 class ReplaceDataStrategy(PipelineStage):
     """Missing value handler that will replace missing data with the given value
@@ -30,11 +30,11 @@ class ReplaceDataStrategy(PipelineStage):
         super(ReplaceDataStrategy, self).__init__()
         self._replacement_value = value 
 
-    def process(self, context): 
-        if context != EndOfPayload:
-            for key in context.keys():
-                if is_nil(context[key]):
-                    context[key] = self._replacement_value
+    def process(self, payload): 
+        if payload != EndOfPayload:
+            for key in payload.keys():
+                if is_nil(payload[key]):
+                    payload[key] = self._replacement_value
 
-        self.emit(context)
+        self.emit(payload)
 

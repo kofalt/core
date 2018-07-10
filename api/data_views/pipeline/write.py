@@ -11,9 +11,9 @@ class Write(PipelineStage):
         self.config = config
         self.formatter = formatter
 
-    def process(self, row):
-        if row == EndOfPayload:
+    def process(self, payload):
+        if payload == EndOfPayload:
             self.formatter.finalize()
         else:
-            self.formatter.write_row(row, self.config.flat_columns)
+            self.formatter.write_row(payload, self.config.flat_columns)
 

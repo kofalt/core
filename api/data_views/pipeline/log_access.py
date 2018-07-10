@@ -46,8 +46,8 @@ class LogAccess(PipelineStage):
         self.request = request
         self.origin = origin
 
-    def process(self, rows):
-        for row in rows:
+    def process(self, payload):
+        for row in payload:
             meta = row.pop('_meta')
 
             file_entry = row.get('file', None)
@@ -62,7 +62,7 @@ class LogAccess(PipelineStage):
         self.logger.write_logs(self.request, self.origin)
 
         # Now pass along each row, one at a time
-        for row in rows:
+        for row in payload:
             self.emit(row)
 
         self.emit(EndOfPayload)

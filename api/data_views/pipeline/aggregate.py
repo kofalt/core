@@ -59,15 +59,15 @@ class Aggregate(PipelineStage):
 
         return aggregator
 
-    def process(self, tree):
-        # Build the initial context from tree 
+    def process(self, payload):
+        # Build the initial context from payload
         context = {}
-        for cont in tree:
+        for cont in payload:
             cont_type = containerutil.singularize(cont['cont_type'])
             context[cont_type] = cont
         
         # Start by building the pipeline
-        aggregator = self.build_aggregator(tree)
+        aggregator = self.build_aggregator(payload)
 
         # Collect all of the rows as a single payload
         rows = []
