@@ -140,6 +140,6 @@ class AccessLoggerNoop(object):
         pass
     def write_logs(self, request, origin):
         pass
-    def is_phi_field(self, dummy_cont_type, dummy_field):
+    def is_phi_field(self, _cont_type, _field):
         return False
 

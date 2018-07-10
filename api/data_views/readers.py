@@ -71,7 +71,7 @@ class JsonFileReader(object):
         self._json = None
         self._columns = []
 
-    def initialize(self, fileobj, dummy_options):
+    def initialize(self, fileobj, _options):
         max_size = JsonFileReader.MAX_JSON_FILE_SIZE_BYTES
 
         # Read up to max length bytes

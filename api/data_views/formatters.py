@@ -33,7 +33,7 @@ class JsonObjectFormatter(object):
     def initialize(self, write_fn):
         self._write = write_fn
 
-    def write_row(self, context, dummy_columns):
+    def write_row(self, context, _columns):
         if self._first_row:
             self._write('{"data":[')
         else:
