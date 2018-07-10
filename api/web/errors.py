@@ -160,3 +160,11 @@ class DBValidationException(APIException):
 class APIReportException(APIException):
     """A non-user error occurred while attempting to generate a report"""
     pass
+
+class RangeNotSatisfiable(APIException):
+    """
+    The requested file content range (via header Content-Range) is not satisfiable.
+    Usually raised the first byte requested is larger than the file size.
+    """
+    status_code = 416
+    default_msg = 'The requested range is not satisfiable.'
