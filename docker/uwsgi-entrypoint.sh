@@ -1,10 +1,9 @@
 #!/usr/bin/env sh
-
 set -eu
 
 # /etc/hosts is corrupted if it has lines starting with tab.
 # Exit to allow docker to restart.
-if grep -P "^\t" /etc/hosts; then
+if grep $'^\t' /etc/hosts; then
     echo "Host mapping in /etc/hosts is buggy, fail container start."
     exit 1
 fi
@@ -18,5 +17,5 @@ RUNAS_USER=$(stat -c '%u' $SCITRAN_PERSISTENT_DATA_PATH)
 # Run $PRE_RUNAS_CMD as root if provided. Useful for things like JIT pip installs.
 [ -n "${PRE_RUNAS_CMD:-}" ] && eval $PRE_RUNAS_CMD
 
-# Use exec to keep PID and use gosu to step-down from root.
-exec gosu $RUNAS_USER "$@"
+# Use exec to keep PID and use su-exec (gosu equivalent) to step-down from root.
+exec su-exec $RUNAS_USER "$@"
