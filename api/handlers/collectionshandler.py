@@ -165,7 +165,7 @@ class CollectionsHandler(ContainerHandler):
         self._filter_all_permissions(sessions, self.uid)
 
         for sess in sessions:
-            sess = self.handle_origin(sess)
+            self.handle_origin(sess)
         return sessions
 
     def get_acquisitions(self, cid):
@@ -194,5 +194,5 @@ class CollectionsHandler(ContainerHandler):
         self._filter_all_permissions(acquisitions, self.uid)
 
         for acquisition in acquisitions:
-            acquisition = self.handle_origin(acquisition)
+            self.handle_origin(acquisition)
         return acquisitions

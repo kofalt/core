@@ -10,7 +10,6 @@ from ..dao import containerstorage, containerutil, noop
 from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
-from ..types import Origin
 from ..web import base
 from ..web.errors import APIPermissionException
 from ..web.request import log_access, AccessType
@@ -106,71 +105,7 @@ class ContainerHandler(base.RequestHandler):
         inflate_job_info = cont_name == 'sessions'
         if not self.is_enabled('Slim-Containers'):
             result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
-        return self.handle_origin(result)
-
-    def handle_origin(self, result):
-        """
-        Given an object with a `files` array key, coalesce and merge file origins if requested.
-        """
-
-        # If `join=origin` passed as a request param, join out that key
-        join_origin = 'origin' in self.request.params.getall('join')
-
-        # Now that gears are identified by ID rather than name, the origin.job.gear_id is not enough.
-        # Joining the whole gear doc in feels like overkill; for now let's just add gear names to jobs
-        join_gear_name = 'origin_job_gear_name' in self.request.params.getall('join')
-
-        # If it was requested, create a map of each type of origin to hold the join
-        if join_origin:
-            result['join-origin'] = {
-                Origin.user.name:   {},
-                Origin.device.name: {},
-                Origin.job.name:    {}
-            }
-
-        # Cache looked-up gears if needed
-        cached_gears = {}
-
-        for f in result.get('files', []):
-            origin = f.get('origin')
-
-            if origin is None:
-                # Backfill origin maps if none provided from DB
-                f['origin'] = {
-                    'type': str(Origin.unknown),
-                    'id': None
-                }
-
-            elif join_origin:
-                j_type = f['origin']['type']
-                j_id   = str(f['origin']['id'])
-                j_id_b = bson.ObjectId(j_id) if bson.ObjectId.is_valid(j_id) else j_id
-
-                # Join from database if we haven't for this origin before
-                if j_type != 'unknown' and result['join-origin'][j_type].get(j_id, None) is None:
-                    # Initial join
-                    j_types = containerutil.pluralize(j_type)
-                    join_doc = config.db[j_types].find_one({'_id': j_id_b})
-
-                    # Join in gear name on the job doc if requested
-                    if join_doc is not None and join_gear_name and j_type == 'job':
-
-                        gear_id = join_doc['gear_id']
-                        gear_name = None
-
-                        if cached_gears.get(gear_id, None) is not None:
-                            gear_name = cached_gears[gear_id]
-                        else:
-                            gear_id_bson = bson.ObjectId(gear_id)
-                            gear = config.db.gears.find_one({'_id': gear_id_bson})
-                            gear_name = gear['gear']['name']
-
-                        join_doc['gear_name'] = gear_name
-                        cached_gears[gear_id] = gear_name
-
-                    # Save to join table
-                    result['join-origin'][j_type][j_id] = join_doc
-
+        self.handle_origin(result)
         return result
 
     def _filter_permissions(self, result, uid):

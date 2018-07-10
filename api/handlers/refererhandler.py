@@ -133,6 +133,8 @@ class AnalysesHandler(RefererHandler):
         if self.is_true('inflate_job'):
             self.storage.inflate_job_info(analysis)
 
+        self.handle_origin(analysis)
+
         if self.is_true('join_avatars'):
             self.storage.join_avatars([analysis])
 
@@ -183,6 +185,9 @@ class AnalysesHandler(RefererHandler):
         if self.is_true('inflate_job'):
             for analysis in page['results']:
                 self.storage.inflate_job_info(analysis)
+
+        for analysis in page['results']:
+            self.handle_origin(analysis)
 
         if self.is_true('join_avatars'):
             self.storage.join_avatars(page['results'])

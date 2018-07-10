@@ -346,6 +346,21 @@ class RequestHandler(webapp2.RequestHandler):
         page['count'] = len(page['results'])
         return page
 
+    def handle_origin(self, container):
+        """
+        Check for request params:
+         * join=origin
+         * join=origin_job_gear_name
+        and call storage.join_origins() as appropriate if requested.
+        """
+
+        # If `join=origin` passed as a request param, join out that key
+        if 'origin' in self.request.params.getall('join'):
+            # Now that gears are identified by ID rather than name, the origin.job.gear_id is not enough.
+            # Joining the whole gear doc in feels like overkill; for now let's just add gear names to jobs
+            join_gear_name = 'origin_job_gear_name' in self.request.params.getall('join')
+            self.storage.join_origins(container, join_gear_name=join_gear_name)  # pylint: disable=no-member
+
     def handle_exception(self, exception, debug, return_json=False): # pylint: disable=arguments-differ
         """
         Send JSON response for exception
