@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions":{
+    "name-filter-spec": {
+      "type": "object",
+      "properties": {
+          "value": { 
+            "type": "string",
+            "description": "The pattern or regular expression to match"
+          },
+          "regex": { 
+            "type": "boolean",
+            "description": "Whether or not this filter is a pattern or regular expression match"
+          } 
+      },
+      "required": ["value"],
+      "additionalProperties": false,
+      "description": "Specifies either a pattern match or regular expression match string filter"
+    },
+    "analysis-filter-spec": {
+      "type": "object",
+      "properties": {
+        "label": {"$ref": "#/definitions/name-filter-spec"},
+        "gear-name": {"$ref": "#/definitions/name-filter-spec"}
+      },
+      "additionalProperties": false,
+      "description": "Specifies which analyses to match for files"
+    },
+    "column-type": {
+      "type": "string",
+      "enum": [ "int", "float", "string", "bool" ],
+      "description": "The type that this value should be translated to (for typed output)"
+    },
+    "file-spec": {
+      "type": "object",
+      "properties": {
+        "container": { "$ref": "container.json#/definitions/container-type" },
+        "analysisFilter": { "$ref": "#/definitions/analysis-filter-spec" },
+        "filter": { "$ref": "#/definitions/name-filter-spec" },
+        "zipMember": { "$ref": "#/definitions/name-filter-spec" },
+        "match": { 
+          "type": "string",
+          "enum": ["first", "last", "newest", "oldest", "all"],
+          "description": "If multiple file matches are encountered, which file to choose. Default is first"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["csv", "tsv", "json"],
+          "description": "The expected data file format, default is auto-detect"
+        },
+        "formatOptions": {
+          "type": "object"
+        },
+        "processFiles": {
+          "type": "boolean",
+          "description": "Set to false to skip file reading, and return file attributes instead"
+        },
+        "columns": {
+          "type": "array",
+          "items": {"$ref":"#/definitions/column-spec"}
+        }
+      },
+      "required": ["filter"],
+      "additionalProperties": false,
+      "description": "Specifies a file to be processed, including filename matching and parsing options"
+    },
+    "column-spec": {
+      "type": "object",
+      "properties": {
+        "src": {
+          "type": "string",
+          "description": "The source property in the format of {container}.{field}"
+        },
+        "dst": {
+          "type": "string",
+          "description": "The optional destination property name"
+        },
+        "type": { "$ref": "#/definitions/column-type" }
+      },
+      "required": ["src"],
+      "additionalProperties": false,
+      "description": "Describe a column that should belong to the view"
+    },
+    "missing-data-strategy": {
+      "type": "string",
+      "enum": [ "none", "drop-row" ],
+      "description": "What to do if missing data are encountered. Default is none, which is to say replace with an empty or null value.",
+      "x-comment": "Eventually it may make sense to add a sentinel value option. Other strategies are difficult due to streaming nature of views."
+    },
+    "data-view-input": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": "string",
+          "description": "The parent container id"
+        },
+        "label": {"$ref": "common.json#/definitions/label"},
+        "public": {
+          "type": "boolean",
+          "description": "Indicates whether or not the view is public"
+        },
+        "columns": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/column-spec"},
+          "minItems": 1
+        },
+        "fileSpec": {"$ref": "#/definitions/file-spec"},
+        "includeIds": {
+          "type": "boolean",
+          "description": "Whether or not to include container id fields. Default is true"
+        },
+        "includeLabels": {
+          "type": "boolean",
+          "description": "Whether or not to include container label fields. Default is true"
+        },
+        "missingDataStrategy": { "$ref": "#/definitions/missing-data-strategy" }
+      },
+      "description": "Specifies a flattened view of the flywheel hierarchy, possibly including files.",
+      "additionalProperties": false,
+      "x-sdk-model": "data-view"
+    },
+    "data-view-output": {
+      "type": "object",
+      "properties": {
+        "_id": {"$ref": "common.json#/definitions/objectid"},
+        "label": {"$ref": "common.json#/definitions/label"},
+        "public": {
+          "type": "boolean",
+          "description": "Indicates whether or not the view is public"
+        },
+        "columns": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/column-spec"},
+          "minItems": 1
+        },
+        "fileSpec": {"$ref": "#/definitions/file-spec"},
+        "includeIds": {
+          "type": "boolean",
+          "description": "Whether or not to include container id fields. Default is true"
+        },
+        "includeLabels": {
+          "type": "boolean",
+          "description": "Whether or not to include container label fields. Default is true"
+        },
+        "missingDataStrategy": { "$ref": "#/definitions/missing-data-strategy" }
+      },
+      "description": "Specifies a flattened view of the flywheel hierarchy, possibly including files.",
+      "additionalProperties": false,
+      "x-sdk-model": "data-view"
+    },
+    "column-alias": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The column alias name"
+        },
+        "src": {
+          "type": "string",
+          "description": "The source for this column's data"
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of this field"
+        },
+        "type": { "$ref": "#/definitions/column-type" }
+      },
+      "description": "Represents a column alias for use in data views. Maps from src to name.",
+      "additionalProperties": false,
+      "required": ["name", "src", "description", "type"]
+    }
+  }
+}

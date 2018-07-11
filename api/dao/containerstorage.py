@@ -44,12 +44,16 @@ class GroupStorage(ContainerStorage):
             },
             upsert=True)
 
+    def cleanup_ancillary_data(self, _id):
+        safe_cleanup_views(_id)
+
 class UserStorage(ContainerStorage):
 
     def __init__(self):
         super(UserStorage,self).__init__('users', use_object_id=False)
 
     def cleanup_ancillary_data(self, _id):
+        safe_cleanup_views(_id)
         self.cleanup_user_permissions(_id)
 
     def cleanup_user_permissions(self, uid):
@@ -124,6 +128,8 @@ class ProjectStorage(ContainerStorage):
     def get_list_projection(self):
         return {'info': 0, 'files.info': 0}
 
+    def cleanup_ancillary_data(self, _id):
+        safe_cleanup_views(_id)
 
 class SubjectStorage(ContainerStorage):
 
@@ -602,3 +608,14 @@ class QueryStorage(ContainerStorage):
 
     def __init__(self):
         super(QueryStorage, self).__init__('queries', use_object_id=True)
+
+def safe_cleanup_views(parent_id):
+    """ Delete all data views belonging to the parent container, trapping any exceptions.
+
+    Arguments:
+        parent_id (str,ObjectId): The parent container id
+    """
+    try:
+        config.db.data_views.remove({'parent': str(parent_id)})
+    except APIStorageException as e:
+        log.warn('Unable to cleanup views for container {} - {}'.format(parent_id, e))

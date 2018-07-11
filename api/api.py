@@ -20,6 +20,7 @@ from .handlers.userhandler              import UserHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
+from .data_views.handlers               import DataViewHandler
 from .web.base                          import RequestHandler
 from . import config
 
@@ -208,6 +209,21 @@ endpoints = [
         route('/<cid:site>/rules/<rid:{oid}>',  RuleHandler,           m=['GET', 'PUT', 'DELETE']),
 
 
+        # Data views
+
+        prefix('/containers/<parent:{gid}|{oid}|{uid}>', [
+            route('/views', DataViewHandler, h='list_views',            m=['GET']),
+            route('/views', DataViewHandler,                            m=['POST']),
+        ]),
+
+        prefix('/views', [
+            route('/data',             DataViewHandler, h='execute_adhoc',   m=['POST']),
+            route('/columns',          DataViewHandler, h='get_columns',     m=['GET']),
+            route('/<_id:{oid}>',      DataViewHandler,                      m=['GET', 'DELETE', 'PUT']),
+            route('/<_id:{oid}>/data', DataViewHandler, h='execute_saved',   m=['GET'])
+        ]),
+
+
         # Abstract container
 
         route('/containers/<cid:{gid}|{oid}><extra:.*>', AbstractContainerHandler, h='handle'),
@@ -327,6 +343,10 @@ endpoints = [
 
         # Metrics
         route('/metrics', MetricsHandler, m=['GET']),
+
+        # Data views
+        route('/views/data', DataViewHandler, h='execute_adhoc', m=['POST']),
+        route('/views/columns', DataViewHandler, h='get_columns', m=['GET']),
 
         # Misc (to be cleaned up later)
 

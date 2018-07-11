@@ -1,0 +1,160 @@
+/containers/{ContainerId}/views:
+  parameters:
+    - name: ContainerId
+      in: path
+      type: string
+      required: true
+      description: The ID of the container, one of user, group or project
+  get:
+    summary: Return a list of all views belonging to container
+    operationId: get_data_views
+    tags:
+    - views
+    responses:
+      '200':
+        description: 'The list of views belonging to the specified container'
+        schema:
+          $ref: schemas/output/data-view-list.json
+  post:
+    summary: Add a new data view
+    operationId: add_data_view
+    tags:
+    - views
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/data-view-new.json
+    responses:
+      '200':
+        description: 'The view was created sucessfully'
+        schema:
+          $ref: schemas/output/collection-new.json
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+
+/views/columns:
+  get:
+    summary: Return a list of all known column aliases for use in data views
+    operationId: get_data_view_columns
+    tags:
+    - views
+    responses:
+      '200':
+        description: 'The list of column aliases'
+        schema:
+          $ref: schemas/output/data-view-columns.json
+
+/views/data:
+  post:
+    summary: Execute an ad-hoc view, returning data in the preferred format.
+    operationId: execute_adhoc_data_view
+    tags:
+    - views
+    parameters:
+      - name: containerId
+        in: query
+        type: string
+        required: true
+        description: The target container for view execution
+      - name: format
+        in: query
+        type: string
+        enum: 
+          - csv
+          - tsv
+          - json
+          - json-row-column
+        default: json
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: schemas/input/data-view-adhoc.json
+    produces:
+      - application/json
+      - text/csv
+      - text/tab-separated-values
+    x-sdk-download-file-param: dest_file
+    responses:
+      '200':
+        description: 'The view execution result'
+
+/views/{ViewId}:
+  parameters:
+    - name: ViewId
+      in: path
+      type: string
+      required: true
+      description: The ID of the view
+  get:
+    summary: Return the view identified by ViewId
+    operationId: get_data_view
+    tags:
+    - views
+    responses:
+      '200':
+        description: 'The view identified by ViewId'
+        schema:
+          $ref: schemas/output/data-view.json
+  put:
+    summary: Update the view identified by ViewId
+    operationId: modify_data_view
+    tags:
+    - views
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/data-view-update.json
+    responses:
+      '200':
+        $ref: '#/responses/200:modified-with-count'
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+  delete:
+    summary: Delete a data view
+    operationId: delete_data_view
+    tags:
+    - views
+    responses:
+      '200':
+        $ref: "#/responses/200:deleted-with-count"
+
+/views/{ViewId}/data:
+  parameters:
+    - name: ViewId
+      in: path
+      type: string
+      required: true
+      description: The ID of the view
+  get:
+    summary: Execute a view, returning data in the preferred format.
+    operationId: download_data_view
+    tags:
+    - views
+    parameters:
+      - name: containerId
+        in: query
+        type: string
+        required: true
+        description: The target container for view execution
+      - name: format
+        in: query
+        type: string
+        enum: 
+          - csv
+          - tsv
+          - json
+          - json-row-column
+        default: json
+    produces:
+      - application/json
+      - text/csv
+      - text/tab-separated-values
+    x-sdk-download-file-param: dest_file
+    responses:
+      '200':
+        description: 'The view execution result'
