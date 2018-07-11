@@ -14,7 +14,7 @@ coverage:
         base: pr
     changes:
       default:
-        enabled: no
+        enabled: yes
         # basic
         base: pr
 comment:
