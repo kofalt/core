@@ -14,8 +14,12 @@ warnings.filterwarnings('ignore', message=r'Implicitly cleaning up <TemporaryDir
 # Enable code coverage for testing when API is started
 # Start coverage before local module loading so their def and imports are counted
 #   http://coverage.readthedocs.io/en/coverage-4.2/faq.html
+# Assuming running via uwsgi and within 1 process, 1 thread
 if os.environ.get("SCITRAN_RUNTIME_COVERAGE") == "true": # pragma: no cover - oh, the irony
     def save_coverage(cov):
+        if os.getpid() != uwsgi.workers()[0]['pid']:
+            # Mule shutdown - do not write empty coverage
+            return
         print("Saving coverage")
         cov.stop()
         cov.save()
