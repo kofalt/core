@@ -152,6 +152,79 @@ def test_analysis_download(data_builder, as_admin, file_form, api_db):
         assert set(m.name for m in tar.getmembers()) == set(['legacy/input/input.csv', 'legacy/output/output.csv'])
 
 
+def test_analysis_inflate_job(data_builder, file_form, as_admin):
+    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
+
+    # Create job-based analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'inflate',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Verify ?inflate_jobs=true works for one analysis
+    r = as_admin.get('/analyses/' + analysis + '?inflate_job=true')
+    assert r.ok
+    assert 'id' in r.json().get('job', {})
+
+    # Verify ?inflate_jobs=true works for multiple analyses
+    r = as_admin.get('/sessions/' + session + '/analyses?inflate_job=true')
+    assert r.ok
+    assert all('id' in a.get('job', {}) for a in r.json())
+
+
+def test_analysis_join_origin(data_builder, file_form, as_admin, as_drone):
+    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
+
+    # Create job-based analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'inflate',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Get the job that was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    job = r.json().get('job')
+
+    # Engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis, 'job': job},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+
+    # Verify ?join=origin works for one analysis
+    r = as_admin.get('/analyses/' + analysis + '?join=origin')
+    assert r.ok
+    assert 'join-origin' in r.json()
+
+    # Verify ?join=origin works for multiple analyses
+    r = as_admin.get('/sessions/' + session + '/analyses?join=origin')
+    assert r.ok
+    assert all('join-origin' in a for a in r.json())
+
+    # Verify ?join=origin_job_gear_name works for one analysis
+    r = as_admin.get('/analyses/' + analysis + '?join=origin&join=origin_job_gear_name')
+    assert r.ok
+    assert 'gear_name' in r.json()['join-origin']['job'][job]
+
+    # Verify ?join=origin_job_gear_name works for multiple analyses
+    r = as_admin.get('/sessions/' + session + '/analyses?join=origin&join=origin_job_gear_name')
+    assert r.ok
+    assert all('gear_name' in a['join-origin']['job'][job] for a in r.json())
+
+
 def test_analysis_join_avatars(as_admin, data_builder):
     session = data_builder.create_session()
     r = as_admin.post('/sessions/' + session + '/analyses', json={'label': 'join-avatars'})

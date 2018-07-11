@@ -18,7 +18,7 @@ from ..dao import containerstorage, noop
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
 from ..web import base
-from ..web.errors import InputValidationException
+from ..web import errors
 from ..web.request import log_access, AccessType
 from .listhandler import FileListHandler
 
@@ -64,13 +64,10 @@ class AnalysesHandler(RefererHandler):
 
     def post(self, cont_name, cid):
         """
-        Default behavior:
-            Creates an analysis object and uploads supplied input
-            and output files.
-        When param ``job`` is true:
-            Creates an analysis object and job object that reference
-            each other via ``job`` and ``destination`` fields. Job based
-            analyses are only allowed at the session level.
+        Create new analysis.
+         * Online/job-based - on JSON with 'job' key (analysis-input-job) - only allowed at session level, also creates job
+         * Offline/ad-hoc   - on JSON with 'inputs' key (analysis-input-adhoc)
+         * Legacy:          - on file-form with inputs, outputs and metadata (analysis-input-legacy)
         """
         parent = ContainerStorage.factory(cont_name).get_container(cid)
         permchecker = self.get_permchecker(parent)
@@ -94,7 +91,6 @@ class AnalysesHandler(RefererHandler):
         permchecker = self.get_permchecker(parent)
         permchecker(noop)('PUT')
 
-
         payload = self.request.json_body
         self.update_validator(payload, 'PUT')
 
@@ -105,7 +101,7 @@ class AnalysesHandler(RefererHandler):
         if result.modified_count == 1:
             return {'modified': result.modified_count}
         else:
-            self.abort(404, 'Element not updated in container {} {}'.format(self.storage.cont_name, _id))
+            raise errors.APINotFoundException('Element not updated in container {} {}'.format(self.storage.cont_name, _id))
 
     @validators.verify_payload_exists
     def modify_info(self, **kwargs):
@@ -133,6 +129,8 @@ class AnalysesHandler(RefererHandler):
         if self.is_true('inflate_job'):
             self.storage.inflate_job_info(analysis)
 
+        self.handle_origin(analysis)
+
         if self.is_true('join_avatars'):
             self.storage.join_avatars([analysis])
 
@@ -151,7 +149,7 @@ class AnalysesHandler(RefererHandler):
         # Check that user has permission to container
         container = ContainerStorage.factory(cont_name).get_container(cid)
         if not container:
-            self.abort(404, 'Element not found in container {} {}'.format(cont_name, cid))
+            raise errors.APINotFoundException('Element not found in container {} {}'.format(cont_name, cid))
         permchecker = self.get_permchecker(container)
         permchecker(noop)('GET')
         # cont_level is the sub_container name for which the analysis.parent.type should be
@@ -161,10 +159,10 @@ class AnalysesHandler(RefererHandler):
 
         # Check that the url is valid
         if cont_name not in cont_names:
-            self.abort(400, "Analysis lists not supported for {}.".format(cont_name))
+            raise errors.InputValidationException("Analysis lists not supported for {}.".format(cont_name))
         elif cont_level:
             if cont_names[cont_name] > sub_cont_names.get(cont_level, -1):
-                self.abort(400, "{} not a child of {} or 'all'.".format(cont_level, cont_name))
+                raise errors.InputValidationException("{} not a child of {} or 'all'.".format(cont_level, cont_name))
 
         if cont_level:
             parent_tree = ContainerStorage.get_top_down_hierarchy(cont_name, cid)
@@ -179,6 +177,13 @@ class AnalysesHandler(RefererHandler):
 
         # We set User to None because we check for permission when finding the parents
         page = self.storage.get_all_el(query, None, {'info': 0, 'files.info': 0}, pagination=self.pagination)
+
+        if self.is_true('inflate_job'):
+            for analysis in page['results']:
+                self.storage.inflate_job_info(analysis)
+
+        for analysis in page['results']:
+            self.handle_origin(analysis)
 
         if self.is_true('join_avatars'):
             self.storage.join_avatars(page['results'])
@@ -196,7 +201,7 @@ class AnalysesHandler(RefererHandler):
         if result.modified_count == 1:
             return {'deleted': result.modified_count}
         else:
-            self.abort(404, 'Analysis {} not removed from container {} {}'.format(_id, cont_name, cid))
+            raise errors.APINotFoundException('Analysis {} not removed from container {} {}'.format(_id, cont_name, cid))
 
 
     def upload(self, **kwargs):
@@ -208,9 +213,9 @@ class AnalysesHandler(RefererHandler):
         permchecker(noop)('POST')
 
         if analysis.get('job'):
-            raise InputValidationException('Analysis created via a job does not allow file uploads')
+            raise errors.InputValidationException('Analysis created via a job does not allow file uploads')
         elif analysis.get('files'):
-            raise InputValidationException('Analysis already has outputs and does not allow repeated file uploads')
+            raise errors.InputValidationException('Analysis already has outputs and does not allow repeated file uploads')
 
         upload.process_upload(self.request, upload.Strategy.targeted_multi, self.log_user_access, container_type='analysis', id_=_id, origin=self.origin)
 
@@ -343,7 +348,7 @@ class AnalysesHandler(RefererHandler):
             error_msg = 'No files on analysis {}'.format(_id)
             if filename:
                 error_msg = 'Could not find file {} on analysis {}'.format(filename, _id)
-            self.abort(404, error_msg)
+            raise errors.APINotFoundException(error_msg)
         if ticket_id == '':
             if filename:
                 total_size = fileinfo[0]['size']
@@ -365,9 +370,9 @@ class AnalysesHandler(RefererHandler):
                 if ticket:
                     self._send_batch(ticket)
                 else:
-                    self.abort(400, 'batch downloads require a ticket')
+                    raise errors.InputValidationException('batch downloads require a ticket')
             elif not fileinfo:
-                self.abort(404, "{} doesn't exist".format(filename))
+                raise errors.APINotFoundException("{} doesn't exist".format(filename))
             else:
                 fileinfo = fileinfo[0]
                 file_path, file_system = files.get_valid_file(fileinfo)
@@ -379,7 +384,7 @@ class AnalysesHandler(RefererHandler):
                         info = FileListHandler.build_zip_info(file_path, file_system)
                         return info
                     except zipfile.BadZipfile:
-                        self.abort(400, 'not a zip file')
+                        raise errors.InputValidationException('not a zip file')
 
                 # Request to download zipfile member
                 elif self.get_param('member') is not None:
@@ -390,9 +395,10 @@ class AnalysesHandler(RefererHandler):
                                 self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                                 self.response.write(zf.open(zip_member).read())
                     except zipfile.BadZipfile:
-                        self.abort(400, 'not a zip file')
+                        raise errors.InputValidationException('not a zip file')
                     except KeyError:
-                        self.abort(400, 'zip file contains no such member')
+                        # TODO maybe use APINotFound instead?
+                        raise errors.InputValidationException('zip file contains no such member')
                     # log download if we haven't already for this ticket
                     if ticket:
                         if not ticket.get('logged', False):
@@ -424,7 +430,7 @@ class AnalysesHandler(RefererHandler):
 
                             for first, last in ranges:
                                 if first > fileinfo['size'] - 1:
-                                    self.abort(416, 'Invalid range')
+                                    raise errors.RangeNotSatisfiable()
 
                                 if last > fileinfo['size'] - 1:
                                     raise util.RangeHeaderParseError('Invalid range')
@@ -497,19 +503,19 @@ class AnalysesHandler(RefererHandler):
     def _check_download_ticket(self, ticket_id, _id, filename):
         ticket = config.db.downloads.find_one({'_id': ticket_id})
         if not ticket:
-            self.abort(404, 'no such ticket')
+            raise errors.APINotFoundException('no such ticket')
         if ticket['ip'] != self.request.client_addr:
-            self.abort(400, 'ticket not for this source IP')
+            raise errors.InputValidationException('ticket not for this source IP')
         if not filename:
             return self._check_ticket_for_batch(ticket)
         if ticket.get('filename') != filename or ticket['target'] != _id:
-            self.abort(400, 'ticket not for this resource')
+            raise errors.InputValidationException('ticket not for this resource')
         return ticket
 
 
     def _check_ticket_for_batch(self, ticket):
         if ticket.get('type') != 'batch':
-            self.abort(400, 'ticket not for this resource')
+            raise errors.InputValidationException('ticket not for this resource')
         return ticket
 
 
@@ -530,4 +536,4 @@ class AnalysesHandler(RefererHandler):
 
 
     def _send_batch(self, ticket):
-        self.abort(400, 'This endpoint does not download files, only returns ticket {} for the download'.format(ticket))
+        raise errors.InputValidationException('This endpoint does not download files, only returns ticket {} for the download'.format(ticket))

@@ -9,6 +9,7 @@ from . import dbutil
 from .. import config
 from .. import util
 
+from ..types import Origin
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
 
 log = config.log
@@ -414,3 +415,38 @@ class ContainerStorage(object):
                 item['avatar'] = user.get('avatar')
                 item['firstname'] = user.get('firstname', '')
                 item['lastname'] = user.get('lastname', '')
+
+    @staticmethod
+    def join_origins(container):
+        """Given a container, coalesce and merge origins for all of its files."""
+
+        # Create a map of each type of origin to hold the join
+        container['join-origin'] = {
+            Origin.user.name:   {},
+            Origin.device.name: {},
+            Origin.job.name:    {}
+        }
+
+        for f in container.get('files', []):
+            origin = f.get('origin')
+
+            if origin is None:
+                # Backfill origin maps if none provided from DB
+                f['origin'] = {'type': str(Origin.unknown), 'id': None}
+
+            else:
+                j_type = f['origin']['type']
+                j_id   = str(f['origin']['id'])
+                j_id_b = bson.ObjectId(j_id) if bson.ObjectId.is_valid(j_id) else j_id
+
+                # Join from database if we haven't for this origin before
+                if j_type != 'unknown' and container['join-origin'][j_type].get(j_id) is None:
+                    j_types = containerutil.pluralize(j_type)
+                    join_doc = config.db[j_types].find_one({'_id': j_id_b})
+
+                    # Alias job.gear_info.name as job.gear_name until UI starts using gear_info.name directly
+                    if join_doc is not None and j_type == 'job':
+                        join_doc['gear_name'] = join_doc['gear_info']['name']
+
+                    # Save to join table
+                    container['join-origin'][j_type][j_id] = join_doc

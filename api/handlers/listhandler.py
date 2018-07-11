@@ -16,7 +16,7 @@ from ..dao import noop
 from ..dao import liststorage
 from ..dao import containerutil
 from ..dao import containerstorage
-from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException
+from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
 from ..web.request import AccessType
 
 
@@ -486,7 +486,7 @@ class FileListHandler(ListHandler):
 
                     for first, last in ranges:
                         if first > fileinfo['size'] - 1:
-                            self.abort(416, 'Invalid range')
+                            raise RangeNotSatisfiable()
 
                         if last > fileinfo['size'] - 1:
                             raise util.RangeHeaderParseError('Invalid range')
