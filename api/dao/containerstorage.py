@@ -66,7 +66,6 @@ class UserStorage(ContainerStorage):
 
 
 class ProjectStorage(ContainerStorage):
-
     def __init__(self):
         super(ProjectStorage,self).__init__('projects', use_object_id=True, use_delete_tag=True, parent_cont_name='group', child_cont_name='subject')
 
@@ -121,6 +120,9 @@ class ProjectStorage(ContainerStorage):
                     if changed:
                         changed_sessions.append(s['_id'])
         return changed_sessions
+
+    def get_list_projection(self):
+        return {'info': 0, 'files.info': 0}
 
 
 class SubjectStorage(ContainerStorage):
@@ -286,17 +288,17 @@ class SessionStorage(ContainerStorage):
         return SubjectStorage().get_container(cont['subject']['_id'], projection=projection)
 
 
-    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
         """
         Override allows 'collections' key in the query, will transform into proper query for the caller and return results
         """
         if query and query.get('collections'):
             # Find acquisition ids in this collection, add to query
             collection_id = query.pop('collections')
-            a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
+            a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1}, **kwargs)
             query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
 
-        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination)
+        return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination, **kwargs)
 
 
     def recalc_session_compliance(self, session_id, session=None, template=None, hard=False):
@@ -360,6 +362,14 @@ class SessionStorage(ContainerStorage):
             raise ValueError('Cannot get all sessions from target container {}'.format(target_type))
 
         return self.get_all_el(query, user, projection)
+
+    def get_list_projection(self):
+        # Remove subject first/last from list view to better log access to this information
+        return {'info': 0, 'analyses': 0, 'subject.firstname': 0,
+            'subject.lastname': 0, 'subject.sex': 0, 'subject.age': 0,
+            'subject.race': 0, 'subject.ethnicity': 0, 'subject.info': 0,
+            'files.info': 0, 'tags': 0}
+
 
 
 class AcquisitionStorage(ContainerStorage):
@@ -427,11 +437,17 @@ class AcquisitionStorage(ContainerStorage):
             query['collections'] = collection_id
         return self.get_all_el(query, user, projection)
 
+    def get_list_projection(self):
+        return {'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0}        
+
 
 class CollectionStorage(ContainerStorage):
 
     def __init__(self):
         super(CollectionStorage, self).__init__('collections', use_object_id=True, use_delete_tag=True)
+
+    def get_list_projection(self):
+        return {'info': 0, 'files.info': 0}
 
 
 class AnalysisStorage(ContainerStorage):
@@ -456,10 +472,13 @@ class AnalysisStorage(ContainerStorage):
         return ps.get_parent_tree(cont['parent']['id'], add_self=True)
 
 
-    def get_analyses(self, parent_type, parent_id, inflate_job_info=False):
-        parent_type = containerutil.singularize(parent_type)
-        parent_id = bson.ObjectId(parent_id)
-        analyses = self.get_all_el({'parent.type': parent_type, 'parent.id': parent_id}, None, None)
+    def get_analyses(self, query, parent_type, parent_id, inflate_job_info=False, projection=None, **kwargs):
+        if query is None:
+            query = {}
+        query['parent.type'] = containerutil.singularize(parent_type)
+        query['parent.id'] = bson.ObjectId(parent_id)
+
+        analyses = self.get_all_el(query, None, projection, **kwargs)
         if inflate_job_info:
             for analysis in analyses:
                 self.inflate_job_info(analysis)
@@ -575,6 +594,9 @@ class AnalysisStorage(ContainerStorage):
 
         analysis['job'] = job
         return analysis
+
+    def get_list_projection(self):
+        return {'info': 0, 'files.info': 0, 'tags': 0}
 
 class QueryStorage(ContainerStorage):
 

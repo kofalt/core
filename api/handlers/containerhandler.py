@@ -38,7 +38,6 @@ class ContainerHandler(base.RequestHandler):
         'sessions': True,
         'acquisitions': True
     }
-    default_list_projection = ['files', 'notes', 'timestamp', 'timezone', 'public']
 
     # This configurations are used by the ContainerHandler class to load the storage,
     # the permissions checker and the json schema validators used to handle a request.
@@ -53,7 +52,6 @@ class ContainerHandler(base.RequestHandler):
             'parent_storage': containerstorage.GroupStorage(),
             'storage_schema_file': 'project.json',
             'payload_schema_file': 'project.json',
-            'list_projection': {'info': 0, 'files.info': 0},
             'propagated_properties': ['public'],
             'children_cont': 'sessions'
         },
@@ -63,11 +61,6 @@ class ContainerHandler(base.RequestHandler):
             'parent_storage': containerstorage.ProjectStorage(),
             'storage_schema_file': 'session.json',
             'payload_schema_file': 'session.json',
-            # Remove subject first/last from list view to better log access to this information
-            'list_projection': {'info': 0, 'analyses': 0, 'subject.firstname': 0,
-                                'subject.lastname': 0, 'subject.sex': 0, 'subject.age': 0,
-                                'subject.race': 0, 'subject.ethnicity': 0, 'subject.info': 0,
-                                'files.info': 0, 'tags': 0},
             'children_cont': 'acquisitions'
         },
         'acquisitions': {
@@ -75,8 +68,7 @@ class ContainerHandler(base.RequestHandler):
             'permchecker': containerauth.default_container,
             'parent_storage': containerstorage.SessionStorage(),
             'storage_schema_file': 'acquisition.json',
-            'payload_schema_file': 'acquisition.json',
-            'list_projection': {'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0}
+            'payload_schema_file': 'acquisition.json'
         }
     }
 
@@ -104,8 +96,9 @@ class ContainerHandler(base.RequestHandler):
 
         inflate_job_info = cont_name == 'sessions'
         if not self.is_enabled('Slim-Containers'):
-            result['analyses'] = AnalysisStorage().get_analyses(cont_name, _id, inflate_job_info)
+            result['analyses'] = AnalysisStorage().get_analyses(None, cont_name, _id, inflate_job_info)
         self.handle_origin(result)
+        util.add_container_type(self.request, result)
         return result
 
     def _filter_permissions(self, result, uid):
@@ -137,7 +130,7 @@ class ContainerHandler(base.RequestHandler):
 
         permchecker(noop)('GET', cid)
 
-        analyses = AnalysisStorage().get_analyses('session', cont['_id'])
+        analyses = AnalysisStorage().get_analyses(None, 'session', cont['_id'])
         acquisitions = cont.get('acquisitions', [])
 
         if not acquisitions and not analyses:
@@ -182,7 +175,7 @@ class ContainerHandler(base.RequestHandler):
         self.config = self.container_handler_configurations[cont_name]
         self.storage = self.config['storage']
 
-        projection = self.config['list_projection'].copy()
+        projection = self.storage.get_list_projection()
 
         if self.is_true('permissions'):
             if not projection:
@@ -248,7 +241,7 @@ class ContainerHandler(base.RequestHandler):
     def get_all_for_user(self, cont_name, uid):
         self.config = self.container_handler_configurations[cont_name]
         self.storage = self.config['storage']
-        projection = self.config['list_projection']
+        projection = self.storage.get_list_projection()
         # select which permission filter will be applied to the list of results.
         if self.superuser_request or self.user_is_admin:
             permchecker = always_ok

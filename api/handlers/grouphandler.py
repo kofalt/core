@@ -24,6 +24,7 @@ class GroupHandler(base.RequestHandler):
             self._filter_permissions([result], self.uid)
         if self.is_true('join_avatars'):
             self.storage.join_avatars([result])
+        util.add_container_type(self.request, result)
         return result
 
     @require_admin

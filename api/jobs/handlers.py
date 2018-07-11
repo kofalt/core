@@ -17,7 +17,7 @@ from ..auth.apikeys import JobApiKey
 from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..types import Origin
-from ..util import set_for_download
+from ..util import set_for_download, add_container_type
 from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
@@ -68,7 +68,10 @@ class GearHandler(base.RequestHandler):
 
     @require_login
     def get(self, _id):
-        return get_gear(_id)
+        result = get_gear(_id)
+        add_container_type(self.request, result)
+        return result
+
 
     @require_login
     def get_invocation(self, _id):
@@ -115,7 +118,7 @@ class GearHandler(base.RequestHandler):
         }
 
         if cont_name != 'analyses':
-            analyses = AnalysisStorage().get_analyses(cont_name, cid)
+            analyses = AnalysisStorage().get_analyses(None, cont_name, cid)
             response['children']['analyses'] = [{'cont_type': 'analysis', '_id': a['_id'], 'label': a.get('label', '')} for a in analyses]
 
         # Get collection context, if any

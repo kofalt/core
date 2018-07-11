@@ -128,6 +128,12 @@ class ContainerStorage(object):
             cont[containerutil.pluralize(self.child_cont_name)] = children
         return cont
 
+    def get_child_container_name_legacy(self):
+        """Get the name of the child container, returning sessions from project, rather than subject.
+        Will be removed when Subject completes it's transition to a stand alone collection.
+        """
+        return CHILD_MAP.get(self.cont_name)
+
     def get_children_legacy(self, _id, projection=None, uid=None):
         """
         A get_children method that returns sessions from the project level rather than subjects.
@@ -303,7 +309,19 @@ class ContainerStorage(object):
         self.filter_container_files(cont)
         return cont
 
-    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None):
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
+        """
+        Get all elements matching query for this container.
+
+        Args:
+            query (dict): The query object, or None for all elements
+            user (dict): The user object, if filtering on permissions is desired, otherwise None
+            projection (dict): The optional projection to use for returned elements
+            fill_defaults (bool): Whether or not to populate the default values for returned elements. Default is False.
+            pagination (dict): The pagination options. Default is None.
+            **kwargs: Additional arguments to pass to the underlying find function
+
+        """
         if query is None:
             query = {}
         if user:
@@ -327,7 +345,9 @@ class ContainerStorage(object):
         else:
             replace_info_with_bool = False
 
-        page = dbutil.paginate_find(self.dbc, {'filter': query, 'projection': projection}, pagination)
+        kwargs['filter'] = query
+        kwargs['projection'] = projection
+        page = dbutil.paginate_find(self.dbc, kwargs, pagination)
         results = page['results']
 
         for cont in results:
@@ -450,3 +470,10 @@ class ContainerStorage(object):
 
                     # Save to join table
                     container['join-origin'][j_type][j_id] = join_doc
+
+    def get_list_projection(self):
+        """
+        Return a copy of the list projection to use with this container, or None.
+        It is safe to modify the returned copy.
+        """
+        return None

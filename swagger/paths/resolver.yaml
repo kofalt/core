@@ -10,6 +10,12 @@
         * session label
         * acquisition label
 
+      Additionally, analyses for project/session/acquisition nodes can be resolved by inserting the literal 
+      string `"analyses"`. e.g. `['scitran', 'MyProject', 'analyses']`.
+
+      Files for projects, sessions, acquisitions and analyses can be resolved by inserting the literal string 
+      `"files"`. e.g. `['scitran', 'MyProject', 'files']`.
+
       An ID can be used instead of a label by formatting the string as `<id:project_id>`. The full path
       to the node, and the node's children will be included in the response.
     operationId: resolve_path
@@ -24,3 +30,21 @@
         description: ''
         schema:
           $ref: schemas/output/resolver.json
+
+/lookup:
+  post:
+    summary: Perform path based lookup of a single node in the Flywheel hierarchy
+    description: |
+      This will perform a deep lookup of a node. See /resolve for more details.
+    operationId: lookup_path
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/resolver.json
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/lookup.json
