@@ -10,7 +10,7 @@ class TransportError(elasticsearch.TransportError):
     def __str__(self):
         return 'TransportError'
 
-def test_search(as_public, as_drone, es):
+def test_search(as_public, as_drone, es, as_user):
     # try to search w/o login
     r = as_public.post('/dataexplorer/search')
     assert r.status_code == 403
@@ -36,7 +36,7 @@ def test_search(as_public, as_drone, es):
     es.search.return_value = {'aggregations': {'by_container': {'buckets': [
         {'by_top_hit': {'hits': {'hits': [results]}}},
     ]}}}
-    r = as_drone.post('/dataexplorer/search', json={'return_type': cont_type, 'search_string': search_str, 'filters': [
+    r = as_drone.post('/dataexplorer/search', json={'return_type': cont_type, 'all_data': True, 'search_string': search_str, 'filters': [
         {'terms': {filter_key: filter_value}},
         {'range': filter_range},
     ]})
@@ -168,22 +168,41 @@ def test_search(as_public, as_drone, es):
     ]})
     es.search.assert_called_with(
         body={
+            'query': {
+                'bool': {
+                    'filter': {
+                        'bool': {
+                            'must': [
+                                {'term': {'container_type': cont_type}},
+                                {'terms': {filter_key + '.raw': filter_value}},
+                                {'range': filter_range},
+                                {'term': {'permissions._id': None}},
+                                {'term': {'deleted': False}}
+                            ]
+                        }
+                    },
+                    'must': {
+                        'match': {'_all': search_str}
+                    }
+                }
+            },
             '_source': deh.SOURCE[cont_type],
-            'query': {'bool': {
-                'must': {'match': {'_all': search_str}},
-                'filter': {'bool': {'must': [
-                    {'term': {'container_type': cont_type}},
-                    {'terms': {filter_key + '.raw': filter_value}},
-                    {'range': filter_range},
-                    {'term': {'deleted': False}}
-                ]}}
-            }},
-            'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
-            'size': 100},
+            'script_fields': {
+                'info_exists': deh.INFO_EXISTS_SCRIPT
+            },
+            'size': 100
+        },
         doc_type='flywheel',
         index='data_explorer')
     assert r.ok
     assert r.json['results'] == formatted_file_results
+
+    # User search without root and all_data set to true
+    r = as_user.post('/dataexplorer/search', json={'return_type': cont_type, 'all_data': True, 'search_string': search_str, 'filters': [
+        {'terms': {filter_key: filter_value}},
+        {'range': filter_range},
+    ]})
+    assert r.status_code == 403
 
     # file search w/ search null filter
     es.search.return_value = {'hits': {'hits': copy.deepcopy(raw_file_results)}}
