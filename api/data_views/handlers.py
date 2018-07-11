@@ -45,6 +45,9 @@ class DataViewHandler(base.RequestHandler):
         payload = self.request.json
         validators.validate_data(payload, 'data-view-new.json', 'input', 'POST')
 
+        # Validate columns
+        DataView(payload).validate_config()
+
         # Create
         result = self.storage.create_el(payload, parent)
         if result.acknowledged:
@@ -120,6 +123,9 @@ class DataViewHandler(base.RequestHandler):
 
         # Create the initial view
         view = DataView(view_spec)
+
+        # Validate the view columns
+        view.validate_config()
 
         # Prepare by searching for container_id and checking permissions
         view.prepare(container_id, data_format, self.uid)

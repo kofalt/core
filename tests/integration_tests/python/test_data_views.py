@@ -105,6 +105,27 @@ def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
     })
     assert r.status_code == 403
 
+def test_adhoc_data_view_column_validation(data_builder, file_form, as_admin):
+    # JSON
+    project = data_builder.create_project(label='test-project')
+    session = data_builder.create_session(project=project, label='test-session')
+    file_form = file_form(('values.csv', csv_test_data('a1')))
+    assert as_admin.post('/sessions/' + session + '/files', files=file_form).ok
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        "columns": [
+            { "src": "session.permissions" }
+        ]
+    })
+    assert r.status_code == 400
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        "columns": [
+            { "src": "session.files" }
+        ]
+    })
+    assert r.status_code == 400
+
 def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
     # JSON
     project = data_builder.create_project(label='test-project')
@@ -783,7 +804,7 @@ def test_user_data_view(as_user, as_public):
     assert r.status_code == 400
 
     # Try to create invalid view
-    view = { 'columns': [{'src': 'acquisition_label'}] }
+    view = { 'columns': [{'src': 'acquisition.label'}] }
     r = as_user.post('/containers/user@user.com/views', json=view)
     assert r.status_code == 400
 
@@ -853,7 +874,7 @@ def test_user_data_view(as_user, as_public):
 def test_site_data_view(as_admin, as_user):
     view = { 
         'label': 'test-site-view',
-        'columns': [{'src': 'acquisition_label'}] 
+        'columns': [{'src': 'acquisition.label'}] 
     }
 
     # Try to create a view as non admin 
@@ -926,7 +947,7 @@ def test_group_data_view(as_admin, as_user, data_builder):
 
     view = { 
         'label': 'test-group-view',
-        'columns': [{'src': 'acquisition_label'}] 
+        'columns': [{'src': 'acquisition.label'}] 
     }
 
     # Try to create a view as non admin 

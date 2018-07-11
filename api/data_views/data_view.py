@@ -55,6 +55,10 @@ class DataView(object):
         # Contains the initial hierarchy tree for the target container
         self._tree = None
 
+    def validate_config(self):
+        """Validate the data view configuration"""
+        self.config.validate()
+
     def write(self, data):
         """Write data to the response"""
         self._write_fn(data)

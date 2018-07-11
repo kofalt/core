@@ -8,6 +8,7 @@ from .column_aliases import ColumnAliases
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
 COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file' ]
 
+COLUMN_BLACKLIST = [ 'permissions', 'files' ]
 
 class ColumnSpec(object):
     """Represents a single column configured for extraction"""
@@ -58,10 +59,22 @@ class DataViewConfig(object):
             return self.file_spec.get('match', 'first')
         return 'first'
 
+    def validate(self):
+        """Validate the configuration"""
+        # Ensure that column lists have been initialized
+        self.initialize_columns()
+
+        # Verify that no blacklisted columns were added
+        for col in self.columns:
+            key = col.src.split('.')[0]
+            if key in COLUMN_BLACKLIST:
+                raise InputValidationException('Unable to select column: {}'.format(key))
+
     def initialize_columns(self):
-        """Initializes the columns and container fields from the fetch spec"""
-        self.determine_fetch_containers()
-        self.add_default_columns()
+        """Initializes the columns and container fields from the fetch spec, if not already initialized"""
+        if not self.containers:
+            self.determine_fetch_containers()
+            self.add_default_columns()
 
     def determine_fetch_containers(self):
         """Determine how deep we need to fetch based on columns and file specs"""
