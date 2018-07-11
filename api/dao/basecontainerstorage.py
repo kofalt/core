@@ -417,11 +417,8 @@ class ContainerStorage(object):
                 item['lastname'] = user.get('lastname', '')
 
     @staticmethod
-    def join_origins(container, join_gear_name=False):
-        """
-        Given a container, coalesce and merge origins for all of its files.
-        If join_gear_name is True, also include gear name on job origins.
-        """
+    def join_origins(container):
+        """Given a container, coalesce and merge origins for all of its files."""
 
         # Create a map of each type of origin to hold the join
         container['join-origin'] = {
@@ -429,9 +426,6 @@ class ContainerStorage(object):
             Origin.device.name: {},
             Origin.job.name:    {}
         }
-
-        # Cache looked-up gears if needed
-        cached_gears = {}
 
         for f in container.get('files', []):
             origin = f.get('origin')
@@ -447,24 +441,12 @@ class ContainerStorage(object):
 
                 # Join from database if we haven't for this origin before
                 if j_type != 'unknown' and container['join-origin'][j_type].get(j_id) is None:
-                    # Initial join
                     j_types = containerutil.pluralize(j_type)
                     join_doc = config.db[j_types].find_one({'_id': j_id_b})
 
-                    # Join in gear name on the job doc if requested
-                    if join_doc is not None and join_gear_name and j_type == 'job':
-
-                        gear_id = join_doc['gear_id']
-                        gear_name = None
-
-                        if gear_id not in cached_gears:
-                            gear_id_bson = bson.ObjectId(gear_id)
-                            gear = config.db.gears.find_one({'_id': gear_id_bson})
-                            cached_gears[gear_id] = gear['gear']['name']
-
-                        gear_name = cached_gears[gear_id]
-                        join_doc['gear_name'] = gear_name
-                        cached_gears[gear_id] = gear_name
+                    # Alias job.gear_info.name as job.gear_name until UI starts using gear_info.name directly
+                    if join_doc is not None and j_type == 'job':
+                        join_doc['gear_name'] = join_doc['gear_info']['name']
 
                     # Save to join table
                     container['join-origin'][j_type][j_id] = join_doc
