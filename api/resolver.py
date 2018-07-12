@@ -44,9 +44,12 @@ from .jobs import gears
 from .web.errors import APINotFoundException, InputValidationException
 
 def set_container_type(node, container_type):
-    """Set container_type on node"""
+    """Set container_type on node.
+
+    This function sets node_type in addition to container_type so that
+    older clients (CLI, SDK) remain compatible with a minor version mismatch.
+    """
     node['container_type'] = container_type
-    # Redundantly set node_type so that older clients remain compatible
     node['node_type'] = container_type
 
 def apply_container_type(lst, container_type):
