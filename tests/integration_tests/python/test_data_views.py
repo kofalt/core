@@ -1142,6 +1142,14 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
 
+    # Validate that we can't sort
+    r = as_admin.post('/views/data?containerId={}&sort=subject.label:asc'.format(project), json={
+        'columns': [
+            { 'src': 'session.label' },
+        ]
+    })
+    assert r.status_code == 422
+
     # Validate that we can't filter on unselected containers
     r = as_admin.post('/views/data?containerId={}&filter=acquisition.label=foobar'.format(project), json={
         'columns': [
@@ -1168,3 +1176,50 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     assert rows[0]['session'] == session1
     assert rows[0]['session_label'] == 'ses-01'
 
+def test_data_view_skip_and_limit(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
+    acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
+    
+    file_form1 = file_form(('values.csv', csv_test_data('a1')))
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
+
+    # Test column aliases as well
+    r = as_admin.post('/views/data?containerId={}&skip=2&limit=2'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'subject_label' },
+            { 'src': 'subject_age' },
+            { 'src': 'subject_sex' }
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.csv' },
+            'columns': [
+                { 'src': 'name' },
+                { 'src': 'value', 'type': 'int' },
+                { 'src': 'value2', 'type': 'float' }
+            ]
+        }
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+
+    assert len(rows) == 2
+
+    name_value = 'a1'
+    subject = subjects[0]
+    for i in range(2):
+        j = i+2
+        row = rows[i]
+
+        assert row['subject_label'] == subject['code']
+        assert row['subject_age'] == subject['age']
+        assert row['subject_sex'] == subject['sex']
+        assert row['name'] == name_value
+        assert row['value'] == j
+        assert isinstance(row['value2'], float)
+        assert row['value2'] == 2*j

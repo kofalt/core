@@ -71,6 +71,14 @@
         in: query
         type: string
         description: An optional filter expression
+      - name: skip
+        in: query
+        type: integer
+        description: The optional number of rows to skip
+      - name: limit
+        in: query
+        type: integer
+        description: The optional max number of rows to return
       - name: body
         in: body
         required: true
@@ -158,6 +166,14 @@
         in: query
         type: string
         description: An optional filter expression
+      - name: skip
+        in: query
+        type: integer
+        description: The optional number of rows to skip
+      - name: limit
+        in: query
+        type: integer
+        description: The optional max number of rows to return        
     produces:
       - application/json
       - text/csv
