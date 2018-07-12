@@ -332,6 +332,42 @@ class CASAuthProvider(AuthProvider):
         return username
 
 
+class SAMLAuthProvider(AuthProvider):
+
+    def __init__(self):
+        super(SAMLAuthProvider, self).__init__('cas')
+
+    def validate_code(self, code, **kwargs):
+        uid = self.validate_user(kwargs['uid'], code)
+        return {
+            'access_token': code,
+            'uid': uid,
+            'auth_type': self.auth_type,
+            'expires': datetime.datetime.utcnow() + datetime.timedelta(seconds=self.config['refresh_rate']),
+            'refresh_token': code
+        }
+
+    def validate_user(self, uid, session_cookie):
+        r = requests.get(self.config['verify_endpoint'], cookies=session_cookie)
+        if not r.ok:
+            raise APIAuthProviderException('SAML session not valid')
+        if not uid:
+            raise APIAuthProviderException('Auth provider did not provide user email')
+
+        self.ensure_user_exists(uid)
+        self.set_user_gravatar(uid, uid)
+
+        return uid
+
+    def refresh_token(self, token):
+        r = requests.get(self.config['verify_endpoint'], cookies=token)
+        if not r.ok:
+            raise APIAuthProviderException('SAML session no longer valid.')
+        return {
+            'access_token': token,
+            'expires': datetime.datetime.utcnow() + datetime.timedelta(seconds=self.config['refresh_rate'])
+        }
+
 
 class APIKeyAuthProvider(AuthProvider):
     """
@@ -373,5 +409,6 @@ AuthProviders = {
     'ldap'      : JWTAuthProvider,
     'wechat'    : WechatOAuthProvider,
     'api-key'   : APIKeyAuthProvider,
-    'cas'       : CASAuthProvider
+    'cas'       : CASAuthProvider,
+    'saml'      : SAMLAuthProvider
 }
