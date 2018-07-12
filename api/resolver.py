@@ -43,11 +43,16 @@ from .dao.basecontainerstorage import ContainerStorage
 from .jobs import gears
 from .web.errors import APINotFoundException, InputValidationException
 
+def set_container_type(node, container_type):
+    """Set container_type on node"""
+    node['container_type'] = container_type
+    # Redundantly set node_type so that older clients remain compatible
+    node['node_type'] = container_type
+
 def apply_container_type(lst, container_type):
     """Apply container_type to each item in in the list"""
     for item in lst:
-        item['container_type'] = container_type
-
+        set_container_type(item, container_type)
 
 class Node(object):
     """Base class for all nodes in the resolver tree"""
@@ -197,7 +202,7 @@ class ContainerNode(Node):
         child = results[0]
 
         self.storage.filter_container_files(child)
-        child['container_type'] = self.container_type
+        set_container_type(child, self.container_type)
         path_out.append(child)
 
         # Get the next node
@@ -292,7 +297,7 @@ class GearsNode(Node):
         if not gear:
             raise APINotFoundException('No gear {0} found.'.format(criterion))
 
-        gear['container_type'] = 'gear'
+        set_container_type(gear, 'gear')
         path_out.append(gear)
 
         return None
@@ -305,7 +310,7 @@ class GearsNode(Node):
         results = gears.get_gears()
 
         for gear in results:
-            gear['container_type'] = 'gear'
+            set_container_type(gear, 'gear')
 
         return list(results)
 
