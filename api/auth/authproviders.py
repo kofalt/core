@@ -335,7 +335,7 @@ class CASAuthProvider(AuthProvider):
 class SAMLAuthProvider(AuthProvider):
 
     def __init__(self):
-        super(SAMLAuthProvider, self).__init__('cas')
+        super(SAMLAuthProvider, self).__init__('saml')
 
     def validate_code(self, code, **kwargs):
         uid = self.validate_user(kwargs['uid'], code)
