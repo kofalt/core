@@ -405,6 +405,8 @@ class DataExplorerHandler(base.RequestHandler):
             except ValueError:
                 self.abort(400, 'Size must be an int or "all".')
 
+        # Size can't be 0, so make it 1
+        size = max(1, size)
         # Check that size is less than 10,000
         if int(size) > 10000:
             self.abort(400, "Request would return more than 10,000 results. Please add additional filters.")
