@@ -2,7 +2,6 @@ import bson
 import datetime
 
 from .pipeline import PipelineStage, EndOfPayload
-from ..util import extract_json_property
 from ...util import datetime_from_str
 
 class Filter(PipelineStage):
@@ -73,7 +72,11 @@ def compare_fn_lte(rhs):
 
 def compare_fn_eq(rhs):
     """Compare lhs == rhs"""
-    return lambda lhs: lhs == rhs
+    def equal_or_in(lhs):
+        if isinstance(lhs, list):
+            return rhs in lhs
+        return lhs == rhs
+    return equal_or_in
 
 def compare_fn_ne(rhs):
     """Compare lhs != rhs"""
@@ -95,16 +98,16 @@ def get_coerce_fn(cls):
         return coerce_float
     if cls == datetime.datetime:
         return coerce_datetime
-    if cls == str:
-        return lambda x: str(x)
+    if cls == str or cls == unicode:
+        return coerce_str
+    # pylint: disable=unnecessary-lambda
     return lambda x: x
         
 def coerce_float(value):
     """Attempt to coerce value to a float"""
-    try:
-        return float(value)
-    except ValueError:
-        return value
+    if isinstance(value, list):
+        return [safe_float(x) for x in value]
+    return safe_float(value)
 
 def coerce_datetime(value):
     """Attempt to coerce value to a datetime"""
@@ -118,4 +121,16 @@ def coerce_objectid(value):
         return bson.ObjectId(value)
     return value
 
+def coerce_str(value):
+    """Attempt to coerce value to a str"""
+    if isinstance(value, list):
+        return [str(x) for x in value]
+    return str(value)
+
+def safe_float(value):
+    """Safely try to convert val to float"""
+    try:
+        return float(value)
+    except ValueError:
+        return value
 
