@@ -1142,6 +1142,12 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
 
+    # Add tags for testing tag filtering
+    r = as_admin.post('/sessions/{}/tags'.format(session1), json={'value': 'tag1'})
+    assert(r.ok)
+    r = as_admin.post('/sessions/{}/tags'.format(session1), json={'value': 'tag2'})
+    assert(r.ok)
+
     # Validate that we can't sort
     r = as_admin.post('/views/data?containerId={}&sort=subject.label:asc'.format(project), json={
         'columns': [
@@ -1159,6 +1165,24 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     assert r.status_code == 400
 
     r = as_admin.post('/views/data?containerId={}&filter=subject.code=1001'.format(project), json={
+        'includeIds': True,
+        'includeLabels': True,
+        'columns': [
+            { 'src': 'session.label' },
+        ]
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 1
+
+    assert rows[0]['project'] == project
+    assert rows[0]['project_label'] == 'test-project'
+    assert rows[0]['subject_label'] == subject1['code']
+    assert rows[0]['session'] == session1
+    assert rows[0]['session_label'] == 'ses-01'
+
+    r = as_admin.post('/views/data?containerId={}&filter=session.tags=tag1'.format(project), json={
         'includeIds': True,
         'includeLabels': True,
         'columns': [
