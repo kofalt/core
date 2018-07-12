@@ -15,7 +15,7 @@ import bson
 from ..auth import has_access
 from ..dao import containerutil
 from ..dao.basecontainerstorage import ContainerStorage
-from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
+from ..web.errors import InputValidationException, APINotFoundException, APIPermissionException, APIValidationException
 
 from .formatters import get_formatter
 from .config import DataViewConfig
@@ -28,6 +28,7 @@ from .pipeline.write import Write
 from .pipeline.read_file import ReadFile
 from .pipeline.missing_data_strategies import get_missing_data_strategy
 from .pipeline.filter import Filter
+from .pipeline.skip_limit import SkipAndLimit
 
 # TODO: subjects belong here once formalized
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
@@ -81,6 +82,10 @@ class DataView(object):
             uid (str): The user id to use when checking container permissions.        
             pagination (dict): The optional pagination options (including filtering)
         """
+        # Don't support sorting in pagination
+        if pagination and 'sort' in pagination:
+            raise APIValidationException('Sorting is not supported for data views')
+
         # Initialize the column list
         self.config.initialize_columns()
 
@@ -167,6 +172,10 @@ class DataView(object):
         missing_data_strategy = config.desc.get('missingDataStrategy')
         missing_data_stage = get_missing_data_strategy(missing_data_strategy)
         self.pipeline.pipe(missing_data_stage)
+
+        # Add the optional limit stage
+        if pagination and ('limit' in pagination or 'skip' in pagination):
+            self.pipeline.pipe(SkipAndLimit(pagination))
 
         # Add the output stage
         formatter = get_formatter(output_format, self)
