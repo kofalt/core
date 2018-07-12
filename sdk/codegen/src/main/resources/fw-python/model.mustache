@@ -61,6 +61,7 @@ class {{classname}}(object):
         self._{{name}} = None
 {{/vars}}
         self.discriminator = {{#discriminator}}'{{discriminator}}'{{/discriminator}}{{^discriminator}}None{{/discriminator}}
+        self.alt_discriminator = {{#vendorExtensions.x-alt-discriminator}}'{{.}}'{{/vendorExtensions.x-alt-discriminator}}{{^vendorExtensions.x-alt-discriminator}}None{{/vendorExtensions.x-alt-discriminator}}
 {{#vars}}{{#-first}}
 {{/-first}}
 {{#required}}
@@ -126,8 +127,11 @@ class {{classname}}(object):
 {{#discriminator}}
     def get_real_child_model(self, data):
         """Returns the real base class specified by the discriminator"""
-        discriminator_value = data[self.discriminator].lower()
-        return self.discriminator_value_class_map.get(discriminator_value)
+
+        discriminator_value = data.get(self.discriminator)
+        if not discriminator_value and self.alt_discriminator:
+            discriminator_value = data.get(self.alt_discriminator)
+        return self.discriminator_value_class_map.get(discriminator_value.lower())
 
 {{/discriminator}}
     def to_dict(self):
