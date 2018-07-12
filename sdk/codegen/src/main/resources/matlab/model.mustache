@@ -240,7 +240,16 @@ classdef {{classname}} < {{packageName}}.ModelBase
         {{/discriminator}}
         {{#discriminator}}
         function result = fromJson(json)
-            discriminatorValue = json.{{vendorExtensions.x-matlab-discriminator}};
+            discriminatorValue = [];
+
+            if isfield(json, '{{vendorExtensions.x-matlab-discriminator}}')
+                discriminatorValue = json.{{vendorExtensions.x-matlab-discriminator}};
+            {{#vendorExtensions.x-matlab-alt-discriminator}}
+            elseif isfield(json, '{{vendorExtensions.x-matlab-alt-discriminator}}')
+                discriminatorValue = json.{{vendorExtensions.x-matlab-alt-discriminator}};
+            {{/vendorExtensions.x-matlab-alt-discriminator}}
+            end
+
             if isKey({{modelPackage}}.{{classname}}.discriminatorValueClassMap, discriminatorValue)
                 result = feval({{modelPackage}}.{{classname}}.discriminatorValueClassMap(discriminatorValue), json);
             else

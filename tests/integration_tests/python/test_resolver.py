@@ -203,6 +203,9 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     assert child_in_result({'name': acquisition_file, 'container_type': 'file'}, result)
     assert len(result['children']) == 1
 
+    # Verify that each node has a node_type and container_type
+    assert all(['node_type' in node for node in result['path']])
+
     # resolve root/group/project/session/acquisition/file
     r = as_admin.post('/resolve', json={'path': [group, project_label, session_label, acquisition_label, 'files', acquisition_file]})
     result = r.json()

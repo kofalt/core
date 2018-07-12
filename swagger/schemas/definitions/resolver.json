@@ -30,7 +30,8 @@
     			}
     		},
     		"discriminator": "container_type",
-    		"required": ["container_type"]
+    		"required": ["container_type"],
+    		"x-alt-discriminator": "node_type"
     	},
     	"resolver-node-list": {
 			"type": "array",

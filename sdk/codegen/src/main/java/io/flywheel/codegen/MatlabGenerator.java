@@ -471,10 +471,16 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
             }
         }
 
-        // Convert discriminator name
+        // Convert discriminator names
         if( model.discriminator != null ) {
             String matlabDiscriminator = makeValidMatlabNameHex(model.discriminator);
             model.vendorExtensions.put("x-matlab-discriminator", matlabDiscriminator);
+        }
+
+        if( model.vendorExtensions != null && model.vendorExtensions.containsKey("x-alt-discriminator") ) {
+            String altDiscriminator = (String)model.vendorExtensions.get("x-alt-discriminator");
+            String matlabAltDiscriminator = makeValidMatlabNameHex(altDiscriminator);
+            model.vendorExtensions.put("x-matlab-alt-discriminator", matlabAltDiscriminator);
         }
 
         return objs;
