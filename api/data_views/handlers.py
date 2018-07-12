@@ -128,7 +128,7 @@ class DataViewHandler(base.RequestHandler):
         view.validate_config()
 
         # Prepare by searching for container_id and checking permissions
-        view.prepare(container_id, data_format, self.uid)
+        view.prepare(container_id, data_format, self.uid, self.pagination)
 
         def response_handler(environ, start_response): # pylint: disable=unused-argument
             write = start_response('200 OK', [

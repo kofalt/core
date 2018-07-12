@@ -1137,3 +1137,34 @@ def test_project_data_view(as_admin, as_user, as_public, data_builder, file_form
     r = as_admin.delete('/views/' + view)
     assert r.ok
 
+def test_data_view_filtering(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
+    session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
+
+    # Validate that we can't filter on unselected containers
+    r = as_admin.post('/views/data?containerId={}&filter=acquisition.label=foobar'.format(project), json={
+        'columns': [
+            { 'src': 'session.label' },
+        ]
+    })
+    assert r.status_code == 400
+
+    r = as_admin.post('/views/data?containerId={}&filter=subject.code=1001'.format(project), json={
+        'includeIds': True,
+        'includeLabels': True,
+        'columns': [
+            { 'src': 'session.label' },
+        ]
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 1
+
+    assert rows[0]['project'] == project
+    assert rows[0]['project_label'] == 'test-project'
+    assert rows[0]['subject_label'] == subject1['code']
+    assert rows[0]['session'] == session1
+    assert rows[0]['session_label'] == 'ses-01'
+
