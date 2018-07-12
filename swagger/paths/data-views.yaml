@@ -71,6 +71,10 @@
           - json
           - json-row-column
         default: json
+      - name: filter
+        in: query
+        type: string
+        description: An optional filter expression
       - name: body
         in: body
         required: true
@@ -158,6 +162,10 @@
           - json
           - json-row-column
         default: json
+      - name: filter
+        in: query
+        type: string
+        description: An optional filter expression
     produces:
       - application/json
       - text/csv

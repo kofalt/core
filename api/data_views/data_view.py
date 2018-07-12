@@ -15,7 +15,7 @@ import bson
 from ..auth import has_access
 from ..dao import containerutil
 from ..dao.basecontainerstorage import ContainerStorage
-from ..web.errors import APIPermissionException, APINotFoundException
+from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 
 from .formatters import get_formatter
 from .config import DataViewConfig
@@ -27,6 +27,7 @@ from .pipeline.match_containers import MatchContainers
 from .pipeline.write import Write
 from .pipeline.read_file import ReadFile
 from .pipeline.missing_data_strategies import get_missing_data_strategy
+from .pipeline.filter import Filter
 
 # TODO: subjects belong here once formalized
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
@@ -69,7 +70,7 @@ class DataView(object):
         """Write data to the response"""
         self._write_fn(data)
 
-    def prepare(self, container_id, output_format, uid):
+    def prepare(self, container_id, output_format, uid, pagination=None):
         """Prepare the data view execution by looking up container_id and checking permissions.
 
         Then build the data pipeline.
@@ -78,12 +79,13 @@ class DataView(object):
             container_id (str): The id of the container where view execution should start.
             output_format (str): The expected output format (e.g. json)
             uid (str): The user id to use when checking container permissions.        
+            pagination (dict): The optional pagination options (including filtering)
         """
         # Initialize the column list
         self.config.initialize_columns()
 
         # Build the pipeline processor
-        self.build_pipeline(output_format)
+        self.build_pipeline(output_format, pagination)
 
         # Search for starting container
         if bson.ObjectId.is_valid(container_id):
@@ -110,8 +112,18 @@ class DataView(object):
             if not has_access(uid, cont, 'ro'):
                 raise APIPermissionException('User {} does not have read access to {} {}'.format(uid, cont['cont_type'], cont['_id']))
 
-    def build_pipeline(self, output_format):
+    def build_pipeline(self, output_format, pagination):
         config = self.config
+
+        # Add filtered columns to the spec
+        filter_spec = None
+        if pagination and 'filter' in pagination:
+            filter_spec = pagination['filter']
+            for key in filter_spec.keys():
+                dst = '_filter.{}'.format(key)
+                container = config.resolve_and_add_column(key, dst)
+                if container not in config.containers:
+                    raise InputValidationException('Cannot filter on key: {}, container {} is not part of the retrieval'.format(key, container))
 
         # First stage is aggregation
         self.pipeline = Aggregate(config)
@@ -146,6 +158,10 @@ class DataView(object):
 
         # Add extraction stage
         self.pipeline.pipe(ExtractColumns(config))
+
+        # Add optional filter stage
+        if filter_spec:
+            self.pipeline.pipe(Filter(filter_spec))
 
         # Add missing data stage
         missing_data_strategy = config.desc.get('missingDataStrategy')
