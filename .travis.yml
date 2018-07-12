@@ -22,6 +22,7 @@ cache:
 before_install:
 - sudo apt-get update
 - sudo apt-get -y install docker-ce realpath
+- gem install travis -v 1.8.8 --no-rdoc --no-ri
 - yes | docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASS
 
 install: true
@@ -51,8 +52,27 @@ script:
 
 after_success:
 # Code coverage report for all master commits and all pull requests
-- if [ "$TRAVIS_BRANCH" == "master" ] || [ "$TRAVIS_EVENT_TYPE" == "pull_request" ]; then
+- if [ "$TRAVIS_BRANCH" == "master" ] || [ "$TRAVIS_EVENT_TYPE" == "pull_request" ] && [ "$BUILD_SDK" == "false" ]; then
       bash <(curl -s https://codecov.io/bash) -c -X coveragepy -F python;
+  fi
+
+# Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
+- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "false" ]; then
+      docker tag core:dist flywheel/core:latest;
+      docker push flywheel/core:latest;
+      docker tag core:testing flywheel/core:testing;
+      docker push flywheel/core:testing;
+      bin/trigger_coreplus_build.sh latest;
+  fi
+- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "false" ]; then
+      docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
+      docker push flywheel/core:$TRAVIS_BRANCH.latest;
+      bin/trigger_coreplus_build.sh $TRAVIS_BRANCH.latest;
+  fi
+- if [ -n "$TRAVIS_TAG" ] && [ "$BUILD_SDK" == "false" ]; then
+      docker tag core:dist flywheel/core:$TRAVIS_TAG;
+      docker push flywheel/core:$TRAVIS_TAG;
+      bin/trigger_coreplus_build.sh $TRAVIS_TAG;
   fi
 
 # Build swagger docs and push them to gh-pages (Only for SDK builds)
@@ -66,22 +86,6 @@ after_success:
       else
           ./docs/push-docs.sh "$GIT_REMOTE" tags "$TRAVIS_TAG" "Travis Core Docs Build - $TRAVIS_BUILD_NUMBER";
       fi
-  fi
-
-# Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
-- if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
-      docker tag core:dist flywheel/core:latest;
-      docker tag core:testing flywheel/core:testing;
-      docker push flywheel/core:latest;
-      docker push flywheel/core:testing;
-  fi
-- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
-      docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
-      docker push flywheel/core:$TRAVIS_BRANCH.latest;
-  fi
-- if [ -n "$TRAVIS_TAG" ]; then
-      docker tag core:dist flywheel/core:$TRAVIS_TAG;
-      docker push flywheel/core:$TRAVIS_TAG;
   fi
 
 deploy:
@@ -105,4 +109,3 @@ deploy:
       repo: flywheel-io/core
       tags: true
       condition: $BUILD_SDK = true && $TRAVIS_TAG =~ ^[0-9].*
-
