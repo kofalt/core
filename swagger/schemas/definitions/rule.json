@@ -27,15 +27,16 @@
         "rule-input": {
             "type": "object",
             "properties": {
-                "_id":        { "type": "string" },
-                "project_id": { "type": "string" },
-                "gear_id":    { "type": "string" },
-                "name":       { "type": "string" },
-                "config":     { "type": "object" },
-                "any":        { "$ref": "#/definitions/rule-items" },
-                "all":        { "$ref": "#/definitions/rule-items" },
-                "not":        { "$ref": "#/definitions/rule-items" },
-                "disabled":   { "type": "boolean" }
+                "_id":          { "type": "string" },
+                "project_id":   { "type": "string" },
+                "gear_id":      { "type": "string" },
+                "name":         { "type": "string" },
+                "config":       { "type": "object" },
+                "auto_update":  { "type": "boolean" },
+                "any":          { "$ref": "#/definitions/rule-items" },
+                "all":          { "$ref": "#/definitions/rule-items" },
+                "not":          { "$ref": "#/definitions/rule-items" },
+                "disabled":     { "type": "boolean" }
             },
             "additionalProperties": false,
             "x-sdk-model": "rule"
@@ -44,14 +45,15 @@
         "rule-output": {
             "type": "object",
             "properties": {
-                "_id":      { "type": "string" },
-                "gear_id":  { "type": "string" },
-                "name":     { "type": "string" },
-                "config":   { "type": "object" },
-                "any":      { "$ref": "#/definitions/rule-items" },
-                "all":      { "$ref": "#/definitions/rule-items" },
-                "not":      { "$ref": "#/definitions/rule-items" },
-                "disabled": { "type": "boolean" }
+                "_id":          { "type": "string" },
+                "gear_id":      { "type": "string" },
+                "name":         { "type": "string" },
+                "config":       { "type": "object" },
+                "auto_update":  { "type": "boolean" },
+                "any":          { "$ref": "#/definitions/rule-items" },
+                "all":          { "$ref": "#/definitions/rule-items" },
+                "not":          { "$ref": "#/definitions/rule-items" },
+                "disabled":     { "type": "boolean" }
             },
             "x-sdk-model": "rule"
         }

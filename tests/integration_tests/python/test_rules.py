@@ -611,3 +611,121 @@ def test_disabled_rules(randstr, data_builder, api_db, as_admin, file_form):
     assert len(gear_jobs) == 1
     assert len(gear_jobs[0]['inputs']) == 1
     assert gear_jobs[0]['inputs'][0]['name'] == 'test2.csv'
+
+def test_auto_update_rules(data_builder, api_db, as_admin):
+    # Create gear and project
+    gear_config = {'param': {'type': 'boolean', 'default': True}}
+    gearv1 = data_builder.create_gear(gear={'name': 'auto-update-gear', 'version': '0.0.1', 'config': gear_config})
+    project = data_builder.create_project()
+
+    # Try posting rule with config and that auto-updates
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gearv1,
+        'name': 'test-auto-update-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'tabular data'}],
+        'disabled': False,
+        'config': {'param': True},
+        'auto_update': True
+    })
+    assert r.status_code == 400
+
+    # Post with only auto-update
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gearv1,
+        'name': 'test_auto_update_rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'tabular data'}],
+        'disabled': False,
+        'auto_update': True
+    })
+    assert r.ok
+    rule_id = r.json()['_id']
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert not r.json().get('config')
+    assert r.json().get('auto_update')
+
+    # Try to give it a config when it already has auto-update set to True
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'config': {'param': True}
+    })
+    assert r.status_code == 400
+
+    # Unset auto_update
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'auto_update': False
+    })
+    assert r.ok
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert not r.json().get('config')
+    assert not r.json().get('auto_update')
+
+    # Try to set both with put
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'config': {'param': True},
+        'auto_update': True
+    })
+    assert r.status_code == 400
+
+    # Set Config
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'config': {'param': True}
+    })
+    assert r.ok
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert r.json().get('config')
+    assert not r.json().get('auto_update')
+
+    # Set auto_update and check that config was cleared
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'auto_update': True
+    })
+    assert r.ok
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert not r.json().get('config')
+    assert r.json().get('auto_update')
+
+    # Unset auto_update, bump gear, try to set auto_update
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'auto_update': False
+    })
+    assert r.ok
+
+    gearv2 = data_builder.create_gear(gear={'name': 'auto-update-gear', 'version': '0.0.2', 'config': gear_config})
+
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert r.json().get('gear_id') == gearv1
+
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'auto_update': True
+    })
+    assert r.status_code == 400
+
+    # Update rule gear_id, set auto-date, bump gear
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'gear_id': gearv2,
+        'auto_update': True
+    })
+    assert r.ok
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert r.json().get('gear_id') == gearv2
+
+    gearv3 = data_builder.create_gear(gear={'name': 'auto-update-gear', 'version': '0.0.3', 'config': gear_config})
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert r.json().get('gear_id') == gearv3

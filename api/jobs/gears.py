@@ -52,6 +52,11 @@ def get_gear(_id):
         raise APINotFoundException('Cannot find gear {}'.format(_id))
     return gear
 
+def get_latest_gear(name):
+    gears = config.db.gears.find({'gear.name': name}).sort('created', direction=-1).limit(1)
+    if gears.count() > 0:
+        return gears[0]
+
 def get_invocation_schema(gear):
     return gear_tools.derive_invocation_schema(gear['gear'])
 
@@ -141,6 +146,7 @@ def count_file_inputs(geardoc):
 
 def insert_gear(doc):
     gear_tools.validate_manifest(doc['gear'])
+    last_gear = get_latest_gear(doc['gear']['name'])
 
     # This can be mongo-escaped and re-used later
     if doc.get("invocation-schema"):
@@ -173,6 +179,9 @@ def insert_gear(doc):
             'outputs': [ ],
         })
         job.insert()
+    if last_gear:
+        auto_update_rules(doc['_id'], last_gear.get('_id'))
+
 
     return result
 
@@ -200,3 +209,6 @@ def check_for_gear_insertion(doc):
 
     if conflict is not None:
         raise Exception('Gear "' + doc['gear']['name'] + '" version "' + doc['gear']['version'] + '" already exists, consider changing the version string.')
+
+def auto_update_rules(gear_id, last_gear_id):
+    config.db.project_rules.update_many({'gear_id': str(last_gear_id), 'auto_update': True}, {"$set": {'gear_id': str(gear_id)}})

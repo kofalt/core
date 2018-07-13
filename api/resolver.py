@@ -304,7 +304,7 @@ class GearsNode(Node):
         if use_id:
             gear = gears.get_gear(criterion)
         else:
-            gear = gears.get_gear_by_name(criterion)
+            gear = gears.get_latest_gear(criterion)
 
         if not gear:
             raise APINotFoundException('No gear {0} found.'.format(criterion))

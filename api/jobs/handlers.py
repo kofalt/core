@@ -26,8 +26,9 @@ from ..web.errors import APIPermissionException, APINotFoundException, InputVali
 from ..web.request import AccessType
 
 from .gears import (
-    validate_gear_config, get_gears, get_gear, get_invocation_schema,
-    remove_gear, upsert_gear, check_for_gear_insertion,
+    validate_gear_config, get_gears, get_gear, get_latest_gear,
+    get_invocation_schema, remove_gear,
+    upsert_gear, check_for_gear_insertion,
     add_suggest_info_to_files, count_file_inputs
 )
 
@@ -278,6 +279,12 @@ class RulesHandler(base.RequestHandler):
         validate_regexes(payload)
         validate_gear_config(get_gear(payload['gear_id']), payload.get('config'))
 
+        if payload.get('auto_update'):
+            if payload.get('config'):
+                raise InputValidationException("Gear rule cannot be auto-updated with a config")
+            elif payload['gear_id'] != str(get_latest_gear(get_gear(payload['gear_id'])['gear'].get('name'))['_id']):
+                raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")
+
         payload['project_id'] = cid
 
         result = config.db.project_rules.insert_one(payload)
@@ -325,6 +332,16 @@ class RuleHandler(base.RequestHandler):
 
         updates = self.request.json
         validate_data(updates, 'rule-update.json', 'input', 'POST', optional=True)
+
+        if updates.get('config') and (updates.get('auto_update') or doc.get('auto_update')):
+            raise InputValidationException("Gear rule cannot be auto-updated with a config")
+
+        if updates.get("auto_update"):
+            if updates.get('gear_id') != str(get_latest_gear(get_gear(doc['gear_id'])['gear'].get('name'))['_id']):
+                if doc['gear_id'] != str(get_latest_gear(get_gear(doc['gear_id'])['gear'].get('name'))['_id']):
+                    raise InputValidationException("Gear rule cannot be auto-updated unless it is using the latest version of the gear")
+            updates["config"] = {}
+
         validate_regexes(updates)
         gear_id = updates.get('gear_id', doc['gear_id'])
         config_ = updates.get('config', doc.get('config'))
