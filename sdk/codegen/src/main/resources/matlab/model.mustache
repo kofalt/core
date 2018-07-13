@@ -69,7 +69,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
             {{#vars}}
             if isKey(obj.props_, '{{baseName}}')
                 {{#isPrimitiveType}}
-                result('{{baseName}}') = obj.props_('{{baseName}}');
+                result('{{baseName}}') = {{packageName}}.ModelBase.serializeValue(obj.props_('{{baseName}}'), '{{{datatype}}}');
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
@@ -102,7 +102,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
             for i = 1:length(propKeys)
                 key = propKeys{i};
                 {{#isPrimitiveType}}
-                result(key) = obj.props_(key);
+                result(key) = {{packageName}}.ModelBase.serializeValue(obj.props_(key), '{{{datatype}}}');
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
@@ -202,7 +202,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
             {{#vars}}
             if isfield(json, '{{vendorExtensions.x-matlab-baseName}}')
                 {{#isPrimitiveType}}
-                obj.props_('{{baseName}}') = json.{{vendorExtensions.x-matlab-baseName}};
+                obj.props_('{{baseName}}') = {{packageName}}.ModelBase.deserializeValue(json.{{vendorExtensions.x-matlab-baseName}}, '{{{datatype}}}');
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}
@@ -220,7 +220,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 name = names{i};
                 {{#vendorExtensions.x-matlab-additionalProperties}}
                 {{#isPrimitiveType}}
-                obj.props_(name) = json.(name);
+                obj.props_(name) = {{packageName}}.ModelBase.deserializeValue(json.(name), '{{{datatype}}}');
                 {{/isPrimitiveType}}
                 {{^isPrimitiveType}}
                 {{^isListContainer}}

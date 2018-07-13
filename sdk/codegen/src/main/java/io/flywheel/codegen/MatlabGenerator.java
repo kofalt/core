@@ -148,6 +148,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         languageSpecificPrimitives.add("logical");
         languageSpecificPrimitives.add("vector");
         languageSpecificPrimitives.add("containers.Map");
+        languageSpecificPrimitives.add("datetime");
 
         typeMapping.clear();
         typeMapping.put("integer", "integer");
@@ -161,16 +162,15 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
 
         typeMapping.put("string", "char");
 
-        // TODO: Date and DateTime types in matlab?
+        // TODO: Date type in matlab?
         typeMapping.put("date", "char");
-        typeMapping.put("DateTime", "char");
+        typeMapping.put("DateTime", "datetime");
 
         typeMapping.put("array", "vector");
 
         typeMapping.put("object", "containers.Map");
         typeMapping.put("map", "containers.Map");
 
-        // TODO: File type in matlab?
         typeMapping.put("file", "char");
 
         typeMapping.put("binary", "vector");
