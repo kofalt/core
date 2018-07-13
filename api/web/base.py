@@ -259,6 +259,7 @@ class RequestHandler(webapp2.RequestHandler):
 
         NGINX configuration should prevent external access to this endpoint, all access
         should be routed through SAML secured entrypoints
+        Uses headers to passthrough IdProvider attributes
         """
         try:
             auth_provider = AuthProvider.factory('saml')
