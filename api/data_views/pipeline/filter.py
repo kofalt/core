@@ -80,7 +80,11 @@ def compare_fn_eq(rhs):
 
 def compare_fn_ne(rhs):
     """Compare lhs != rhs"""
-    return lambda lhs: lhs != rhs
+    def not_equal_or_in(lhs):
+        if isinstance(lhs, list):
+            return rhs not in lhs
+        return lhs != rhs
+    return not_equal_or_in
 
 def compare_fn_gte(rhs):
     """Compare lhs >= rhs"""
