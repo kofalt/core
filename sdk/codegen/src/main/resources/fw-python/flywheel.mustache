@@ -53,7 +53,7 @@ def get_api_key_from_cli(path):
 class Client(Flywheel):
     def __init__(self, root=False, skip_version_check=False):
         api_key = get_api_key_from_cli('~/.config/flywheel/user.json')
-        super(Client, self).__init__(api_key, root=root, skip_version_check=skip_version_check)
+        Flywheel.__init__(self, api_key, root=root, skip_version_check=skip_version_check)
 
 class Flywheel:
     def __init__(self, api_key, root=False, skip_version_check=True):
