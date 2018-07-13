@@ -1200,6 +1200,24 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     assert rows[0]['session'] == session1
     assert rows[0]['session_label'] == 'ses-01'
 
+    r = as_admin.post('/views/data?containerId={}&filter=session.tags!=tag1'.format(project), json={
+        'includeIds': True,
+        'includeLabels': True,
+        'columns': [
+            { 'src': 'session.label' },
+        ]
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 1
+
+    assert rows[0]['project'] == project
+    assert rows[0]['project_label'] == 'test-project'
+    assert rows[0]['subject_label'] == subject2['code']
+    assert rows[0]['session'] == session2
+    assert rows[0]['session_label'] == 'ses-01'
+
 def test_data_view_skip_and_limit(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
