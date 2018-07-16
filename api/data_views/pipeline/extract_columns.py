@@ -25,6 +25,12 @@ class ExtractColumns(PipelineStage):
                 for col in column_map[cont_type]:
                     # Extract the json property
                     value = extract_json_property(col.src, cont, default=nil_value)
+
+                    # Apply expression, if specified
+                    if value != nil_value and col.expr is not None:
+                        # Expression has been validated, shouldn't encounter errors
+                        value = col.expr.eval({'x': value})
+
                     # Convert the property, if a datatype was specified
                     if col.datatype is not None:
                         value = convert_to_datatype(value, col.datatype)
