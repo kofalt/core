@@ -76,7 +76,11 @@
           "type": "string",
           "description": "The optional destination property name"
         },
-        "type": { "$ref": "#/definitions/column-type" }
+        "type": { "$ref": "#/definitions/column-type" },
+        "expr": {
+            "type": "string",
+            "description": "An optional expression, allowing simple calculations (add, subtract, multiply, divide). Use 'x' to substitute the column"
+        }
       },
       "required": ["src"],
       "additionalProperties": false,

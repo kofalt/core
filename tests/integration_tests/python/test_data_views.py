@@ -9,7 +9,7 @@ import pytest
 from StringIO import StringIO
 
 def years_to_secs(age):
-    return age * 86400 * 365
+    return int(age * 86400 * 365.25)
 
 subject1 = {
     'code': '1001',
@@ -18,7 +18,7 @@ subject1 = {
 }
 
 subject2 = {
-    'code': '1002',
+    'code': '1002', 
     'sex': 'female',
     'age': years_to_secs(33)
 }
@@ -213,7 +213,7 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
         'columns': [
             { 'src': 'project.label', 'dst': 'project' },
             { 'src': 'subject.code', 'dst': 'subject' },
-            { 'src': 'subject.age' },
+            { 'src': 'subject_age_years' },
             { 'src': 'subject.sex' },
             { 'src': 'session.label', 'dst': 'session' },
             { 'src': 'acquisition.label', 'dst': 'acquisition' }
@@ -226,7 +226,7 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
 
     assert rows[0]['project'] == 'test-project'
     assert rows[0]['subject'] == subject2['code']
-    assert rows[0]['subject.age'] == subject2['age']
+    assert rows[0]['subject_age_years'] == 33.0
     assert rows[0]['subject.sex'] == subject2['sex']
     assert rows[0]['session'] == 'ses-01'
     assert rows[0]['acquisition'] == 'scout'
