@@ -636,8 +636,8 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
     acquisition = data_builder.create_acquisition(session=session, label='scout')
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
 
-    gear1 = data_builder.create_gear(gear={'name': 'data-view-gear1', 'inputs': {'csv': {'base': 'file'}}})
-    gear2 = data_builder.create_gear(gear={'name': 'data-view-gear2', 'inputs': {'csv': {'base': 'file'}}})
+    gear1 = data_builder.create_gear(gear={'name': 'data-view-gear1', 'version': '0.0.12', 'inputs': {'csv': {'base': 'file'}}})
+    gear2 = data_builder.create_gear(gear={'name': 'data-view-gear2', 'version': '0.0.13', 'inputs': {'csv': {'base': 'file'}}})
 
     # Create job-based analysis 1
     r = as_admin.post('/sessions/' + session + '/analyses', json={
@@ -794,6 +794,54 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
         assert row['subject.sex'] == subject1['sex']
         assert row['filename'] == 'values{}.csv'.format(i+2)
         assert row['analysis'] == 'second-analysis' 
+
+    # Execute data view, match on gear_name
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'file.name', 'dst': 'filename' }
+        ],
+        'fileSpec': {
+            'container': 'session',
+            'filter': { 'value': '*.csv' },
+            'match': 'all',
+            'analysisFilter': {
+                'gear_name': {'value': 'data-view-gear1'}
+            },
+            'processFiles': False
+        }
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 1
+    assert {'filename':'values.csv'} in rows
+
+    # Execute data view, match on gear_name + gear_version
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'file.name', 'dst': 'filename' }
+        ],
+        'fileSpec': {
+            'container': 'session',
+            'filter': { 'value': '*.csv' },
+            'match': 'all',
+            'analysisFilter': {
+                'gear_name': {'value': 'data-view-gear?'},
+                'gear_version': {'value': '0.0.13'}
+            },
+            'processFiles': False
+        }
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 2
+    assert {'filename':'values2.csv'} in rows
+    assert {'filename':'values3.csv'} in rows
 
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis1)})
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis2)})

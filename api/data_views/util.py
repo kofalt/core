@@ -4,33 +4,36 @@ import re
 
 from ..web.errors import InputValidationException
 
-def filtered_container_list(containers, label_key, label_filter, match_type='first', date_key='created'):
+def filtered_container_list(containers, filters, match_type='first', date_key='created'):
     """Return a list of matching, non_deleted containers from the input list.
 
     This function assumes that in addition to the label key, there is a 'created' key which will be used for sorting.
 
     Arguments:
         containers (list): The list of containers to sort and filter
-        label_key (string): The key to the label field
-        label_filter (regex): The optional label filter
+        filters (list): The list of key-value pairs that must match
         match_type (string): The match type, one of: first, last, newest, oldest, all (defaults to first)
         date_key (string): The optional key to use for sorting (defaults to 'created')
 
     Returns:
         list: The list of matching containers (could be empty)
     """
+    if filters is None:
+        filters = []
+
     # Filter
     def match_fn(entry):
         # Ignore deleted entries
         if 'deleted' in entry:
             return False
 
-        if label_filter:
-            label = entry.get(label_key, '')
-            if not label_filter.match(label):
+        for filter_key, filter_pattern in filters:
+            value = extract_json_property(filter_key, entry, '')
+            if not filter_pattern.match(value):
                 return False
             
         return True
+
     results = filter(match_fn, containers)
 
     # Sort

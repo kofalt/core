@@ -33,22 +33,26 @@ class MatchContainers(PipelineStage):
     Emits a list of rows, which have been unwound for each container matched. 
     If no match was found, then the original row will be included at the end of the list of rows.
     """
-    def __init__(self, collection_key, name_key, output_key, filter_spec, match_type):
+    def __init__(self, collection_key, output_key, filters, match_type):
         """Initialize this pipeline stage.
 
         Arguments:
             collection_key (str): The key of the collection to unwind.
-            name_key (str): The key of the name or label to perform filtering on
             output_key (str): The key of the destination field where unwound values should be placed.
-            filter_spec (dict): The filter that should be applied to the name or label value
+            filters (dict): The filter that should be applied to the name or label value
             match_type (str): The match type to perform, one of: all, newest, oldest, first, last
         """
         super(MatchContainers, self).__init__()
 
         self.collection_key = collection_key
-        self.name_key = name_key
         self.output_key = output_key
-        self.filter_regex = file_filter_to_regex(filter_spec)
+        
+        # Compile filters
+        self.filters = []
+        for name, filter_spec in filters:
+            pattern = file_filter_to_regex(filter_spec)
+            self.filters.append((name, pattern))
+
         self.match_type = match_type
 
     def process(self, payload):
@@ -59,7 +63,7 @@ class MatchContainers(PipelineStage):
         # Pop and filter the containers from payload
         for row in payload:
             containers = pop_collection(row, self.collection_key)
-            containers = filtered_container_list(containers, self.name_key, self.filter_regex, self.match_type)
+            containers = filtered_container_list(containers, self.filters, self.match_type)
 
             if containers:
                 # Emit one row per match

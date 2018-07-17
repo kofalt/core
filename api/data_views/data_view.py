@@ -118,12 +118,20 @@ class DataView(object):
 
             # Optionally add analysis filter
             if config.analysis_filter:
-                label_filter = config.analysis_filter.get('label')
-                match_analyses = MatchContainers('analysis', 'label', 'analysis', label_filter, match_type)
+                analysis_filters = []
+
+                if 'label' in config.analysis_filter:
+                    analysis_filters.append(('label', config.analysis_filter['label']))
+                if 'gear_name' in config.analysis_filter:
+                    analysis_filters.append(('gear_info.name', config.analysis_filter['gear_name']))
+                if 'gear_version' in config.analysis_filter:
+                    analysis_filters.append(('gear_info.version', config.analysis_filter['gear_version']))
+
+                match_analyses = MatchContainers('analysis', 'analysis', analysis_filters, match_type)
                 self.pipeline.pipe(match_analyses)
                 files_key = 'analysis.files'
 
-            match_files = MatchContainers(files_key, 'name', 'file', config.file_spec['filter'], match_type)
+            match_files = MatchContainers(files_key, 'file', [('name', config.file_spec['filter'])], match_type)
             self.pipeline.pipe(match_files)
 
         # Add access log stage
