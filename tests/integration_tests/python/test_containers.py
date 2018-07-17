@@ -459,6 +459,13 @@ def test_post_container(data_builder, as_admin, as_user):
     })
     assert r.status_code == 403
 
+    # try to add project with name Unsorted
+    r = as_admin.post('/projects', json={
+        'group': group,
+        'label': 'Unsorted'
+    })
+    assert r.status_code == 400
+
     # set as_user perms to rw on project
     r = as_user.get('/users/self')
     assert r.ok

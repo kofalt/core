@@ -11,7 +11,7 @@ from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..web import base
-from ..web.errors import APIPermissionException
+from ..web.errors import APIPermissionException, InputValidationException
 from ..web.request import log_access, AccessType
 
 
@@ -279,6 +279,10 @@ class ContainerHandler(base.RequestHandler):
             payload['permissions'] = parent_container.get('permissions')
         elif cont_name =='projects':
             payload['permissions'] = [{'_id': self.uid, 'access': 'admin'}] if self.uid else []
+
+            # Unsorted projects are reserved for reaper uploads
+            if payload.get('label') == 'Unsorted':
+                raise InputValidationException("{} is a reserved project label".format(payload.get('label')))
         else:
             payload['permissions'] = parent_container.get('permissions', [])
         # Created and modified timestamps are added here to the payload
