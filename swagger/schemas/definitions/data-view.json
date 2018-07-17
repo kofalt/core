@@ -21,7 +21,8 @@
       "type": "object",
       "properties": {
         "label": {"$ref": "#/definitions/name-filter-spec"},
-        "gear-name": {"$ref": "#/definitions/name-filter-spec"}
+        "gear.name": {"$ref": "#/definitions/name-filter-spec"},
+        "gear.version": {"$ref": "#/definitions/name-filter-spec"}
       },
       "additionalProperties": false,
       "description": "Specifies which analyses to match for files"

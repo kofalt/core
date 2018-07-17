@@ -68,7 +68,7 @@ class FileOpener(object):
                         'timestamp': time.mktime(zipinf.date_time + (0, 0, -1))
                     })
 
-                self._zip_entries = filtered_container_list(zip_entries, 'path', self.zip_filter, 
+                self._zip_entries = filtered_container_list(zip_entries, [('path', self.zip_filter)], 
                         match_type=self.match_type, date_key='timestamp') 
 
                 if not self._zip_entries:

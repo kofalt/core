@@ -31,6 +31,12 @@ from .pipeline.missing_data_strategies import get_missing_data_strategy
 # TODO: subjects belong here once formalized
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
 
+ANALYSIS_FILTER_COLUMNS = [
+    ('label', 'label'),
+    ('gear.name', 'gear_info.name'),
+    ('gear.version', 'gear_info.version')
+]
+
 class DataView(object):
     """Executes data view queries against the database."""
     def __init__(self, desc):
@@ -118,12 +124,17 @@ class DataView(object):
 
             # Optionally add analysis filter
             if config.analysis_filter:
-                label_filter = config.analysis_filter.get('label')
-                match_analyses = MatchContainers('analysis', 'label', 'analysis', label_filter, match_type)
+                analysis_filters = []
+
+                for name, key in ANALYSIS_FILTER_COLUMNS:
+                    if name in config.analysis_filter:
+                        analysis_filters.append((key, config.analysis_filter[name]))
+
+                match_analyses = MatchContainers('analysis', 'analysis', analysis_filters, match_type)
                 self.pipeline.pipe(match_analyses)
                 files_key = 'analysis.files'
 
-            match_files = MatchContainers(files_key, 'name', 'file', config.file_spec['filter'], match_type)
+            match_files = MatchContainers(files_key, 'file', [('name', config.file_spec['filter'])], match_type)
             self.pipeline.pipe(match_files)
 
         # Add access log stage
