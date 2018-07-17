@@ -795,7 +795,7 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
         assert row['filename'] == 'values{}.csv'.format(i+2)
         assert row['analysis'] == 'second-analysis' 
 
-    # Execute data view, match on gear_name
+    # Execute data view, match on gear.name
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
         'includeIds': False,
         'includeLabels': False,
@@ -807,7 +807,7 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
             'filter': { 'value': '*.csv' },
             'match': 'all',
             'analysisFilter': {
-                'gear_name': {'value': 'data-view-gear1'}
+                'gear.name': {'value': 'data-view-gear1'}
             },
             'processFiles': False
         }
@@ -818,7 +818,7 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
     assert len(rows) == 1
     assert {'filename':'values.csv'} in rows
 
-    # Execute data view, match on gear_name + gear_version
+    # Execute data view, match on gear.name + gear.version
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
         'includeIds': False,
         'includeLabels': False,
@@ -830,8 +830,8 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
             'filter': { 'value': '*.csv' },
             'match': 'all',
             'analysisFilter': {
-                'gear_name': {'value': 'data-view-gear?'},
-                'gear_version': {'value': '0.0.13'}
+                'gear.name': {'value': 'data-view-gear?'},
+                'gear.version': {'value': '0.0.13'}
             },
             'processFiles': False
         }

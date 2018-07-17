@@ -31,6 +31,12 @@ from .pipeline.missing_data_strategies import get_missing_data_strategy
 # TODO: subjects belong here once formalized
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
 
+ANALYSIS_FILTER_COLUMNS = [
+    ('label', 'label'),
+    ('gear.name', 'gear_info.name'),
+    ('gear.version', 'gear_info.version')
+]
+
 class DataView(object):
     """Executes data view queries against the database."""
     def __init__(self, desc):
@@ -120,12 +126,9 @@ class DataView(object):
             if config.analysis_filter:
                 analysis_filters = []
 
-                if 'label' in config.analysis_filter:
-                    analysis_filters.append(('label', config.analysis_filter['label']))
-                if 'gear_name' in config.analysis_filter:
-                    analysis_filters.append(('gear_info.name', config.analysis_filter['gear_name']))
-                if 'gear_version' in config.analysis_filter:
-                    analysis_filters.append(('gear_info.version', config.analysis_filter['gear_version']))
+                for name, key in ANALYSIS_FILTER_COLUMNS:
+                    if name in config.analysis_filter:
+                        analysis_filters.append((key, config.analysis_filter[name]))
 
                 match_analyses = MatchContainers('analysis', 'analysis', analysis_filters, match_type)
                 self.pipeline.pipe(match_analyses)
