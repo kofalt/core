@@ -11,8 +11,8 @@ RUN set -eux \
         libffi-dev \
         linux-headers \
         openssl-dev \
-        py2-pip \
-        python2-dev \
+        py-pip \
+        python-dev \
         su-exec \
         uwsgi-http \
         uwsgi-python \
@@ -62,7 +62,7 @@ RUN set -eux \
     && apk add --no-cache \
         mongodb \
     && mkdir -p /data/db
-COPY --from=dist /usr/lib/python2.7 /usr/lib/python2.7
+COPY --from=dist /usr /usr
 COPY tests/requirements.txt /var/scitran/code/api/tests/requirements.txt
 RUN set -eux \
     && pip install --requirement /var/scitran/code/api/tests/requirements.txt
