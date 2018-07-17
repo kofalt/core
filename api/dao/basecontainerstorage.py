@@ -466,7 +466,7 @@ class ContainerStorage(object):
 
                     # Alias job.gear_info.name as job.gear_name until UI starts using gear_info.name directly
                     if join_doc is not None and j_type == 'job':
-                        join_doc['gear_name'] = join_doc['gear_info']['name']
+                        join_doc['gear_name'] = join_doc.get('gear_info', {}).get('name')
 
                     # Save to join table
                     container['join-origin'][j_type][j_id] = join_doc
