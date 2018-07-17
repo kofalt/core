@@ -239,7 +239,7 @@ class UIDReaperPlacer(UIDPlacer):
     """
 
     metadata_schema = 'uidupload.json'
-    create_hierarchy = staticmethod(hierarchy.upsert_bottom_up_hierarchy)
+    create_hierarchy = staticmethod(hierarchy.upsert_bottom_up_hierarchy_wrapper(reaper=True))
     match_type = 'uid'
 
 
