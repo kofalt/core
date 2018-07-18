@@ -8,7 +8,7 @@
   get:
     summary: Return a list of all views belonging to container
     description: This is a BETA feature, and is not yet available.
-    operationId: get_data_views
+    operationId: get_views
     tags:
     - views
     responses:
@@ -19,7 +19,7 @@
   post:
     summary: Add a new data view
     description: This is a BETA feature, and is not yet available.
-    operationId: add_data_view
+    operationId: add_view
     tags:
     - views
     parameters:
@@ -40,7 +40,7 @@
   get:
     summary: Return a list of all known column aliases for use in data views
     description: This is a BETA feature, and is not yet available.
-    operationId: get_data_view_columns
+    operationId: get_view_columns
     tags:
     - views
     responses:
@@ -53,7 +53,7 @@
   post:
     summary: Execute an ad-hoc view, returning data in the preferred format.
     description: This is a BETA feature, and is not yet available.
-    operationId: evaluate_data_view_adhoc
+    operationId: evaluate_view_adhoc
     tags:
     - views
     parameters:
@@ -150,7 +150,7 @@
   get:
     summary: Return the view identified by ViewId
     description: This is a BETA feature, and is not yet available.
-    operationId: get_data_view
+    operationId: get_view
     tags:
     - views
     responses:
@@ -161,7 +161,7 @@
   put:
     summary: Update the view identified by ViewId
     description: This is a BETA feature, and is not yet available.
-    operationId: modify_data_view
+    operationId: modify_view
     tags:
     - views
     parameters:
@@ -178,7 +178,7 @@
   delete:
     summary: Delete a data view
     description: This is a BETA feature, and is not yet available.
-    operationId: delete_data_view
+    operationId: delete_view
     tags:
     - views
     responses:
@@ -195,7 +195,7 @@
   get:
     summary: Execute a view, returning data in the preferred format.
     description: This is a BETA feature, and is not yet available.
-    operationId: evaluate_data_view 
+    operationId: evaluate_view 
     tags:
     - views
     parameters:

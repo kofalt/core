@@ -57,7 +57,7 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
         supportingFiles.add(new SupportingFile("flywheel.mustache", packageName, "flywheel.py"));
 
         // Other API files
-        supportingFiles.add(new SupportingFile("data_view_builder.py", packageName, "data_view_builder.py"));
+        supportingFiles.add(new SupportingFile("view_builder.py", packageName, "view_builder.py"));
 
         // PIP Files
         supportingFiles.add(new SupportingFile("LICENSE.mustache", "", "LICENSE.txt"));
