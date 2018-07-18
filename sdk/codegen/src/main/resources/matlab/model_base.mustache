@@ -44,8 +44,12 @@ classdef ModelBase < matlab.mixin.CustomDisplay
         function result = deserializeDatetime(val)
             if isempty(val)
                 result = val;
-            else
+            elseif strfind(val, '.')
+                % Date/time in milliseconds
                 result = datetime(val, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXXXX');
+            else
+                % Date/time in seconds
+                result = datetime(val, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ssXXXXX');
             end
         end
         function result = serializeDatetime(val)
