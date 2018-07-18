@@ -273,7 +273,7 @@ def test_search(as_public, as_drone, es, as_user):
                 ]}}
             }},
             'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
-            'size': 0},
+            'size': 1},
         doc_type='flywheel',
         index='data_explorer')
     assert r.ok
