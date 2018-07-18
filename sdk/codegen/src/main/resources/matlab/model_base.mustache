@@ -27,6 +27,38 @@ classdef ModelBase < matlab.mixin.CustomDisplay
         end
     end
     methods(Static)
+        function result = deserializeValue(val, typename)
+            if strcmp(typename, 'datetime')
+                result = {{packageName}}.ModelBase.deserializeDatetime(val);
+            else
+                result = val;
+            end
+        end
+        function result = serializeValue(val, typename)
+            if strcmp(typename, 'datetime')
+                result = {{packageName}}.ModelBase.serializeDatetime(val);
+            else
+                result = val;
+            end
+        end
+        function result = deserializeDatetime(val)
+            if isempty(val)
+                result = val;
+            elseif strfind(val, '.')
+                % Date/time in milliseconds
+                result = datetime(val, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXXXX');
+            else
+                % Date/time in seconds
+                result = datetime(val, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ssXXXXX');
+            end
+        end
+        function result = serializeDatetime(val)
+            if isempty(val)
+                result = val;
+            else
+                result = char(datetime(val, 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXXXX'));
+            end
+        end
         % TODO: Is there a better way to do this?
         function obj = recursiveAsgn(obj, s, val)
             if isempty(s)
