@@ -6,7 +6,7 @@ from .models import (
     DataViewNameFilterSpec
 )
 
-class DataViewBuilder(object):
+class ViewBuilder(object):
     """Builder class that assists in constructing a DataView object.
 
     :param str label: The optional label, if saving this data view.

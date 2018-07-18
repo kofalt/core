@@ -7,7 +7,7 @@
       description: The ID of the container, one of user, group or project
   get:
     summary: Return a list of all views belonging to container
-    operationId: get_data_views
+    operationId: get_views
     tags:
     - views
     responses:
@@ -17,7 +17,7 @@
           $ref: schemas/output/data-view-list.json
   post:
     summary: Add a new data view
-    operationId: add_data_view
+    operationId: add_view
     tags:
     - views
     parameters:
@@ -37,7 +37,7 @@
 /views/columns:
   get:
     summary: Return a list of all known column aliases for use in data views
-    operationId: get_data_view_columns
+    operationId: get_view_columns
     tags:
     - views
     responses:
@@ -49,7 +49,7 @@
 /views/data:
   post:
     summary: Execute an ad-hoc view, returning data in the preferred format.
-    operationId: evaluate_data_view_adhoc
+    operationId: evaluate_view_adhoc
     tags:
     - views
     parameters:
@@ -145,7 +145,7 @@
       description: The ID of the view
   get:
     summary: Return the view identified by ViewId
-    operationId: get_data_view
+    operationId: get_view
     tags:
     - views
     responses:
@@ -155,7 +155,7 @@
           $ref: schemas/output/data-view.json
   put:
     summary: Update the view identified by ViewId
-    operationId: modify_data_view
+    operationId: modify_view
     tags:
     - views
     parameters:
@@ -171,7 +171,7 @@
         $ref: '#/responses/400:invalid-body-json'
   delete:
     summary: Delete a data view
-    operationId: delete_data_view
+    operationId: delete_view
     tags:
     - views
     responses:
@@ -187,7 +187,7 @@
       description: The ID of the view
   get:
     summary: Execute a view, returning data in the preferred format.
-    operationId: evaluate_data_view 
+    operationId: evaluate_view 
     tags:
     - views
     parameters:

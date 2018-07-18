@@ -10,7 +10,7 @@ import flywheel
 class DataViewTestCases(SdkTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.data_view_id = None
+        cls.view_id = None
         cls.group_id, cls.project_id, cls.session_id, cls.acquisition_id = create_test_acquisition()
         
         # Get user id
@@ -25,22 +25,22 @@ class DataViewTestCases(SdkTestCase):
         cls.fw_root.delete_project(cls.project_id)
         cls.fw_root.delete_group(cls.group_id)
 
-        if cls.data_view_id:
-            cls.fw_root.delete_data_view(cls.data_view_id)
+        if cls.view_id:
+            cls.fw_root.delete_view(cls.view_id)
 
     @classmethod
     def ensure_data_view(cls):
-        if cls.data_view_id:
+        if cls.view_id:
             return
 
-        builder = flywheel.DataViewBuilder('test-data-view', include_labels=False)
+        builder = flywheel.ViewBuilder('test-data-view', include_labels=False)
         builder.column('subject.age')
         builder.column('session.label', dst='session_label')
         builder.column('subject.firstname', dst='firstname')
         builder.column('subject.lastname', dst='lastname')
         builder.public()
 
-        cls.data_view_id = cls.fw.add_data_view(cls.user_id, builder.build())
+        cls.view_id = cls.fw.add_view(cls.user_id, builder.build())
 
     def test_build_data_view(self):
         fw = self.fw
@@ -49,15 +49,15 @@ class DataViewTestCases(SdkTestCase):
         self.ensure_data_view()
 
         # Check that we can get the data view back
-        self.assertIsNotNone(self.data_view_id)
+        self.assertIsNotNone(self.view_id)
 
-        r_view = fw.get_data_view(self.data_view_id)
+        r_view = fw.get_view(self.view_id)
         self.assertIsNotNone(r_view)
 
         self.assertEqual(r_view.label, 'test-data-view')
         self.assertEqual(len(r_view.columns), 4)
 
-        views = fw.get_data_views(self.user_id)
+        views = fw.get_views(self.user_id)
         self.assertGreaterEqual(len(views), 1)
         self.assertIn(r_view, views)
 
@@ -66,7 +66,7 @@ class DataViewTestCases(SdkTestCase):
 
         self.ensure_data_view()
 
-        with fw.read_data_view_data(self.data_view_id, self.project_id) as resp:
+        with fw.read_view_data(self.view_id, self.project_id) as resp:
             result = json.load(resp)
 
         self.assertIsNotNone(result)
@@ -90,23 +90,41 @@ class DataViewTestCases(SdkTestCase):
             print('No pandas, skipping dataframe test!')
             return
 
+
         fw = self.fw
 
         self.ensure_data_view()
 
-        df = fw.read_data_view_data_frame(self.data_view_id, self.project_id)
+        df = fw.read_view_dataframe(self.view_id, self.project_id)
         self.assertIsNotNone(df)
         self.assertEqual(df['project.id'][0], self.project_id)
         self.assertEqual(df['subject.id'][0], self.subject.id)
         self.assertEqual(df['session.id'][0], self.session_id)
         self.assertEqual(df['subject.age'][0], self.subject.age)
 
+        # Example of creating a data-frame with nested session info
+        fw.replace_session_info(self.session_id, {
+            'current_age': 32,
+            'foo': 'bar',
+            'tags': ['tag1', 'tag2'],
+            'dims': [8.0, 5.9, 6.4]
+        })
+
+        view = fw.View(columns=['subject', 'session.info'], include_labels=False)
+        df = fw.read_view_dataframe(view, self.project_id)
+
+        # Convert session.info to dict
+        import ast
+        df['session.info'] = df['session.info'].apply(ast.literal_eval)
+
+        info = df['session.info'][0]
+        self.assertEqual(info['dims'], [8.0, 5.9, 6.4])
 
     def test_execute_adhoc_data_view_csv(self):
         fw = self.fw
 
-        view = fw.build_data_view(columns=['subject.age', 'subject.sex', 'session'], include_labels=False)
-        with fw.read_data_view_data(view, self.project_id, format='csv') as resp:
+        view = fw.View(columns=['subject.age', 'subject.sex', 'session'], include_labels=False)
+        with fw.read_view_data(view, self.project_id, format='csv') as resp:
             reader = csv.reader(resp)
 
             row = next(reader)
