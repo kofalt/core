@@ -148,6 +148,20 @@ def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
     assert r.headers['content-disposition'] == 'attachment; filename="view-data.json"'
     rows = r.json()['data']
     assert len(rows) == 0
+    
+    # JSON (flat)
+    project = data_builder.create_project(label='test-project')
+    r = as_admin.post('/views/data?containerId={}&format=json-flat'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition' }
+        ]
+    })
+    assert r.ok
+    rows = r.json()
+    assert len(rows) == 0
 
     # JSON row-column
     r = as_admin.post('/views/data?containerId={}&format=json-row-column'.format(project), json={
@@ -303,7 +317,7 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     acquisition2 = data_builder.create_acquisition(session=session2, label='scout')
 
     # Test "project" column grouping
-    r = as_admin.post('/views/data?containerId={}'.format(session2), json={
+    r = as_admin.post('/views/data?containerId={}&format=json-flat'.format(session2), json={
         'includeIds': False,
         'includeLabels': False,
         'columns': [
@@ -317,7 +331,7 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     })
 
     assert r.ok
-    rows = r.json()['data']
+    rows = r.json()
     assert len(rows) == 1
 
     assert rows[0]['project.id'] == project
