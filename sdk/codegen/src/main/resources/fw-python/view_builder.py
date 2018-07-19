@@ -11,16 +11,21 @@ class ViewBuilder(object):
 
     :param str label: The optional label, if saving this data view.
     :param bool public: Whether or not to make this data view public when saving it.
-    :param str files: The simplified file filter match, see the files method
     :param str match: The file match type, one of: first, last, newest, oldest, all
     :param str zip_files: The zip file filter, see the zip_member_filter function
     :param list columns: The columns or column groups to add
     :param bool process_files: Whether or not to process files, default is true
     :param bool include_ids: Whether or not to include id columns, default is true
     :param bool include_labels: Whether or not to include label columns, default is true
+    :param str container: When matching files, the container to match on
+    :param str filename: When matching files, the filename pattern to match
+    :param str analysis_label: When matching analysis files, the label match string
+    :param str analysis_gear_name: When matching analysis files, the gear name match string
+    :param str analysis_gear_version: When matching analysis files, the gear version match string
     """
-    def __init__(self, label=None, public=False, files=None, match=None, zip_files=None,
-                 columns=None, process_files=True, include_ids=True, include_labels=True):
+    def __init__(self, label=None, public=False, match=None, zip_files=None, columns=None,
+                 process_files=True, include_ids=True, include_labels=True, container=None,
+                 filename=None, analysis_label=None, analysis_gear_name=None, analysis_gear_version=None):
         self._label = label
         self._public = public
         self._columns = []
@@ -40,8 +45,9 @@ class ViewBuilder(object):
         if zip_files is not None:
             self.zip_member_filter(zip_files)
 
-        if files is not None:
-            self.files(files)
+        if filename is not None:
+            self.files(container, filename, analysis_label=analysis_label,
+                analysis_gear_name=analysis_gear_name, analysis_gear_version=analysis_gear_version)
 
         # Add column/columns
         if isinstance(columns, list):
@@ -117,22 +123,28 @@ class ViewBuilder(object):
         self._columns.append(DataViewColumnSpec(src=src, dst=dst, type=type))
         return self
 
-    def files(self, pattern):
-        """Shorthand for matching files, in the form of <container>:*.ext or <container>:<analysis filter>:*.
+    def files(self, container, filename, analysis_label=None, analysis_gear_name=None, analysis_gear_version=None):
+        """Set filter for matching files
 
         Container is one of project, subject, session, acquisition
         Filename filters can use the (\*, ?) wildcards
-        Analysis filter is matching against label, and also supports wildcards.
-        :param str pattern: The file pattern to match
+        Analysis filters also support wildcards
+
+        :param str container: When matching files, the container to match on: one of project, subject, session, acquisition
+        :param str filename: When matching files, the filename pattern to match
+        :param str analysis_label: When matching analysis files, the label match string
+        :param str analysis_gear_name: When matching analysis files, the gear name match string
+        :param str analysis_gear_version: When matching analysis files, the gear version match string
         :return: self
         """
-        parts = pattern.split(':')
-        self._file_container = parts[0]
-        if len(parts) > 1:
-            self._file_filter = DataViewNameFilterSpec(value=parts[-1])
-            if len(parts) > 2:
-                filter_spec = DataViewNameFilterSpec(value=parts[1])
-                self._analysis_filter = DataViewAnalysisFilterSpec(label=filter_spec)
+        if not container or not filename:
+            raise ValueError('Both container and filename are required for file matching')
+
+        self._file_container = container
+        self._file_filter = DataViewNameFilterSpec(value=filename)
+
+        if analysis_label or analysis_gear_name or analysis_gear_version:
+            self.analysis_filter(label=analysis_label, gear_name=analysis_gear_name, gear_version=analysis_gear_version)
 
         return self
 
@@ -165,23 +177,24 @@ class ViewBuilder(object):
         self._file_match = match_value
         return self
 
-    def analysis_filter(self, label=None, gear_name=None, regex=False):
+    def analysis_filter(self, label=None, gear_name=None, gear_version=None, regex=False):
         """Set the filter to use for matching analyses. If this is set, then analyses files will be matched instead of container.
 
         :param str label: The label match string, wildcards (\*, ?) are supported.
         :param str gear_name: The gear name match string, wildcards (\*, ?) are supported.
+        :param str gear_version: The gear version match string, wildcards (\*, ?) are supported.
         :param bool regex: Whether to treat the match string as a regular expression (default is False)
         :return: self
         """
-        if (label is None and gear_name is None) or (label and gear_name):
-            raise ValueError('Expected either label or gear_name')
-
-        filter_spec = DataViewNameFilterSpec(value=(label or gear_name), regex=regex)
+        if not self._analysis_filter:
+            self._analysis_filter = DataViewAnalysisFilterSpec()
 
         if label:
-            self._analysis_filter = DataViewAnalysisFilterSpec(label=filter_spec)
-        else:
-            self._analysis_filter = DataViewAnalysisFilterSpec(gear_name=filter_spec)
+            self._analysis_filter.label = DataViewNameFilterSpec(value=label, regex=regex)
+        if gear_name:
+            self._analysis_filter.gear_name = DataViewNameFilterSpec(value=gear_name, regex=regex)
+        if gear_version:
+            self._analysis_filter.gear_version = DataViewNameFilterSpec(value=gear_version, regex=regex)
         return self
 
     def file_filter(self, value=None, regex=False):

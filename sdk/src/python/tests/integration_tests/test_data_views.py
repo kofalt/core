@@ -144,17 +144,54 @@ class DataViewTestCases(SdkTestCase):
             self.assertEqual(row, [str(self.subject.age), self.subject.sex, self.session_id, self.session.label, 
                 '', '', '', self.project_id, self.subject.id])
 
-    def test_data_view_list_files(self):
+    def test_data_view_files(self):
         fw = self.fw
 
         self.test_acquisition_id = fw.add_acquisition({'session': self.session_id, 'label': 'Acquisition2'})
 
-        poem = 'Turning and turning in the widening gyre'
-        fw.upload_file_to_acquisition(self.test_acquisition_id, flywheel.FileSpec('yeats.txt', poem))
-        fw.upload_file_to_acquisition(self.test_acquisition_id, flywheel.FileSpec('yeats2.txt', poem))
+        data = 'col1,col2\n1,10\n2,20'
+        fw.upload_file_to_acquisition(self.test_acquisition_id, flywheel.FileSpec('data1.csv', data))
+        fw.upload_file_to_acquisition(self.test_acquisition_id, flywheel.FileSpec('data2.csv', data))
 
+        # Get file data
+        view = fw.View(container='acquisition', filename='*.csv', match='all', 
+            columns=['file.name', ('file_data.col2', 'value2', 'int')])
+
+        with fw.read_view_data(view, self.project_id) as resp:
+            result = json.load(resp)
+
+        self.assertIsNotNone(result)
+        self.assertIn('data', result)
+        rows = result['data']
+        self.assertEqual(len(rows), 5)
+
+        self.assertEqual(rows[0]['acquisition.label'], 'Acquisition2')
+        self.assertEqual(rows[0]['file.name'], 'data1.csv')
+        self.assertEqual(rows[0]['col1'], '1')
+        self.assertEqual(rows[0]['value2'], 10)
+
+        self.assertEqual(rows[1]['acquisition.label'], 'Acquisition2')
+        self.assertEqual(rows[1]['file.name'], 'data1.csv')
+        self.assertEqual(rows[1]['col1'], '2')
+        self.assertEqual(rows[1]['value2'], 20)
+
+        self.assertEqual(rows[2]['acquisition.label'], 'Acquisition2')
+        self.assertEqual(rows[2]['file.name'], 'data2.csv')
+        self.assertEqual(rows[2]['col1'], '1')
+        self.assertEqual(rows[2]['value2'], 10)
+
+        self.assertEqual(rows[3]['acquisition.label'], 'Acquisition2')
+        self.assertEqual(rows[3]['file.name'], 'data2.csv')
+        self.assertEqual(rows[3]['col1'], '2')
+        self.assertEqual(rows[3]['value2'], 20)
+
+        self.assertEqual(rows[4]['acquisition.id'], self.acquisition_id)
+        self.assertEqual(rows[4]['file.name'], None)
+        self.assertEqual(rows[4]['col1'], None)
+        self.assertEqual(rows[4]['value2'], None)
+
+        # Test list files
         view = fw.View(columns=['acquisition.file'])
-        
         with fw.read_view_data(view, self.project_id) as resp:
             result = json.load(resp)
 
@@ -168,9 +205,9 @@ class DataViewTestCases(SdkTestCase):
         self.assertEqual(row['subject.id'], self.subject.id)
         self.assertEqual(row['session.id'], self.session_id)
         self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
-        self.assertEqual(row['acquisition.file.name'], 'yeats.txt')
-        self.assertEqual(row['acquisition.file.size'], 40)
-        self.assertEqual(row['acquisition.file.type'], 'text')
+        self.assertEqual(row['acquisition.file.name'], 'data1.csv')
+        self.assertEqual(row['acquisition.file.size'], 19)
+        self.assertEqual(row['acquisition.file.type'], 'tabular data')
         self.assertIn('acquisition.file.id', row)
         self.assertIn('acquisition.file.classification', row)
         
@@ -179,11 +216,11 @@ class DataViewTestCases(SdkTestCase):
         self.assertEqual(row['subject.id'], self.subject.id)
         self.assertEqual(row['session.id'], self.session_id)
         self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
-        self.assertEqual(row['acquisition.file.name'], 'yeats2.txt')
-        self.assertEqual(row['acquisition.file.size'], 40)
-        self.assertEqual(row['acquisition.file.type'], 'text')
+        self.assertEqual(row['acquisition.file.name'], 'data2.csv')
+        self.assertEqual(row['acquisition.file.size'], 19)
+        self.assertEqual(row['acquisition.file.type'], 'tabular data')
 
-        # Try to capture just 2 file attributes
+        # List files, only 2 columns
         view = fw.View(columns=['acquisition.file.name', 'acquisition.file.size'])
         
         with fw.read_view_data(view, self.project_id) as resp:
@@ -199,8 +236,8 @@ class DataViewTestCases(SdkTestCase):
         self.assertEqual(row['subject.id'], self.subject.id)
         self.assertEqual(row['session.id'], self.session_id)
         self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
-        self.assertEqual(row['acquisition.file.name'], 'yeats.txt')
-        self.assertEqual(row['acquisition.file.size'], 40)
+        self.assertEqual(row['acquisition.file.name'], 'data1.csv')
+        self.assertEqual(row['acquisition.file.size'], 19)
         self.assertNotIn('acquisition.file.type', row)
         self.assertNotIn('acquisition.file.id', row)
         self.assertNotIn('acquisition.file.classification', row)
@@ -210,8 +247,8 @@ class DataViewTestCases(SdkTestCase):
         self.assertEqual(row['subject.id'], self.subject.id)
         self.assertEqual(row['session.id'], self.session_id)
         self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
-        self.assertEqual(row['acquisition.file.name'], 'yeats2.txt')
-        self.assertEqual(row['acquisition.file.size'], 40)
+        self.assertEqual(row['acquisition.file.name'], 'data2.csv')
+        self.assertEqual(row['acquisition.file.size'], 19)
 
     def test_data_view_file_column_validation(self):
         fw = self.fw
