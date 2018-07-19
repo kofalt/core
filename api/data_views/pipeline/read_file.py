@@ -2,7 +2,7 @@ from .pipeline import PipelineStage, EndOfPayload
 
 from ..readers import create_file_reader
 from ..file_opener import FileOpener
-from ..util import file_filter_to_regex
+from ..util import file_filter_to_regex, is_nil, nil_value
 
 from ...config import log
 
@@ -94,8 +94,8 @@ class ReadFile(PipelineStage):
 
             self.emit(payload)
         else:
-            file_entry = payload.get('file')
-            if file_entry:
+            file_entry = payload.get('file', nil_value)
+            if not is_nil(file_entry):
                 self.process_file(payload, file_entry)
             else:
                 self.error_rows.append(payload)
