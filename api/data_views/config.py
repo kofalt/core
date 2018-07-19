@@ -108,7 +108,15 @@ class DataViewConfig(object):
             alias = ColumnAliases.get_column_alias(col['src'])
             if isinstance(alias, list):
                 for alias_col in alias:
-                    resolved_cols.append({'src': alias_col})
+                    # Preserve dst prefix when mapping to a group
+                    if 'dst' in col:
+                        prefix, _, colname = alias_col.rpartition('.')
+                        resolved_cols.append({
+                            'src': alias_col,
+                            'dst': col['dst'] + '.' + colname
+                        })
+                    else:
+                        resolved_cols.append({'src': alias_col})
             else:
                 resolved_cols.append(col)
 
