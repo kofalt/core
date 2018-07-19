@@ -113,6 +113,7 @@ class ViewBuilder(object):
         :param str type: The optional type for this column, one of: int, float, string bool.
         :return: self
         """
+        src, dst, type = self._preprocess_column(src, dst, type)
         self._columns.append(DataViewColumnSpec(src=src, dst=dst, type=type))
         return self
 
@@ -262,3 +263,40 @@ class ViewBuilder(object):
         self._missing_data_strategy = value
         return self
 
+    def _preprocess_column(self, src, dst, type):
+        """If file is in src name, then select but don't process files"""
+        src_parts = src.split('.')
+        file_idx = src_parts.index('file') if 'file' in src_parts else -1
+        if file_idx < 1:
+            return src, dst, type
+
+        analysis_container = False
+        file_container = src_parts[0]
+        if file_idx > 1:
+            analysis_container = True
+
+        # If we currently have a file filter, validate
+        if self._file_container:
+            if file_container != self._file_container:
+                raise ValueError('Can only select files one one container ({} already selected)'.format(self._file_container))
+            if analysis_container and not self._analysis_filter:
+                raise ValueError('Can only select files one one container ({} already selected)'.format(self._file_container))
+            elif self._analysis_filter and not analysis_container:
+                raise ValueError('Can only select files one one container ({} analyses already selected)'.format(self._file_container))
+        else:
+            # Setup the file matches.
+            # In this mode, we match all files, and drop any rows with missing data
+            self._file_container = file_container
+            self._file_filter = DataViewNameFilterSpec(value='*')
+            if analysis_container:
+                self._analysis_filter = DataViewNameFilterSpec(value='*')
+
+            self._file_match = 'all'
+            self._missing_data_strategy = 'drop-row'
+            self._process_files = False
+
+        if not dst:
+            dst = src
+        src = '.'.join(src_parts[file_idx:])
+
+        return src, dst, type

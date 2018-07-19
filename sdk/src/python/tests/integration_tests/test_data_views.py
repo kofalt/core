@@ -28,6 +28,13 @@ class DataViewTestCases(SdkTestCase):
         if cls.view_id:
             cls.fw_root.delete_view(cls.view_id)
 
+    def setUp(self):
+        self.test_acquisition_id = None
+
+    def tearDown(self):
+        if self.test_acquisition_id:
+            self.fw.delete_acquisition(self.test_acquisition_id)
+
     @classmethod
     def ensure_data_view(cls):
         if cls.view_id:
@@ -137,4 +144,93 @@ class DataViewTestCases(SdkTestCase):
             self.assertEqual(row, [str(self.subject.age), self.subject.sex, self.session_id, self.session.label, 
                 '', '', '', self.project_id, self.subject.id])
 
+    def test_data_view_list_files(self):
+        fw = self.fw
+
+        self.test_acquisition_id = fw.add_acquisition({'session': self.session_id, 'label': 'Acquisition2'})
+
+        poem = 'Turning and turning in the widening gyre'
+        fw.upload_file_to_acquisition(self.test_acquisition_id, flywheel.FileSpec('yeats.txt', poem))
+        fw.upload_file_to_acquisition(self.test_acquisition_id, flywheel.FileSpec('yeats2.txt', poem))
+
+        view = fw.View(columns=['acquisition.file'])
+        
+        with fw.read_view_data(view, self.project_id) as resp:
+            result = json.load(resp)
+
+        self.assertIsNotNone(result)
+        self.assertIn('data', result)
+        data = result['data']
+        self.assertEqual(len(data), 2)
+
+        row = data[0]
+        self.assertEqual(row['project.id'], self.project_id)
+        self.assertEqual(row['subject.id'], self.subject.id)
+        self.assertEqual(row['session.id'], self.session_id)
+        self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
+        self.assertEqual(row['acquisition.file.name'], 'yeats.txt')
+        self.assertEqual(row['acquisition.file.size'], 40)
+        self.assertEqual(row['acquisition.file.type'], 'text')
+        self.assertIn('acquisition.file.id', row)
+        self.assertIn('acquisition.file.classification', row)
+        
+        row = data[1]
+        self.assertEqual(row['project.id'], self.project_id)
+        self.assertEqual(row['subject.id'], self.subject.id)
+        self.assertEqual(row['session.id'], self.session_id)
+        self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
+        self.assertEqual(row['acquisition.file.name'], 'yeats2.txt')
+        self.assertEqual(row['acquisition.file.size'], 40)
+        self.assertEqual(row['acquisition.file.type'], 'text')
+
+        # Try to capture just 2 file attributes
+        view = fw.View(columns=['acquisition.file.name', 'acquisition.file.size'])
+        
+        with fw.read_view_data(view, self.project_id) as resp:
+            result = json.load(resp)
+
+        self.assertIsNotNone(result)
+        self.assertIn('data', result)
+        data = result['data']
+        self.assertEqual(len(data), 2)
+
+        row = data[0]
+        self.assertEqual(row['project.id'], self.project_id)
+        self.assertEqual(row['subject.id'], self.subject.id)
+        self.assertEqual(row['session.id'], self.session_id)
+        self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
+        self.assertEqual(row['acquisition.file.name'], 'yeats.txt')
+        self.assertEqual(row['acquisition.file.size'], 40)
+        self.assertNotIn('acquisition.file.type', row)
+        self.assertNotIn('acquisition.file.id', row)
+        self.assertNotIn('acquisition.file.classification', row)
+        
+        row = data[1]
+        self.assertEqual(row['project.id'], self.project_id)
+        self.assertEqual(row['subject.id'], self.subject.id)
+        self.assertEqual(row['session.id'], self.session_id)
+        self.assertEqual(row['acquisition.id'], self.test_acquisition_id)
+        self.assertEqual(row['acquisition.file.name'], 'yeats2.txt')
+        self.assertEqual(row['acquisition.file.size'], 40)
+
+    def test_data_view_file_column_validation(self):
+        fw = self.fw
+
+        try:
+            fw.View(columns=['session.file', 'acquisition.file.name'])
+            self.fail('Expected ValueError!')
+        except:
+            pass
+
+        try:
+            fw.View(columns=['session.analysis.file', 'session.file'])
+            self.fail('Expected ValueError!')
+        except:
+            pass
+
+        try:
+            fw.View(columns=['session.file', 'session.analysis.file'])
+            self.fail('Expected ValueError!')
+        except:
+            pass
 
