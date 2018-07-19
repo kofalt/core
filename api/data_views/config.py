@@ -110,7 +110,7 @@ class DataViewConfig(object):
                 for alias_col in alias:
                     # Preserve dst prefix when mapping to a group
                     if 'dst' in col:
-                        prefix, _, colname = alias_col.rpartition('.')
+                        _, _, colname = alias_col.rpartition('.')
                         resolved_cols.append({
                             'src': alias_col,
                             'dst': col['dst'] + '.' + colname
