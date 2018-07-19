@@ -7,7 +7,7 @@ from . import safe_eval
 
 # TODO: Add subject once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
-COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file' ]
+COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file', 'file_data' ]
 
 COLUMN_BLACKLIST = [ 'permissions', 'files' ]
 
