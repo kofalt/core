@@ -1379,12 +1379,12 @@ def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user,
         'includeIds': True,
         'includeLabels': False,
         'columns': [
-            { 'src': 'project.label', 'dst': 'project_label' },
-            { 'src': 'subject.code', 'dst': 'subject_label' },
+            { 'src': 'project.label' },
+            { 'src': 'subject.label' },
             { 'src': 'subject.age' },
             { 'src': 'subject.sex' },
-            { 'src': 'session.label', 'dst': 'session_label' },
-            { 'src': 'acquisition.label', 'dst': 'acquisition_label' }
+            { 'src': 'session.label' },
+            { 'src': 'acquisition.label' }
         ]
     }
 
@@ -1426,15 +1426,15 @@ def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user,
     rows = r.json()['data']
     assert len(rows) == 1
 
-    assert rows[0]['project'] == project
-    assert rows[0]['project_label'] == 'test-project'
-    assert rows[0]['subject_label'] == subject1['code']
+    assert rows[0]['project.id'] == project
+    assert rows[0]['project.label'] == 'test-project'
+    assert rows[0]['subject.label'] == subject1['code']
     assert rows[0]['subject.age'] == subject1['age']
     assert rows[0]['subject.sex'] == subject1['sex']
-    assert rows[0]['session'] == session
-    assert rows[0]['session_label'] == 'ses-01'
-    assert rows[0]['acquisition'] == acquisition
-    assert rows[0]['acquisition_label'] == 'scout'
+    assert rows[0]['session.id'] == session
+    assert rows[0]['session.label'] == 'ses-01'
+    assert rows[0]['acquisition.id'] == acquisition
+    assert rows[0]['acquisition.label'] == 'scout'
 
     # Create a project-owned view, execute and save to session
     view['label'] = 'test-data-view'
@@ -1457,13 +1457,13 @@ def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user,
     rows = r.json()['data']
     assert len(rows) == 1
 
-    assert rows[0]['project'] == project
-    assert rows[0]['project_label'] == 'test-project'
-    assert rows[0]['subject_label'] == subject1['code']
+    assert rows[0]['project.id'] == project
+    assert rows[0]['project.label'] == 'test-project'
+    assert rows[0]['subject.label'] == subject1['code']
     assert rows[0]['subject.age'] == subject1['age']
     assert rows[0]['subject.sex'] == subject1['sex']
-    assert rows[0]['session'] == session
-    assert rows[0]['session_label'] == 'ses-01'
-    assert rows[0]['acquisition'] == acquisition
-    assert rows[0]['acquisition_label'] == 'scout'
+    assert rows[0]['session.id'] == session
+    assert rows[0]['session.label'] == 'ses-01'
+    assert rows[0]['acquisition.id'] == acquisition
+    assert rows[0]['acquisition.label'] == 'scout'
 
