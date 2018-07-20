@@ -93,6 +93,50 @@
       '200':
         description: 'The view execution result'
 
+/views/save:
+  post:
+    summary: Execute a view, saving data to the target container / file
+    operationId: save_view_data
+    tags:
+    - views
+    parameters:
+      - name: containerId
+        in: query
+        type: string
+        required: true
+        description: The target container for view execution
+      - name: format
+        in: query
+        type: string
+        enum: 
+          - csv
+          - tsv
+          - json
+          - json-row-column
+        default: json
+      - name: filter
+        in: query
+        type: string
+        description: An optional filter expression
+      - name: skip
+        in: query
+        type: integer
+        description: The optional number of rows to skip
+      - name: limit
+        in: query
+        type: integer
+        description: The optional max number of rows to return
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: schemas/input/save-data-view.json
+    produces:
+      - text/event-stream
+    responses:
+      '200':
+        description: 'The view execution result'
+
 /views/{ViewId}:
   parameters:
     - name: ViewId

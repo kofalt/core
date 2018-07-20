@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf":[{"$ref":"../definitions/data-view.json#/definitions/save-data-view-input"}],
+  "example": {
+        "viewId": "5b50e35c25b313ce62673cfa",
+        "containerType": "project",
+        "containerId": "5b50e37425b313ce62673cfb",
+        "filename": "aggregate-results.csv"
+    }
+}

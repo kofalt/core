@@ -1,9 +1,11 @@
 from ..auth import require_login
 
 from .. import config, validators
+from ..create_file import FileCreator
 from ..auth import containerauth
 from ..dao import noop
-from ..web import base
+from ..dao.containerstorage import ContainerStorage
+from ..web import base, encoder
 from ..web.errors import APIStorageException, InputValidationException
 
 from .data_view import DataView
@@ -11,6 +13,9 @@ from .storage import DataViewStorage
 from .column_aliases import ColumnAliases
 
 log = config.log
+
+# TODO: Update when subjects are real
+FILE_CONTAINERS = { 'project', 'session', 'acquisition' }
 
 class DataViewHandler(base.RequestHandler):
     """Provide /views API routes."""
@@ -104,6 +109,43 @@ class DataViewHandler(base.RequestHandler):
 
     @require_login
     @validators.verify_payload_exists
+    def execute_and_save(self):
+        """Execute the data view specified, and save the results as a file"""
+
+        # Validate payload
+        payload = self.request.json
+        validators.validate_data(payload, 'save-data-view.json', 'input', 'POST')
+
+        # Ensure that exactly one is set
+        if (not payload.get('view') and not payload.get('viewId')) or (payload.get('view') and payload.get('viewId')):
+            raise InputValidationException('Must specify one of "view" object or "viewId"')
+
+        # Verify target container type
+        if payload['containerType'] not in FILE_CONTAINERS:
+            raise InputValidationException('Must one of "{}" for containerType'.format(', '.join(FILE_CONTAINERS)))
+
+        # Verify that the view exists
+        if payload.get('viewId'):
+            view_id = payload['viewId']
+            view = self.storage.get_el(view_id)
+            parent_container = self.storage.get_parent(view_id, cont=view, projection=self.parent_projection)
+            self.permcheck('GET', container=view, parent_container=parent_container)
+        else:
+            view = payload.get('view')
+
+        # Verify that the destination container exists and user can post
+        storage = ContainerStorage.factory(payload['containerType'])
+        target = storage.get_el(payload['containerId'])
+
+        if not self.user_is_admin:
+            permchecker = containerauth.default_container(target_parent_container=target)
+            permchecker(noop)('POST')
+
+        # Execute the data view
+        return self.do_execute_view(view, target, payload['containerType'], payload['filename'])
+
+    @require_login
+    @validators.verify_payload_exists
     def execute_adhoc(self):
         """Execute the data view specified in body"""
         # Validate payload
@@ -112,7 +154,7 @@ class DataViewHandler(base.RequestHandler):
 
         return self.do_execute_view(payload)
 
-    def do_execute_view(self, view_spec):
+    def do_execute_view(self, view_spec, target_container=None, target_container_type=None, target_filename=None):
         """ Complete view execution for the given view definition """
         # Find destination container and validate permissions 
         container_id = self.request.GET.get('containerId')
@@ -128,16 +170,44 @@ class DataViewHandler(base.RequestHandler):
         view.validate_config()
 
         # Prepare by searching for container_id and checking permissions
-        view.prepare(container_id, data_format, self.uid, self.pagination)
+        view.prepare(container_id, data_format, self.uid, pagination=self.pagination, report_progress=bool(target_container))
 
         def response_handler(environ, start_response): # pylint: disable=unused-argument
-            write = start_response('200 OK', [
-                ('Content-Type', view.get_content_type()),
-                ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
-                ('Connection', 'keep-alive')
-            ])
+            file_creator = None
 
-            view.execute(self.request, self.origin, write)
+            if target_container:
+                # If we're saving to container, start SSE event,
+                # and write the data to a temp file
+                write_progress = start_response('200 OK', [
+                    ('Content-Type', 'text/event-stream; charset=utf-8'),
+                    ('Connection', 'keep-alive')
+                ])
+
+                file_creator = FileCreator(self)
+                fileobj = file_creator.create_file(target_filename)
+                write = lambda data: fileobj.write(data)
+            else:
+                write = start_response('200 OK', [
+                    ('Content-Type', view.get_content_type()),
+                    ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
+                    ('Connection', 'keep-alive')
+                ])
+
+            try:
+                view.execute(self.request, self.origin, write, write_progress_fn=write_progress)
+            finally:
+                if file_creator:
+                    file_creator.close()
+
+            if target_container:
+                result = file_creator.finalize(target_container_type, target_container)
+
+                # Write final progress
+                progress = encoder.json_sse_pack({
+                    'event': 'result',
+                    'data': result,
+                })
+                write_progress(progress)
 
             return ''
 

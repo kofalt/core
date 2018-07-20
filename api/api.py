@@ -217,10 +217,11 @@ endpoints = [
         ]),
 
         prefix('/views', [
-            route('/data',             DataViewHandler, h='execute_adhoc',   m=['POST']),
-            route('/columns',          DataViewHandler, h='get_columns',     m=['GET']),
-            route('/<_id:{oid}>',      DataViewHandler,                      m=['GET', 'DELETE', 'PUT']),
-            route('/<_id:{oid}>/data', DataViewHandler, h='execute_saved',   m=['GET'])
+            route('/data',             DataViewHandler, h='execute_adhoc',     m=['POST']),
+            route('/save',             DataViewHandler, h='execute_and_save',  m=['POST']),
+            route('/columns',          DataViewHandler, h='get_columns',       m=['GET']),
+            route('/<_id:{oid}>',      DataViewHandler,                        m=['GET', 'DELETE', 'PUT']),
+            route('/<_id:{oid}>/data', DataViewHandler, h='execute_saved',     m=['GET'])
         ]),
 
 
