@@ -17,8 +17,8 @@ class ReportProgress(PipelineStage):
         self._last_write = datetime.utcnow()
         self._progressobj = progressobj
 
-    """Pipeline stage that writes SSE progress"""
     def process(self, payload):
+        """Pipeline stage that writes SSE progress"""
         if payload != EndOfPayload:
             # Keep unmatched values at the end
             elapsed = datetime.utcnow() - self._last_write

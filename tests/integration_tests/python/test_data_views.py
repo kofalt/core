@@ -1266,7 +1266,7 @@ def test_data_view_skip_and_limit(data_builder, file_form, as_admin):
         assert isinstance(row['value2'], float)
         assert row['value2'] == 2*j
 
-def test_save_data_view_to_container(data_builder, file_form, as_admin):
+def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user, as_public):
     project = data_builder.create_project(label='test-project')
     session = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition = data_builder.create_acquisition(session=session, label='scout')
@@ -1284,6 +1284,26 @@ def test_save_data_view_to_container(data_builder, file_form, as_admin):
         ]
     }
 
+    # No public access
+    r = as_public.post('/views/save?containerId={}'.format(project), json={
+        'view': view,
+        'containerType': 'project',
+        'containerId': project,
+        'filename': 'data_view.json'
+    })
+    assert r.status_code == 403
+
+    # No user access (Can't save to container)
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'ro'})
+    assert r.ok
+
+    r = as_user.post('/views/save?containerId={}'.format(project), json={
+        'view': view,
+        'containerType': 'project',
+        'containerId': project,
+        'filename': 'data_view.json'
+    })
+    assert r.status_code == 403
 
     # Execute adhoc view and save it to project
     r = as_admin.post('/views/save?containerId={}'.format(project), json={

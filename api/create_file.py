@@ -52,7 +52,6 @@ class FileCreator(object):
             list: The list of files that were saved
         """
         timestamp = datetime.datetime.utcnow()
-        context = { 'uid': self.handler.uid }
         origin = self.handler.origin
 
         # Construct the file metadata list

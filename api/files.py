@@ -41,7 +41,7 @@ class FileProcessor(object):
             str, file: The path and opened file
         """
         filename = str(uuid.uuid4())
-        fileobj = self._temp_fs.open(filename, 'wb')
+        fileobj = self._temp_fs.open(filename, mode)
         return filename, FileHasherWriter(fileobj)
 
     def store_temp_file(self, src_path, dst_path, dst_fs=None):
