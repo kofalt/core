@@ -173,41 +173,37 @@ class DataViewHandler(base.RequestHandler):
         view.prepare(container_id, data_format, self.uid, pagination=self.pagination, report_progress=bool(target_container))
 
         def response_handler(environ, start_response): # pylint: disable=unused-argument
-            file_creator = None
+            write_progress=None
 
-            if target_container:
-                # If we're saving to container, start SSE event,
-                # and write the data to a temp file
-                write_progress = start_response('200 OK', [
-                    ('Content-Type', 'text/event-stream; charset=utf-8'),
-                    ('Connection', 'keep-alive')
-                ])
+            with FileCreator(self, target_container_type, target_container) as file_creator:
+                if target_container:
+                    # If we're saving to container, start SSE event,
+                    # and write the data to a temp file
+                    write_progress = start_response('200 OK', [
+                        ('Content-Type', 'text/event-stream; charset=utf-8'),
+                        ('Connection', 'keep-alive')
+                    ])
 
-                file_creator = FileCreator(self)
-                fileobj = file_creator.create_file(target_filename)
-                write = lambda data: fileobj.write(data)
-            else:
-                write = start_response('200 OK', [
-                    ('Content-Type', view.get_content_type()),
-                    ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
-                    ('Connection', 'keep-alive')
-                ])
+                    fileobj = file_creator.create_file(target_filename)
+                    write = lambda data: fileobj.write(data)
+                else:
+                    write = start_response('200 OK', [
+                        ('Content-Type', view.get_content_type()),
+                        ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
+                        ('Connection', 'keep-alive')
+                    ])
 
-            try:
                 view.execute(self.request, self.origin, write, write_progress_fn=write_progress)
-            finally:
-                if file_creator:
-                    file_creator.close()
 
-            if target_container:
-                result = file_creator.finalize(target_container_type, target_container)
+                if target_container:
+                    result = file_creator.finalize()
 
-                # Write final progress
-                progress = encoder.json_sse_pack({
-                    'event': 'result',
-                    'data': result,
-                })
-                write_progress(progress)
+                    # Write final progress
+                    progress = encoder.json_sse_pack({
+                        'event': 'result',
+                        'data': result,
+                    })
+                    write_progress(progress)
 
             return ''
 

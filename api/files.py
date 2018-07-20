@@ -28,7 +28,18 @@ class FileProcessor(object):
         else:
             self._temp_fs = fs.tempfs.TempFS('tmp')
 
-    def make_temp_file(self):
+    def make_temp_file(self, mode='wb'):
+        """Create and open a temporary file for writing.
+
+        The file that is opened is wrapped in a FileHasherWriter, so once writing is
+        complete, you can get the size and hash of the written file.
+        
+        Arguments:
+            mode (str): The open mode (default is 'wb')
+
+        Returns:
+            str, file: The path and opened file
+        """
         filename = str(uuid.uuid4())
         fileobj = self._temp_fs.open(filename, 'wb')
         return filename, FileHasherWriter(fileobj)
@@ -139,6 +150,7 @@ class FileHasherWriter(object):
 
     @property
     def hash(self):
+        """Return the formatted hash of the file"""
         return util.format_hash(self.hash_alg, self.hasher.hexdigest())
 
     def write(self, data):
