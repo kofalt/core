@@ -1266,24 +1266,28 @@ def test_data_view_skip_and_limit(data_builder, file_form, as_admin):
         assert isinstance(row['value2'], float)
         assert row['value2'] == 2*j
 
-def test_save_data_view_to_project(data_builder, file_form, as_admin):
+def test_save_data_view_to_container(data_builder, file_form, as_admin):
     project = data_builder.create_project(label='test-project')
     session = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition = data_builder.create_acquisition(session=session, label='scout')
 
+    view = {
+        'includeIds': True,
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project_label' },
+            { 'src': 'subject.code', 'dst': 'subject_label' },
+            { 'src': 'subject.age' },
+            { 'src': 'subject.sex' },
+            { 'src': 'session.label', 'dst': 'session_label' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition_label' }
+        ]
+    }
+
+
+    # Execute adhoc view and save it to project
     r = as_admin.post('/views/save?containerId={}'.format(project), json={
-        'view': {
-            'includeIds': True,
-            'includeLabels': False,
-            'columns': [
-                { 'src': 'project.label', 'dst': 'project_label' },
-                { 'src': 'subject.code', 'dst': 'subject_label' },
-                { 'src': 'subject.age' },
-                { 'src': 'subject.sex' },
-                { 'src': 'session.label', 'dst': 'session_label' },
-                { 'src': 'acquisition.label', 'dst': 'acquisition_label' }
-            ]
-        },
+        'view': view,
         'containerType': 'project',
         'containerId': project,
         'filename': 'data_view.json'
@@ -1291,6 +1295,7 @@ def test_save_data_view_to_project(data_builder, file_form, as_admin):
 
     assert r.ok
 
+    # Verify the contents of the file saved to the project
     r = as_admin.get('/projects/{}/files/data_view.json'.format(project))
     assert r.ok
 
@@ -1306,3 +1311,35 @@ def test_save_data_view_to_project(data_builder, file_form, as_admin):
     assert rows[0]['session_label'] == 'ses-01'
     assert rows[0]['acquisition'] == acquisition
     assert rows[0]['acquisition_label'] == 'scout'
+
+    # Create a project-owned view, execute and save to session
+    view['label'] = 'test-data-view'
+    r = as_admin.post('/containers/' + project + '/views', json=view)
+    assert r.ok
+    view_id = r.json()['_id']
+
+    r = as_admin.post('/views/save?containerId={}'.format(project), json={
+        'viewId': view_id,
+        'containerType': 'session',
+        'containerId': session,
+        'filename': 'saved_data_view.json'
+    })
+    assert r.ok
+
+    # Verify the contents of the file saved to the project
+    r = as_admin.get('/sessions/{}/files/saved_data_view.json'.format(session))
+    assert r.ok
+
+    rows = r.json()['data']
+    assert len(rows) == 1
+
+    assert rows[0]['project'] == project
+    assert rows[0]['project_label'] == 'test-project'
+    assert rows[0]['subject_label'] == subject1['code']
+    assert rows[0]['subject.age'] == subject1['age']
+    assert rows[0]['subject.sex'] == subject1['sex']
+    assert rows[0]['session'] == session
+    assert rows[0]['session_label'] == 'ses-01'
+    assert rows[0]['acquisition'] == acquisition
+    assert rows[0]['acquisition_label'] == 'scout'
+
