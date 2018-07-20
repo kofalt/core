@@ -29,6 +29,7 @@ from .pipeline.read_file import ReadFile
 from .pipeline.missing_data_strategies import get_missing_data_strategy
 from .pipeline.filter import Filter
 from .pipeline.skip_limit import SkipAndLimit
+from .pipeline.report_progress import ReportProgress
 
 # TODO: subjects belong here once formalized
 SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
@@ -57,6 +58,9 @@ class DataView(object):
         # The write function
         self._write_fn = None
 
+        # The write progress function
+        self._write_progress_fn = None
+
         # The pipeline stage that logs access
         self._log_access_stage = LogAccess(self.config)
 
@@ -71,7 +75,12 @@ class DataView(object):
         """Write data to the response"""
         self._write_fn(data)
 
-    def prepare(self, container_id, output_format, uid, pagination=None):
+    def write_progress(self, data):
+        """Write progress data to the response"""
+        if self._write_progress_fn:
+            self._write_progress_fn(data)
+
+    def prepare(self, container_id, output_format, uid, pagination=None, report_progress=False):
         """Prepare the data view execution by looking up container_id and checking permissions.
 
         Then build the data pipeline.
@@ -90,7 +99,7 @@ class DataView(object):
         self.config.initialize_columns()
 
         # Build the pipeline processor
-        self.build_pipeline(output_format, pagination)
+        self.build_pipeline(output_format, pagination, report_progress)
 
         # Search for starting container
         if bson.ObjectId.is_valid(container_id):
@@ -117,7 +126,7 @@ class DataView(object):
             if not has_access(uid, cont, 'ro'):
                 raise APIPermissionException('User {} does not have read access to {} {}'.format(uid, cont['cont_type'], cont['_id']))
 
-    def build_pipeline(self, output_format, pagination):
+    def build_pipeline(self, output_format, pagination, report_progress):
         config = self.config
 
         # Add filtered columns to the spec
@@ -177,6 +186,10 @@ class DataView(object):
         if pagination and ('limit' in pagination or 'skip' in pagination):
             self.pipeline.pipe(SkipAndLimit(pagination))
 
+        # Add the optional progress report stage
+        if report_progress:
+            self.pipeline.pipe(ReportProgress(self))
+
         # Add the output stage
         formatter = get_formatter(output_format, self)
         self._content_type = formatter.get_content_type()
@@ -191,9 +204,10 @@ class DataView(object):
         """Add the correct extension to basename"""
         return '{}{}'.format(basename, self._file_extension)
 
-    def execute(self, request, origin, write_fn):
+    def execute(self, request, origin, write_fn, write_progress_fn=None):
         # Store the write_fn so write() calls succeed
         self._write_fn = write_fn
+        self._write_progress_fn = write_progress_fn
 
         # Set the request/origin on access log
         self._log_access_stage.set_request_origin(request, origin)

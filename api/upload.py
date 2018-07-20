@@ -142,23 +142,8 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
         # create a file-attribute map commonly used elsewhere in the codebase.
         # Stands in for a dedicated object... for now.
-        file_attrs = {
-            '_id': field.uuid,
-            'name': field.filename,
-            'modified': field.modified,
-            'size': field.size,
-            'mimetype': field.mimetype,
-            'hash': field.hash,
-            'origin': origin,
+        file_attrs = make_file_attrs(field, origin)
 
-            'type': None,
-            'modality': None,
-            'classification': {},
-            'tags': [],
-            'info': {}
-        }
-
-        file_attrs['type'] = files.guess_type_from_filename(file_attrs['name'])
         placer.process_file_field(field, file_attrs)
 
     # Respond either with Server-Sent Events or a standard json map
@@ -384,3 +369,25 @@ def extract_file_fields(form):
             result.append(field)
 
     return result
+
+def make_file_attrs(field, origin):
+    # create a file-attribute map commonly used elsewhere in the codebase.
+    # Stands in for a dedicated object... for now.
+    file_attrs = {
+        '_id': field.uuid,
+        'name': field.filename,
+        'modified': field.modified,
+        'size': field.size,
+        'mimetype': field.mimetype,
+        'hash': field.hash,
+        'origin': origin,
+
+        'type': None,
+        'modality': None,
+        'classification': {},
+        'tags': [],
+        'info': {}
+    }
+
+    file_attrs['type'] = files.guess_type_from_filename(file_attrs['name'])
+    return file_attrs
