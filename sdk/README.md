@@ -5,8 +5,25 @@ An SDK for interaction with a remote Flywheel instance, in Python, and Matlab!
 ## [Matlab Getting Started](https://flywheel-io.github.io/core/branches/master/matlab/getting_started.html)
 
 # Development
+NOTE: Docker is required for most development processes.
+
 Gradle is used to build the various components of the SDK. Docker shortcuts are provided in the `docker/` folder to generate code, or run in the docker container.
 (e.g `docker/run-in-docker.sh /bin/bash` to then run `gradle build` and keep the gradle daemon alive)
+
+# Building
+Running `sdk/make.sh [version number]` will build the matlab toolbox and python wheel in the `sdk/dist` folder.
+
+# Testing
+After running make.sh (above), tests can be run by invoking `sdk/scripts/docker-tests.sh`
+
+### docker-tests.sh usage
+* To enter a test shell, use `--shell` (`-s`)
+* To skip building the image, use `--no-build` (`-B`)
+* To test with python2 (python3 is the default), use `--python2`
+* Any additional arguments are passed to `py.test`:
+    * To run only a subset of test, use the [keyword expression filter](https://docs.pytest.org/en/latest/usage.html#specifying-tests-selecting-tests) `-k`
+    * To see `print` output during tests, increase verbosity with `-vvv`
+    * To get a debugger session on failures, use [`--pdb`](https://docs.pytest.org/en/latest/usage.html#dropping-to-pdb-python-debugger-on-failures)
 
 # Components
 
