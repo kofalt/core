@@ -138,7 +138,7 @@ class DataViewHandler(base.RequestHandler):
         target = storage.get_el(payload['containerId'])
 
         if not self.user_is_admin:
-            permchecker = containerauth.default_container(target_parent_container=target)
+            permchecker = containerauth.default_container(self, target_parent_container=target)
             permchecker(noop)('POST')
 
         # Execute the data view
@@ -185,7 +185,7 @@ class DataViewHandler(base.RequestHandler):
                     ])
 
                     fileobj = file_creator.create_file(target_filename)
-                    write = lambda data: fileobj.write(data)
+                    write = fileobj.write 
                 else:
                     write = start_response('200 OK', [
                         ('Content-Type', view.get_content_type()),
