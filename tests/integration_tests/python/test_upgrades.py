@@ -399,7 +399,7 @@ def test_52(data_builder, api_db, as_admin, file_form, database, default_payload
 
     # Create analysis
     analysis_id = api_db.analyses.insert_one({
-        'job': job1_id,
+        'job': str(job1_id),
         'inputs': []
     }).inserted_id
     assert analysis_id
