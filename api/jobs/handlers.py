@@ -279,10 +279,13 @@ class RulesHandler(base.RequestHandler):
         validate_regexes(payload)
         validate_gear_config(get_gear(payload['gear_id']), payload.get('config'))
 
+        gear_name = get_gear(payload['gear_id'])['gear']['name']
+        gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
+
         if payload.get('auto_update'):
             if payload.get('config'):
                 raise InputValidationException("Gear rule cannot be auto-updated with a config")
-            elif payload['gear_id'] != str(get_latest_gear(get_gear(payload['gear_id'])['gear'].get('name'))['_id']):
+            elif payload['gear_id'] != gear_id_latest_version:
                 raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")
 
         payload['project_id'] = cid
@@ -336,9 +339,12 @@ class RuleHandler(base.RequestHandler):
         if updates.get('config') and (updates.get('auto_update') or doc.get('auto_update')):
             raise InputValidationException("Gear rule cannot be auto-updated with a config")
 
+        gear_name = get_gear(doc['gear_id'])['gear']['name']
+        gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
+
         if updates.get("auto_update"):
-            if updates.get('gear_id') != str(get_latest_gear(get_gear(doc['gear_id'])['gear'].get('name'))['_id']):
-                if doc['gear_id'] != str(get_latest_gear(get_gear(doc['gear_id'])['gear'].get('name'))['_id']):
+            if updates.get('gear_id') != gear_id_latest_version:
+                if doc['gear_id'] != gear_id_latest_version:
                     raise InputValidationException("Gear rule cannot be auto-updated unless it is using the latest version of the gear")
             updates["config"] = {}
 
