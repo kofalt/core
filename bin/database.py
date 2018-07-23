@@ -1746,7 +1746,7 @@ def upgrade_job_to_52(job, gears):
     }}
     config.db.jobs.update_one({'_id': job_id}, update_doc)
     update_doc['$set']['gear_info']['id'] = gear_id
-    config.db.analyses.update_one({'job': job_id}, update_doc)
+    config.db.analyses.update_one({'job': str(job_id)}, update_doc)
     return True
 
 def upgrade_to_52():
