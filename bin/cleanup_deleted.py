@@ -13,7 +13,7 @@ import pymongo
 
 from fs import open_fs
 
-from api import util
+from api import util, files
 
 
 log = logging.getLogger('cleanup_deleted')
@@ -69,6 +69,15 @@ def cleanup_files(remove_all, origins):
         log.info("Cleaning up %s" % container)
 
         cursor = db.get_collection(container).aggregate([
+            {'$unwind': '$files'},
+            {
+                '$lookup': {
+                    'from': "files",
+                    'localField': "files",
+                    'foreignField': "_id",
+                    'as': "files"
+                }
+            },
             {
                 "$match": {
                     "$or": [
@@ -132,9 +141,8 @@ def cleanup_files(remove_all, origins):
                         fs.remove(uuid_path)
 
                     log.debug('    removing from database')
-                    updated_doc = db.get_collection(container).update({'_id': document['_id']},
-                                                                      {'$pull': {'files': {'_id': f['_id']}}})
-                    if not updated_doc['nModified']:
+                    result = db.get_collection('files').delete_one({'_id': f['_id']})
+                    if result.deleted_count == 0:
                         log.error('    couldn\'t remove file from database')
                         exit(1)
 

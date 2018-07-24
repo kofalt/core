@@ -37,6 +37,7 @@ def _filter_check(property_filter, property_values):
 class Download(base.RequestHandler):
 
     def _append_targets(self, targets, cont_name, container, prefix, total_size, total_cnt, filters):
+        files.resolve_file_references(container)
         inputs = [('input', f) for f in container.get('inputs', [])]
         outputs = [('output', f) for f in container.get('files', [])]
         for file_group, f in inputs + outputs:
@@ -81,24 +82,22 @@ class Download(base.RequestHandler):
                 self.abort(400, 'Bulk download only supports files in projects, sessions, analyses and acquisitions')
             cont_name   = pluralize(fref.get('container_name',''))
 
+            # Try to find the file reference in the database (filtering on user permissions)
+            bid = bson.ObjectId(cont_id)
+            query = {'_id': bid}
+            if not self.superuser_request:
+                query['permissions._id'] = self.uid
+            query['files'] = { '$elemMatch': {
+                    'name': filename
+                }
+            }
+            file_obj = files.get_file_of_container(cont_name, query)
 
-            file_obj = None
-            try:
-                # Try to find the file reference in the database (filtering on user permissions)
-                bid = bson.ObjectId(cont_id)
-                query = {'_id': bid}
-                if not self.superuser_request:
-                    query['permissions._id'] = self.uid
-                file_obj = config.db[cont_name].find_one(
-                    query,
-                    {'files': { '$elemMatch': {
-                        'name': filename
-                    }}
-                })['files'][0]
-            except Exception: # pylint: disable=broad-except
+            if not file_obj:
                 # self.abort(404, 'File {} on Container {} {} not found'.format(filename, cont_name, cont_id))
                 # silently skip missing files/files user does not have access to
-                self.log.warn("Expected file {} on Container {} {} to exist but it is missing. File will be skipped in download.".format(filename, cont_name, cont_id))
+                self.log.warn("Expected file {} on Container {} {} to exist but it is missing. "
+                              "File will be skipped in download.".format(filename, cont_name, cont_id))
                 continue
 
             file_path = files.get_file_path(file_obj)
@@ -432,11 +431,23 @@ class Download(base.RequestHandler):
             pipeline = [
                 {'$match': cont_query[cont_name]},
                 {'$unwind': '$files'},
-                {'$project': {'_id': '$_id', 'type': '$files.type','mbs': {'$divide': ['$files.size', BYTES_IN_MEGABYTE]}}},
+                {
+                    '$lookup': {
+                        'from': "files",
+                        'localField': "files",
+                        'foreignField': "_id",
+                        'as': "files"
+                    }
+                },
+                {'$unwind': '$files'},
+                {'$project': {
+                    '_id': '$_id',
+                    'type': '$files.type',
+                    'mbs': {'$divide': ['$files.size', BYTES_IN_MEGABYTE]}}},
                 {'$group': {
                     '_id': '$type',
-                    'count': {'$sum' : 1},
-                    'mb_total': {'$sum':'$mbs'}
+                    'count': {'$sum': 1},
+                    'mb_total': {'$sum': '$mbs'}
                 }}
             ]
 

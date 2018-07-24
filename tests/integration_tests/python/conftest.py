@@ -217,38 +217,6 @@ def with_user(data_builder, randstr, as_public):
     return attrdict.AttrDict(user=user, api_key=api_key, session=session)
 
 
-@pytest.yield_fixture(scope='function')
-def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):
-    """Yield legacy CAS file"""
-    project = data_builder.create_project()
-    file_name = '%s.csv' % randstr()
-    file_content = randstr()
-    as_admin.post('/projects/' + project + '/files', files=file_form((file_name, file_content)))
-
-    file_info = api_db['projects'].find_one(
-        {'files.name': file_name}
-    )['files'][0]
-    file_id = file_info['_id']
-    file_hash = file_info['hash']
-    # verify cas backward compatibility
-    api_db['projects'].find_one_and_update(
-        {'files.name': file_name},
-        {'$unset': {'files.$._id': ''}}
-    )
-
-    file_path = unicode(util.path_from_hash(file_hash))
-    target_dir = fs.path.dirname(file_path)
-    if not config.local_fs.exists(target_dir):
-        config.local_fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.fs, src_path=util.path_from_uuid(file_id), dst_fs=config.local_fs, dst_path=file_path)
-
-    yield (project, file_name, file_content)
-
-    # clean up
-    config.local_fs.remove(file_path)
-    config.local_fs.removetree(target_dir)
-    api_db['projects'].delete_one({'_id': project})
-
 class BaseUrlSession(requests.Session):
     """Requests session subclass using core api's base url"""
     def __init__(self, *args, **kwargs):

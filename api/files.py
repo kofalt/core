@@ -256,3 +256,37 @@ def get_fs_by_file_path(file_path):
 
     else:
         raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
+
+
+def resolve_file_references(cont):
+    if not cont:
+        return
+    print(cont)
+    if 'files' in cont:
+        cont['files'] = list(config.db['files'].find({'_id': {'$in': cont['files']}}).sort([('created', 1)]))
+    if 'inputs' in cont:
+        cont['inputs'] = list(config.db['files'].find({'_id': {'$in': cont['inputs']}}).sort([('created', 1)]))
+
+
+def get_file_of_container(cont_name, query):
+    pipeline = [
+        {'$unwind': {'path': '$files', 'preserveNullAndEmptyArrays': True}},
+        {
+            '$lookup': {
+                'from': "files",
+                'localField': "files",
+                'foreignField': "_id",
+                'as': "files"
+            }
+        },
+        {
+            '$match': query
+        }
+    ]
+
+    cursor = config.db[cont_name].aggregate(pipeline)
+
+    result = next(cursor, None)
+
+    if result and result.get('files'):
+        return result.get('files')[0]

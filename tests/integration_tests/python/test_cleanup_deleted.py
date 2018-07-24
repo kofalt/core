@@ -37,15 +37,13 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     # Test that the file won't be deleted if it was deleted in the last 72 hours
     d = datetime.datetime.now() - datetime.timedelta(hours=70)
 
-    api_db['sessions'].find_one_and_update(
-        {'files.name': file_name_1},
-        {'$set': {'files.$.deleted': d}}
-    )
-
-    file_info = api_db['sessions'].find_one(
-        {'files.name': file_name_1}
-    )['files'][0]
+    file_info = as_admin.get('/sessions/' + session_id + '/files/' + file_name_1 + '/info').json()
     file_id_1 = file_info['_id']
+
+    api_db['files'].find_one_and_update(
+        {'_id': file_id_1},
+        {'$set': {'deleted': d}}
+    )
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
@@ -54,9 +52,9 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     # file won't be deleted after 72 hours if the origin is a user
     d = datetime.datetime.now() - datetime.timedelta(hours=73)
 
-    api_db['sessions'].find_one_and_update(
-        {'files.name': file_name_1},
-        {'$set': {'files.$.deleted': d}}
+    api_db['files'].find_one_and_update(
+        {'_id': file_id_1},
+        {'$set': {'deleted': d}}
     )
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
@@ -64,9 +62,9 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     assert config.fs.exists(util.path_from_uuid(file_id_1))
 
     # file deleted after 72 hours if the origin is not a user
-    api_db['sessions'].find_one_and_update(
-        {'files.name': file_name_1},
-        {'$set': {'files.$.origin.type': 'device'}}
+    api_db['files'].find_one_and_update(
+        {'_id': file_id_1},
+        {'$set': {'origin.type': 'device'}}
     )
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
@@ -75,8 +73,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     assert not config.fs.exists(util.path_from_uuid(file_id_1))
 
     # file also removed from the database
-    document = api_db['sessions'].find_one(
-        {'files.name': file_name_1}
+    document = api_db['files'].find_one(
+        {'_id': file_id_1}
     )
 
     assert document is None
@@ -102,15 +100,10 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
         {'$set': {'deleted': d}}
     )
 
-    # Upload two test file
-    file_info = api_db['sessions'].find_one(
-        {'files.name': file_name_2}
-    )['files'][0]
+    file_info = as_admin.get('/sessions/' + session_id_2 + '/files/' + file_name_2 + '/info').json()
     file_id_2 = file_info['_id']
 
-    file_info = api_db['sessions'].find_one(
-        {'files.name': file_name_3}
-    )['files'][1]
+    file_info = as_admin.get('/sessions/' + session_id_2 + '/files/' + file_name_3 + '/info').json()
     file_id_3 = file_info['_id']
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
@@ -133,9 +126,9 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     assert config.fs.exists(util.path_from_uuid(file_id_3))
 
     # file deleted after 72 hours if the origin is not a user
-    api_db['sessions'].find_one_and_update(
-        {'files.name': file_name_2},
-        {'$set': {'files.$.origin.type': 'device'}}
+    api_db['files'].find_one_and_update(
+        {'_id': file_id_2},
+        {'$set': {'origin.type': 'device'}}
     )
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
@@ -151,9 +144,7 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     file_content_4 = randstr()
     as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_4, file_content_4)))
 
-    file_info = api_db['sessions'].find_one(
-        {'files.name': file_name_4}
-    )['files'][0]
+    file_info = as_admin.get('/sessions/' + session_id + '/files/' + file_name_4 + '/info').json()
     file_id_4 = file_info['_id']
 
     # with --all flag we delete every files which are marked to delete

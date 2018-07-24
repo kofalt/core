@@ -9,7 +9,7 @@ import pytest
 from api import config, util
 
 
-def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
+def test_download_k(data_builder, file_form, as_admin, api_db):
     project = data_builder.create_project(label='project1')
     session = data_builder.create_session(label='session1', project=project)
     session2 = data_builder.create_session(label='session1', project=project)
@@ -163,33 +163,9 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     r = as_admin.get('/download', params={'ticket': ticket, 'symlinks': 'true'})
     assert r.ok
 
-    # test legacy cas file handling
-    (project_legacy, file_name_legacy, file_content) = legacy_cas_file
-    r = as_admin.post('/download', json={
-        'optional': False,
-        'nodes': [
-            {'level': 'project', '_id': project_legacy},
-        ]
-    })
-    assert r.ok
-    ticket = r.json()['ticket']
+    # test missing file handling
 
-    # Perform the download
-    r = as_admin.get('/download', params={'ticket': ticket})
-    assert r.ok
-
-    tar_file = cStringIO.StringIO(r.content)
-    tar = tarfile.open(mode="r", fileobj=tar_file)
-
-    # Verify a single file in tar with correct file name
-    for tarinfo in tar:
-        assert os.path.basename(tarinfo.name) == file_name_legacy
-
-    tar.close()
-
-    # test missing file hangling
-
-    file_id = api_db.acquisitions.find_one({'_id': ObjectId(acquisition)})['files'][0]['_id']
+    file_id = api_db.acquisitions.find_one({'_id': ObjectId(acquisition)})['files'][0]
     config.fs.remove(util.path_from_uuid(file_id))
 
     r = as_admin.post('/download', json={
@@ -218,7 +194,7 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     tar.close()
 
 
-def test_filelist_download(data_builder, file_form, as_admin, legacy_cas_file):
+def test_filelist_download(data_builder, file_form, as_admin):
     session = data_builder.create_session()
     zip_cont = cStringIO.StringIO()
     with zipfile.ZipFile(zip_cont, 'w') as zip_file:
@@ -226,6 +202,11 @@ def test_filelist_download(data_builder, file_form, as_admin, legacy_cas_file):
     zip_cont.seek(0)
     session_files = '/sessions/' + session + '/files'
     as_admin.post(session_files, files=file_form('one.csv'))
+
+    # try to get non-existent file
+    r = as_admin.get(session_files + '/non-existent.csv')
+    assert r.status_code == 404
+
     as_admin.post(session_files, files=file_form(('two.zip', zip_cont)))
 
     # try to get non-existent file
@@ -273,17 +254,6 @@ def test_filelist_download(data_builder, file_form, as_admin, legacy_cas_file):
     # get zip member
     r = as_admin.get(session_files + '/two.zip', params={'ticket': ticket, 'member': 'two.csv'})
     assert r.ok
-
-    # test legacy cas file handling
-    (project, file_name, file_content) = legacy_cas_file
-    r = as_admin.get('/projects/' + project + '/files/' + file_name, params={'ticket': ''})
-    assert r.ok
-
-    ticket = r.json()['ticket']
-
-    r = as_admin.get('/projects/' + project + '/files/' + file_name, params={'ticket': ticket})
-    assert r.ok
-    assert r.content == file_content
 
 
 def test_filelist_range_download(data_builder, as_admin, file_form):

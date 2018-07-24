@@ -451,12 +451,11 @@ class AnalysisStorage(ContainerStorage):
         for i, fileref_dict in enumerate(analysis.get('inputs', [])):
             try:
                 fileref = containerutil.create_filereference_from_dictionary(fileref_dict)
-            except KeyError:
-                # Legacy analyses already have fileinfos as inputs instead of filerefs
+            except TypeError:
+                # Legacy analyses already have file ids
                 pass
             else:
-                analysis['inputs'][i] = fileref.get_file()
-
+                analysis['inputs'][i] = fileref.get_file()['_id']
 
         result = super(AnalysisStorage, self).create_el(analysis)
         if not result.acknowledged:

@@ -6,8 +6,7 @@ import pymongo.errors
 from . import consistencychecker
 from . import containerutil
 from . import dbutil
-from .. import config
-from .. import util
+from .. import config, files, util
 
 from ..types import Origin
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
@@ -307,6 +306,7 @@ class ContainerStorage(object):
         cont = self.dbc.find_one({'_id': _id, 'deleted': {'$exists': False}}, projection)
         if self.cont_name == 'sessions' and cont and 'subject' in cont:
             ContainerStorage.join_subjects([cont])
+        files.resolve_file_references(cont)
         self._from_mongo(cont)
         if fill_defaults:
             self._fill_default_values(cont)
@@ -358,6 +358,7 @@ class ContainerStorage(object):
             ContainerStorage.join_subjects(results)
 
         for cont in results:
+            files.resolve_file_references(cont)
             self.filter_container_files(cont)
             self._from_mongo(cont)
             if fill_defaults:

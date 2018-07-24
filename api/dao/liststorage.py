@@ -5,8 +5,7 @@ import datetime
 
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
 from . import consistencychecker
-from .. import config
-from .. import util
+from .. import config, files, util
 from ..jobs import rules
 from ..handlers.modalityhandler import check_and_format_classification
 from .containerstorage import SessionStorage, AcquisitionStorage
@@ -137,8 +136,54 @@ class FileStorage(ListStorage):
     def __init__(self, cont_name):
         super(FileStorage,self).__init__(cont_name, 'files', use_object_id=True)
 
+    def get_container(self, _id, query_params=None):
+        """
+        Load a container from the _id.
+
+        This method is usually used to to check permission properties of the container.
+        e.g. list of users that can access the container
+
+        For simplicity we load its full content.
+        """
+        if self.use_object_id:
+            _id = bson.objectid.ObjectId(_id)
+
+        query = {'_id': _id}
+        if query_params:
+            pipeline = [
+                {'$unwind': '$files'},
+                {
+                    '$lookup': {
+                        'from': "files",
+                        'localField': "files",
+                        'foreignField': "_id",
+                        'as': "files"
+                    }
+                }
+            ]
+            query['files'] = {'$elemMatch': query_params}
+            projection = {self.list_name: 1, 'permissions': 1, 'public': 1}
+            pipeline.append({'$project': projection})
+            pipeline.append({'$match': query})
+            cursor = self.dbc.aggregate(pipeline)
+            result = next(cursor, None)
+
+            if result:
+                # If more files matched, join them
+                for r in cursor:
+                    result['files'].append(r['files'][0])
+
+            return result
+        else:
+            cont = self.dbc.find_one(query)
+            files.resolve_file_references(cont)
+            return cont
+
     def _create_jobs(self, container_before):
         container_after = self.get_container(container_before['_id'])
+        print('===============================================================')
+        print(container_after)
+        print(container_before)
         return rules.create_jobs(config.db, container_before, container_after, self.cont_name)
 
     def _update_el(self, _id, query_params, payload, exclude_params):
@@ -148,12 +193,14 @@ class FileStorage(ListStorage):
                     _id, self.cont_name
                 ))
 
+        ##############################################################################################################
         mod_elem = {}
         update = {}
+        query = {}
+        file_ = self._get_el(_id, query_params)
 
         if 'modality' in payload:
             # Check to see if they are setting a new modality. If so, clear everything but the custom fields
-            file_ = self.get_list_item(_id, query_params)
             if file_.get('modality') and file_['modality'] != payload['modality']:
                 if file_.get('classification'):
                     payload['classification'] = {}
@@ -161,24 +208,31 @@ class FileStorage(ListStorage):
                         payload['classification'] = {'Custom': file_['classification']['Custom']}
 
                 # Unset measurements if modality changes
-                update['$unset'] = { self.list_name + '.$.measurements': True }
+                update['$unset'] = {'measurements': True}
 
-        for k,v in payload.items():
-            mod_elem[self.list_name + '.$.' + k] = v
-        query = {'_id': _id }
+        for k, v in payload.items():
+            mod_elem[k] = v
+
         if exclude_params is None:
-            query[self.list_name] = {'$elemMatch': query_params}
+            query = copy.deepcopy(query_params)
         else:
             query['$and'] = [
-                {self.list_name: {'$elemMatch': query_params}},
-                {self.list_name: {'$not': {'$elemMatch': exclude_params} }}
+                query_params,
+                {'$not': exclude_params}
             ]
+        query['_id'] = file_['_id']
+
         mod_elem['modified'] = datetime.datetime.utcnow()
         update['$set'] = mod_elem
+        result = config.db['files'].find_one_and_update(
+            query,
+            update
+        )
 
-        self.dbc.find_one_and_update(query, update)
         self._update_session_compliance(_id)
         jobs_spawned = self._create_jobs(container_before)
+
+        ##############################################################################################################
 
         return {
             'modified': 1,
@@ -186,22 +240,45 @@ class FileStorage(ListStorage):
         }
 
     def _delete_el(self, _id, query_params):
-        files = self.get_container(_id).get('files', [])
-        for f in files:
-            if f['name'] == query_params['name']:
-                f['deleted'] = datetime.datetime.utcnow()
-        result = self.dbc.update_one({'_id': _id}, {'$set': {'files': files, 'modified': datetime.datetime.utcnow()}})
+        ##############################################################################################################
+        file_ = self._get_el(_id, query_params)
+        result = config.db['files'].update_one(
+            {'_id': file_['_id']},
+            {'$set': {
+                'deleted': datetime.datetime.utcnow()
+            }}
+        )
+
         self._update_session_compliance(_id)
+        ##############################################################################################################
+
         return result
 
     def _get_el(self, _id, query_params):
         query_params_nondeleted = query_params.copy()
         query_params_nondeleted['deleted'] = {'$exists': False}
-        query = {'_id': _id, 'files': {'$elemMatch': query_params_nondeleted}}
-        projection = {'files.$': 1}
-        result = self.dbc.find_one(query, projection)
-        if result and result.get(self.list_name):
-            return result.get(self.list_name)[0]
+
+        pipeline = [
+            {'$unwind': {'path': '$files', 'preserveNullAndEmptyArrays': True}},
+            {
+                '$lookup': {
+                    'from': "files",
+                    'localField': "files",
+                    'foreignField': "_id",
+                    'as': "files"
+                }
+            },
+            {
+                '$match': {"files": {'$elemMatch':  query_params_nondeleted}}
+            }
+        ]
+
+        cursor = self.dbc.aggregate(pipeline)
+
+        result = next(cursor, None)
+
+        if result and result.get('files'):
+            return result.get('files')[0]
 
     def modify_info(self, _id, query_params, payload):
         update = {}
@@ -211,36 +288,40 @@ class FileStorage(ListStorage):
 
         if (set_payload or delete_payload) and replace_payload is not None:
             raise APIStorageException('Cannot set or delete AND replace info fields.')
+        ##################################################################################
+        # Files collection related stuffs
 
         if replace_payload is not None:
             update = {
                 '$set': {
-                    self.list_name + '.$.info': util.mongo_sanitize_fields(replace_payload)
+                    'info': util.mongo_sanitize_fields(replace_payload)
                 }
             }
 
         else:
             if set_payload:
                 update['$set'] = {}
-                for k,v in set_payload.items():
-                    update['$set'][self.list_name + '.$.info.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
+                for k, v in set_payload.items():
+                    update['$set']['info.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
             if delete_payload:
                 update['$unset'] = {}
                 for k in delete_payload:
-                    update['$unset'][self.list_name + '.$.info.' + util.mongo_sanitize_fields(str(k))] = ''
-
-        if self.use_object_id:
-            _id = bson.objectid.ObjectId(_id)
-        query = {'_id': _id }
-        query[self.list_name] = {'$elemMatch': query_params}
+                    update['$unset']['info.' + util.mongo_sanitize_fields(str(k))] = ''
 
         if not update.get('$set'):
-            update['$set'] = {'files.$.modified': datetime.datetime.utcnow()}
+            update['$set'] = {'modified': datetime.datetime.utcnow()}
         else:
-            update['$set']['files.$.modified'] = datetime.datetime.utcnow()
+            update['$set']['modified'] = datetime.datetime.utcnow()
 
-        result = self.dbc.update_one(query, update)
+        file_ = self._get_el(_id, query_params)
+        result = config.db['files'].update_one(
+            {'_id': file_['_id']},
+            update
+        )
+
         self._update_session_compliance(_id)
+
+        ##################################################################################
 
         return {
             'modified': result.modified_count,
@@ -260,58 +341,67 @@ class FileStorage(ListStorage):
         NOTE: add and/or delete OR replace can be specified, never both in the same payload
         """
         container_before = self.get_container(_id)
-        update = {
-            '$set': {'modified': datetime.datetime.utcnow()},
-            '$unset': {self.list_name + '.$.measurements': True}
-        }
 
         if self.use_object_id:
             _id = bson.objectid.ObjectId(_id)
-        query = {'_id': _id }
-        query[self.list_name] = {'$elemMatch': query_params}
-
-        if 'modality' in payload:
-            modality = payload['modality']
-            update['$set'][self.list_name + '.$.modality'] = modality
-        else:
-            modality = self.get_list_item(_id, query_params)['modality']
 
         add_payload = payload.get('add')
         delete_payload = payload.get('delete')
         replace_payload = payload.get('replace')
 
+        ###############################################################################################################
+        file_ = self._get_el(_id, query_params)
+
+        update = {
+            '$set': {'modified': datetime.datetime.utcnow()},
+            '$unset': {'measurements': True}
+        }
+
+        if 'modality' in payload:
+            modality = payload['modality']
+            update['$set']['modality'] = modality
+        else:
+            modality = file_['modality']
+
         if replace_payload is not None:
             replace_payload = check_and_format_classification(modality, replace_payload)
 
             r_update = copy.deepcopy(update)
-            r_update['$set'][self.list_name + '.$.classification'] = util.mongo_sanitize_fields(replace_payload)
+            r_update['$set']['classification'] = util.mongo_sanitize_fields(replace_payload)
 
-            self.dbc.update_one(query, r_update)
-
+            config.db['files'].update_one(
+                {'_id': file_['_id']},
+                r_update
+            )
         else:
             if add_payload:
                 add_payload = check_and_format_classification(modality, add_payload)
 
                 a_update = copy.deepcopy(update)
                 a_update['$addToSet'] = {}
-                for k,v in add_payload.iteritems():
-                    a_update['$addToSet'][self.list_name + '.$.classification.' + k] = {'$each': v}
+                for k, v in add_payload.iteritems():
+                    a_update['$addToSet']['classification.' + k] = {'$each': v}
 
-                self.dbc.update_one(query, a_update)
+                config.db['files'].update_one(
+                    {'_id': file_['_id']},
+                    a_update
+                )
 
             if delete_payload:
                 delete_payload = check_and_format_classification(modality, delete_payload)
 
                 d_update = copy.deepcopy(update)
                 d_update['$pullAll'] = {}
-                for k,v in delete_payload.iteritems():
-                    d_update['$pullAll'][self.list_name + '.$.classification.' + k] = v
+                for k, v in delete_payload.iteritems():
+                    d_update['$pullAll']['classification.' + k] = v
 
-                self.dbc.update_one(query, d_update)
-
+                config.db['files'].update_one(
+                    {'_id': file_['_id']},
+                    d_update
+                )
         self._update_session_compliance(_id)
         jobs_spawned = self._create_jobs(container_before)
-
+        ###############################################################################################################
         return {
             'modified': 1,
             'jobs_spawned': len(jobs_spawned)

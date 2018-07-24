@@ -691,10 +691,13 @@ class AnalysisPlacer(Placer):
         upload_fileinfos = {fileinfo['name']: fileinfo for fileinfo in self.saved}
         if 'outputs' in self.metadata:
             self.metadata['files'] = self.metadata.pop('outputs')
+
         for filegroup in ('inputs', 'files'):
-            for meta_fileinfo in self.metadata.get(filegroup, []):
+            for i, meta_fileinfo in enumerate(self.metadata.get(filegroup, [])):
                 # TODO warn (err?) on meta for unknown filename?
-                meta_fileinfo.update(upload_fileinfos.get(meta_fileinfo['name'], {}))
+                fileinfo = upload_fileinfos.get(meta_fileinfo['name'], {})
+                config.db['files'].insert_one(fileinfo)
+                self.metadata[filegroup][i] = fileinfo['_id']
         return self.metadata
 
 
@@ -741,7 +744,11 @@ class AnalysisJobPlacer(Placer):
 
         # Replace analysis files (and job in case it's re-run)
         query = {'_id': self.id_}
-        update = {'$set': {'files': self.saved}}
+        # 'files': self.saved
+        result = config.db['files'].insert_many(
+            self.saved
+        )
+        update = {'$set': {'files': result.inserted_ids}}
         if job is not None:
             update['$set']['job'] = job.id_
         config.db.analyses.update_one(query, update)

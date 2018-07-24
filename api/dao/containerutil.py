@@ -1,7 +1,7 @@
 import bson.objectid
 import copy
 
-from .. import config
+from .. import config, files
 from ..auth import has_access
 from ..types import Origin
 
@@ -269,6 +269,7 @@ class ContainerReference(object):
                 raise APINotFoundException('Cannot find parent {} {} of {} {}'.format(
                     result['parent']['type'], result['parent']['id'], self.type, self.id))
             result['permissions'] = parent['permissions']
+        files.resolve_file_references(result)
         return result
 
     def find_file(self, filename):

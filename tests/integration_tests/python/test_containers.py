@@ -975,7 +975,7 @@ def test_edit_file_info(data_builder, as_admin, file_form):
     assert projects[0]['files'][0]['info_exists']
 
     # Add reserved key and ensure it is returned
-    BIDS_map = {'BIDS':{'project_label': 'TEST'}}
+    BIDS_map = {'BIDS': {'project_label': 'TEST'}}
     r = as_admin.post('/projects/' + project + '/files/' + file_name + '/info', json={
         'set': BIDS_map
     })
