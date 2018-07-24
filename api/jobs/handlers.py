@@ -395,6 +395,8 @@ class JobsHandler(base.RequestHandler):
     @require_admin
     def pending(self):
         tags = self.request.GET.getall('tags')
+
+        # Allow for tags to be specified multiple times, or just comma-deliminated
         if len(tags) == 1:
             tags = tags[0].split(',')
 
@@ -404,8 +406,10 @@ class JobsHandler(base.RequestHandler):
     def next(self):
         peek = self.is_true('peek')
         tags = self.request.GET.getall('tags')
-        if len(tags) <= 0:
-            tags = None
+
+        # Allow for tags to be specified multiple times, or just comma-deliminated
+        if len(tags) == 1:
+            tags = tags[0].split(',')
 
         job = Queue.start_job(tags=tags, peek=peek)
 
