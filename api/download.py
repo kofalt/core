@@ -16,7 +16,7 @@ import requests
 from .web import base
 from .web.request import AccessType
 from . import config, files, util, validators
-from .dao.containerutil import pluralize
+from .dao.containerutil import pluralize, resolve_file_references, get_container_file
 
 BYTES_IN_MEGABYTE = float(1<<20)
 
@@ -37,7 +37,7 @@ def _filter_check(property_filter, property_values):
 class Download(base.RequestHandler):
 
     def _append_targets(self, targets, cont_name, container, prefix, total_size, total_cnt, filters):
-        files.resolve_file_references(container)
+        resolve_file_references(container)
         inputs = [('input', f) for f in container.get('inputs', [])]
         outputs = [('output', f) for f in container.get('files', [])]
         for file_group, f in inputs + outputs:
@@ -91,7 +91,7 @@ class Download(base.RequestHandler):
                     'name': filename
                 }
             }
-            file_obj = files.get_file_of_container(cont_name, query)
+            file_obj = get_container_file(cont_name, query)
 
             if not file_obj:
                 # self.abort(404, 'File {} on Container {} {} not found'.format(filename, cont_name, cont_id))

@@ -70,6 +70,7 @@ class Aggregate(PipelineStage):
         rows = []
         for row in aggregator.execute():
             row.update(context)
+            containerutil.resolve_file_references(row, recursive=True)
             rows.append(row)
 
         # Pass the full payload to the next stage

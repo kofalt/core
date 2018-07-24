@@ -69,7 +69,7 @@ class MatchContainers(PipelineStage):
                 # Emit one row per match
                 for entry in containers:
                     new_row = row.copy()
-                    new_row[self.output_key] = entry 
+                    new_row[self.output_key] = entry
                     rows.append(new_row)
             else:
                 unmatched.append(row)

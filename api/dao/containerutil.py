@@ -1,7 +1,7 @@
 import bson.objectid
 import copy
 
-from .. import config, files
+from .. import config
 from ..auth import has_access
 from ..types import Origin
 
@@ -269,7 +269,7 @@ class ContainerReference(object):
                 raise APINotFoundException('Cannot find parent {} {} of {} {}'.format(
                     result['parent']['type'], result['parent']['id'], self.type, self.id))
             result['permissions'] = parent['permissions']
-        files.resolve_file_references(result)
+        resolve_file_references(result)
         return result
 
     def find_file(self, filename):
@@ -370,9 +370,57 @@ def pluralize(cont_name):
         return cont_name
     raise ValueError('Could not pluralize unknown container name {}'.format(cont_name))
 
+
 def singularize(cont_name):
     if cont_name in PLURAL_TO_SINGULAR:
         return PLURAL_TO_SINGULAR[cont_name]
     elif cont_name in SINGULAR_TO_PLURAL:
         return cont_name
     raise ValueError('Could not singularize unknown container name {}'.format(cont_name))
+
+
+def resolve_file_references(cont, recursive=False):
+    file_arrays = ['files', 'inputs']
+
+    if not (cont and (isinstance(cont, dict) or isinstance(cont, list))):
+        return cont
+
+    if isinstance(cont, list) and recursive:
+        res = []
+        for item in cont:
+            res.append(resolve_file_references(item, recursive))
+
+        return res
+    else:
+        for key, value in cont.iteritems():
+            for file_array in file_arrays:
+                if file_array in cont and len(cont[file_array]) > 0 \
+                        and (isinstance(cont[file_array][0], unicode) or isinstance(cont[file_array][0], str)):
+                    cont[file_array] = list(config.db['files'].find({'_id': {'$in': cont[file_array]}}).sort([('created', 1)]))
+            if recursive:
+                cont[key] = resolve_file_references(value, recursive)
+    return cont
+
+
+def get_container_file(cont_name, query):
+    pipeline = [
+        {'$unwind': '$files'},
+        {
+            '$lookup': {
+                'from': "files",
+                'localField': "files",
+                'foreignField': "_id",
+                'as': "files"
+            }
+        },
+        {
+            '$match': query
+        }
+    ]
+
+    cursor = config.db[cont_name].aggregate(pipeline)
+
+    result = next(cursor, None)
+
+    if result and result.get('files'):
+        return result.get('files')[0]

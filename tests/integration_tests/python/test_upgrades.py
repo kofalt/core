@@ -54,18 +54,24 @@ def test_43(data_builder, api_db, as_admin, file_form, database):
     assert r.ok
 
     # Mimic old-style analysis input/output tags
-    analysis = api_db.analyses.find_one({'_id': bson.ObjectId(analysis_id)}, ['inputs', 'files'])
-    for f in analysis['inputs']:
-        f['input'] = True
-    for f in analysis['files']:
-        f['output'] = True
-    api_db.analyses.update_one({'_id': bson.ObjectId(analysis_id)},
-                               {'$set': {'files': analysis['inputs'] + analysis['files']},
-                                '$unset': {'inputs': ''}})
+    analyses = api_db.analyses.find({}, ['inputs', 'files'])
+    for analysis in analyses:
+        files = []
+        for f_ref in analysis.get('inputs', []):
+            f = api_db['files'].find_one({'_id': f_ref})
+            f['input'] = True
+            files.append(f)
+        for f_ref in analysis.get('files', []):
+            f = api_db['files'].find_one({'_id': f_ref})
+            f['output'] = True
+            files.append(f)
+        api_db.analyses.update_one({'_id': analysis['_id']},
+                                   {'$set': {'files': files},
+                                    '$unset': {'inputs': ''}})
 
     # Verify upgrade gets rid of tags and separates inputs/files
     database.upgrade_to_43()
-    analysis = as_admin.get('/analyses/' + analysis_id).json()
+    analysis = api_db.analyses.find_one({'_id': bson.ObjectId(analysis_id)}, ['inputs', 'files'])
     assert 'inputs' in analysis
     assert len(analysis['inputs']) == 1
     assert 'input' not in analysis['inputs'][0]
@@ -91,11 +97,14 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
     for c in containers:
         assert as_admin.post('/{}/{}/files'.format(c[0], c[1]), files=file_form('test.csv')).ok
         assert as_admin.post('/{}/{}/files'.format(c[0], c[1]), files=file_form('test2.csv')).ok
-        api_db[c[0]].update_one({'_id': bson.ObjectId(c[1])},
-            {'$set': { # Mangoes ...
-                'files.0.measurements': ['diffusion', 'functional'],
-                'files.1.measurements': ['diffusion', 'functional']
-            }})
+        files = api_db[c[0]].find_one({'_id': bson.ObjectId(c[1])})['files']
+        for f_ref in files:
+            api_db['files'].update_one(
+                {'_id': f_ref},
+                {'$set': { # Mangoes ...
+                    'files.0.measurements': ['diffusion', 'functional'],
+                    'files.1.measurements': ['diffusion', 'functional']
+                }})
 
 
     # Set up rules referencing measurements
@@ -147,7 +156,8 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
 
     # Ensure files were updated
     for c in containers:
-        files = as_admin.get('/{}/{}'.format(c[0], c[1])).json()['files']
+        files_refs = as_admin.get('/{}/{}'.format(c[0], c[1])).json()['files']
+        files = api_db['files'].find({'_id': {'$in': files_refs}})
         for f in files:
             assert f['classification'] == {'Contrast': ['Diffusion', 'T2*'], 'Intent': ['Functional', 'Structural'], 'Custom': ['diffusion', 'functional']}
 
@@ -213,7 +223,8 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
     acq_id = data_builder.create_acquisition()
     as_admin.post('/acquisitions/' + acq_id + '/files', files=file_form('a.txt'))
     as_admin.post('/acquisitions/' + acq_id + '/files', files=file_form('b.txt'))
-    files = api_db.acquisitions.find_one({'_id': bson.ObjectId(acq_id)})['files']
+    file_refs = api_db.acquisitions.find_one({'_id': bson.ObjectId(acq_id)})['files']
+    files = list(api_db['files'].find({'_id': {'$in': file_refs}}))
     files[0]['origin'] = {'type': 'device', 'id': 'method_name'}
     files[1]['origin'] = {'type': 'device', 'id': 'missing_one'}
     api_db.acquisitions.update_one({'_id': bson.ObjectId(acq_id)}, {'$set': {'files': files}})
@@ -239,12 +250,32 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
     assert device['label'] == 'device_without_method'
     assert device['type'] == 'device_without_method'
 
+    def to_file_refs():
+        # sync the files array with the collection otherwise the get will fail
+        files = api_db.acquisitions.find_one({'_id': bson.ObjectId(acq_id)})['files']
+        file_refs = []
+        for f in files:
+            _id = f['_id']
+            del f['_id']
+            api_db['files'].update_one(
+                {'_id': _id},
+                {'$set': f}
+            )
+            file_refs.append(_id)
 
+        api_db.acquisitions.update_one({'_id': bson.ObjectId(acq_id)}, {'$set': {'files': file_refs}})
+
+    to_file_refs()
     # Verify that ObjectId casting is no longer 500-ing with `join=origin`, even without
     # upgrade 48 fixing device origins.
     r = as_admin.get('/acquisitions/' + acq_id + '?join=origin')
     assert r.ok
 
+    # prepare for upgrade 48
+    file_refs = api_db.acquisitions.find_one({'_id': bson.ObjectId(acq_id)})['files']
+    print(file_refs)
+    files = list(api_db['files'].find({'_id': {'$in': file_refs}}))
+    api_db.acquisitions.update_one({'_id': bson.ObjectId(acq_id)}, {'$set': {'files': files}})
     # Test that device origins get fixed via 48
     database.upgrade_to_48()
     device_id_str = str(device_id)
@@ -258,6 +289,7 @@ def test_47_and_48(api_db, data_builder, as_admin, file_form, database):
     assert added_device['type'] == 'unknown'
     added_device['_id'] = added_device_id_str
 
+    to_file_refs()
     # Verify that `join=origin` now works as intended
     r = as_admin.get('/acquisitions/' + acq_id + '?join=origin')
     assert r.ok
@@ -313,6 +345,11 @@ def test_50(data_builder, api_db, as_admin, file_form, database):
     })
     assert r.ok
 
+    # move back files from the files collection
+    file_refs = api_db.acquisitions.find_one({'_id': bson.ObjectId(acquisition)})['files']
+    files = list(api_db['files'].find({'_id': {'$in': file_refs}}).sort([('created', 1)]))
+    api_db.acquisitions.update_one({'_id': bson.ObjectId(acquisition)}, {'$set': {'files': files}})
+
     database.upgrade_to_50()
 
     # Confirm that measurements is set and classification is updated
@@ -339,6 +376,20 @@ def test_50(data_builder, api_db, as_admin, file_form, database):
     assert f['classification'] == {}
     assert 'measurements' not in f
 
+    # Create file refs
+    files = api_db.acquisitions.find_one({'_id': bson.ObjectId(acquisition)})['files']
+    file_refs = []
+    for f in files:
+        _id = f['_id']
+        del f['_id']
+        api_db['files'].update_one(
+            {'_id': _id},
+            {'$set': f}
+        )
+        file_refs.append(_id)
+
+    api_db.acquisitions.update_one({'_id': bson.ObjectId(acquisition)}, {'$set': {'files': file_refs}})
+
     # Assert that changing modality resets measurements
     r = as_admin.put('/acquisitions/' + acquisition + '/files/test_file1.csv', json={
         'modality': None
@@ -354,14 +405,14 @@ def test_50(data_builder, api_db, as_admin, file_form, database):
     assert r.ok
 
     r_acquisition = api_db.acquisitions.find_one({'_id': bson.ObjectId(acquisition)})
-    f = r_acquisition['files'][0]
+    f = api_db['files'].find_one({'_id': r_acquisition['files'][0]})
     assert f['name'] == 'test_file1.csv'
     assert f['classification'] == {
         'Custom': ['foobar']
     }
     assert 'measurements' not in f
 
-    f = r_acquisition['files'][1]
+    f = api_db['files'].find_one({'_id': r_acquisition['files'][1]})
     assert f['name'] == 'test_file2.csv'
     assert f['classification'] == {
         'Intent': ['Functional'],
@@ -436,3 +487,77 @@ def test_52(data_builder, api_db, as_admin, file_form, database, default_payload
 
 def test_53():
     pass
+
+
+def test_54(api_db, database):
+    # Prepare database
+    file_info = {
+        "_id": "bf4f7a06-9f79-4b53-84ea-4f4897be45b8",
+        "info": {},
+        "hash": "foo-bar",
+        "classification": {},
+        "tags": [],
+        "size": 989752,
+        "mimetype": "application/zip",
+        "name": "4784_1_1_localizer.dicom.zip",
+    }
+
+    acquisition = {"files": [file_info]}
+
+    result = api_db.acquisitions.insert_one(acquisition)
+    inserted_id = result.inserted_id
+
+    # Perform the upgrade
+    database.upgrade_to_54()
+
+    r_acquisition = api_db.acquisitions.find_one({'_id': inserted_id})
+    assert r_acquisition['files'][0] == acquisition['files'][0]['_id']
+
+    r_file = api_db.files.find_one({'_id': r_acquisition['files'][0]})
+    assert r_file
+
+    # cleanup
+    api_db.acquisitions.delete_one({'_id': acquisition['_id']})
+    api_db.files.delete_one({'_id': file_info['_id']})
+
+    # Test error handling
+
+    file_info_no_id = {
+        "info": {},
+        "hash": "foo-bar",
+        "classification": {},
+        "tags": [],
+        "size": 989752,
+        "mimetype": "application/zip",
+        "name": "4784_1_1_localizer.dicom.zip",
+    }
+
+    acquisition_2 = {"files": [file_info_no_id]}
+    api_db.acquisitions.insert_one(acquisition_2)
+
+    # Perform the upgrade
+    with pytest.raises(Exception):
+        database.upgrade_to_54()
+
+    # cleanup
+    api_db.acquisitions.delete_one({'_id': acquisition_2['_id']})
+
+    acquisition_3 = {"files": [file_info]}
+    api_db.acquisitions.insert_one(acquisition_3)
+
+    # silently skip already inserted files
+    analysis = {"inputs": [file_info]}
+    api_db.analyses.insert_one(analysis)
+
+    database.upgrade_to_54()
+
+    r_analysis = api_db.analyses.find_one({'_id': analysis['_id']})
+    assert r_analysis['inputs'][0] == analysis['inputs'][0]['_id']
+
+    r_file = api_db.files.find({'_id': r_analysis['inputs'][0]})
+    assert len(list(r_file)) == 1
+
+    # cleanup
+    api_db.acquisitions.delete_one({'_id': acquisition_3['_id']})
+    api_db.analyses.delete_one({'_id': analysis['_id']})
+    api_db.files.delete_one({'_id': file_info['_id']})

@@ -14,6 +14,8 @@ import re
 import sys
 import time
 
+from pymongo import errors
+
 from api import config
 from api import util
 from api.dao import containerutil
@@ -24,7 +26,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 53 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 54 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1839,6 +1841,37 @@ def upgrade_to_53(dry_run=False):
             if not dry_run:
                 config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
 
+
+
+def upgrade_job_to_54(doc, collection):
+    file_arrays = ['files', 'inputs']
+
+    for file_array in file_arrays:
+        if doc.get(file_array) and all(['_id' in f for f in doc.get(file_array)]):
+            try:
+                # use unordered insert so the insert won't stop if a file is already inserted
+                config.db.files.insert_many(doc[file_array], ordered=False)
+            except errors.BulkWriteError as e:
+                # We can get duplicate key error for example in case of analyses inputs, we can ignore this since
+                # the file is already inserted, we just had to change the file info into a reference
+                # otherwise raise an Exception
+                for error in e.details.get('writeErrors', []):
+                    # It is not a duplicate key error so raise
+                    if not error['code'] == 11000:
+                        raise Exception(error['errmsg'])
+            collection.update_one({'_id': doc['_id']}, {'$set': {file_array: list(map(lambda x: x['_id'], doc[file_array]))}})
+        elif doc.get(file_array):
+            raise Exception('Found file which doesn\'t have _id field (%s/%s/%s). Did you run the storage migration script?' % (collection.name, doc['_id'], file_array))
+
+    return True
+
+def upgrade_to_54():
+    """
+    Move files into a separate collection
+    """
+    for collection in ['projects', 'acquisitions', 'sessions', 'analyses', 'collections', 'subjects']:
+        cursor = config.db[collection].find()
+        process_cursor(cursor, upgrade_job_to_54, context=config.db[collection])
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

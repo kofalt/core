@@ -6,7 +6,8 @@ import difflib
 import pymongo
 import re
 
-from .. import config, files, util
+from .. import config
+from .. import util
 from .basecontainerstorage import ContainerStorage
 from ..auth import has_access
 from ..web.errors import APIStorageException, APINotFoundException, APIPermissionException
@@ -182,7 +183,7 @@ def is_session_compliant(session, template):
                     fr_temp = fr.copy() #so subsequent calls don't have their minimum missing
                     min_count = fr_temp.pop('minimum')
                     count = 0
-                    files.resolve_file_references(cont)
+                    containerutil.resolve_file_references(cont)
                     for f in cont.get('files', []):
                         if 'deleted' in f or not check_cont(f, fr_temp):
                             # Didn't find a match, on to the next one
@@ -234,21 +235,17 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger):
     _id = bson.ObjectId(_id)
 
     container_before = config.db[cont_name].find_one({'_id': _id})
-    files.resolve_file_references(container_before)
+    containerutil.resolve_file_references(container_before)
     file_before = None
 
-    for f_ in container_before.get('files', []):
-        if f_['name'] == fileinfo['name']:
-            # Placing fileinfo into the new files collection
-            if 'deleted' in f_:
-                # Leaves files in storage unreferenced from DB
+    for f in container_before.get('files', []):
+        if f['name'] == fileinfo['name']:
+            if 'deleted' in f:
+                # Leaves files in storage and in the files collection, so we can use the mongodb for cleanup
                 log.warning('implicitly removing deleted file %s/%s/%s (caused by re-uploading with same name)',
                             cont_name, _id, fileinfo['name'])
-                config.db['files'].find_one_and_update(
-                    {'$pull': {'files': {'name': fileinfo['name']}}}
-                )
             else:
-                file_before = f_
+                file_before = f
             break
 
     if fileinfo.get('size') is not None:
@@ -260,8 +257,10 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger):
         if fileinfo.get('hash') and file_before.get('hash') != fileinfo.get('hash'):
             # We are replacing the file object itself, log the action
             access_logger(AccessType.replace_file, cont_name=cont_name, cont_id=_id, filename=fileinfo['name'])
-        config.db['files'].delete_one(
-            {'_id': file_before['_id']}
+        # Mark the file as deleted
+        config.db['files'].find_one_and_update(
+            {'_id': file_before['_id']},
+            {'$set': {'deleted': datetime.datetime.now()}}
         )
     else:
         fileinfo['created'] = fileinfo['modified']
@@ -273,36 +272,9 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger):
         {'$push': {'files': r.inserted_id}},
         return_document=pymongo.collection.ReturnDocument.AFTER
     )
-    files.resolve_file_references(container_after)
+    containerutil.resolve_file_references(container_after)
     return container_before, container_after
 
-def update_fileinfo(cont_name, _id, fileinfo):
-    if fileinfo.get('size') is not None:
-        if type(fileinfo['size']) != int:
-            log.warn('Fileinfo passed with non-integer size')
-            fileinfo['size'] = int(fileinfo['size'])
-
-    update_set = {'files.$.modified': datetime.datetime.utcnow()}
-
-    for k,v in fileinfo.iteritems():
-        update_set['files.$.' + k] = v
-    return config.db[cont_name].find_one_and_update(
-        {'_id': _id, 'files.name': fileinfo['name']},
-        {'$set': update_set},
-        return_document=pymongo.collection.ReturnDocument.AFTER
-    )
-
-def add_fileinfo(cont_name, _id, fileinfo):
-    if fileinfo.get('size') is not None:
-        if type(fileinfo['size']) != int:
-            log.warn('Fileinfo passed with non-integer size')
-            fileinfo['size'] = int(fileinfo['size'])
-
-    return config.db[cont_name].find_one_and_update(
-        {'_id': _id},
-        {'$push': {'files': fileinfo}},
-        return_document=pymongo.collection.ReturnDocument.AFTER
-    )
 
 def _group_id_fuzzy_match(group_id, project_label):
     existing_group_ids = [g['_id'] for g in config.db.groups.find(None, ['_id'])]

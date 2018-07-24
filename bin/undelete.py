@@ -20,8 +20,8 @@ import sys
 
 import bson
 
-from api import config
-from api.dao.containerutil import pluralize, propagate_changes
+from api import config, files
+from api.dao.containerutil import pluralize, propagate_changes, resolve_file_references
 
 
 log = logging.getLogger('scitran.undelete')
@@ -98,14 +98,14 @@ def undelete(cont_name, cont_id, filename=None, include_parents=False, always_pr
     else:
         # Undeleting a single file
         file_str = '{}/{}'.format(cont_str, filename)
+        resolve_file_references(container)
         for f in container.get('files', []):
             if f['name'] == filename:
                 if 'deleted' not in f:
                     log.info('Skipping file %s - has no "deleted" tag', file_str)
                     return
                 log.info('Removing "deleted" tag from file %s...', file_str)
-                del f['deleted']
-                config.db[cont_name].update_one({'_id': cont_id}, {'$set': {'files': container['files']}})
+                config.db['files'].update_one({'_id': f['_id']}, {'$unset': {'deleted': 1}})
                 break
         else:
             raise RuntimeError('Cannot find file {}'.format(file_str))

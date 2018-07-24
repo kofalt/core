@@ -5,7 +5,9 @@ import datetime
 
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
 from . import consistencychecker
-from .. import config, files, util
+from . import containerutil
+from .. import config
+from .. import util
 from ..jobs import rules
 from ..handlers.modalityhandler import check_and_format_classification
 from .containerstorage import SessionStorage, AcquisitionStorage
@@ -176,14 +178,11 @@ class FileStorage(ListStorage):
             return result
         else:
             cont = self.dbc.find_one(query)
-            files.resolve_file_references(cont)
+            containerutil.resolve_file_references(cont)
             return cont
 
     def _create_jobs(self, container_before):
         container_after = self.get_container(container_before['_id'])
-        print('===============================================================')
-        print(container_after)
-        print(container_before)
         return rules.create_jobs(config.db, container_before, container_after, self.cont_name)
 
     def _update_el(self, _id, query_params, payload, exclude_params):
@@ -193,7 +192,6 @@ class FileStorage(ListStorage):
                     _id, self.cont_name
                 ))
 
-        ##############################################################################################################
         mod_elem = {}
         update = {}
         query = {}
@@ -224,7 +222,7 @@ class FileStorage(ListStorage):
 
         mod_elem['modified'] = datetime.datetime.utcnow()
         update['$set'] = mod_elem
-        result = config.db['files'].find_one_and_update(
+        config.db['files'].find_one_and_update(
             query,
             update
         )
@@ -232,15 +230,12 @@ class FileStorage(ListStorage):
         self._update_session_compliance(_id)
         jobs_spawned = self._create_jobs(container_before)
 
-        ##############################################################################################################
-
         return {
             'modified': 1,
             'jobs_spawned': len(jobs_spawned)
         }
 
     def _delete_el(self, _id, query_params):
-        ##############################################################################################################
         file_ = self._get_el(_id, query_params)
         result = config.db['files'].update_one(
             {'_id': file_['_id']},
@@ -250,8 +245,6 @@ class FileStorage(ListStorage):
         )
 
         self._update_session_compliance(_id)
-        ##############################################################################################################
-
         return result
 
     def _get_el(self, _id, query_params):
@@ -259,7 +252,7 @@ class FileStorage(ListStorage):
         query_params_nondeleted['deleted'] = {'$exists': False}
 
         pipeline = [
-            {'$unwind': {'path': '$files', 'preserveNullAndEmptyArrays': True}},
+            {'$unwind': '$files'},
             {
                 '$lookup': {
                     'from': "files",
@@ -269,7 +262,9 @@ class FileStorage(ListStorage):
                 }
             },
             {
-                '$match': {"files": {'$elemMatch':  query_params_nondeleted}}
+                '$match': {
+                    '_id': _id,
+                    'files': {'$elemMatch':  query_params_nondeleted}}
             }
         ]
 
@@ -288,8 +283,6 @@ class FileStorage(ListStorage):
 
         if (set_payload or delete_payload) and replace_payload is not None:
             raise APIStorageException('Cannot set or delete AND replace info fields.')
-        ##################################################################################
-        # Files collection related stuffs
 
         if replace_payload is not None:
             update = {
@@ -313,6 +306,9 @@ class FileStorage(ListStorage):
         else:
             update['$set']['modified'] = datetime.datetime.utcnow()
 
+        if self.use_object_id:
+            _id = bson.objectid.ObjectId(_id)
+
         file_ = self._get_el(_id, query_params)
         result = config.db['files'].update_one(
             {'_id': file_['_id']},
@@ -320,8 +316,6 @@ class FileStorage(ListStorage):
         )
 
         self._update_session_compliance(_id)
-
-        ##################################################################################
 
         return {
             'modified': result.modified_count,
@@ -349,7 +343,6 @@ class FileStorage(ListStorage):
         delete_payload = payload.get('delete')
         replace_payload = payload.get('replace')
 
-        ###############################################################################################################
         file_ = self._get_el(_id, query_params)
 
         update = {
@@ -401,7 +394,6 @@ class FileStorage(ListStorage):
                 )
         self._update_session_compliance(_id)
         jobs_spawned = self._create_jobs(container_before)
-        ###############################################################################################################
         return {
             'modified': 1,
             'jobs_spawned': len(jobs_spawned)

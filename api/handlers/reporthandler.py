@@ -729,6 +729,15 @@ class UsageReport(Report):
             # Count file mbs by month
             pipeline = [
                 {'$unwind': '$files'},
+                {
+                    '$lookup': {
+                        'from': "files",
+                        'localField': "files",
+                        'foreignField': "_id",
+                        'as': "files"
+                    }
+                },
+                {'$unwind': '$files'},
                 {'$match': file_q},
                 {'$project': {'month': {'$month': '$files.created'}, 'year': {'$year': '$files.created'}, 'mbs': {'$divide': ['$files.size', BYTES_IN_MEGABYTE]}}},
                 {'$group': {'_id': {'month': '$month', 'year': '$year'}, 'mb_total': {'$sum':'$mbs'}}}
@@ -753,6 +762,15 @@ class UsageReport(Report):
             # Count file mbs by month in analyses
             pipeline = [
                 {'$unwind': '$analyses'},
+                {'$unwind': '$analyses.files'},
+                {
+                    '$lookup': {
+                        'from': "files",
+                        'localField': "analyses.files",
+                        'foreignField': "_id",
+                        'as': "analyses.files"
+                    }
+                },
                 {'$unwind': '$analyses.files'},
                 {'$match': analysis_q},
                 {'$project': {'month': {'$month': '$analyses.created'}, 'year': {'$year': '$analyses.created'}, 'mbs': {'$divide': ['$analyses.files.size', BYTES_IN_MEGABYTE]}}},
@@ -868,6 +886,15 @@ class UsageReport(Report):
                 # Aggregate file size in megabytes
                 pipeline = [
                     {'$match': cont_query[cont_name]},
+                    {'$unwind': '$files'},
+                    {
+                        '$lookup': {
+                            'from': "files",
+                            'localField': "files",
+                            'foreignField': "_id",
+                            'as': "files"
+                        }
+                    },
                     {'$unwind': '$files'},
                     {'$match': file_q},
                     {'$project': {'mbs': {'$divide': [{'$cond': ['$files.input', 0, '$files.size']}, BYTES_IN_MEGABYTE]}}},
