@@ -194,9 +194,9 @@ class Flywheel:
 {{>flywheel_methods}}
 
 class Client(Flywheel):
-    def __init__(self, root=False, skip_version_check=False):
+    def __init__(self, **kwargs):
         api_key = get_api_key_from_cli(os.path.expanduser('~/.config/flywheel/user.json'))
-        Flywheel.__init__(self, api_key, root=root, skip_version_check=skip_version_check)
+        Flywheel.__init__(self, api_key, **kwargs)
 
 {{/apiInfo}}
 

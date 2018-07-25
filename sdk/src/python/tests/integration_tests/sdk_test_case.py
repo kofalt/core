@@ -1,4 +1,4 @@
-import os, random, string, json
+import os, random, string, json, shutil, tempfile
 from datetime import datetime, timedelta
 import dateutil.tz
 import flywheel
@@ -32,13 +32,21 @@ def make_clients():
 
     fw = flywheel.Flywheel(api_key)
     fw_root = flywheel.Flywheel(api_key, root=True)
+
+    # Mock cli login
+    home = os.environ['HOME']
+    os.environ['HOME'] = tmp_path = tempfile.mkdtemp()
     cli_config_path = os.path.expanduser('~/.config/flywheel/')
     if not os.path.exists(cli_config_path):
         os.makedirs(cli_config_path)
     with open(os.path.join(cli_config_path, 'user.json'), 'w') as cli_config:
         json.dump({'key': api_key}, cli_config)
 
-    client = flywheel.flywheel.Client()
+    client = flywheel.Client()
+
+    # Don't need the login anymore
+    shutil.rmtree(tmp_path)
+    os.environ['HOME'] = home
 
     return fw, fw_root, client
 

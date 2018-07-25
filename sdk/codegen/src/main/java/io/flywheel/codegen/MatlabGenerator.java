@@ -202,6 +202,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         supportingFiles.add(new SupportingFile("api_client.mustache", packageFolder, "ApiClient.m"));
         // Flywheel wrapper file
         supportingFiles.add(new SupportingFile("flywheel.mustache", packageFolder, "Flywheel.m"));
+        // Client wrapper file
+        supportingFiles.add(new SupportingFile("client.mustache", packageFolder, "Client.m"));
 
         // Documentation Files
         final String docFolder = "sphinx/source";

@@ -1,0 +1,12 @@
+classdef Client < Flywheel
+	methods
+		function obj = Client(varargin)
+			fid = fopen(sprintf('%s/.config/flywheel/user.json', getenv('HOME')));
+			raw = fread(fid, inf);
+			str = char(raw');
+			fclose(fid);
+			apiKey = jsondecode(str).key
+			obj@Flywheel(apiKey, varagin)
+		end
+	end
+end
