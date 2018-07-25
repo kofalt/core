@@ -28,7 +28,7 @@
         schema:
           $ref: schemas/output/batch-proposal.json
 
-/batch/job:
+/batch/jobs:
   post:
     summary: Create a batch job proposal from preconstructed jobs and insert it as 'pending'.
     operationId: create_batch_job_from_jobs
