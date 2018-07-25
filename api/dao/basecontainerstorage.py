@@ -46,7 +46,7 @@ class ContainerStorage(object):
     """
     This class provides access to mongodb collection elements (called containers).
     It is used by ContainerHandler istances for get, create, update and delete operations on containers.
-    Examples: projects, sessions, acquisitions and collections
+    Examples: projects, subjects, sessions, acquisitions and collections
     """
 
     def __init__(self, cont_name, use_object_id=False, use_delete_tag=False, parent_cont_name=None, child_cont_name=None):
@@ -242,8 +242,12 @@ class ContainerStorage(object):
             cont = self.get_container(_id, projection=projection)
 
         if self.parent_cont_name:
-            ps = ContainerStorage.factory(self.parent_cont_name)
-            parent = ps.get_container(cont[self.parent_cont_name], projection=projection)
+            parent_storage = ContainerStorage.factory(self.parent_cont_name)
+            parent_id = cont[self.parent_cont_name]
+            if self.cont_name == 'sessions' and type(cont[self.parent_cont_name]) is dict:
+                # Also handle sessions with joined subjects
+                parent_id = cont[self.parent_cont_name]['_id']
+            parent = parent_storage.get_container(parent_id, projection=projection)
             return parent
 
         else:
@@ -305,8 +309,6 @@ class ContainerStorage(object):
             replace = {}
             if payload.get('info') is not None:
                 replace['info'] = util.mongo_sanitize_fields(payload.pop('info'))
-            if payload.get('subject') is not None and payload['subject'].get('info') is not None:
-                replace['subject.info'] = util.mongo_sanitize_fields(payload['subject'].pop('info'))
 
         update = {}
 
@@ -370,6 +372,8 @@ class ContainerStorage(object):
     def get_el(self, _id, projection=None, fill_defaults=False):
         _id = self.format_id(_id)
         cont = self.dbc.find_one({'_id': _id, 'deleted': {'$exists': False}}, projection)
+        if self.cont_name == 'sessions' and cont and 'subject' in cont:
+            ContainerStorage.join_subjects([cont])
         self._from_mongo(cont)
         if fill_defaults:
             self._fill_default_values(cont)
@@ -417,6 +421,9 @@ class ContainerStorage(object):
         page = dbutil.paginate_find(self.dbc, kwargs, pagination)
         results = page['results']
 
+        if self.cont_name == 'sessions' and results and 'subject' in results[0]:
+            ContainerStorage.join_subjects(results)
+
         for cont in results:
             self.filter_container_files(cont)
             self._from_mongo(cont)
@@ -440,12 +447,7 @@ class ContainerStorage(object):
 
         return results if pagination is None else page
 
-    def modify_info(self, _id, payload, modify_subject=False):
-
-        # Support modification of subject info
-        # Can be removed when subject becomes a standalone container
-        info_key = 'subject.info' if modify_subject else 'info'
-
+    def modify_info(self, _id, payload):
         update = {}
         set_payload = payload.get('set')
         delete_payload = payload.get('delete')
@@ -457,22 +459,22 @@ class ContainerStorage(object):
         if replace_payload is not None:
             update = {
                 '$set': {
-                    info_key: util.mongo_sanitize_fields(replace_payload)
+                    'info': util.mongo_sanitize_fields(replace_payload)
                 }
             }
 
         else:
             if set_payload:
                 update['$set'] = {}
-                for k,v in set_payload.items():
-                    update['$set'][info_key + '.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
+                for k, v in set_payload.items():
+                    update['$set']['info.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
             if delete_payload:
                 update['$unset'] = {}
                 for k in delete_payload:
-                    update['$unset'][info_key + '.' + util.mongo_sanitize_fields(str(k))] = ''
+                    update['$unset']['info.' + util.mongo_sanitize_fields(str(k))] = ''
 
         _id = self.format_id(_id)
-        query = {'_id': _id }
+        query = {'_id': _id}
 
         if not update.get('$set'):
             update['$set'] = {'modified': datetime.datetime.utcnow()}
@@ -537,6 +539,20 @@ class ContainerStorage(object):
 
                     # Save to join table
                     container['join-origin'][j_type][j_id] = join_doc
+
+    @staticmethod
+    def join_subjects(sessions):
+        """Given a list of sessions, join their subjects."""
+        storage = ContainerStorage.factory('subjects')
+        query = {'_id': {'$in': list(set(sess['subject'] for sess in sessions))}}
+        subjects = {subj['_id']: subj for subj in storage.get_all_el(query, None, None)}
+        for session in sessions:
+            subject = subjects[session['subject']]
+            if session.get('subject_age'):
+                subject = copy.deepcopy(subject)
+                subject['age'] = session.pop('subject_age')
+            session['subject'] = subject
+
 
     def get_list_projection(self):
         """

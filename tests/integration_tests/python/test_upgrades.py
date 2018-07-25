@@ -523,3 +523,7 @@ def test_54(randstr, api_db, database):
     api_db.acquisitions.delete_one({'_id': acquisition})
     api_db.analyses.delete_one({'_id': analysis})
     api_db.apikeys.delete_one({'_id': apikey})
+
+
+def test_54(api_db, database):
+    database.upgrade_to_54()

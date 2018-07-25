@@ -103,7 +103,6 @@ class GearHandler(base.RequestHandler):
           - Analyses
 
         NOTE: Access via this endpoint is not logged. Only information necessary for display should be returned.
-        NOTE: Subject level is supported ahead of official separation in DB and API routes.
         """
 
         # Do all actions that could result in a 404 first

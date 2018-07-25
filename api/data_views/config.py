@@ -5,9 +5,8 @@ from ..dao import containerutil
 from .column_aliases import ColumnAliases
 from . import safe_eval
 
-# TODO: Add subject once formalized
-VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
-COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file', 'file_data' ]
+VIEW_CONTAINERS = [ 'project', 'subject', 'session', 'acquisition' ]
+COLUMN_CONTAINERS = [ 'project', 'subject', 'session', 'acquisition', 'analysis', 'file', 'file_data' ]
 
 COLUMN_BLACKLIST = [ 'permissions', 'files' ]
 
@@ -155,18 +154,14 @@ class DataViewConfig(object):
             # Prepend labels
             idx = itertools.count()
             for cont in self.containers:
-                # TODO: Remove once subjects are formalized
-                if cont == 'session':
-                    self.add_column( 'session', 'subject.code', 'subject.label', 'string', idx=next(idx), allow_duplicate=False )
-                self.add_column(cont, 'label', '{}.label'.format(cont), 'string', idx=next(idx), allow_duplicate=False )
+                # TODO: Remove once subject.code moves to label
+                label_key = 'code' if cont == 'subject' else 'label'
+                self.add_column(cont, label_key, '{}_label'.format(cont), idx=next(idx), allow_duplicate=False )
 
 
         if include_ids:
             # Append ids
             for cont in self.containers:
-                # TODO: Remove once subjects are formalized
-                if cont == 'session':
-                    self.add_column( 'session', 'subject._id', 'subject.id', 'string', allow_duplicate=False )
                 self.add_column( cont, '_id', '{}.id'.format(cont), 'string', allow_duplicate=False )
 
     def resolve_and_add_column(self, src, dst, datatype=None, expr=None, idx=None):
@@ -196,9 +191,9 @@ class DataViewConfig(object):
         except ValueError:
             raise InputValidationException('Unknown column alias: {}'.format(src))
 
-        if container == 'subject':
+        if container == 'subject' and field == 'age':
             container = 'session'
-            field = src
+            field = 'subject_age'
         elif container not in COLUMN_CONTAINERS:
             raise InputValidationException('Unknown container for column: {}'.format(src))
 

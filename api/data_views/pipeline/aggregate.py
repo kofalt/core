@@ -1,12 +1,9 @@
 from .pipeline import PipelineStage
 
 from ...dao import containerutil
-from ...dao.basecontainerstorage import CHILD_MAP
+from ...dao.basecontainerstorage import ContainerStorage
 from ..hierarchy_aggregator import HierarchyAggregator, AggregationStage
 
-def get_child_cont_type(cont_type):
-    # TODO: Replace with ContainerStorage.child_cont_name
-    return CHILD_MAP.get(containerutil.pluralize(cont_type))
 
 class Aggregate(PipelineStage):
     """Performs the mongodb aggregation query for the selected containers.
@@ -30,7 +27,7 @@ class Aggregate(PipelineStage):
         # Determine the total depth
         aggregator = HierarchyAggregator()
         for dummy_idx in range(len(tree), len(config.containers)):
-            child_cont_type = get_child_cont_type(cont_type)
+            child_cont_type = ContainerStorage.factory(cont_type).child_cont_name
             child_cont_type_singular = containerutil.singularize(child_cont_type)
 
             if not aggregator.stages:

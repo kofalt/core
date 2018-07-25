@@ -39,7 +39,7 @@ routing_regexes = {
     'oid': '[0-9a-f]{24}',
 
     # Container name
-    'cname': 'groups|projects|sessions|acquisitions|collections|analyses',
+    'cname': 'groups|projects|subjects|sessions|acquisitions|collections|analyses',
 
     # Tag name
     'tag': '[^/]{1,32}',
