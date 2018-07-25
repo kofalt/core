@@ -145,32 +145,27 @@ class Download(base.RequestHandler):
 
                 sessions = config.db.sessions.find({'project': item_id, 'deleted': {'$exists': False}}, ['label', 'files', 'uid', 'timestamp', 'timezone', 'subject'])
                 session_dict = {session['_id']: session for session in sessions}
-                acquisitions = config.db.acquisitions.find({'session': {'$in': session_dict.keys()}, 'deleted': {'$exists': False}}, ['label', 'files', 'session', 'uid', 'timestamp', 'timezone'])
                 session_prefixes = {}
 
+                subjects = config.db.subjects.find({'_id': {'$in': list(set(sess['subject'] for sess in session_dict.itervalues()))}})
                 subject_dict = {}
                 subject_prefixes = {}
-                for session in session_dict.itervalues():
-                    if session.get('subject'):
-                        subject = session.get('subject', {'code': 'unknown_subject'})
-                        code = subject.get('code')
-                        if code is None:
-                            code = 'unknown_subject'
-                            subject['code'] = code
-                        subject_dict[code] = subject
+                for subject in subjects:
+                    if not subject.get('code'):
+                        subject['code'] = 'unknown_subject'
+                    subject_dict[subject['_id']] = subject
 
-                for code, subject in subject_dict.iteritems():
-                    subject_prefix = self._path_from_container(prefix, subject, ids_of_paths, code)
-                    subject_prefixes[code] = subject_prefix
+                for subject in subject_dict.itervalues():
+                    subject_prefix = self._path_from_container(prefix, subject, ids_of_paths, subject['code'])
+                    subject_prefixes[subject['_id']] = subject_prefix
                     total_size, file_cnt = self._append_targets(targets, 'subjects', subject, subject_prefix, total_size, file_cnt, req_spec.get('filters'))
 
                 for session in session_dict.itervalues():
-                    subject_code = session['subject'].get('code', 'unknown_subject')
-                    subject = subject_dict[subject_code]
-                    session_prefix = self._path_from_container(subject_prefixes[subject_code], session, ids_of_paths, session["_id"])
+                    session_prefix = self._path_from_container(subject_prefixes[session['subject']], session, ids_of_paths, session['_id'])
                     session_prefixes[session['_id']] = session_prefix
                     total_size, file_cnt = self._append_targets(targets, 'sessions', session, session_prefix, total_size, file_cnt, req_spec.get('filters'))
 
+                acquisitions = config.db.acquisitions.find({'session': {'$in': session_dict.keys()}, 'deleted': {'$exists': False}}, ['label', 'files', 'session', 'uid', 'timestamp', 'timezone'])
                 for acq in acquisitions:
                     session = session_dict[acq['session']]
                     acq_prefix = self._path_from_container(session_prefixes[session['_id']], acq, ids_of_paths, acq['_id'])
@@ -185,7 +180,7 @@ class Download(base.RequestHandler):
                     continue
 
                 project = config.db.projects.find_one({'_id': session['project']}, ['group', 'label'])
-                subject = session.get('subject', {'code': 'unknown_subject'})
+                subject = config.db.subjects.find_one({'_id': session['subject']})
                 if not subject.get('code'):
                     subject['code'] = 'unknown_subject'
                 prefix = self._path_from_container(self._path_from_container(project['group'] + '/' + project['label'], subject, ids_of_paths, subject["code"]), session, ids_of_paths, session['_id'])
@@ -209,7 +204,7 @@ class Download(base.RequestHandler):
                     continue
 
                 session = config.db.sessions.find_one({'_id': acq['session']}, ['project', 'label', 'uid', 'timestamp', 'timezone', 'subject'])
-                subject = session.get('subject', {'code': 'unknown_subject'})
+                subject = config.db.subjects.find_one({'_id': session['subject']})
                 if not subject.get('code'):
                     subject['code'] = 'unknown_subject'
 

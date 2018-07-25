@@ -4,9 +4,8 @@ from ..web.errors import InputValidationException
 from ..dao import containerutil
 from .column_aliases import ColumnAliases
 
-# TODO: Add subject once formalized
-VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
-COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file' ]
+VIEW_CONTAINERS = [ 'project', 'subject', 'session', 'acquisition' ]
+COLUMN_CONTAINERS = [ 'project', 'subject', 'session', 'acquisition', 'analysis', 'file' ]
 
 COLUMN_BLACKLIST = [ 'permissions', 'files' ]
 
@@ -93,10 +92,7 @@ class DataViewConfig(object):
             except ValueError:
                 raise InputValidationException('Unknown column alias: {}'.format(src))
 
-            if container == 'subject':
-                container = 'session'
-                field = src
-            elif container not in COLUMN_CONTAINERS:
+            if container not in COLUMN_CONTAINERS:
                 raise InputValidationException('Unknown container for column: {}'.format(src))
 
             self.add_column(container, field, dst, datatype)
@@ -125,18 +121,13 @@ class DataViewConfig(object):
         idx = itertools.count()
 
         for cont in self.containers:
-            if cont == 'session':
-                # TODO: Remove once subjects are formalized
-                if include_ids:
-                    self.add_column( 'session', 'subject._id', 'subject', idx=next(idx) )
-                if include_labels:
-                    self.add_column( 'session', 'subject.code', 'subject_label', idx=next(idx) )
-
             if include_ids:
                 self.add_column( cont, '_id', cont, idx=next(idx) )
 
             if include_labels:
-                self.add_column(cont, 'label', '{}_label'.format(cont), idx=next(idx) )
+                # TODO: Remove once subject.code moves to label
+                label_key = 'code' if cont == 'subject' else 'label'
+                self.add_column(cont, label_key, '{}_label'.format(cont), idx=next(idx) )
 
     def add_column(self, container, src, dst, datatype=None, idx=None):
         """Add a column to the various internal maps

@@ -1330,7 +1330,8 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
 
     # Ensure subject code exists on a session
     for s in sessions:
-        if s.get('subject', {}).get('code') == 'new-subject':
+        subj = api_db.subjects.find_one({'_id': s['subject']})
+        if subj.get('code') == 'new-subject':
             break
     else:
         # We didn't fine one

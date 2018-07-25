@@ -42,10 +42,10 @@ def log_user_access(request, access_type, cont_name=None, cont_id=None, filename
         else:
             tree = get_parent_tree(cont_name, cont_id)
 
-            for k,v in tree.iteritems():
-                context[k] = {'id': str(v['_id']), 'label': v.get('label')}
-                if k == 'subject':
-                    context[k]['label'] = v.get('code')
+            for k, v in tree.iteritems():
+                label_key = 'code' if k == 'subject' else 'label'
+                context[k] = {'id': str(v['_id']), 'label': v.get(label_key)}
+
         if filename:
             context['file'] = {'name': filename}
 

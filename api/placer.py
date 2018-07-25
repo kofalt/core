@@ -11,7 +11,7 @@ import fs.errors
 
 from . import config, util, validators
 from .dao import containerutil, hierarchy
-from .dao.containerstorage import SessionStorage, AcquisitionStorage
+from .dao.containerstorage import SubjectStorage, SessionStorage, AcquisitionStorage
 from .jobs import rules
 from .jobs.jobs import Job, JobTicket
 from .jobs.queue import Queue
@@ -578,28 +578,27 @@ class PackfilePlacer(Placer):
             'deleted': {'$exists': False}
         }
 
-        if self.s_code:
-            # If they supplied a subject code, use that in the query as well
-            query['subject.code'] = self.s_code
-
         # Updates if existing
-        updates = {}
-        updates['permissions'] = self.permissions
-        updates['modified']    = self.timestamp
-        updates = util.mongo_dict(updates)
+        updates = util.mongo_dict({
+            'permissions': self.permissions,
+            'modified': self.timestamp,
+        })
 
-        # Extra properties on insert
-        insert_map = copy.deepcopy(query)
-
-        # Remove query term that should not become part of the payload
-        insert_map.pop('subject.code', None)
-        insert_map.pop('deleted')
-
-        insert_map['created'] = self.timestamp
+        # Properties on insert
+        insert_map = {
+            'project': bson.ObjectId(self.p_id),
+            'label': self.s_label,
+            'group': self.g_id,
+            'created': self.timestamp,
+        }
         insert_map.update(self.metadata['session'])
-        insert_map['subject'] = containerutil.add_id_to_subject(insert_map.get('subject'), bson.ObjectId(self.p_id))
         if 'timestamp' in insert_map:
             insert_map['timestamp'] = dateutil.parser.parse(insert_map['timestamp'])
+
+        project = {'_id': bson.ObjectId(self.p_id), 'permissions': self.permissions}
+        subject = containerutil.extract_subject(insert_map, project)
+        SubjectStorage().create_or_update_el(subject)
+        query['subject'] = subject['_id']
 
         session = config.db.sessions.find_one_and_update(
             query, {

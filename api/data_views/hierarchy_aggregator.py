@@ -104,21 +104,10 @@ class HierarchyAggregator(object):
                     sort_field: '${}{}'.format(proj_pfx, stage.sort_key)
                 }
 
-                if coll_singular == 'session':
-                    subj_id_field = '_meta.subject._id'
-                    subj_label_field = '_meta.subject.label'
-
-                    projection[subj_id_field] = '${}subject._id'.format(proj_pfx)
-                    projection[subj_label_field] = '${}subject.code'.format(proj_pfx)
-
                 projection.update(carryover)
                 carryover[id_field] = 1
                 carryover[label_field] = 1
                 carryover[sort_field] = 1
-
-                if coll_singular == 'session':
-                    carryover[subj_id_field] = 1
-                    carryover[subj_label_field] = 1
 
                 for src in stage.fields:
                     if isinstance(src, tuple):

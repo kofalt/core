@@ -90,12 +90,8 @@ class AccessLogger(object):
         """
         for cont in context:
             cont_type = containerutil.singularize(cont['cont_type'])
-
-            if cont_type == 'session':
-                subj = cont.get('subject', {})
-                self.context['subject'] = self.extract_context(subj, label_key='code')
-
-            self.context[cont_type] = self.extract_context(cont)
+            label_key = 'code' if cont_type == 'subject' else 'label'
+            self.context[cont_type] = self.extract_context(cont, label_key=label_key)
 
     def add_entries(self, context, filename=None):
         """Create bulk entries for each accessed container.

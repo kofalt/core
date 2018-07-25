@@ -2,6 +2,7 @@
 
 import argparse
 import bson
+import collections
 import copy
 import datetime
 import dateutil.parser
@@ -23,7 +24,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 52 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 53 # An int that is bumped when a new schema change is made
 
 def get_db_version():
 
@@ -1760,6 +1761,84 @@ def upgrade_to_52():
 
     cursor = config.db.jobs.find()
     process_cursor(cursor, upgrade_job_to_52, context=gears)
+
+def upgrade_to_53(dry_run=False):
+    """Move subjects into their own collection"""
+
+    def extract_subject(session):
+        """Extract and return augmented subject document, leave subject reference on session"""
+        subject = session.pop('subject')
+        subject.update({'project': session['project'], 'permissions': session['permissions']})
+        session['subject'] = subject['_id']
+        if subject.get('race') or subject.get('ethnicity'):
+            subject['type'] = 'human'
+        if subject.get('age'):
+            session['subject_age'] = subject.pop('age')
+        return subject
+
+    def merge_dict(a, b):
+        """Merge dict a and b in place, into a"""
+        for k in b:
+            if k not in a:  # add new key
+                a[k] = b[k]
+            elif a[k] == b[k]:  # skip unchanged
+                pass
+            elif b[k] in ('', None):  # skip setting empty
+                pass
+            elif type(a[k]) == type(b[k]) == dict:  # recurse in dict
+                merge_dict(a[k], b[k])
+            else:  # handle conflict
+                logging.warning('merge conflict on key %s - storing old value in history', k)
+                a.setdefault(k + '_history', []).append(a[k])
+                a[k] = b[k]
+
+    session_groups = config.db.sessions.aggregate([
+        {'$group': {'_id': {'project': '$project', 'code': '$subject.code'},
+                    'sessions': {'$push': '$$ROOT'}}},
+        {'$sort': collections.OrderedDict([('_id.project', 1), ('_id.code', 1)])},
+    ])
+
+    inserted_subject_ids = []
+    for session_group in session_groups:
+        logging.debug('project: {} / subject: {!r} ({} session{})'.format(
+            session_group['_id'].get('project'),
+            session_group['_id'].get('code'),
+            len(session_group['sessions']), 's' if len(session_group['sessions']) != 1 else ''))
+        # sort sessions by 'created' to merge subjects in chronological order (TBD modified instead)
+        sessions = list(sorted(session_group['sessions'], key=lambda s: s['created']))
+        # make sure subjects w/ missing/empty code are assigned different ids (see also updates 17 and 44)
+        if session_group['_id'].get('code') in ('', None):
+            for session in sessions:
+                if session['subject']['_id'] in inserted_subject_ids:
+                    session['subject']['_id'] = bson.ObjectId()
+                subject = extract_subject(session)
+                logging.debug('extract codeless subject %s of session %s', subject['_id'], session['_id'])
+                if not dry_run:
+                    config.db.subjects.insert_one(subject)
+                    config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
+                inserted_subject_ids.append(subject['_id'])
+            continue
+        # (subjects collection requires, but) project/code based session groups aren't guaranteed to:
+        # - have the same subject id on all sessions in any group
+        # - have a unique subject id across all groups
+        # pick a subject id from the group that hasn't been inserted yet (ie. used for another group), else generate it
+        subject_ids = [session['subject']['_id'] for session in sessions]
+        subject_id = next((_id for _id in subject_ids if _id not in inserted_subject_ids), bson.ObjectId())
+        merged_subject = {}  # TBD created/modified
+        for session in sessions:
+            logging.debug('merging subject data from session %s', session['_id'])
+            session['subject']['_id'] = subject_id
+            subject = extract_subject(session)
+            merge_dict(merged_subject, subject)
+        logging.debug('inserting merged subject %s', subject_id)
+        if not dry_run:
+            config.db.subjects.insert_one(merged_subject)
+        inserted_subject_ids.append(subject_id)
+        for session in sessions:
+            logging.debug('updating session %s to subject reference', session['_id'])
+            if not dry_run:
+                config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
+
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

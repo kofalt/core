@@ -28,8 +28,7 @@ from .pipeline.write import Write
 from .pipeline.read_file import ReadFile
 from .pipeline.missing_data_strategies import get_missing_data_strategy
 
-# TODO: subjects belong here once formalized
-SEARCH_CONTAINERS = ['projects', 'sessions', 'acquisitions']
+SEARCH_CONTAINERS = ['projects', 'subjects', 'sessions', 'acquisitions']
 
 ANALYSIS_FILTER_COLUMNS = [
     ('label', 'label'),
@@ -94,15 +93,14 @@ class DataView(object):
             raise APINotFoundException('Could not resolve container: {}'.format(container_id))
         cont_type, search_results = result[0] # First returned collection
 
-        # Get the container tree (minus group, and subjec)
-        # TODO: Allow subjects once formalized
+        # Get the container tree (minus group)
         storage = ContainerStorage.factory(cont_type)
         self._tree = storage.get_parent_tree(container_id, cont=search_results[0], add_self=True)
 
         # Set access log initial context (including group)
         self._log_access_stage.initialize(self._tree)
         
-        self._tree = [cont for cont in self._tree if cont['cont_type'] not in ['subjects', 'groups']]
+        self._tree = [cont for cont in self._tree if cont['cont_type'] != 'groups']
         self._tree.reverse()
 
         # Check permissions
