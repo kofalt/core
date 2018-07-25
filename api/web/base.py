@@ -281,8 +281,7 @@ class RequestHandler(webapp2.RequestHandler):
 
         token_entry = auth_provider.validate_code(session_cookie, uid=uid)
         self._generate_session(token_entry)
-
-        return {'token': token_entry['_id']}
+        self.redirect(config.get_item('site', 'redirect_url') + '/#/login?token=' + token_entry['_id'])
 
     def _generate_session(self, token_entry):
         timestamp = datetime.datetime.utcnow()
