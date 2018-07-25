@@ -4,6 +4,7 @@ from webob.request import Request
 
 from .. import config
 from .. import util
+from .errors import APIValidationException
 
 AccessType = util.Enum('AccessType', {
     'accept_failed_output':     'accept_failed_output',
@@ -30,6 +31,14 @@ class SciTranRequest(Request):
             random_chars = str(uuid.uuid4().hex)[:8]
             )
         self.logger = config.log.with_context(request_id=self.id)
+
+def beta_feature(handler_method):
+    """A decorator to limit access to an endpoint to clients who set the X-Accept-Feature: beta header"""
+    def beta_wrapper(self, *args, **kwargs):
+        if not self.is_enabled('beta'):
+            raise APIValidationException('Feature not enabled')
+        return handler_method(self, *args, **kwargs)
+    return beta_wrapper
 
 def log_access(access_type, cont_kwarg='cont_name', cont_id_kwarg='cid', filename_kwarg='name'):
     """

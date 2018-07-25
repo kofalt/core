@@ -251,6 +251,10 @@ def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):
 
 class BaseUrlSession(requests.Session):
     """Requests session subclass using core api's base url"""
+    def __init__(self, *args, **kwargs):
+        super(BaseUrlSession, self).__init__(*args, **kwargs)
+        self.headers.update({ 'X-Accept-Feature': 'beta' })
+
     def request(self, method, url, **kwargs):
         return super(BaseUrlSession, self).request(method, SCITRAN_SITE_API_URL + url, **kwargs)
 
