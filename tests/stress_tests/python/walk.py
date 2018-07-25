@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""NOTE: This script REQUIRES python3"""
 
 import argparse
 import csv
