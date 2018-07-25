@@ -1,4 +1,4 @@
-import os, random, string
+import os, random, string, json
 from datetime import datetime, timedelta
 import dateutil.tz
 import flywheel
@@ -31,13 +31,19 @@ def make_clients():
 
 
     fw = flywheel.Flywheel(api_key)
-    client = flywheel.Client()
     fw_root = flywheel.Flywheel(api_key, root=True)
+    cli_config_path = os.path.expanduser('~/.config/flywheel/')
+    if not os.path.exists(cli_config_path):
+        os.makedirs(cli_config_path)
+    with open(os.path.join(cli_config_path, 'user.json'), 'w') as cli_config:
+        json.dump({'key': api_key}, cli_config)
 
-    return fw, fw_root
+    client = flywheel.flywheel.Client()
+
+    return fw, fw_root, client
 
 class SdkTestCase(unittest.TestCase):
-    fw, fw_root = make_clients()
+    fw, fw_root, client = make_clients()
 
     @classmethod
     def rand_string_lower(self, length=10):

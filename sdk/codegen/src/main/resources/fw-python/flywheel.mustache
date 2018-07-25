@@ -46,14 +46,13 @@ def config_from_api_key(api_key):
     return config
 
 def get_api_key_from_cli(path):
-    with open(path) as fp:
-        api_key = json.load(fp).get('key')
+    try:
+        with open(path) as fp:
+            api_key = json.load(fp).get('key')
+    except FileNotFoundError:
+        raise Exception('Must login with flywheel command-line interface')
     return api_key
 
-class Client(Flywheel):
-    def __init__(self, root=False, skip_version_check=False):
-        api_key = get_api_key_from_cli('~/.config/flywheel/user.json')
-        Flywheel.__init__(self, api_key, root=root, skip_version_check=skip_version_check)
 
 class Flywheel:
     def __init__(self, api_key, root=False, skip_version_check=True):
@@ -193,6 +192,11 @@ class Flywheel:
                 'to install a compatible version for this server')
 
 {{>flywheel_methods}}
+
+class Client(Flywheel):
+    def __init__(self, root=False, skip_version_check=False):
+        api_key = get_api_key_from_cli(os.path.expanduser('~/.config/flywheel/user.json'))
+        Flywheel.__init__(self, api_key, root=root, skip_version_check=skip_version_check)
 
 {{/apiInfo}}
 
