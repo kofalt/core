@@ -26,6 +26,11 @@
             [returnData, resp] = obj.lookupPath(flywheel.model.ResolverInput('path', split(path, '/')), varargin{:});
         end
 
+        function view = View(obj, varargin)
+            builder = flywheel.ViewBuilder(varargin);
+            view = builder.build();
+        end
+
     {{#apiInfo}}
     {{#apis}}
     {{#operations}}

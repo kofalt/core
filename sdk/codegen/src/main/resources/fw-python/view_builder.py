@@ -302,7 +302,8 @@ class ViewBuilder(object):
             self._file_container = file_container
             self._file_filter = DataViewNameFilterSpec(value='*')
             if analysis_container:
-                self._analysis_filter = DataViewNameFilterSpec(value='*')
+                label_filter = DataViewNameFilterSpec(value='*')
+                self._analysis_filter = DataViewAnalysisFilterSpec(label=label_filter)
 
             self._file_match = 'all'
             self._missing_data_strategy = 'drop-row'
