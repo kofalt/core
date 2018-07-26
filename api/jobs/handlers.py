@@ -336,8 +336,11 @@ class RuleHandler(base.RequestHandler):
         updates = self.request.json
         validate_data(updates, 'rule-update.json', 'input', 'POST', optional=True)
 
-        if updates.get('config') and (updates.get('auto_update') or doc.get('auto_update')):
-            raise InputValidationException("Gear rule cannot be auto-updated with a config")
+        if updates.get('config'):
+            if updates.get('auto_update'):
+                raise InputValidationException("Gear rule cannot be auto-updated with a config")
+            elif 'auto_update' not in updates and doc.get('auto_update'):
+                raise InputValidationException("Gear rule cannot be auto-updated with a config")
 
         gear_name = get_gear(doc['gear_id'])['gear']['name']
         gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])

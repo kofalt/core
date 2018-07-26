@@ -655,11 +655,19 @@ def test_auto_update_rules(data_builder, api_db, as_admin):
     })
     assert r.status_code == 400
 
-    # Unset auto_update
+    # Unset auto_update and set config
     r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
-        'auto_update': False
+        'auto_update': False,
+        'config': {'param': True}
     })
     assert r.ok
+
+    # Unset config
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'config': {}
+    })
+    assert r.ok
+
 
     r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
     assert r.ok
