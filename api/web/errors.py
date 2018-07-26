@@ -43,9 +43,9 @@ class APIAuthProviderException(APIException):
     """Authentication through 3rd party, session token, or API key failed"""
     status_code = 401
     default_msg = 'Unsuccessful authentication.'
-    def __init__(self, msg=None, error=None, log=True, log_msg=None):
+    def __init__(self, msg=None, errors=None, log=True, log_msg=None):
         """Override default log to True"""
-        super(APIAuthProviderException, self).__init__(msg=msg, error=error, log=log, log_msg=log_msg)
+        super(APIAuthProviderException, self).__init__(msg=msg, errors=errors, log=log, log_msg=log_msg)
 
 class APIUnknownUserException(APIException):
     """Authentication was successful but user was not found or disabled"""
