@@ -342,3 +342,74 @@ def test_wechat_auth(config, as_drone, as_public, api_db):
         # clean up
         api_db.authtokens.delete_one({'_id': token_2})
         api_db.users.delete_one({'_id': uid})
+
+def test_saml_auth(config, as_drone, as_public, api_db):
+    # try to login w/ unconfigured auth provider
+    r = as_public.get('/login/saml')
+    assert r.status_code == 400
+
+    # inject saml auth config
+    config['auth']['saml'] = dict(
+        auth_endpoint='http://saml.test/secure/login/saml',
+        verify_endpoint='http://saml.test/Shibboleth.sso/Session',
+        refresh_rate=300,
+        display_string='SAML Auth')
+
+
+    uid = 'saml_uid@saml.test'
+
+    with requests_mock.Mocker() as m:
+        # try to log in w/ saml and no shibboleth cookie
+        r = as_public.get('/login/saml')
+        assert r.status_code == 401
+
+        # try to log in w/ saml and no shibboleth session
+        # (Shibboleth's /Session endpoint returns empty json
+        #  when there is no active session for the supplied cookie)
+        m.get(config.auth.saml.verify_endpoint, json={})
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 401
+
+        # valid session but no attributes key
+        m.get(config.auth.saml.verify_endpoint, json={'some': 'data'})
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 401
+
+        # valid session but attributes key is empty
+        m.get(config.auth.saml.verify_endpoint, json={'some': 'data', 'attributes': []})
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 401
+
+        # valid session but attributes list does not contain "mail"
+        m.get(config.auth.saml.verify_endpoint, json={'some': 'data', 'attributes': [{'name': 'bob', 'values': ['test']}]})
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 401
+
+        # valid session but attributes "values" for "mail" is empty
+        m.get(config.auth.saml.verify_endpoint, json={'some': 'data', 'attributes': [{'name': 'mail', 'values': []}]})
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 401
+
+        # try to log in w/ saml - user added but disabled
+        assert as_drone.post('/users', json={
+            '_id': uid, 'disabled': True, 'firstname': 'test', 'lastname': 'test'}).ok
+        m.get(config.auth.saml.verify_endpoint, json={'attributes': [{'name': 'mail', 'values': [uid]}]})
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 402
+
+        # log in w/ saml (also mock gravatar 404)
+        m.head(re.compile('https://gravatar.com/avatar'), status_code=404)
+        as_drone.put('/users/' + uid, json={'disabled': False})
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 302
+        assert 'gravatar' not in api_db.users.find_one({'_id': uid})['avatars']
+
+        # log in w/ saml (now w/ existing gravatar)
+        m.head(re.compile('https://gravatar.com/avatar'))
+        r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
+        assert r.status_code == 302
+        assert 'gravatar' in api_db.users.find_one({'_id': uid})['avatars']
+
+        # clean up
+        api_db.authtokens.delete_many({'uid': uid})
+        api_db.users.delete_one({'_id': uid})
