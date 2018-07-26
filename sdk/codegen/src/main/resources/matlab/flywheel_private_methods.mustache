@@ -1,0 +1,92 @@
+        function [returnData, resp] = evalView(obj, varargin)
+            inp = inputParser;
+            inp.StructExpand = false;
+            inp.KeepUnmatched = true;
+            addRequired(inp, 'view');
+            addRequired(inp, 'containerId');
+            addRequired(inp, 'destFile');
+            addParameter(inp, 'OutputType', 'double');
+            parse(inp, varargin{:});
+
+            fwdArgs = {};
+            fwdArgNames = fieldnames(inp.Unmatched);
+            for i = 1:numel(fwdArgNames)
+                name = fwdArgNames{i};
+                fwdArgs = [fwdArgs, {name, inp.Unmatched.(name)}];
+            end
+
+            if ischar(inp.Results.view)
+                [returnData, resp] = obj.viewsApi.evaluateView(inp.Results.view, inp.Results.containerId, fwdArgs{:});
+            else
+                [returnData, resp] = obj.viewsApi.evaluateViewAdhoc(inp.Results.containerId, inp.Results.view, fwdArgs{:});
+            end
+
+            status = resp.getStatusCode();
+            switch num2str(status)
+                case '200'
+                    destFile = inp.Results.destFile;
+                    if ~isempty(destFile)
+                        resp.saveResponseBodyToFile(destFile);
+                        returnData = destFile;
+                    else
+                        returnData = resp.getBodyData(inp.Results.OutputType);
+                    end
+                otherwise
+                    returnData = [];
+            end
+        end
+        function performVersionCheck(obj)
+            sdkVersion = {{packageName}}.Flywheel.SDK_VERSION;
+            [sdkMajor, sdkMinor] = obj.parseVersion(sdkVersion);
+            releaseVersion = '';
+            try
+                serverVersion = obj.defaultApi.getVersion();
+                releaseVersion = serverVersion.release;
+            catch ME
+            end
+
+            [releaseMajor, releaseMinor] = obj.parseVersion(releaseVersion);
+
+            % Log conditionals:
+            % 1. Client or server version not set
+            % 2. Major version mismatch
+            % 3. SDK Minor version > Server Minor version (client features not available on server)
+            % 4. SDK Minor version < Server Minor version (new features on server)
+            showPackageVersion = false;
+
+            if releaseMajor > 0 && sdkMajor > 0
+                if sdkMajor ~= releaseMajor
+                    if isempty(strfind(sdkVersion, 'dev'))
+                        warning('Flywheel:versionMismatch', sprintf('Client version %s does not match server version %s. Please update your client version!', sdkVersion, releaseVersion));
+                        showPackageVersion = true;
+                    end
+                elseif obj.checkVersion
+                    if sdkMinor > releaseMinor
+                        fprintf('Client version %s is ahead of server version %s. Not all client functionality will be supported by the server.\n', sdkVersion, releaseVersion);
+                        showPackageVersion = true;
+                    elseif sdkMinor < releaseMinor
+                        fprintf('Client version %s is behind of server version %s. Please consider upgrading your client to access all available functionality.\n', sdkVersion, releaseVersion);
+                        showPackageVersion = true;
+                    end
+                end
+            elseif obj.checkVersion
+                warning('Flywheel:versionUnavailable', 'Client or server version not available! This is an unsupported configuration!');
+            end
+
+            if showPackageVersion
+                fprintf('Go to https://github.com/flywheel-io/core/releases to find a matching package for version: %s\n', releaseVersion);
+            end
+        end
+        function [major, minor] = parseVersion(obj, s)
+            if isempty(s)
+                major = 0;
+                minor = 0;
+            else
+                parts = strsplit(s, '[^\d\.]+', 'DelimiterType', 'RegularExpression');
+                semver = parts{1};
+                parts = strsplit(semver, '.');
+                major = str2num(parts{1});
+                minor = str2num(parts{2});
+            end
+        end
+

@@ -27,8 +27,56 @@
         end
 
         function view = View(obj, varargin)
-            builder = flywheel.ViewBuilder(varargin);
+            % Create a new View object
+            %
+            % Parameters:
+            %   public: Whether or not to make this data view public when saving it.
+            %   match: The file match type, one of: first, last, newest, oldest, all
+            %   zipFiles: The zip file filter, see the zip_member_filter function
+            %   columns: The columns or column groups to add
+            %   processFiles: Whether or not to process files, default is true
+            %   includeIds: Whether or not to include id columns, default is true
+            %   includeLabels: Whether or not to include label columns, default is true
+            %   container: When matching files, the container to match on
+            %   filename: When matching files, the filename pattern to match
+            %   analysisLabel: When matching analysis files, the label match string
+            %   analysisGearName: When matching analysis files, the gear name match string
+            %   analysisGearVersion: When matching analysis files, the gear version match string
+            builder = flywheel.ViewBuilder(varargin{:});
             view = builder.build();
+        end
+
+        function printViewColumns(obj)
+            % Print the list of common View columns
+            columns = obj.getViewColumns();
+            for i = 1:numel(columns)
+                column = columns{i};
+                if ~isempty(column.group)
+                    coltype = 'group';
+                else
+                    coltype = column.type;
+                end
+                fprintf('%s (%s): %s\n', column.name, coltype, column.description);
+            end
+        end
+
+        function data = readViewData(obj, view, containerId, varargin)
+            % Execute a data view against container, and return the view data
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            data = obj.evalView(view, containerId, [], varargin{:});
+        end
+
+        function destFile = saveViewData(obj, view, containerId, destFile, varargin)
+            % Execute a data view against container, and return the view data
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            %   destFile: The destination file path
+            destFile = obj.evalView(view, containerId, destFile, varargin{:});
         end
 
     {{#apiInfo}}

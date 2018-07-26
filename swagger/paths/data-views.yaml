@@ -99,7 +99,7 @@
 /views/save:
   post:
     summary: Execute a view, saving data to the target container / file
-    operationId: save_view_data
+    operationId: save_view_data_to_container
     tags:
     - views
     parameters:
