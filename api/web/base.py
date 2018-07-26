@@ -273,13 +273,10 @@ class RequestHandler(webapp2.RequestHandler):
                 session_cookie = {k:v}
                 break
 
-        # Get UID from request headers
-        uid = self.request.headers.get('mail')
+        if not session_cookie:
+            raise errors.APIAuthProviderException('SAML session invalid - cookie not available.')
 
-        if not session_cookie or not uid:
-            raise errors.APIAuthProviderException('SAML session invalid - cookie or required attributes not available.')
-
-        token_entry = auth_provider.validate_code(session_cookie, uid=uid)
+        token_entry = auth_provider.validate_code(session_cookie)
         self._generate_session(token_entry)
         self.redirect(config.get_item('site', 'redirect_url') + '/#/login?token=' + token_entry['_id'])
 

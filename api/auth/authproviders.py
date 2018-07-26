@@ -338,7 +338,7 @@ class SAMLAuthProvider(AuthProvider):
         super(SAMLAuthProvider, self).__init__('saml')
 
     def validate_code(self, code, **kwargs):
-        uid = self.validate_user(kwargs['uid'], code)
+        uid = self.validate_user(code)
         return {
             'access_token': code,
             'uid': uid,
@@ -347,10 +347,19 @@ class SAMLAuthProvider(AuthProvider):
             'refresh_token': code
         }
 
-    def validate_user(self, uid, session_cookie):
+    def validate_user(self, session_cookie):
         r = requests.get(self.config['verify_endpoint'], cookies=session_cookie)
         if not r.ok:
             raise APIAuthProviderException('SAML session not valid')
+
+        uid = None
+        attributes = json.loads(r.content).get('attributes', [])
+
+        for a in attributes:
+            if a.get('name') == 'mail':
+                values = a.get('values')
+                uid = values[0] if values else None
+
         if not uid:
             raise APIAuthProviderException('Auth provider did not provide user email')
 
