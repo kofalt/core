@@ -270,15 +270,18 @@ class RequestHandler(webapp2.RequestHandler):
         session_cookie = None
         for k,v in self.request.cookies.iteritems():
             if k.startswith('_shibsession'):
-                session_cookie = {k:v}
-                break
+                if not session_cookie:
+                    session_cookie = {k:v}
+                else:
+                    # Multiple Shibboleth session cookies, abort
+                    errors.APIAuthProviderException('Multiple Shibboleth session cookies detected.')
 
         if not session_cookie:
             raise errors.APIAuthProviderException('SAML session invalid - cookie not available.')
 
         token_entry = auth_provider.validate_code(session_cookie)
         self._generate_session(token_entry)
-        self.redirect(config.get_item('site', 'redirect_url') + '/#/login?token=' + token_entry['_id'])
+        self.redirect('{}/#/login?token={}'.format(config.get_item('site', 'redirect_url'), token_entry['_id']))
 
     def _generate_session(self, token_entry):
         timestamp = datetime.datetime.utcnow()

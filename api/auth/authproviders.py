@@ -348,6 +348,14 @@ class SAMLAuthProvider(AuthProvider):
         }
 
     def validate_user(self, session_cookie):
+        """
+        Validate that a SAML cookie is associated with a session on the SP server.
+        Retrieve user identifier.
+
+        The verify endpoint will give information about the current session,
+        including any attributes the IdP server chooses to share. All SP <-> IdP configurations
+        should include the request for a unique user identifier, usually an email address.
+        """
         r = requests.get(self.config['verify_endpoint'], cookies=session_cookie)
         if not r.ok:
             raise APIAuthProviderException('SAML session not valid')
@@ -369,6 +377,9 @@ class SAMLAuthProvider(AuthProvider):
         return uid
 
     def refresh_token(self, token):
+        """
+        Check to see if the session on the SP is still valid. Reject if not.
+        """
         r = requests.get(self.config['verify_endpoint'], cookies=token)
         if not r.ok:
             raise APIAuthProviderException('SAML session no longer valid.')
