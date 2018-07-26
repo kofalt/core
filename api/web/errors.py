@@ -18,17 +18,22 @@ class APIException(Exception):
     # default response msg
     default_msg = 'There was an error processing the request.'
 
-    def __init__(self, msg=None, errors=None):
+    def __init__(self, msg=None, errors=None, log=False, log_msg=None):
         """Construct an APIException
 
         Arguments:
             msg (str): The optional message (otherwise default_msg will be used)
             errors (dict): An optional dictionary of additional error properties to include in the response
+            log (bool): If True, the system will log the `msg` parameter as a warning
+            log_msg (str): The optional log message override if the error message is not descriptive enough
+
         """
         if not msg:
             msg = self.default_msg
         super(APIException, self).__init__(msg)
         self.errors = errors
+        self.log = log
+        self.log_msg = log_msg if log_msg else msg
 
 ###
 # Auth Exceptions
@@ -38,6 +43,9 @@ class APIAuthProviderException(APIException):
     """Authentication through 3rd party, session token, or API key failed"""
     status_code = 401
     default_msg = 'Unsuccessful authentication.'
+    def __init__(self, msg=None, error=None, log=True, log_msg=None):
+        """Override default log to True"""
+        super(APIAuthProviderException, self).__init__(msg=msg, error=error, log=log, log_msg=log_msg)
 
 class APIUnknownUserException(APIException):
     """Authentication was successful but user was not found or disabled"""

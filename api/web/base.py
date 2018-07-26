@@ -397,14 +397,18 @@ class RequestHandler(webapp2.RequestHandler):
         core_status = None
         if isinstance(exception, webapp2.HTTPException):
             code = exception.code
+
         elif isinstance(exception, errors.APIException):
             code = exception.status_code
             core_status = exception.core_status_code
             custom_errors = exception.errors
+
+            if exception.log:
+                self.log.warning(exception.log_msg)
+
         elif isinstance(exception, ElasticsearchException):
             code = 503
             message = "Search is currently down. Try again later."
-            self.log.error(traceback.format_exc())
         elif isinstance(exception, KeyError):
             code = 500
             message = "Key {} was not found".format(str(exception))
