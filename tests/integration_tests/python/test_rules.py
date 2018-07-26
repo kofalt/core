@@ -729,3 +729,9 @@ def test_auto_update_rules(data_builder, api_db, as_admin):
     r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
     assert r.ok
     assert r.json().get('gear_id') == gearv3
+
+    # Try to bump down auto_update gear
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'gear_id': gearv1
+    })
+    assert r.status_code == 400

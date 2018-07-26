@@ -341,11 +341,14 @@ class RuleHandler(base.RequestHandler):
 
         gear_name = get_gear(doc['gear_id'])['gear']['name']
         gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
+        current_auto_update = doc.get('auto_update', False)
 
-        if updates.get("auto_update"):
-            if updates.get('gear_id') != gear_id_latest_version:
-                if doc['gear_id'] != gear_id_latest_version:
-                    raise InputValidationException("Gear rule cannot be auto-updated unless it is using the latest version of the gear")
+        if updates.get("auto_update", current_auto_update):
+            if updates.get('gear_id'):
+                if updates.get('gear_id') != gear_id_latest_version:
+                    raise InputValidationException("Cannot manually change gear version of gear rule that is auto-updated")
+            elif doc['gear_id'] != gear_id_latest_version:
+                raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")
             updates["config"] = {}
 
         validate_regexes(updates)
