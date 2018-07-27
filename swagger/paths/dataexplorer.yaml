@@ -10,6 +10,7 @@
       - name: size
         in: query
         type: integer
+        minimum: 1
         x-sdk-default: 100
       - name: body
         in: body

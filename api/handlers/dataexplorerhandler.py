@@ -395,6 +395,8 @@ class DataExplorerHandler(base.RequestHandler):
 
         # Determine query size, if size=all figure out max for return type.
         size = self.request.params.get('size')
+        if size == 0:
+            self.abort(400, "Size must be greater than 0.")
         if not size:
             size = self.request.json_body.get("size", 100)
         if size == 'all':
