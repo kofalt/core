@@ -80,7 +80,7 @@ def test_data_view_columns(as_user):
     columns = r.json()
     # This is just a subset of expected aliases
     expected_columns = { 'project', 'project.label', 'subject.label', 'subject.age', 'file.name', 'analysis.label' }
-    valid_types = { 'int', 'float', 'bool', 'string' }
+    valid_types = { 'int', 'float', 'bool', 'string', 'object' }
 
     for col in columns:
         assert 'name' in col
