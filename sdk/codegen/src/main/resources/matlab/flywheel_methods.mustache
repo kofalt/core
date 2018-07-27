@@ -79,6 +79,84 @@
             destFile = obj.evalView(view, containerId, destFile, varargin{:});
         end
 
+        function result = readViewStruct(obj, varargin)
+            % Execute a data view against container, and return the view data as a struct array.
+            % Requires Matlab 2016 or later
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            %   filter: The filter to apply
+            %   skip: The number of rows to skip
+            %   limit: The maximum number of rows to return
+            obj.requireVersion(9, 0);
+            % webread/webwrite did not support Headers before 2016
+
+            inp = inputParser;
+            inp.StructExpand = false;
+            addRequired(inp, 'view');
+            addRequired(inp, 'containerId');
+
+            addParameter(inp, 'filter', []);
+            addParameter(inp, 'skip', []);
+            addParameter(inp, 'limit', []);
+
+            parse(inp, varargin{:});
+
+            % Query parameters
+            queryParams = { 'containerId', inp.Results.containerId, 'format', 'json-flat' };
+            if ~isempty(inp.Results.filter)
+                queryParams = [queryParams, 'filter', inp.Results.filter];
+            end
+            if ~isempty(inp.Results.skip)
+                queryParams = [queryParams, 'skip', inp.Results.skip];
+            end
+            if ~isempty(inp.Results.limit)
+                queryParams = [queryParams, 'limit', inp.Results.limit];
+            end
+
+            % Get default web options
+            opts = obj.getWebOptions();
+            opts.ContentType = 'json';
+
+            if ischar(inp.Results.view)
+                % Saved view execution
+                path = '/views/{ViewId}/data';
+                pathParams = { 'ViewId', inp.Results.view };
+
+                opts.RequestMethod = 'GET';
+
+                url = obj.buildUrl(path, pathParams, queryParams);
+                result = webread(url, opts);
+            else
+                % Ad-hoc view execution
+                path = '/views/data';
+                pathParams = {};
+
+                opts.RequestMethod = 'POST';
+                opts.MediaType = 'application/json';
+
+                url = obj.buildUrl(path, pathParams, queryParams);
+                body = flywheel.model.DataView.ensureIsInstance(inp.Results.view);
+                body = flywheel.ApiClient.encodeJson(body.toJson());
+                result = webwrite(url, body, opts);
+            end
+        end
+
+        function result = readViewTable(obj, varargin)
+            % Execute a data view against container, and return the view data as a table.
+            % Requires Matlab 2016 or later
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            %   filter: The filter to apply
+            %   skip: The number of rows to skip
+            %   limit: The maximum number of rows to return
+            s = obj.readViewStruct(varargin{:});
+            result = struct2table(s);
+        end
+
     {{#apiInfo}}
     {{#apis}}
     {{#operations}}

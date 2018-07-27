@@ -35,6 +35,44 @@
                     returnData = [];
             end
         end
+        function requireVersion(obj, major, minor)
+            versionParts = strsplit(version, '.');
+            majorVersion = str2num(versionParts{1});
+            minorVersion = str2num(versionParts{2});
+            ok = true;
+
+            if majorVersion == major && minorVersion < minor
+                ok = false;
+            elseif majorVersion < major
+                ok = false;
+            end
+            if ~ok
+                error(sprintf('This feature is not supported on Matlab version %s. (Minimum required version: %d.%d)', ...
+                    version, major, minor));
+            end
+        end
+        function opts = getWebOptions(obj)
+            headers = {};
+            userAgent = [];
+
+            defaultHeaders = obj.apiClient.restClient.getDefaultHeaders();
+            for i = 1:numel(defaultHeaders)
+                header = cell(defaultHeaders(i));
+                if strcmp('user-agent', lower(header{1}))
+                    userAgent = header{2};
+                else
+                    headers = [headers; { header{1} header{2} }];
+                end
+            end
+
+            opts = weboptions('HeaderFields', headers);
+            if ~isempty(userAgent)
+                opts.UserAgent = userAgent;
+            end
+        end
+        function url = buildUrl(obj, path, pathParams, queryParams)
+            url = char(obj.apiClient.restClient.buildUrl(path, pathParams, queryParams));
+        end
         function performVersionCheck(obj)
             sdkVersion = {{packageName}}.Flywheel.SDK_VERSION;
             [sdkMajor, sdkMinor] = obj.parseVersion(sdkVersion);

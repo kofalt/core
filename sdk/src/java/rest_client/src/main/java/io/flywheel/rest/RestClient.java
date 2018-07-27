@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -132,18 +134,7 @@ public class RestClient {
                                 Object[] queryParams, Object[] headers, String body, Object[] postParams,
                                 Object[] files) throws IOException
     {
-        // Resolve the path
-        path = RestUtils.resolvePathParameters(path, pathParams);
-
-        if( path.startsWith("/") ) {
-            path = path.substring(1);
-        }
-
-        // Resolve query parameters
-        String query = RestUtils.buildQueryString(defaultParameters, queryParams);
-
-        // Resolve url with query parameters
-        String url = new URL(this.baseUrl, path).toString() + query;
+        String url = buildUrl(path, pathParams, queryParams);
 
         // Create the request with default headers
         HttpMethod request = RestUtils.createMethod(method, url);
@@ -178,6 +169,43 @@ public class RestClient {
     public void setDefaultHeader(String name, String value) {
         defaultHeaders.put(name, value);
     }
+
+    /**
+     * Get default headers
+     * @return The map of default headers
+     */
+    public Object[] getDefaultHeaders() {
+        ArrayList<Object> result = new ArrayList<>();
+
+        for( String key : defaultHeaders.keySet() ) {
+            result.add(new Object[]{ key, defaultHeaders.get(key) });
+        }
+
+        return result.toArray();
+    }
+
+    /**
+     * Build a url from path, path parameters and query parameters.
+     * @param path The resource path
+     * @param pathParams The path parameters as pairs of [name, value]
+     * @param queryParams The query parameters as pairs of [name, value]
+     * @return The url string
+     */
+    public String buildUrl(String path, Object[] pathParams, Object[] queryParams) throws IOException {
+        // Resolve the path
+        path = RestUtils.resolvePathParameters(path, pathParams);
+
+        if( path.startsWith("/") ) {
+            path = path.substring(1);
+        }
+
+        // Resolve query parameters
+        String query = RestUtils.buildQueryString(defaultParameters, queryParams);
+
+        // Resolve url with query parameters
+        return new URL(this.baseUrl, path).toString() + query;
+    }
+
 
     /**
      * Initializes method with the default headers, including authorization, and
