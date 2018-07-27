@@ -66,6 +66,8 @@ class AnalysisTestCases(SdkTestCase):
         self.assertTimestampAfter(r_analysis.notes[0].modified, r_analysis.created)
         self.assertGreaterEqual(r_analysis.notes[0].modified, r_analysis.notes[0].created)
 
+        self.assertEqual(r_analysis.parent.id, session.id)
+
         # Access multiple analyses
         analysis_id2 = fw.add_session_analysis(self.session_id, analysis)
         self.assertNotEmpty(analysis_id2)
