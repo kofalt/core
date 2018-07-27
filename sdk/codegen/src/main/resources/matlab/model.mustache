@@ -220,35 +220,37 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 makeValidName does that, and makeUniqueStrings de-duplicates variable names.
                 We print out a warning for any property that's been remapped.
             }}
-            keys = fieldnames(json);
-            names = matlab.lang.makeValidName(keys);
-            names = matlab.lang.makeUniqueStrings(names, {}, namelengthmax);
-            values = struct2cell(json);
-            for i = 1:length(keys)
-                key = keys{i};
-                name = names{i};
-                value = values{i};
+            if ~isempty(json)
+                keys = fieldnames(json);
+                names = matlab.lang.makeValidName(keys);
+                names = matlab.lang.makeUniqueStrings(names, {}, namelengthmax);
+                values = struct2cell(json);
+                for i = 1:length(keys)
+                    key = keys{i};
+                    name = names{i};
+                    value = values{i};
 
-                if ~strcmp(key, name)
-                    fprintf("Warning: '%s' is not a valid identifier and has been renamed to '%s'\n", key, name);
+                    if ~strcmp(key, name)
+                        fprintf("Warning: '%s' is not a valid identifier and has been renamed to '%s'\n", key, name);
+                    end
+
+                    {{#vendorExtensions.x-matlab-additionalProperties}}
+                    {{#isPrimitiveType}}
+                    obj.props_(name) = {{packageName}}.ModelBase.deserializeValue(value, '{{{datatype}}}');
+                    {{/isPrimitiveType}}
+                    {{^isPrimitiveType}}
+                    {{^isListContainer}}
+                    obj.props_(name) =  {{modelPackage}}.{{complexType}}.fromJson(value);
+                    {{/isListContainer}}
+                    {{#isListContainer}}
+                    obj.props_(name) = {{packageName}}.ModelBase.cellmap(@{{modelPackage}}.{{complexType}}.fromJson, value);
+                    {{/isListContainer}}
+                    {{/isPrimitiveType}}
+                    {{/vendorExtensions.x-matlab-additionalProperties}}
+                    {{^additionalPropertiesType}}
+                    obj.props_(name) = value;
+                    {{/additionalPropertiesType}}
                 end
-
-                {{#vendorExtensions.x-matlab-additionalProperties}}
-                {{#isPrimitiveType}}
-                obj.props_(name) = {{packageName}}.ModelBase.deserializeValue(value, '{{{datatype}}}');
-                {{/isPrimitiveType}}
-                {{^isPrimitiveType}}
-                {{^isListContainer}}
-                obj.props_(name) =  {{modelPackage}}.{{complexType}}.fromJson(value);
-                {{/isListContainer}}
-                {{#isListContainer}}
-                obj.props_(name) = {{packageName}}.ModelBase.cellmap(@{{modelPackage}}.{{complexType}}.fromJson, value);
-                {{/isListContainer}}
-                {{/isPrimitiveType}}
-                {{/vendorExtensions.x-matlab-additionalProperties}}
-                {{^additionalPropertiesType}}
-                obj.props_(name) = value;
-                {{/additionalPropertiesType}}
             end
             {{/vars}}
         end
