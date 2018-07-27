@@ -103,6 +103,8 @@ def convert_to_datatype(value, datatype):
 
     try:
         if datatype == 'int':
+            if value is None:
+                return nil_value
             return int(value)
         elif datatype == 'float':
             return float(value)
@@ -114,6 +116,8 @@ def convert_to_datatype(value, datatype):
             if value is None:
                 return ''
             return str(value)
+        elif datatype == 'object':
+            return value
         else:
             raise RuntimeError('Unknown datatype: {}'.format(datatype))
 

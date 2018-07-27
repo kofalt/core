@@ -17,6 +17,7 @@
 	{
 		"name": "project.info",
 		"src": "project.info",
+		"type": "object",
 		"description": "The freeform project metadata"
 	},
 	
@@ -97,6 +98,7 @@
 	{
 		"name": "subject.info",
 		"src": "subject.info",
+		"type": "object",
 		"description": "The freeform subject metadata"
 	},
 
@@ -133,6 +135,7 @@
 	{
 		"name": "session.info",
 		"src": "session.info",
+		"type": "object",
 		"description": "The freeform session metadata"
 	},
 
@@ -165,6 +168,7 @@
 	{
 		"name": "acquisition.info",
 		"src": "acquisition.info",
+		"type": "object",
 		"description": "The freeform acquisition metadata"
 	},
 
@@ -186,6 +190,7 @@
 	{
 		"name": "analysis.info",
 		"src": "analysis.info",
+		"type": "object",
 		"description": "The freeform analysis metadata"
 	},
 
@@ -234,6 +239,7 @@
 	{
 		"name": "file.info",
 		"src": "file.info",
+		"type": "object",
 		"description": "The freeform file metadata"
 	}
 ]
