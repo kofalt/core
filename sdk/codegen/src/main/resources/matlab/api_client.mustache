@@ -32,7 +32,12 @@ classdef ApiClient < handle
             statusCode = resp.getStatusCode();
             if statusCode < 200 || statusCode > 299
                 reason = resp.getReasonPhrase().toCharArray';
-                throw(MException('ApiClient:apiException', '(%d) Reason: %s', statusCode, reason));
+                detail = {{packageName}}.ApiClient.getResponseError(resp);
+                if isempty(detail)
+                    throw(MException('ApiClient:apiException', '(%d) Reason: %s', statusCode, reason));
+                else
+                    throw(MException('ApiClient:apiException', '(%d) Reason: %s\nDetail: %s', statusCode, reason, detail));
+                end
             end
         end
     end
@@ -43,6 +48,16 @@ classdef ApiClient < handle
         function json = getResponseJson(resp)
             body = resp.getBodyAsString().toCharArray';
             json = jsonio.jsonread(body, struct('ReplacementStyle', 'hex'));
+        end
+        function result = getResponseError(resp)
+            result = [];
+            try
+                data = {{packageName}}.ApiClient.getResponseJson(resp);
+                if isfield(data, 'message')
+                    result = data.message;
+                end
+            catch
+            end
         end
         function params = formatParamCollection(params, name, value, format)
             if iscell(value)
