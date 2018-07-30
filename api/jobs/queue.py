@@ -317,10 +317,13 @@ class Queue(object):
 
         query = { 'state': 'pending' }
 
+        if len(inclusive_tags) > 0 or len(exclusive_tags) > 0:
+            query['tags'] = {}
+
         if len(inclusive_tags) > 0:
-            query['tags'] = {'$in': inclusive_tags }
+            query['tags']['$in']  = inclusive_tags
         if len(exclusive_tags) > 0:
-            query['tags'] = {'$nin': exclusive_tags }
+            query['tags']['$nin'] = exclusive_tags
 
         modification = { '$set': {
             'state': 'running',
