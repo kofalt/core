@@ -1841,8 +1841,6 @@ def upgrade_to_53(dry_run=False):
             if not dry_run:
                 config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
 
-
-
 def upgrade_job_to_54(doc, collection):
     file_arrays = ['files', 'inputs']
 

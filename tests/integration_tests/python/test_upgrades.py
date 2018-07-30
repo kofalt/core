@@ -80,6 +80,9 @@ def test_43(data_builder, api_db, as_admin, file_form, database):
     assert len(analysis['files']) == 1
     assert 'output' not in analysis['files'][0]
 
+    # cleanup
+    api_db.analyses.delete_one({'_id': bson.ObjectId(analysis_id)})
+
 
 def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
 
@@ -490,6 +493,12 @@ def test_53():
 
 
 def test_54(api_db, database):
+    api_db.projects.delete_many({})
+    api_db.sessions.delete_many({})
+    api_db.acquisitions.delete_many({})
+    api_db.analyses.delete_many({})
+    api_db.collections.delete_many({})
+
     # Prepare database
     file_info = {
         "_id": "bf4f7a06-9f79-4b53-84ea-4f4897be45b8",

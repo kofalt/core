@@ -1,4 +1,5 @@
 # Test changing propagated properties
+import bson
 
 def test_public_propagation_from_project(data_builder, as_admin):
     """
@@ -135,7 +136,7 @@ def test_add_and_remove_user_for_project_permissions(data_builder, as_admin):
     assert r.ok and user is None
 
 # Test group permission propagation
-def test_add_and_remove_user_group_permission(data_builder, as_admin):
+def test_add_and_remove_user_group_permission(data_builder, as_admin, api_db):
     """
     Tests:
       - changing permissions at a group level with flag triggers propagation
@@ -243,8 +244,8 @@ def test_add_and_remove_user_group_permission(data_builder, as_admin):
     assert r.ok and user is None
 
     # Delete empty project 2
-    r= as_admin.delete('/projects/' + project2)
-    assert r.ok
+    r = api_db.projects.delete_one({'_id': bson.ObjectId(project2)})
+    assert r.deleted_count
 
 # Test tag pool renaming and deletion
 def test_add_rename_remove_group_tag(data_builder, as_admin):

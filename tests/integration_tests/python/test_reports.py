@@ -1,5 +1,6 @@
 import calendar
 import copy
+import bson
 import datetime
 from api.web.request import AccessTypeList
 
@@ -232,7 +233,7 @@ def test_access_log_report(data_builder, with_user, as_user, as_admin):
     assert r.json() == AccessTypeList
 
 
-def test_usage_report(data_builder, file_form, as_user, as_admin):
+def test_usage_report(data_builder, file_form, as_user, as_admin, api_db):
     # try to get usage report as user
     r = as_user.get('/report/usage', params={'type': 'month'})
     assert r.status_code == 403
@@ -330,5 +331,5 @@ def test_usage_report(data_builder, file_form, as_user, as_admin):
     assert usage[1]['gear_execution_count'] == 0
 
     # delete project
-    r= as_admin.delete('/projects/' + project)
-    assert r.ok
+    r = api_db.projects.delete_one({'_id': bson.ObjectId(project)})
+    assert r.deleted_count == 1
