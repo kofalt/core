@@ -257,9 +257,7 @@ class RequestHandler(webapp2.RequestHandler):
         """
         Validates SAML requests and generates a FW session token
 
-        NGINX configuration should prevent external access to this endpoint, all access
-        should be routed through SAML secured entrypoints
-        Uses headers to passthrough IdProvider attributes
+        Uses a Shibboleth header to verify Authn via session endpoint configured as `verify_endpoint`
         """
         try:
             auth_provider = AuthProvider.factory('saml')
@@ -274,7 +272,7 @@ class RequestHandler(webapp2.RequestHandler):
                     session_cookie = {k:v}
                 else:
                     # Multiple Shibboleth session cookies, abort
-                    errors.APIAuthProviderException('Multiple Shibboleth session cookies detected.')
+                    raise errors.APIAuthProviderException('Multiple Shibboleth session cookies detected.')
 
         if not session_cookie:
             raise errors.APIAuthProviderException('SAML session invalid - cookie not available.')

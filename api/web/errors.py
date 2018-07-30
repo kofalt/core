@@ -32,7 +32,13 @@ class APIException(Exception):
             msg = self.default_msg
         super(APIException, self).__init__(msg)
         self.errors = errors
-        self.log = log
+
+        # Always log if user sent a unique log message
+        if log_msg:
+            self.log = True
+        else:
+            self.log = log
+
         self.log_msg = log_msg if log_msg else msg
 
 ###

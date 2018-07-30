@@ -358,7 +358,8 @@ class SAMLAuthProvider(AuthProvider):
         """
         r = requests.get(self.config['verify_endpoint'], cookies=session_cookie)
         if not r.ok:
-            raise APIAuthProviderException('SAML session not valid')
+            log_msg = 'SAML request failed: {} - {}'.format(r.status_code, r.reason)
+            raise APIAuthProviderException('SAML session not valid', log_msg=log_msg)
 
         uid = None
         attributes = json.loads(r.content).get('attributes', [])
