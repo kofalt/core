@@ -57,6 +57,14 @@ def apply_container_type(lst, container_type):
     for item in lst:
         set_container_type(item, container_type)
 
+def raise_not_found(msg, path):
+    """Raise an APINotFoundException, possibly including a suggested path"""
+    # If there's a dot in the name, assume that they're trying to resolve
+    # a file, and suggest using the files/ prefix
+    if not path.startswith('files/') and '.' in path:
+        msg += '\nDid you mean files/{}?'.format(path)
+    raise APINotFoundException(msg)
+
 class Node(object):
     """Base class for all nodes in the resolver tree"""
     def next(self, path_in, path_out, id_only): # pylint: disable=W0613
@@ -200,7 +208,8 @@ class ContainerNode(Node):
 
         results = self.find(query, parent, proj)
         if not results:
-            raise APINotFoundException('No {0} {1} found.'.format(criterion, self.container_type))
+            msg = 'No {} {} found.'.format(criterion, self.container_type)
+            raise_not_found(msg, criterion)
         
         child = results[0]
 
@@ -389,7 +398,9 @@ class Resolver(object):
 
         # If we haven't consumed path, then we didn't find what we were looking for
         if len(path) > 0:
-            raise APINotFoundException('Could not resolve node for: ' + '/'.join(path))
+            msg_path = '/'.join(path)
+            msg = 'Could not resolve node for: {}'.format(msg_path)
+            raise_not_found(msg, msg_path)
 
         if hasattr(node, 'get_children'):
             resolved_children = node.get_children(resolved_path)
