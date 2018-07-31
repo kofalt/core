@@ -202,8 +202,6 @@ def initialize_db():
                    'groups', {'_id': 'unknown'},
                    {'$setOnInsert': {'created': now, 'modified': now, 'label': 'Unknown', 'permissions': []}},
                    upsert=True)
-    log.info('Initializing database, creating indexes ....DONE')
-
 
 def get_config():
     global __last_update, __config, __config_persisted #pylint: disable=global-statement
