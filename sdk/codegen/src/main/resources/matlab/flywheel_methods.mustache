@@ -1,7 +1,8 @@
         function [returnData, resp] = addNodesToCollection(obj, collectionId, level, nodeIds, varargin)
-            nodes = cellfun(@(id) containers.Map({'_id', 'level'}, { id, level }), nodeIds, 'UniformOutput', false);
-            contents = containers.Map({'operation', 'nodes'}, {'add', nodes});
-            update = struct('contents', contents);
+            nodes = cellfun(@(id) flywheel.model.CollectionNode('id', id, 'level', level), ...
+                nodeIds, 'UniformOutput', false);
+            contents = flywheel.model.CollectionOperation('operation', 'add', 'nodes', nodes);
+            update = flywheel.model.Collection('contents', contents);
             [returnData, resp] = obj.collectionsApi.modifyCollection(collectionId, update, varargin{:});
         end
 

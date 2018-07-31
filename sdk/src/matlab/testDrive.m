@@ -148,6 +148,40 @@ assert(acq.files{1}.size == s.bytes, errMsg)
 acqDownloadUrl = fw.getAcquisitionDownloadUrl(acqId, filename);
 assert(~strcmp(acqDownloadUrl, ''), errMsg)
 
+%% Collections
+disp('Testing Collections')
+
+colId = fw.addCollection(struct('label', testString));
+
+fw.addSessionsToCollection(colId, {sessionId});
+fw.addAcquisitionsToCollection(colId, {acqId});
+
+collSessions = fw.getCollectionSessions(colId);
+assert(~isempty(collSessions), errMsg)
+
+collAqs = fw.getCollectionAcquisitions(colId);
+assert(~isempty(collAqs), errMsg)
+
+fw.addCollectionNote(colId, 'This is a note');
+
+fw.uploadFileToCollection(colId, filename);
+collectionDownloadFile = fullfile(tempdir, 'download4.txt');
+fw.downloadFileFromCollection(colId, filename, collectionDownloadFile);
+
+collection = fw.getCollection(colId);
+assert(strcmp(collection.notes{1}.text, 'This is a note'), errMsg)
+assert(strcmp(collection.files{1}.name, filename), errMsg)
+s = dir(collectionDownloadFile);
+assert(collection.files{1}.size == s.bytes, errMsg)
+
+colDownloadUrl = fw.getCollectionDownloadUrl(colId, filename);
+assert(~strcmp(colDownloadUrl, ''), errMsg)
+
+fw.deleteCollectionFile(colId, filename);
+
+collection = fw.getCollection(colId);
+assert(isempty(collection.files), errMsg)
+
 %% Gears
 disp('Testing Gears')
 
@@ -180,6 +214,7 @@ assert(fwVersion.database >= 25, errMsg)
 %% Cleanup
 disp('Cleanup')
 
+fw.deleteCollection(colId);
 fw.deleteAcquisition(acqId);
 fw.deleteSession(sessionId);
 fw.deleteProject(projectId);
