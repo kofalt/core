@@ -10,7 +10,7 @@ from fs import open_fs
 
 from . import util
 from . import logutil
-from .dao.dbutil import try_replace_one
+from .dao.dbutil import try_replace_one, try_update_one
 
 logging.basicConfig(
     format='%(asctime)s %(name)16.16s %(filename)24.24s %(lineno)5d:%(levelname)4.4s %(message)s',
@@ -198,7 +198,10 @@ def initialize_db():
     create_or_recreate_ttl_index('job_tickets', 'timestamp', 3600) # IMPORTANT: this controls job orphan logic. Ref queue.py
 
     now = datetime.datetime.utcnow()
-    db.groups.update_one({'_id': 'unknown'}, {'$setOnInsert': { 'created': now, 'modified': now, 'label': 'Unknown', 'permissions': []}}, upsert=True)
+    try_update_one(db,
+                   'groups', {'_id': 'unknown'},
+                   {'$setOnInsert': {'created': now, 'modified': now, 'label': 'Unknown', 'permissions': []}},
+                   upsert=True)
 
 def get_config():
     global __last_update, __config, __config_persisted #pylint: disable=global-statement
