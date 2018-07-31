@@ -29,9 +29,11 @@ def make_clients():
         print('Could not initialize test case, no api_key. Try setting the SdkTestKey environment variable!')
         exit(1)
 
-
     fw = flywheel.Flywheel(api_key)
+    fw.api_client.set_default_header('X-Accept-Feature', 'beta')
+
     fw_root = flywheel.Flywheel(api_key, root=True)
+    fw_root.api_client.set_default_header('X-Accept-Feature', 'beta')
 
     # Mock cli login
     home = os.environ['HOME']
@@ -43,6 +45,7 @@ def make_clients():
         json.dump({'key': api_key}, cli_config)
 
     client = flywheel.Client()
+    client.api_client.set_default_header('X-Accept-Feature', 'beta')
 
     # Don't need the login anymore
     shutil.rmtree(tmp_path)
