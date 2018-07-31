@@ -51,7 +51,7 @@ def try_update_one(db, coll_name, query, update, upsert=False):
     """
     try:
         result = db[coll_name].update_one(query, update, upsert=upsert)
-    except DuplicateKeyError:
+    except pymongo.errors.DuplicateKeyError:
         return result, False
     else:
         return result, True
