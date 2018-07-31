@@ -41,7 +41,7 @@ def upload_file_form(file_form, merge_dict, randstr):
     return create_form
 
 
-def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_root):
+def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_root, as_user):
     group_1 = data_builder.create_group()
     prefix = randstr()
     project_label_1 = prefix + '-project-label-1'
@@ -186,7 +186,15 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
     unknown_project = project['_id']
     assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 2
 
-
+    # Try uploading as user without permissions
+    user_id = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + unknown_project + '/permissions', json={'_id': user_id, 'access': 'ro'})
+    r = as_user.post('/upload/reaper', files=upload_file_form(
+        group={'_id': group_3},
+        project={'label': 'Miss-typed project'},
+        session={'uid': session_uid+'4'},
+    ))
+    assert r.status_code == 403
 
     # clean up
     data_builder.delete_group(group_1, recursive=True)

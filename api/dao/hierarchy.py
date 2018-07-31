@@ -294,7 +294,7 @@ def add_fileinfo(cont_name, _id, fileinfo):
         return_document=pymongo.collection.ReturnDocument.AFTER
     )
 
-def _group_id_fuzzy_match(group_id, project_label, unsorted):
+def _group_id_fuzzy_match(group_id, project_label, unsorted_projects):
     existing_group_ids = [g['_id'] for g in config.db.groups.find(None, ['_id'])]
     if group_id.lower() in existing_group_ids:
         return group_id.lower(), project_label
@@ -304,18 +304,17 @@ def _group_id_fuzzy_match(group_id, project_label, unsorted):
     else:
         if group_id != '' or project_label != '':
             project_label = group_id + '_' + project_label
-            if unsorted:
+            if unsorted_projects:
                 project_label = 'Unsorted'
         group_id = 'unknown'
     return group_id, project_label
 
-def _find_or_create_destination_project(group_id, project_label, timestamp, user, unsorted):
-    group_id, project_label = _group_id_fuzzy_match(group_id, project_label, unsorted)
+def _find_or_create_destination_project(group_id, project_label, timestamp, user, unsorted_projects):
+    group_id, project_label = _group_id_fuzzy_match(group_id, project_label, unsorted_projects)
     group = config.db.groups.find_one({'_id': group_id})
 
-    default_project_label = 'Unsorted' if unsorted else 'Unknown'
     if project_label == '':
-        project_label = default_project_label
+        project_label = 'Unsorted' if unsorted_projects else 'Unknown'
 
     project_regex = '^'+re.escape(project_label)+'$'
     project = config.db.projects.find_one({'group': group['_id'], 'label': {'$regex': project_regex, '$options': 'i'}, 'deleted': {'$exists': False}})
@@ -326,7 +325,7 @@ def _find_or_create_destination_project(group_id, project_label, timestamp, user
             raise APIPermissionException('User {} does not have read-write access to project {}'.format(user, project['label']))
         return project
 
-    elif unsorted:
+    elif unsorted_projects:
         # Check if there is an Unsorted project in the group to upload to
         project_label = 'Unsorted'
         project = config.db.projects.find_one({'group': group['_id'], 'label': project_label, 'deleted': {'$exists': False}})
