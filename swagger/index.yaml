@@ -28,6 +28,8 @@ tags:
     description: Collection operations
   - name: files
     description: File upload/download operations
+  - name: dataexplorer
+    description: Search operations
   - name: devices
     description: Device operations
   - name: modalities

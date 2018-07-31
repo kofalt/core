@@ -2,6 +2,8 @@
   post:
     summary: Perform a search query
     operationId: search
+    tags:
+    - dataexplorer
     parameters:
       - name: simple
         in: query
