@@ -1,6 +1,3 @@
-import requests_mock
-
-
 def test_signed_url_reaper_upload(as_drone, mocker):
 
     payload = {

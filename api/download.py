@@ -10,8 +10,9 @@ from tarfile import TarInfo
 
 import fs.path
 import fs.errors
-from fs.iotools import RawWrapper
+from fs.time import datetime_to_epoch
 import requests
+from requests import exceptions as req_exceptions
 
 from .web import base
 from .web.request import AccessType
@@ -56,9 +57,9 @@ class Download(base.RequestHandler):
             file_path = files.get_file_path(f)
             if file_path:  # silently skip missing files
                 if cont_name == 'analyses':
-                    targets.append((file_path, '{}/{}/{}'.format(prefix, file_group, f['name']), cont_name, str(container.get('_id')), f['size']))
+                    targets.append((file_path, '{}/{}/{}'.format(prefix, file_group, f['name']), cont_name, str(container.get('_id')), f['size'], f['modified']))
                 else:
-                    targets.append((file_path, '{}/{}'.format(prefix, f['name']), cont_name, str(container.get('_id')), f['size']))
+                    targets.append((file_path, '{}/{}'.format(prefix, f['name']), cont_name, str(container.get('_id')), f['size'], f['modified']))
                 total_size += f['size']
                 total_cnt += 1
             else:
@@ -103,7 +104,7 @@ class Download(base.RequestHandler):
 
             file_path = files.get_file_path(file_obj)
             if file_path:  # silently skip missing files
-                targets.append((file_path, cont_name+'/'+cont_id+'/'+file_obj['name'], cont_name, cont_id, file_obj['size']))
+                targets.append((file_path, cont_name+'/'+cont_id+'/'+file_obj['name'], cont_name, cont_id, file_obj['size'], file_obj['modified']))
                 total_size += file_obj['size']
                 file_cnt += 1
 
@@ -291,55 +292,73 @@ class Download(base.RequestHandler):
         return path
 
     def archivestream(self, ticket):
-        BLOCKSIZE = 512
-        CHUNKSIZE = 2**20  # stream files in 1MB chunks
         stream = cStringIO.StringIO()
-        with tarfile.open(mode='w|', fileobj=stream) as archive:
-            for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
+        BLOCKSIZE = 512
+        CHUNKSIZE = 2 ** 20
+
+        with tarfile.open(mode='w|', fileobj=stream):
+            s = requests.Session()
+
+            for filepath, arcpath, cont_name, cont_id, f_size, f_modified in ticket['target']:
+                tarinfo = TarInfo()
+                tarinfo.name = arcpath.lstrip('/')
+                tarinfo.size = f_size
+                tarinfo.mtime = datetime_to_epoch(f_modified)
+                tarinfo_buf = tarinfo.tobuf()
+                signed_url = None
                 try:
-                    file_system = files.get_fs_by_file_path(filepath)
-                    with file_system.open(filepath, 'rb') as fd:
-                        signed_url = None
-                        if isinstance(fd, RawWrapper) and hasattr(fd._f,  # pylint: disable=protected-access
-                                                                  'gettarinfo'):
-                            tarinfo = fd._f.gettarinfo(arcname=arcpath).tobuf()  # pylint: disable=protected-access
-                            yield tarinfo
-                            signed_url = files.get_signed_url(filepath, file_system)
-                        else:
-                            yield archive.gettarinfo(fileobj=fd, arcname=arcpath).tobuf()
+                    signed_url = files.get_signed_url(filepath, config.fs)
+                except fs.errors.ResourceNotFound:
+                    pass
 
-                        try:
-                            if signed_url:
-                                response = requests.get(signed_url, stream=True)
-                                f_iter = response.iter_content(chunk_size=CHUNKSIZE)
-                            else:
-                                f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
+                if signed_url:
+                    response = s.get(signed_url, stream=True)
+                    f_iter = response.iter_content(chunk_size=CHUNKSIZE)
+                    try:
+                        yield tarinfo_buf
+                        chunk = ''
+                        for chunk in f_iter:
+                            yield chunk
+                        if len(chunk) % BLOCKSIZE != 0:
+                            yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+                    except (req_exceptions.ChunkedEncodingError,
+                            req_exceptions.ConnectionError,
+                            req_exceptions.ContentDecodingError):
+                        msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                               "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
+                        self.log.critical(msg)
+                        self.abort(500, msg)
+                else:
+                    try:
+                        file_system = files.get_fs_by_file_path(filepath)
+                        with file_system.open(filepath, 'rb') as fd:
+                            f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
+                            try:
+                                yield tarinfo_buf
+                                chunk = ''
+                                for chunk in f_iter:
+                                    yield chunk
+                                if len(chunk) % BLOCKSIZE != 0:
+                                    yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
 
-                            chunk = ''
-                            for chunk in f_iter:
-                                yield chunk
-                            if len(chunk) % BLOCKSIZE != 0:
-                                yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
-
-                        except (IOError, fs.errors.OperationFailed):
-                            msg = ("Error happened during sending file content in archive stream, file path: %s, "
-                                   "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
-                            self.log.critical(msg)
-                            self.abort(500, msg)
-
-                except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
-                    self.log.critical("Couldn't find the file during creating archive stream: %s, "
-                                 "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
-                    tarinfo = TarInfo()
-                    tarinfo.name = arcpath + '.MISSING'
-                    yield tarinfo.tobuf()
+                            except (IOError, fs.errors.OperationFailed):
+                                msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                                       "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
+                                self.log.critical(msg)
+                                self.abort(500, msg)
+                    except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
+                        self.log.critical("Couldn't find the file during creating archive stream: %s, "
+                                     "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
+                        tarinfo = TarInfo()
+                        tarinfo.name = arcpath + '.MISSING'
+                        yield tarinfo.tobuf()
 
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), origin_override=ticket['origin'], download_ticket=ticket['_id']) # log download
         yield stream.getvalue()  # get tar stream trailer
         stream.close()
 
     def symlinkarchivestream(self, ticket):
-        for filepath, arcpath, cont_name, cont_id, _ in ticket['target']:
+        for filepath, arcpath, cont_name, cont_id, _, _ in ticket['target']:
             t = tarfile.TarInfo(name=arcpath)
             t.type = tarfile.SYMTYPE
             t.linkname = fs.path.relpath(filepath)
