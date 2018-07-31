@@ -264,7 +264,7 @@ class RequestHandler(webapp2.RequestHandler):
         except NotImplementedError as e:
             self.abort(400, str(e))
 
-        # Get SAML session information from request cookies
+        # Get SAML session information from request cookie
         session_cookie = None
         for k,v in self.request.cookies.iteritems():
             if k.startswith('_shibsession'):
