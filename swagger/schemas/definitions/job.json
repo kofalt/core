@@ -153,6 +153,28 @@
       "additionalProperties":false,
       "x-sdk-model":"job"
     },
+    "job-list-entry": {
+      "type":"object",
+      "properties":{
+        "_id":{"$ref":"common.json#/definitions/objectid"},
+        "origin":{"$ref":"#/definitions/job-origin"},
+        "gear_id":{"$ref":"#/definitions/gear_id"},
+        "gear_info":{"$ref":"gear.json#/definitions/gear-info"},
+        "previous_job_id":{"type":"string"},
+        "inputs":{"$ref":"#/definitions/inputs-object"},
+        "destination":{"$ref":"#/definitions/destination"},
+        "tags":{"$ref":"#/definitions/tags"},
+        "state":{"$ref":"#/definitions/state"},
+        "attempt":{"$ref":"#/definitions/attempt"},
+        "created":{"$ref":"created-modified.json#/definitions/created"},
+        "modified":{"$ref":"created-modified.json#/definitions/modified"},
+        "config":{"$ref":"#/definitions/config"},
+        "request":{"$ref":"#/definitions/request"},
+        "saved_files":{"$ref":"#/definitions/saved_files"},
+        "produced_metadata":{"$ref":"#/definitions/produced-metadata"}
+      },
+      "additionalProperties":false
+    },
     "job-input": {
       "type":"object",
       "properties": {
