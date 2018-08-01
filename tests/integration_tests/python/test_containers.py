@@ -370,7 +370,6 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_ad
 
 def test_get_session_jobs(data_builder, default_payload, as_admin, file_form):
     session = data_builder.create_session()
-    acquisition = data_builder.create_acquisition()
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
         'dicom': {
@@ -379,7 +378,38 @@ def test_get_session_jobs(data_builder, default_payload, as_admin, file_form):
     }
     gear = data_builder.create_gear(gear=gear_doc)
 
-    # Add acquisition file
+    # Add session file
+    r = as_admin.post('/sessions/' + session + '/files', files=file_form('test.dcm'))
+    assert r.ok
+
+    # create job with session file
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'session',
+                'id': session,
+                'name': 'test.dcm'
+            }
+        },
+        'config': {},
+        'destination': {
+            'type': 'session',
+            'id': session
+        }
+    }
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    # get session jobs
+    r = as_admin.get('/sessions/' + session + '/jobs', params={'join': 'containers'})
+    assert r.ok
+    assert len(r.json().get('jobs')) > 0
+
+    # Add acquisition and file to session
+    acquisition = data_builder.create_acquisition()
+
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.dcm'))
     assert r.ok
 

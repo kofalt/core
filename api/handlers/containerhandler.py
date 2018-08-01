@@ -133,10 +133,6 @@ class ContainerHandler(base.RequestHandler):
         analyses = AnalysisStorage().get_analyses(None, 'session', cont['_id'])
         acquisitions = cont.get('acquisitions', [])
 
-        if not acquisitions and not analyses:
-            # no jobs
-            return {'jobs': []}
-
         # Get query params
         states = self.request.GET.getall('states')
         tags = self.request.GET.getall('tags')
