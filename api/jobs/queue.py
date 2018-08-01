@@ -309,9 +309,21 @@ class Queue(object):
         Potential jobs must match at least one tag, if provided.
         """
 
+        if tags is None:
+            tags = []
+
+        inclusive_tags = filter(lambda x: not x.startswith('!'), tags)
+        exclusive_tags =  map(lambda x: x[1:], filter(lambda x: x.startswith('!'), tags)) # strip the '!' prefix
+
         query = { 'state': 'pending' }
-        if tags is not None:
-            query['tags'] = {'$in': tags }
+
+        if len(inclusive_tags) > 0 or len(exclusive_tags) > 0:
+            query['tags'] = {}
+
+        if len(inclusive_tags) > 0:
+            query['tags']['$in']  = inclusive_tags
+        if len(exclusive_tags) > 0:
+            query['tags']['$nin'] = exclusive_tags
 
         modification = { '$set': {
             'state': 'running',

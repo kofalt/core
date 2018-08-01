@@ -228,6 +228,7 @@ class UIDPlacer(Placer):
             self.recalc_session_compliance()
         return self.saved
 
+
 class UIDReaperPlacer(UIDPlacer):
     """
     A placer that creates or matches based on UID.
@@ -241,6 +242,7 @@ class UIDReaperPlacer(UIDPlacer):
     create_hierarchy = staticmethod(hierarchy.upsert_bottom_up_hierarchy)
     match_type = 'uid'
 
+
 class LabelPlacer(UIDPlacer):
     """
     A placer that create a hierarchy based on labels.
@@ -253,6 +255,7 @@ class LabelPlacer(UIDPlacer):
     create_hierarchy = staticmethod(hierarchy.upsert_top_down_hierarchy)
     match_type = 'label'
 
+
 class UIDMatchPlacer(UIDPlacer):
     """
     A placer that uploads to an existing hierarchy it finds based on uid.
@@ -261,6 +264,7 @@ class UIDMatchPlacer(UIDPlacer):
     metadata_schema = 'uidmatchupload.json'
     create_hierarchy = staticmethod(hierarchy.find_existing_hierarchy)
     match_type = 'uid'
+
 
 class EnginePlacer(Placer):
     """
@@ -354,6 +358,7 @@ class EnginePlacer(Placer):
         self.recalc_session_compliance()
         return self.saved
 
+
 class TokenPlacer(Placer):
     """
     A placer that can accept N files and save them to a persistent directory across multiple requests.
@@ -392,6 +397,7 @@ class TokenPlacer(Placer):
             self.file_processor.store_temp_file(path, dest, dst_fs=config.local_fs)
         self.recalc_session_compliance()
         return self.saved
+
 
 class PackfilePlacer(Placer):
     """
