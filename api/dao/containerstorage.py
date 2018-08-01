@@ -36,11 +36,12 @@ class GroupStorage(ContainerStorage):
 
     def create_el(self, payload):
         permissions = payload.pop('permissions')
+        created = payload.pop('created')
         return self.dbc.update_one(
             {'_id': payload['_id']},
             {
                 '$set': payload,
-                '$setOnInsert': {'permissions': permissions}
+                '$setOnInsert': {'permissions': permissions, 'created': created}
             },
             upsert=True)
 

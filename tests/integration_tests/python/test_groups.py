@@ -11,7 +11,20 @@ def test_groups(as_user, as_admin, data_builder):
     # Able to find new group
     r = as_admin.get('/groups/' + group)
     assert r.ok
+    initial_modified = r.json()['modified']
+    created = r.json()['created']
+
+    # Test that POST group with same id doesn't update created
+    r = as_admin.post('/groups', json={'_id': group})
+    assert r.ok
+    r = as_admin.get('/groups/' + group)
+    assert r.ok
     first_modified = r.json()['modified']
+    d1 = parse(initial_modified)
+    d2 = parse(first_modified)
+    assert d2 > d1
+
+    assert r.json()['created'] == created
 
     # Test to make sure that list of roles nor name exists in a newly created group
     r = as_admin.get('/groups/' + group)
