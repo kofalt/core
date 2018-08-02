@@ -168,8 +168,9 @@ def queue_job_legacy(gear_id, input_):
         input_name: input_
     }
 
+    gear_name = gear['gear']['name']
     gear_tag = gear['gear']['name'] + '-' + gear_id
-    job = Job(gear, inputs, tags=['auto', gear_tag])
+    job = Job(gear, inputs, tags=['auto', gear_name, gear_tag])
     return job
 
 def find_type_in_container(container, type_):
