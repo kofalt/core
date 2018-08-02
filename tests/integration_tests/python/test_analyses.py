@@ -7,6 +7,8 @@ import bson
 
 def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+    group = data_builder.create_group()
+    project = data_builder.create_project()
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
@@ -26,6 +28,63 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
                 'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
     })
     assert r.status_code == 400
+
+    # Try to create job-based analysis at group level
+    r = as_admin.post('/groups/' + group + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    # No endpoint to make group analyses but the handler/dao layer specifically allows it
+    assert r.status_code == 404
+
+    # Create analysis job at project level
+    r = as_admin.post('/projects/' + project + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    job = r.json().get('job')
+    assert job
+
+    # Engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis, 'job': job},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+
+    check_files(as_admin, analysis, 'files', 'output.csv')
+    api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
+
+    # Create job-based analysis at acquisition level
+    r = as_admin.post('/acquisitions/' + acquisition + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    job = r.json().get('job')
+    assert job
+
+    # Engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis, 'job': job},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+
+    check_files(as_admin, analysis, 'files', 'output.csv')
+    api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
     # Create job-based analysis
     r = as_admin.post('/sessions/' + session + '/analyses', json={

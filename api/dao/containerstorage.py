@@ -523,8 +523,8 @@ class AnalysisStorage(ContainerStorage):
 
         job = analysis.pop('job', None)
         if job is not None:
-            if parent_type != 'session':
-                raise APIValidationException(reason='Analysis created via a job must be at the session level')
+            if parent_type not in ['project', 'session', 'subject', 'acquisition']:
+                raise APIValidationException(reason='Cannot create analysis via job at the {} level'.format(parent_type))
             analysis.setdefault('inputs', [])
             for key, fileref_dict in job['inputs'].iteritems():
                 analysis['inputs'].append(fileref_dict)
