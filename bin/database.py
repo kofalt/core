@@ -1776,7 +1776,7 @@ def upgrade_to_53():
     for rule in config.db.project_rules.find({'alg': {'$exists': True}}):
         config.db.project_rules.update_one(
             {'_id': rule['_id']},
-            {'$set': {'gear_id': gear_name_to_id[rule['alg']]},
+            {'$set': {'gear_id': gear_name_to_id[rule['alg']], 'auto_update': True},
              '$unset': {'alg': True}})
 
 
