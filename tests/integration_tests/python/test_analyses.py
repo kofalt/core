@@ -45,7 +45,14 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
                 'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
     })
     assert r.ok
-    analysis = r.json()['_id']
+
+    # Create job-based analysis at acquisition level
+    r = as_admin.post('/acquisitions/' + acquisition + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+    })
+    assert r.ok
 
     # Create job-based analysis
     r = as_admin.post('/sessions/' + session + '/analyses', json={
