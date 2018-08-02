@@ -7,7 +7,7 @@
     "eeg marker":   [ ".vmrk" ],
     "eeg header":   [ ".vhdr"],
     "gephysio":     [ ".gephysio.zip" ],
-    "ismrmrd":      [ ".h5", ".hdf5" ],
+    "HDF5":         [ ".h5", ".hdf5" ],
     "MATLAB data":  [ ".mat" ],
     "MGH data":     [ ".mgh", ".mgz", ".mgh.gz" ],
     "nifti":        [ ".nii.gz", ".nii" ],
@@ -29,5 +29,10 @@
     "spreadsheet":  [ ".xls", ".xlsx" ],
     "tabular data": [ ".csv.gz", ".csv", ".tsv.gz", ".tsv" ],
     "text":         [ ".txt" ],
-    "video":        [ ".mpeg", ".mpg", ".mov", ".mp4", ".m4v", ".mts" ]
+    "video":        [ ".mpeg", ".mpg", ".mov", ".mp4", ".m4v", ".mts" ],
+    
+    "3D Object":        [ ".obj" ],
+    "Material Library": [ ".mtl" ],
+    "Cinema 4D Model":  [ ".c4d" ],
+    "CG Resource":      [ ".cgresource.zip" ]
 }
