@@ -45,6 +45,22 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
                 'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
     })
     assert r.ok
+    analysis = r.json()['_id']
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    job = r.json().get('job')
+    assert job
+
+    # Engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis, 'job': job},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+
+    check_files(as_admin, analysis, 'files', 'output.csv')
+    api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
     # Create job-based analysis at acquisition level
     r = as_admin.post('/acquisitions/' + acquisition + '/analyses', json={
@@ -53,6 +69,22 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
                 'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
     })
     assert r.ok
+    analysis = r.json()['_id']
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    job = r.json().get('job')
+    assert job
+
+    # Engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis, 'job': job},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+
+    check_files(as_admin, analysis, 'files', 'output.csv')
+    api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
     # Create job-based analysis
     r = as_admin.post('/sessions/' + session + '/analyses', json={
