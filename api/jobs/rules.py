@@ -5,7 +5,7 @@ import itertools
 from .. import config
 from ..types import Origin
 from ..dao.containerutil import FileReference
-from ..web.errors import APIValidationException
+from ..web.errors import APIValidationException, InputValidationException
 
 from . import gears
 from .jobs import Job
@@ -169,8 +169,7 @@ def queue_job_legacy(gear_id, input_):
     }
 
     gear_name = gear['gear']['name']
-    gear_tag = gear['gear']['name'] + '-' + gear_id
-    job = Job(gear, inputs, tags=['auto', gear_name, gear_tag])
+    job = Job(gear, inputs, tags=['auto', gear_name])
     return job
 
 def find_type_in_container(container, type_):
@@ -201,7 +200,7 @@ def create_potential_jobs(db, container, container_type, file_):
 
             gear_id = rule['gear_id']
             gear = gears.get_gear(gear_id)
-            gear_tag = gear['gear']['name'] + '-' + gear_id
+            gear_name = gear['gear']['name']
 
             if rule.get('match') is None:
                 input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
@@ -212,10 +211,10 @@ def create_potential_jobs(db, container, container_type, file_):
                 for input_name, match_type in rule['match'].iteritems():
                     match = find_type_in_container(container, match_type)
                     if match is None:
-                        raise Exception("No type " + match_type + " found for alg rule " + gear_tag + " that should have been satisfied")
+                        raise Exception("No type " + match_type + " found for alg rule " + gear_name + " that should have been satisfied")
                     inputs[input_name] = FileReference(type=container_type, id=str(container['_id']), name=match['name'])
 
-                job = Job(gear, inputs, tags=['auto', gear_tag])
+                job = Job(gear, inputs, tags=['auto', gear_name])
 
             if 'config' in rule:
                 job.config = rule['config']
@@ -320,6 +319,18 @@ def validate_regexes(rule):
                 invalid_patterns.add(pattern)
     if invalid_patterns:
         raise APIValidationException(
-            reason='Cannot compile regex patterns', 
+            reason='Cannot compile regex patterns',
             patterns=sorted(invalid_patterns)
         )
+
+
+def validate_auto_update(rule_config, gear_id, update_gear_is_latest, current_gear_is_latest):
+    if rule_config:
+        raise InputValidationException("Gear rule cannot be auto-updated with a config")
+    # Can only change gear_id to latest id
+    # (Really only happens if updating auto_update and gear_id at once)
+    elif gear_id:
+        if not update_gear_is_latest:
+            raise InputValidationException("Cannot manually change gear version of gear rule that is auto-updated")
+    elif not current_gear_is_latest:
+        raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")

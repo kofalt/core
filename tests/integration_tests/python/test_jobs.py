@@ -827,3 +827,92 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     r = as_job_key.get('/users/self')
     assert r.status_code == 401
 
+
+def test_job_tagging(data_builder, default_payload, as_admin, as_root, api_db, file_form):
+    # Dupe of test_queue.py
+    gear_doc = default_payload['gear']['gear']
+    gear_name = 'gear-name'
+    gear_doc['name'] = gear_name
+    gear = data_builder.create_gear(gear=gear_doc)
+
+    project = data_builder.create_project()
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+
+    # Test the gear name tag with auto job rule
+    rule = {
+        'gear_id': gear,
+        'name': 'job-trigger-rule',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.type', 'value': 'tabular data'}],
+        'disabled': False
+    }
+
+    # add project rule
+    r = as_admin.post('/projects/' + project + '/rules', json=rule)
+    assert r.ok
+    rule_id = r.json()['_id']
+
+    # create job
+    # print gear_doc
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
+
+    # Verify that job was created
+    rule_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(rule_jobs) == 1
+    assert gear_name in rule_jobs[0].get('tags', [])
+
+    # Test the gear name tag with manually adding the job
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'text': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.csv'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        # No gear name in tags
+        'tags': [ 'test-tag' ]
+    }
+
+    # add job with explicit destination
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    manual_job_id = r.json()['_id']
+
+    # get job
+    r = as_root.get('/jobs/' + manual_job_id)
+    assert r.ok
+
+    # Make sure that the job has the tag of the gear name
+    manual_job = r.json()
+    assert gear_name in manual_job['tags']
+
+    # Test the gear name tag with job-based analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'online',
+        'job': job_data
+    })
+    assert r.ok
+    analysis_id = r.json()['_id']
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis_id)
+    assert r.ok
+    analysis_job_id = r.json().get('job')
+
+    # get job
+    r = as_root.get('/jobs/' + analysis_job_id)
+    assert r.ok
+
+    # Make sure that the job has the tag of the gear name
+    analysis_job = r.json()
+    assert gear_name in analysis_job['tags']

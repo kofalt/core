@@ -35,7 +35,7 @@ from .gears import (
 from .jobs import Job, JobTicket, Logs
 from .batch import check_state, update
 from .queue import Queue
-from .rules import create_jobs, validate_regexes
+from .rules import create_jobs, validate_regexes, validate_auto_update
 
 
 class GearsHandler(base.RequestHandler):
@@ -279,14 +279,16 @@ class RulesHandler(base.RequestHandler):
         validate_regexes(payload)
         validate_gear_config(get_gear(payload['gear_id']), payload.get('config'))
 
-        gear_name = get_gear(payload['gear_id'])['gear']['name']
-        gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
-
         if payload.get('auto_update'):
-            if payload.get('config'):
-                raise InputValidationException("Gear rule cannot be auto-updated with a config")
-            elif payload['gear_id'] != gear_id_latest_version:
-                raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")
+            gear_name = get_gear(payload['gear_id'])['gear']['name']
+            gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
+
+            gear_id = payload.get('gear_id')
+            update_gear_is_latest = gear_id == gear_id_latest_version
+
+            rule_config = payload.get('config')
+
+            validate_auto_update(rule_config, gear_id, update_gear_is_latest, True)
 
         payload['project_id'] = cid
 
@@ -336,23 +338,22 @@ class RuleHandler(base.RequestHandler):
         updates = self.request.json
         validate_data(updates, 'rule-update.json', 'input', 'POST', optional=True)
 
-        if updates.get('config'):
-            if updates.get('auto_update'):
-                raise InputValidationException("Gear rule cannot be auto-updated with a config")
-            elif 'auto_update' not in updates and doc.get('auto_update'):
-                raise InputValidationException("Gear rule cannot be auto-updated with a config")
-
-        gear_name = get_gear(doc['gear_id'])['gear']['name']
-        gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
         current_auto_update = doc.get('auto_update', False)
+        auto_update = updates.get('auto_update', current_auto_update)
 
-        if updates.get("auto_update", current_auto_update):
-            if updates.get('gear_id'):
-                if updates.get('gear_id') != gear_id_latest_version:
-                    raise InputValidationException("Cannot manually change gear version of gear rule that is auto-updated")
-            elif doc['gear_id'] != gear_id_latest_version:
-                raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")
-            updates["config"] = {}
+
+        if auto_update:
+            gear_name = get_gear(doc['gear_id'])['gear']['name']
+            gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
+            update_gear_id = updates.get('gear_id')
+
+            update_gear_is_latest = update_gear_id == gear_id_latest_version
+            current_gear_is_latest = doc['gear_id'] == gear_id_latest_version
+
+            rule_config = updates.get('config')
+
+            validate_auto_update(rule_config, update_gear_id, update_gear_is_latest, current_gear_is_latest)
+            updates['config'] = {}
 
         validate_regexes(updates)
         gear_id = updates.get('gear_id', doc['gear_id'])
