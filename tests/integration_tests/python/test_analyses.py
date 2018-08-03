@@ -27,7 +27,7 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
         'job': {'gear_id': '000000000000000000000000',
                 'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
     })
-    assert r.status_code == 400
+    assert r.status_code == 404
 
     # Try to create job-based analysis at group level
     r = as_admin.post('/groups/' + group + '/analyses', json={

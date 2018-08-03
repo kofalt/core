@@ -26,15 +26,16 @@ from ..web.errors import APIPermissionException, APINotFoundException, InputVali
 from ..web.request import AccessType
 
 from .gears import (
-    validate_gear_config, get_gears, get_gear, get_invocation_schema,
-    remove_gear, upsert_gear, get_gear_by_name, check_for_gear_insertion,
+    validate_gear_config, get_gears, get_gear, get_latest_gear,
+    get_invocation_schema, remove_gear,
+    upsert_gear, check_for_gear_insertion,
     add_suggest_info_to_files, count_file_inputs
 )
 
 from .jobs import Job, JobTicket, Logs
 from .batch import check_state, update
 from .queue import Queue
-from .rules import create_jobs, validate_regexes
+from .rules import create_jobs, validate_regexes, validate_auto_update
 
 
 class GearsHandler(base.RequestHandler):
@@ -49,10 +50,10 @@ class GearsHandler(base.RequestHandler):
         # because filtering after the query invalidates total and count.
         # Ignoring any pagination headers/params for backwards compatibility.
         if 'single_input' in self.request.GET.getall('filter'):
-            gears = get_gears()
+            gears = get_gears(all_versions=self.is_true('all_versions'))
             return [gear for gear in gears if count_file_inputs(gear) <= 1]
 
-        gear_page = get_gears(pagination=self.pagination)
+        gear_page = get_gears(all_versions=self.is_true('all_versions'), pagination=self.pagination)
         return self.format_page(gear_page)
 
 
@@ -276,10 +277,18 @@ class RulesHandler(base.RequestHandler):
 
         validate_data(payload, 'rule-new.json', 'input', 'POST', optional=True)
         validate_regexes(payload)
-        try:
-            get_gear_by_name(payload['alg'])
-        except APINotFoundException:
-            self.abort(400, 'Cannot find gear for alg {}, alg not valid'.format(payload['alg']))
+        validate_gear_config(get_gear(payload['gear_id']), payload.get('config'))
+
+        if payload.get('auto_update'):
+            gear_name = get_gear(payload['gear_id'])['gear']['name']
+            gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
+
+            gear_id = payload.get('gear_id')
+            update_gear_is_latest = gear_id == gear_id_latest_version
+
+            rule_config = payload.get('config')
+
+            validate_auto_update(rule_config, gear_id, update_gear_is_latest, True)
 
         payload['project_id'] = cid
 
@@ -328,12 +337,28 @@ class RuleHandler(base.RequestHandler):
 
         updates = self.request.json
         validate_data(updates, 'rule-update.json', 'input', 'POST', optional=True)
+
+        current_auto_update = doc.get('auto_update', False)
+        auto_update = updates.get('auto_update', current_auto_update)
+
+
+        if auto_update:
+            gear_name = get_gear(doc['gear_id'])['gear']['name']
+            gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
+            update_gear_id = updates.get('gear_id')
+
+            update_gear_is_latest = update_gear_id == gear_id_latest_version
+            current_gear_is_latest = doc['gear_id'] == gear_id_latest_version
+
+            rule_config = updates.get('config')
+
+            validate_auto_update(rule_config, update_gear_id, update_gear_is_latest, current_gear_is_latest)
+            updates['config'] = {}
+
         validate_regexes(updates)
-        if updates.get('alg'):
-            try:
-                get_gear_by_name(updates['alg'])
-            except APINotFoundException:
-                self.abort(400, 'Cannot find gear for alg {}, alg not valid'.format(updates['alg']))
+        gear_id = updates.get('gear_id', doc['gear_id'])
+        config_ = updates.get('config', doc.get('config'))
+        validate_gear_config(get_gear(gear_id), config_)
 
         doc.update(updates)
         config.db.project_rules.replace_one({'_id': bson.ObjectId(rid)}, doc)

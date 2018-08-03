@@ -5,7 +5,7 @@ import itertools
 from .. import config
 from ..types import Origin
 from ..dao.containerutil import FileReference
-from ..web.errors import APIValidationException
+from ..web.errors import APIValidationException, InputValidationException
 
 from . import gears
 from .jobs import Job
@@ -149,16 +149,16 @@ def eval_rule(rule, file_, container):
 
     return True
 
-def queue_job_legacy(algorithm_id, input_):
+def queue_job_legacy(gear_id, input_):
     """
     Tie together logic used from the no-manifest, single-file era.
     Takes a single FileReference instead of a map.
     """
 
-    gear = gears.get_gear_by_name(algorithm_id)
+    gear = gears.get_gear(gear_id)
 
     if gears.count_file_inputs(gear) != 1:
-        raise Exception("Legacy gear enqueue attempt of " + algorithm_id + " failed: must have exactly 1 file input in manifest")
+        raise Exception("Legacy gear enqueue attempt of " + gear_id + " failed: must have exactly 1 input in manifest")
 
     for x in gear['gear']['inputs'].keys():
         if gear['gear']['inputs'][x]['base'] == 'file':
@@ -168,7 +168,8 @@ def queue_job_legacy(algorithm_id, input_):
         input_name: input_
     }
 
-    job = Job(gear, inputs, tags=['auto', algorithm_id])
+    gear_name = gear['gear']['name']
+    job = Job(gear, inputs, tags=['auto', gear_name])
     return job
 
 def find_type_in_container(container, type_):
@@ -197,22 +198,26 @@ def create_potential_jobs(db, container, container_type, file_):
 
         if 'from_failed_job' not in file_ and eval_rule(rule, file_, container):
 
-            alg_name = rule['alg']
+            gear_id = rule['gear_id']
+            gear = gears.get_gear(gear_id)
+            gear_name = gear['gear']['name']
 
             if rule.get('match') is None:
                 input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
-                job = queue_job_legacy(alg_name, input_)
+                job = queue_job_legacy(gear_id, input_)
             else:
                 inputs = { }
 
                 for input_name, match_type in rule['match'].iteritems():
                     match = find_type_in_container(container, match_type)
                     if match is None:
-                        raise Exception("No type " + match_type + " found for alg rule " + alg_name + " that should have been satisfied")
+                        raise Exception("No type " + match_type + " found for alg rule " + gear_name + " that should have been satisfied")
                     inputs[input_name] = FileReference(type=container_type, id=str(container['_id']), name=match['name'])
 
-                gear = gears.get_gear_by_name(alg_name)
-                job = Job(gear, inputs, tags=['auto', alg_name])
+                job = Job(gear, inputs, tags=['auto', gear_name])
+
+            if 'config' in rule:
+                job.config = rule['config']
 
             potential_jobs.append({
                 'job': job,
@@ -262,7 +267,7 @@ def create_jobs(db, container_before, container_after, container_type):
         job = Queue.enqueue_job(job_map, origin)
         job.insert()
 
-        spawned_jobs.append(pj['rule']['alg'])
+        spawned_jobs.append(pj['rule']['gear_id'])
 
     return spawned_jobs
 
@@ -314,6 +319,18 @@ def validate_regexes(rule):
                 invalid_patterns.add(pattern)
     if invalid_patterns:
         raise APIValidationException(
-            reason='Cannot compile regex patterns', 
+            reason='Cannot compile regex patterns',
             patterns=sorted(invalid_patterns)
         )
+
+
+def validate_auto_update(rule_config, gear_id, update_gear_is_latest, current_gear_is_latest):
+    if rule_config:
+        raise InputValidationException("Gear rule cannot be auto-updated with a config")
+    # Can only change gear_id to latest id
+    # (Really only happens if updating auto_update and gear_id at once)
+    elif gear_id:
+        if not update_gear_is_latest:
+            raise InputValidationException("Cannot manually change gear version of gear rule that is auto-updated")
+    elif not current_gear_is_latest:
+        raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")

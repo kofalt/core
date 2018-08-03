@@ -363,7 +363,7 @@ def test_classification_change_triggers_job(randstr, data_builder, as_admin, api
 
     # Add rule
     rule = {
-        'alg': gear_name,
+        'gear_id': gear,
         'name': 'classification-job-trigger-rule',
         'any': [],
         'not': [],

@@ -79,8 +79,6 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
 
     # Set up files with measurements
 
-    assert True
-
     containers = [
         ('collections',  data_builder.create_collection()),
         ('projects',     data_builder.create_project()),
@@ -187,7 +185,7 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
         assert as_admin.get('/projects/' + p).json()['template'] == template_after
 
     ### CLEANUP
-
+    api_db.project_rules.delete_many({'alg': 'dcm2niix'})
     api_db.modalities.delete_many({})
 
 
@@ -432,3 +430,35 @@ def test_52(data_builder, api_db, as_admin, file_form, database, default_payload
     api_db.analyses.delete_one({'_id': analysis_id})
     api_db.jobs.delete_one({'_id': job1_id})
     api_db.jobs.delete_one({'_id': job2_id})
+
+def test_53(randstr, default_payload, as_root, api_db, database):
+    # Create gear with multiple versions
+    gear_name = randstr()
+    gear_payload = default_payload['gear']
+    gear_payload['gear']['name'] = gear_name
+    gear_payload['gear']['version'] = '0.0.1'
+    r = as_root.post('/gears/' + gear_name, json=gear_payload)
+    assert r.ok
+    gear_id_1 = r.json()['_id']
+
+    gear_payload['gear']['version'] = '0.0.2'
+    r = as_root.post('/gears/' + gear_name, json=gear_payload)
+    assert r.ok
+    gear_id_2 = r.json()['_id']
+
+    # Create old-style rule ('alg' instead of 'gear_id')
+    rule_id = bson.ObjectId()
+    api_db.project_rules.insert_one({
+        '_id': rule_id,
+        'alg': gear_name,
+        'project_id': 'site',
+        'any': [],
+        'all': [],
+    })
+
+    # Verify that upgrade switches to gear_id_2
+    database.upgrade_to_53()
+    rule = api_db.project_rules.find_one({'_id': rule_id})
+    assert 'alg' not in rule
+    assert 'gear_id' in rule
+    assert rule['gear_id'] == gear_id_2
