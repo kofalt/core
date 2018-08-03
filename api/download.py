@@ -108,7 +108,7 @@ class Download(base.RequestHandler):
                 file_cnt += 1
 
         if len(targets) > 0:
-            filename = arc_prefix + '_ '+datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S') + '.tar'
+            filename = arc_prefix + '_'+datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S') + '.tar'
             ticket = util.download_ticket(self.request.client_addr, self.origin, 'batch', targets, filename, total_size)
             config.db.downloads.insert_one(ticket)
             return {'ticket': ticket['_id'], 'file_cnt': file_cnt, 'size': total_size}
