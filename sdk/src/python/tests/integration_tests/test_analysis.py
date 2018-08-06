@@ -174,9 +174,30 @@ class AnalysisTestCases(SdkTestCase):
         r_analysis2 = fw.get_analysis(analysis_id)
         self.assertEqual(r_analysis, r_analysis2)
 
+        # Project based analysis
+        analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), job=job)
+
+        # Add
+        analysis_id = fw.add_project_analysis(self.project_id, analysis)
+        self.assertNotEmpty(analysis_id)
+
+        project = fw.get_project(self.project_id)
+        self.assertEqual(len(project.analyses), 1)
+
+        r_analysis = project.analyses[0]
+        self.assertEqual(r_analysis.id, analysis_id)
+
+        # Verify job
+        r_job = fw.get_job(r_analysis.job.id)
+        self.assertEqual(r_analysis.job.state, 'pending')
+
+        # Access analysis directly
+        r_analysis2 = fw.get_analysis(analysis_id)
+        self.assertEqual(r_analysis, r_analysis2)
+
     def test_analysis_files(self):
         fw = self.fw
-        
+
         # Upload to session
         poem = 'A gaze blank and pitiless as the sun,'
         fw.upload_file_to_session(self.session_id, flywheel.FileSpec('yeats.txt', poem))
