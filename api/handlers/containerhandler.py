@@ -14,6 +14,7 @@ from ..web import base
 from ..web.errors import APIPermissionException
 from ..web.request import log_access, AccessType
 
+PROJECT_BLACKLIST = ['Unknown', 'Unsorted']
 
 class ContainerHandler(base.RequestHandler):
     """
@@ -279,6 +280,10 @@ class ContainerHandler(base.RequestHandler):
             payload['permissions'] = parent_container.get('permissions')
         elif cont_name =='projects':
             payload['permissions'] = [{'_id': self.uid, 'access': 'admin'}] if self.uid else []
+
+            # Unsorted projects are reserved for reaper uploads
+            if payload['label'] in PROJECT_BLACKLIST:
+                self.abort(400, 'The project "{}" can\'t be created as it is integral within the API'.format(payload['label']))
         else:
             payload['permissions'] = parent_container.get('permissions', [])
         # Created and modified timestamps are added here to the payload

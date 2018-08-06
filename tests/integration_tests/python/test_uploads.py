@@ -41,11 +41,12 @@ def upload_file_form(file_form, merge_dict, randstr):
     return create_form
 
 
-def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin):
+def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_root, as_user):
     group_1 = data_builder.create_group()
     prefix = randstr()
     project_label_1 = prefix + '-project-label-1'
     session_uid = prefix + '-session-uid'
+    project_1 = data_builder.create_project(label=project_label_1, group=group_1)
 
     # reaper-upload files to group_1/project_label_1 using session_uid
     r = as_admin.post('/upload/reaper', files=upload_file_form(
@@ -100,11 +101,108 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin):
     assert len(as_admin.get('/sessions/' + session + '/acquisitions').json()) == 2
     assert len(as_admin.get('/sessions/' + session).json()['files']) == 2
 
+    # No group or project given
+    r = as_root.post('/upload/reaper', files=upload_file_form(
+        group={'_id': ''},
+        project={'label': ''},
+        session={'uid': session_uid+'1'},
+    ))
+    assert r.ok
+
+    # get session created by the upload
+    r = as_root.get('/groups/unknown/projects')
+    assert r.ok
+    project_list = r.json()
+    assert len(project_list) == 1
+    project = project_list[0]
+    assert 'Unsorted' == project_list[0]['label']
+    unknown_group_unsorted_project = project['_id']
+    assert len(as_root.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()) == 1
+
+    # No group given
+    r = as_root.post('/upload/reaper', files=upload_file_form(
+        group={'_id': ''},
+        project={'label': project_label_1},
+        session={'uid': session_uid+'2'},
+    ))
+    assert r.ok
+
+    # get session created by the upload
+    r = as_root.get('/groups/unknown/projects')
+    assert r.ok
+    project_list = r.json()
+    assert len(project_list) == 1
+    assert len(as_root.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()) == 2
+
+    # Group given but no project
+    group_3 = data_builder.create_group()
+    r = as_root.post('/upload/reaper', files=upload_file_form(
+        group={'_id': group_3},
+        project={'label': ''},
+        session={'uid': session_uid+'3'},
+    ))
+    assert r.ok
+    # get session created by the upload
+    r = as_root.get('/groups/' + group_3 + '/projects')
+    assert r.ok
+    project_list = r.json()
+    assert len(project_list) == 1
+    project = project_list[0]
+    assert 'Unsorted' == project_list[0]['label']
+    unknown_project = project['_id']
+    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 1
+
+    # Group given but project is missed typed
+    r = as_root.post('/upload/reaper', files=upload_file_form(
+        group={'_id': group_3},
+        project={'label': 'Miss-typed project'},
+        session={'uid': session_uid+'4'},
+    ))
+    assert r.ok
+    # get session created by the upload
+    r = as_root.get('/groups/' + group_3 + '/projects')
+    assert r.ok
+    project_list = r.json()
+    assert len(project_list) == 1
+    project = project_list[0]
+    assert 'Unsorted' == project_list[0]['label']
+    unknown_project = project['_id']
+    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 2
+
+    # Group given but project is missed typed
+    r = as_root.post('/upload/reaper', files=upload_file_form(
+        group={'_id': group_3},
+        project={'label': 'Miss-typed project'},
+        session={'uid': session_uid+'4'},
+    ))
+    assert r.ok
+    # get session created by the upload
+    r = as_root.get('/groups/' + group_3 + '/projects')
+    assert r.ok
+    project_list = r.json()
+    assert len(project_list) == 1
+    project = project_list[0]
+    assert 'Unsorted' == project_list[0]['label']
+    unknown_project = project['_id']
+    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 2
+
+    # Try uploading as user without permissions
+    user_id = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + unknown_project + '/permissions', json={'_id': user_id, 'access': 'ro'})
+    r = as_user.post('/upload/reaper', files=upload_file_form(
+        group={'_id': group_3},
+        project={'label': 'Miss-typed project'},
+        session={'uid': session_uid+'4'},
+    ))
+    assert r.status_code == 403
+
     # clean up
     data_builder.delete_group(group_1, recursive=True)
     data_builder.delete_group(group_2, recursive=True)
+    data_builder.delete_group(group_3, recursive=True)
+    data_builder.delete_project(unknown_group_unsorted_project, recursive=True)
 
-def test_reaper_upload_unknown_group_project(data_builder, file_form, as_root, as_admin):
+def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as_admin):
     """
     If the label endpoint receives an upload with a blank group and project, set to
     group: unknown and create or find "Unknown" project
@@ -261,7 +359,7 @@ def test_reaper_upload_unknown_group_project(data_builder, file_form, as_root, a
     data_builder.delete_project(named_unknown_project, recursive=True)
 
 
-def test_reaper_project_search(data_builder, file_form, as_root):
+def test_label_project_search(data_builder, file_form, as_root):
     """
     When attempting to find a project, we do a case insensitive lookup.
     Ensure that mongo regex works as expected.
@@ -400,6 +498,7 @@ def test_reaper_project_search(data_builder, file_form, as_root):
 
 def test_reaper_reupload_deleted(data_builder, as_root, file_form):
     group = data_builder.create_group(_id='reupload')
+    project = data_builder.create_project(label='reupload')
     reap_data = file_form('reaped.txt', meta={
         'group': {'_id': 'reupload'},
         'project': {'label': 'reupload'},
@@ -442,29 +541,6 @@ def test_reaper_reupload_deleted(data_builder, as_root, file_form):
     assert r.ok
 
     # check new session and acquisition
-    r = as_root.get('/sessions')
-    assert r.ok
-    assert next(s for s in r.json() if s['uid'] == 'reupload')
-    r = as_root.get('/acquisitions')
-    assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
-
-    ### test project recreation
-    # get + delete project
-    r = as_root.get('/projects')
-    assert r.ok
-    project = next(p['_id'] for p in r.json() if p['label'] == 'reupload')
-    r = as_root.delete('/projects/' + project)
-    assert r.ok
-
-    # reaper re-upload
-    r = as_root.post('/upload/reaper', files=reap_data)
-    assert r.ok
-
-    # check new project, session and acquisition
-    r = as_root.get('/projects')
-    assert r.ok
-    assert next(p for p in r.json() if p['label'] == 'reupload')
     r = as_root.get('/sessions')
     assert r.ok
     assert next(s for s in r.json() if s['uid'] == 'reupload')

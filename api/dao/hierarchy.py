@@ -294,7 +294,7 @@ def add_fileinfo(cont_name, _id, fileinfo):
         return_document=pymongo.collection.ReturnDocument.AFTER
     )
 
-def _group_id_fuzzy_match(group_id, project_label):
+def _group_id_fuzzy_match(group_id, project_label, unsorted_projects):
     existing_group_ids = [g['_id'] for g in config.db.groups.find(None, ['_id'])]
     if group_id.lower() in existing_group_ids:
         return group_id.lower(), project_label
@@ -304,15 +304,17 @@ def _group_id_fuzzy_match(group_id, project_label):
     else:
         if group_id != '' or project_label != '':
             project_label = group_id + '_' + project_label
+            if unsorted_projects:
+                project_label = 'Unsorted'
         group_id = 'unknown'
     return group_id, project_label
 
-def _find_or_create_destination_project(group_id, project_label, timestamp, user):
-    group_id, project_label = _group_id_fuzzy_match(group_id, project_label)
+def _find_or_create_destination_project(group_id, project_label, timestamp, user, unsorted_projects):
+    group_id, project_label = _group_id_fuzzy_match(group_id, project_label, unsorted_projects)
     group = config.db.groups.find_one({'_id': group_id})
 
     if project_label == '':
-        project_label = 'Unknown'
+        project_label = 'Unsorted' if unsorted_projects else 'Unknown'
 
     project_regex = '^'+re.escape(project_label)+'$'
     project = config.db.projects.find_one({'group': group['_id'], 'label': {'$regex': project_regex, '$options': 'i'}, 'deleted': {'$exists': False}})
@@ -323,7 +325,16 @@ def _find_or_create_destination_project(group_id, project_label, timestamp, user
             raise APIPermissionException('User {} does not have read-write access to project {}'.format(user, project['label']))
         return project
 
-    else:
+    elif unsorted_projects:
+        # Check if there is an Unsorted project in the group to upload to
+        project_label = 'Unsorted'
+        project = config.db.projects.find_one({'group': group['_id'], 'label': project_label, 'deleted': {'$exists': False}})
+        if project:
+            if user and not has_access(user, project, 'rw'):
+                raise APIPermissionException('User {} does not have read-write access to project {}'.format(user, project['label']))
+            return project
+
+    if not project:
         # if the project doesn't exit, check the user's access at the group level
         if user and not has_access(user, group, 'rw'):
             raise APIPermissionException('User {} does not have read-write access to group {}'.format(user, group_id))
@@ -336,6 +347,11 @@ def _find_or_create_destination_project(group_id, project_label, timestamp, user
                 'created': timestamp,
                 'modified': timestamp
         }
+
+        if unsorted_projects:
+            project['description'] = 'This project was automatically created because unsortable data was detected. \
+                                      Please move sessions to the appropriate project.'
+
         result = ContainerStorage.factory('project').create_el(project)
         project['_id'] = result.inserted_id
     return project
@@ -491,10 +507,10 @@ def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None):
         )
         return target_containers
     else:
-        return upsert_top_down_hierarchy(metadata, type_=type_, user=user)
+        return upsert_top_down_hierarchy(metadata, type_=type_, user=user, unsorted_projects=True)
 
 
-def upsert_top_down_hierarchy(metadata, type_='label', user=None):
+def upsert_top_down_hierarchy(metadata, type_='label', user=None, unsorted_projects=False):
     group = metadata['group']
     project = metadata['project']
     session = metadata.get('session')
@@ -502,7 +518,7 @@ def upsert_top_down_hierarchy(metadata, type_='label', user=None):
 
     now = datetime.datetime.utcnow()
     project_files = dict_fileinfos(project.pop('files', []))
-    project_obj = _find_or_create_destination_project(group['_id'], project['label'], now, user)
+    project_obj = _find_or_create_destination_project(group['_id'], project['label'], now, user, unsorted_projects)
     target_containers = _get_targets(project_obj, session, acquisition, type_, now)
     target_containers.append(
         (TargetContainer(project_obj, 'project'), project_files)
