@@ -347,6 +347,11 @@ def _find_or_create_destination_project(group_id, project_label, timestamp, user
                 'created': timestamp,
                 'modified': timestamp
         }
+
+        if unsorted_projects:
+            project['description'] = 'This project was automatically created because unsortable data was detected. \
+                                      Please move sessions to the appropriate project.'
+
         result = ContainerStorage.factory('project').create_el(project)
         project['_id'] = result.inserted_id
     return project
@@ -469,42 +474,41 @@ def find_existing_hierarchy(metadata, type_='uid', user=None):
     )
     return target_containers
 
-def upsert_bottom_up_hierarchy_wrapper(reaper=False):
-    def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None):
-        group = metadata.get('group', {})
-        project = metadata.get('project', {})
-        session = metadata.get('session', {})
-        acquisition = metadata.get('acquisition', {})
 
-        # Fail if some fields are missing
-        try:
-            _ = group['_id']
-            _ = project['label']
-            _ = acquisition['uid']
-            session_uid = session['uid']
-        except Exception as e:
-            log.error(metadata)
-            raise APIStorageException(str(e))
+def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None):
+    group = metadata.get('group', {})
+    project = metadata.get('project', {})
+    session = metadata.get('session', {})
+    acquisition = metadata.get('acquisition', {})
 
-        session_obj = config.db.sessions.find_one({'uid': session_uid, 'deleted': {'$exists': False}})
+    # Fail if some fields are missing
+    try:
+        _ = group['_id']
+        _ = project['label']
+        _ = acquisition['uid']
+        session_uid = session['uid']
+    except Exception as e:
+        log.error(metadata)
+        raise APIStorageException(str(e))
 
-        if session_obj: # skip project creation, if session exists
+    session_obj = config.db.sessions.find_one({'uid': session_uid, 'deleted': {'$exists': False}})
 
-            if user and not has_access(user, session_obj, 'rw'):
-                raise APIPermissionException('User {} does not have read-write access to session {}'.format(user, session_uid))
+    if session_obj: # skip project creation, if session exists
 
-            now = datetime.datetime.utcnow()
-            project_files = dict_fileinfos(project.pop('files', []))
-            project_obj = config.db.projects.find_one({'_id': session_obj['project'], 'deleted': {'$exists': False}}, projection=PROJECTION_FIELDS + ['name'])
-            target_containers = _get_targets(project_obj, session, acquisition, type_, now)
-            target_containers.append(
-                (TargetContainer(project_obj, 'project'), project_files)
-            )
-            return target_containers
-        else:
-            return upsert_top_down_hierarchy(metadata, type_=type_, user=user, unsorted_projects=reaper)
+        if user and not has_access(user, session_obj, 'rw'):
+            raise APIPermissionException('User {} does not have read-write access to session {}'.format(user, session_uid))
 
-    return upsert_bottom_up_hierarchy
+        now = datetime.datetime.utcnow()
+        project_files = dict_fileinfos(project.pop('files', []))
+        project_obj = config.db.projects.find_one({'_id': session_obj['project'], 'deleted': {'$exists': False}}, projection=PROJECTION_FIELDS + ['name'])
+        target_containers = _get_targets(project_obj, session, acquisition, type_, now)
+        target_containers.append(
+            (TargetContainer(project_obj, 'project'), project_files)
+        )
+        return target_containers
+    else:
+        return upsert_top_down_hierarchy(metadata, type_=type_, user=user, unsorted_projects=True)
+
 
 def upsert_top_down_hierarchy(metadata, type_='label', user=None, unsorted_projects=False):
     group = metadata['group']
