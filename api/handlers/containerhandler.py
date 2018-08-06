@@ -95,7 +95,7 @@ class ContainerHandler(base.RequestHandler):
         if self.is_true('join_avatars'):
             self.storage.join_avatars([result])
 
-        inflate_job_info = cont_name == 'sessions'
+        inflate_job_info = cont_name in ['projects', 'sessions', 'subjects', 'acquisitions']
         if not self.is_enabled('Slim-Containers'):
             result['analyses'] = AnalysisStorage().get_analyses(None, cont_name, _id, inflate_job_info)
         self.handle_origin(result)
