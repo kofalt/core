@@ -417,7 +417,7 @@ class JobTicket(object):
     @staticmethod
     def find(job_id):
         """Find any tickets with job ID"""
-        return list(config.db.job_tickets.find({'job': job_id}))
+        return list(config.db.job_tickets.find({'job': str(job_id)}))
 
 
 class Logs(object):
