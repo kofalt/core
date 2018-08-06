@@ -120,7 +120,7 @@ class Placer(object):
         """
         If no file object is available, only the metadata will be updated
         """
-        container_before, container_after, saved_state = hierarchy.update_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger)
+        container_before, container_after, saved_state = hierarchy.update_fileinfo(self.container_type, self.id_, file_attrs)
         if saved_state == 'ignored':
             self.ignored.append(file_attrs)
 
@@ -805,6 +805,7 @@ class GearPlacer(Placer):
         # self.metadata['hash'] = file_attrs.get('hash')
 
         self.save_file(field)
+        self.saved.append(file_attrs)
         self.saved.append(self.metadata)
 
     def finalize(self):

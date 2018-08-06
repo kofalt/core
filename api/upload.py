@@ -376,7 +376,6 @@ def make_file_attrs(field, origin):
     file_attrs = {
         '_id': field.uuid,
         'name': field.filename,
-        'created': timestamp,
         'modified': field.modified,
         'size': field.size,
         'mimetype': field.mimetype,
@@ -392,4 +391,3 @@ def make_file_attrs(field, origin):
 
     file_attrs['type'] = files.guess_type_from_filename(file_attrs['name'])
     return file_attrs
-

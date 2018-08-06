@@ -194,7 +194,7 @@ def is_session_compliant(session, template):
     return True
 
 
-def update_fileinfo(cont_name, _id, fileinfo, access_logger):
+def update_fileinfo(cont_name, _id, fileinfo):
     """
     Used when the file object itself is not intended to be replaced, but the metadata is updated
     Saved state is `saved` when metadata update is completed successfully, `ignored` if the file is not found
@@ -267,6 +267,7 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace
 
 
 def add_file(cont_name, _id, fileinfo):
+    fileinfo['created'] = datetime.datetime.utcnow()
     return config.db[cont_name].find_one_and_update(
         {'_id': _id},
         {'$push': {'files': fileinfo}},
@@ -291,36 +292,15 @@ def replace_file(cont_name, _id, existing_fileinfo, fileinfo, access_logger):
 
     access_logger(AccessType.replace_file, cont_name=cont_name, cont_id=_id, filename=fileinfo['name'])
 
-    while True:
+    # Keep created date the same, add "replaced" timestamp
+    fileinfo['created'] = existing_fileinfo['created']
+    fileinfo['replaced'] = datetime.datetime.utcnow()
 
-        # Update the version and add existing file to "other_versions" list
-        fileinfo['version'] = existing_fileinfo['version']+1
-        fileinfo['other_versions'] = existing_fileinfo.pop('other_versions', [])
-        fileinfo['other_versions'].append(existing_fileinfo)
-
-        # Only update if the existing file has not changed since last load
-        result = config.db[cont_name].update_one(
-            {'_id': _id, 'files': {'$elemMatch': {
-                'name': fileinfo['name'],
-                'modified': existing_fileinfo['modified'],
-                'version': existing_fileinfo['version']}}},
-            {'$set': {'files.$': fileinfo}}
-        )
-
-        if not result.modified_count:
-            # The existing file must have changed, grab update from db
-            c = config.db[cont_name].find_one({'_id': _id, 'files.name': fileinfo['name']})
-            for f in c.get('files'):
-                if f['name'] == fileinfo['name']:
-                    existing_fileinfo = f
-                    break
-            else:
-                # The file wasn't found, must have been removed
-                fileinfo['version'] = 1
-                return add_file(cont_name, _id, fileinfo)
-        else:
-
-            return config.db[cont_name].find_one({'_id': _id})
+    return config.db[cont_name].find_one_and_update(
+        {'_id': _id, 'files.name': fileinfo['name']},
+        {'$set': {'files.$': fileinfo}},
+        return_document=pymongo.collection.ReturnDocument.AFTER
+    )
 
 
 
