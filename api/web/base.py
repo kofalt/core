@@ -31,7 +31,7 @@ class RequestHandler(webapp2.RequestHandler):
 
         # If user is attempting to log in through `/login`, ignore Auth here:
         # In future updates, move login and logout handlers to class that overrides this init
-        if self.request.path == '/api/login':
+        if self.request.path.startswith('/api/login'):
             return
 
         try:
@@ -232,10 +232,7 @@ class RequestHandler(webapp2.RequestHandler):
     @log_access(AccessType.user_login)
     def log_in(self):
         """
-        Return succcess boolean if user successfully authenticates.
-
-        Used for access logging.
-        Not required to use system as logged in user.
+        Validates SSO tokens for configured providers and returns a FW session token
         """
 
         payload = self.request.json_body
@@ -250,6 +247,41 @@ class RequestHandler(webapp2.RequestHandler):
 
         registration_code = payload.get('registration_code')
         token_entry = auth_provider.validate_code(payload['code'], registration_code=registration_code)
+        self._generate_session(token_entry)
+
+        return {'token': token_entry['_id']}
+
+
+    @log_access(AccessType.user_login)
+    def saml_log_in(self):
+        """
+        Validates SAML requests and generates a FW session token
+
+        Uses a Shibboleth header to verify Authn via session endpoint configured as `verify_endpoint`
+        """
+        try:
+            auth_provider = AuthProvider.factory('saml')
+        except NotImplementedError as e:
+            self.abort(400, str(e))
+
+        # Get SAML session information from request cookie
+        session_cookie = None
+        for k,v in self.request.cookies.iteritems():
+            if k.startswith('_shibsession'):
+                if not session_cookie:
+                    session_cookie = {k:v}
+                else:
+                    # Multiple Shibboleth session cookies, abort
+                    raise errors.APIAuthProviderException('Multiple Shibboleth session cookies detected.')
+
+        if not session_cookie:
+            raise errors.APIAuthProviderException('SAML session invalid - cookie not available.')
+
+        token_entry = auth_provider.validate_code(session_cookie)
+        self._generate_session(token_entry)
+        self.redirect('{}/#/login?token={}'.format(config.get_item('site', 'redirect_url'), token_entry['_id']))
+
+    def _generate_session(self, token_entry):
         timestamp = datetime.datetime.utcnow()
 
         self.uid = token_entry['uid']
@@ -265,8 +297,6 @@ class RequestHandler(webapp2.RequestHandler):
         token_entry['timestamp'] = timestamp
 
         config.db.authtokens.insert_one(token_entry)
-
-        return {'token': session_token}
 
 
     @log_access(AccessType.user_logout)
@@ -365,14 +395,18 @@ class RequestHandler(webapp2.RequestHandler):
         core_status = None
         if isinstance(exception, webapp2.HTTPException):
             code = exception.code
+
         elif isinstance(exception, errors.APIException):
             code = exception.status_code
             core_status = exception.core_status_code
             custom_errors = exception.errors
+
+            if exception.log:
+                self.log.warning(exception.log_msg)
+
         elif isinstance(exception, ElasticsearchException):
             code = 503
             message = "Search is currently down. Try again later."
-            self.log.error(traceback.format_exc())
         elif isinstance(exception, KeyError):
             code = 500
             message = "Key {} was not found".format(str(exception))

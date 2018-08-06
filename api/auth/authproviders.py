@@ -332,6 +332,63 @@ class CASAuthProvider(AuthProvider):
         return username
 
 
+class SAMLAuthProvider(AuthProvider):
+
+    def __init__(self):
+        super(SAMLAuthProvider, self).__init__('saml')
+
+    def validate_code(self, code, **kwargs):
+        uid = self.validate_user(code)
+        return {
+            'access_token': code,
+            'uid': uid,
+            'auth_type': self.auth_type,
+            'expires': datetime.datetime.utcnow() + datetime.timedelta(seconds=self.config['refresh_rate']),
+            'refresh_token': code
+        }
+
+    def validate_user(self, session_cookie):
+        """
+        Validate that a SAML cookie is associated with a session on the SP server.
+        Retrieve user identifier.
+
+        The verify endpoint will give information about the current session,
+        including any attributes the IdP server chooses to share. All SP <-> IdP configurations
+        should include the request for a unique user identifier, usually an email address.
+        """
+        r = requests.get(self.config['verify_endpoint'], cookies=session_cookie)
+        if not r.ok:
+            log_msg = 'SAML request failed: {} - {}'.format(r.status_code, r.reason)
+            raise APIAuthProviderException('SAML session not valid', log_msg=log_msg)
+
+        uid = None
+        attributes = json.loads(r.content).get('attributes', [])
+
+        for a in attributes:
+            if a.get('name') == 'mail':
+                values = a.get('values')
+                uid = values[0] if values else None
+
+        if not uid:
+            raise APIAuthProviderException('Auth provider did not provide user email')
+
+        self.ensure_user_exists(uid)
+        self.set_user_gravatar(uid, uid)
+
+        return uid
+
+    def refresh_token(self, token):
+        """
+        Check to see if the session on the SP is still valid. Reject if not.
+        """
+        r = requests.get(self.config['verify_endpoint'], cookies=token)
+        if not r.ok:
+            raise APIAuthProviderException('SAML session no longer valid.')
+        return {
+            'access_token': token,
+            'expires': datetime.datetime.utcnow() + datetime.timedelta(seconds=self.config['refresh_rate'])
+        }
+
 
 class APIKeyAuthProvider(AuthProvider):
     """
@@ -373,5 +430,6 @@ AuthProviders = {
     'ldap'      : JWTAuthProvider,
     'wechat'    : WechatOAuthProvider,
     'api-key'   : APIKeyAuthProvider,
-    'cas'       : CASAuthProvider
+    'cas'       : CASAuthProvider,
+    'saml'      : SAMLAuthProvider
 }
