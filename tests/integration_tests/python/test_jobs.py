@@ -916,3 +916,82 @@ def test_job_tagging(data_builder, default_payload, as_admin, as_root, api_db, f
     # Make sure that the job has the tag of the gear name
     analysis_job = r.json()
     assert gear_name in analysis_job['tags']
+
+def test_job_reap_ticketed_jobs(data_builder, default_payload, as_drone, as_admin, as_root, api_db, file_form):
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Add job with gear that uses api-key base type and get config
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        },
+        'api_key': {
+            'base': 'api-key'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+
+    job = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    r = as_admin.post('/jobs/add', json=job)
+    assert r.status_code == 200
+    job_id = r.json()['_id']
+
+    r = as_admin.post('/jobs/add', json=job)
+    assert r.status_code == 200
+    job_id2 = r.json()['_id']
+
+    # transition jobs to running
+    r = as_drone.put('/jobs/' + job_id, json={'state': 'running'})
+    assert r.ok
+
+    r = as_drone.put('/jobs/' + job_id2, json={'state': 'running'})
+    assert r.ok
+
+    # Make sure there are no jobs that are pending
+    assert api_db.jobs.count({'state': 'pending'}) == 0
+
+    # prepare completion (send success status before engine upload)
+    r = as_drone.post('/jobs/' + job_id + '/prepare-complete', json={'success': True, 'elapsed': 10})
+    assert r.ok
+
+    # verify that job ticket has been created
+    job_ticket = api_db.job_tickets.find_one({'job': job_id})
+    assert job_ticket['success'] == True
+
+    # set job as one that should be orphaned
+    api_db.jobs.update_one({'_id': bson.ObjectId(job_id)}, {'$set': {'modified': datetime.datetime(1980, 1, 1)}})
+    api_db.jobs.update_one({'_id': bson.ObjectId(job_id2)}, {'$set': {'modified': datetime.datetime(1980, 1, 1)}})
+
+    # reap orphans
+    r = as_root.post('/jobs/reap')
+
+    # Make sure that exactly 1 job got restarted
+    assert api_db.jobs.count({'state': 'pending'}) == 1
+
+    # Ensure that our job is still running
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['state'] == 'running'
+
+    # Ensure that our other job got marked as failed
+    r = as_admin.get('/jobs/' + job_id2)
+    assert r.ok
+    assert r.json()['state'] == 'failed'

@@ -473,9 +473,11 @@ class Queue(object):
         """
 
         orphaned = 0
+        ticketed_jobs = []
         query = {
             'state': 'running',
             'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(seconds=100)},
+            '_id': { '$nin': ticketed_jobs },
         }
 
         while True:
@@ -486,6 +488,7 @@ class Queue(object):
             # If the job is currently attempting to complete, do not orphan.
             ticket = JobTicket.find(orphan_candidate['_id'])
             if ticket is not None and len(ticket) > 0:
+                ticketed_jobs.append(orphan_candidate['_id'])
                 continue
 
             # CAS this job, since it does not have a ticket
