@@ -344,9 +344,9 @@ classdef ViewBuilder < handle
                     labelFilter = flywheel.model.DataViewNameFilterSpec('value', '*');
                     obj.analysisFilter_ = flywheel.model.DataViewAnalysisFilterSpec('label', labelFilter);
                 end
-                self.fileMatch_ = 'all';
-                self.missingDataStrategy_ = 'drop-row';
-                self.processFiles_ = false;
+                obj.fileMatch_ = 'all';
+                obj.missingDataStrategy_ = 'drop-row';
+                obj.processFiles_ = false;
             end
 
             if isempty(col.dst)
