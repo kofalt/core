@@ -120,10 +120,6 @@ class DataViewTestCases(SdkTestCase):
         view = fw.View(columns=['subject', 'session.info'], include_labels=False)
         df = fw.read_view_dataframe(view, self.project_id)
 
-        # Convert session.info to dict
-        import ast
-        df['session.info'] = df['session.info'].apply(ast.literal_eval)
-
         info = df['session.info'][0]
         self.assertEqual(info['dims'], [8.0, 5.9, 6.4])
 
