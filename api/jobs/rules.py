@@ -253,7 +253,14 @@ def create_jobs(db, container_before, container_after, container_type, replaced_
     # (members of jobs_after that are not in jobs_before)
     for ja in jobs_after:
 
-        if set(replaced_files).intersection(set(ja['job'].inputs.itervalues())):
+        replaced_file_in_job_inputs = False
+        list_of_inputs = [i for i in ja['job'].inputs.itervalues()]
+        for rf in replaced_files:
+            if rf in list_of_inputs:
+                replaced_file_in_job_inputs = True
+                break
+
+        if replaced_file_in_job_inputs:
             # one of the replaced files is an input
             potential_jobs.append(ja)
         else:
