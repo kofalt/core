@@ -9,6 +9,8 @@ fw = flywheel.Flywheel(apiKey);
 
 groupId = [];
 projectId = [];
+viewId = [];
+dstFile = [];
 
 try
     %% Create group, project, sessions
@@ -33,11 +35,19 @@ try
         'label', 'Mean Diffusivity'));
     fw.uploadFileToAcquisition(acquisition2Id, 'data/mean-diff2.csv');
     
+    %% Print the list of available columns
+    disp('Printing view columns')
+    fw.printViewColumns();
+    
     %% Create and execute view for subject data
     disp('Verifying subject data')
     
-    view = fw.View('columns', { {'subject'}, {'subject.age_years'} });
-    result = fw.readViewStruct(view, projectId);
+    me = fw.getCurrentUser().id;
+    
+    view = fw.View('columns', { {'subject'}, {'subject.age_years'} }, ...
+        'label', 'My Subject View');
+    viewId = fw.addView(me, view);
+    result = fw.readViewStruct(viewId, projectId);
     
     assert(numel(result) == 2)
     
@@ -48,6 +58,14 @@ try
     assert(strcmp(result(2).subject_label, '1002'))
     assert(strcmp(result(2).subject_sex, 'female'))
     assert(result(2).subject_age_years == 37.0);
+    
+    %% Save View Data
+    dstFile = sprintf('%s.csv', testString);
+    fw.saveViewData(view, projectId, dstFile, 'format', 'csv');
+    
+    tab = readtable(dstFile);
+    meanAge = mean(tab.subject_age_years);
+    assert(abs(36.0 - meanAge) < 0.001)
     
     %% Create and execute view for file names
     disp('Verifying file names')
@@ -88,17 +106,25 @@ try
     sumRC = sum([result.RC]);
     assert(abs(156.7389 - sumLC) < 0.001)
     assert(abs(153.1726 - sumRC) < 0.001)
-    
+
     disp('All tests passed!')
 catch ME
     disp(getReport(ME));
 end
 
 %% cleanup
+if ~isempty(viewId)
+    fw.deleteView(viewId);
+end
+
 if ~isempty(projectId)
     fw.deleteProject(projectId);
 end
 
 if ~isempty(groupId)
     fw.deleteGroup(groupId);
+end
+
+if ~isempty(dstFile)
+    delete(dstFile);
 end
