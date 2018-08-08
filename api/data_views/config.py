@@ -3,6 +3,7 @@ import itertools
 from ..web.errors import InputValidationException
 from ..dao import containerutil
 from .column_aliases import ColumnAliases
+from . import safe_eval
 
 # TODO: Add subject once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
@@ -12,7 +13,7 @@ COLUMN_BLACKLIST = [ 'permissions', 'files' ]
 
 class ColumnSpec(object):
     """Represents a single column configured for extraction"""
-    def __init__(self, container, src, dst, datatype=None):
+    def __init__(self, container, src, dst, datatype=None, expr=None):
         # The container that this column should be extracted from
         self.container = container
         # The source path of the column value
@@ -21,6 +22,8 @@ class ColumnSpec(object):
         self.dst = dst
         # The optional datatype to extract
         self.datatype = datatype
+        # The optional expression to apply
+        self.expr = expr
 
 class DataViewConfig(object):
     """Contains all relevant configuration for executing a DataView"""
@@ -75,6 +78,17 @@ class DataViewConfig(object):
         if not self.containers:
             self.determine_fetch_containers()
             self.add_default_columns()
+            self.compile_expressions()
+
+    def compile_expressions(self):
+        """Pre-compile and validate column evaluation expressions"""
+        for col in self.columns:
+            # Compile the expression, if there is one
+            if col.expr:
+                try:
+                    col.expr = safe_eval.compile_expr(col.expr, {'x'})
+                except ValueError:
+                    raise InputValidationException('Invalid expression: {}'.format(col.expr))
 
     def determine_fetch_containers(self):
         """Determine how deep we need to fetch based on columns and file specs"""
@@ -84,8 +98,9 @@ class DataViewConfig(object):
         for col in columns:
             dst = col.get('dst', col['src'])
             datatype = col.get('type')
+            expr = col.get('expr')
 
-            container = self.resolve_and_add_column(col['src'], dst, datatype)
+            container = self.resolve_and_add_column(col['src'], dst, datatype=datatype, expr=expr)
 
             if container in VIEW_CONTAINERS:
                 max_idx = max(max_idx, VIEW_CONTAINERS.index(container))
@@ -125,23 +140,27 @@ class DataViewConfig(object):
             if include_labels:
                 self.add_column(cont, 'label', '{}_label'.format(cont), idx=next(idx) )
 
-    def resolve_and_add_column(self, src, dst, datatype=None, idx=None):
+    def resolve_and_add_column(self, src, dst, datatype=None, expr=None, idx=None):
         """Resolve a column by name and add it to the various internal maps
 
         Arguments:
             src (str): The source key of the column value in container
             dst (str): The destination key for the column value
             datatype (str): The optional column data type
+            expr (str): The optional expression to apply
             idx (int): The index where the column should be inserted
 
         Returns:
             str: The container name
         """
         # Lookup src alias
-        src, resolved_datatype = ColumnAliases.get_column_alias(src)
+        src, resolved_datatype, resolved_expr = ColumnAliases.get_column_alias(src)
 
         if datatype is None:
             datatype = resolved_datatype
+
+        if expr is None:
+            expr = resolved_expr
 
         try:
             container, field = src.split('.', 1)
@@ -154,10 +173,10 @@ class DataViewConfig(object):
         elif container not in COLUMN_CONTAINERS:
             raise InputValidationException('Unknown container for column: {}'.format(src))
 
-        self.add_column(container, field, dst, datatype, idx=idx)
+        self.add_column(container, field, dst, datatype=datatype, expr=expr, idx=idx)
         return container
 
-    def add_column(self, container, src, dst, datatype=None, idx=None):
+    def add_column(self, container, src, dst, datatype=None, expr=None, idx=None):
         """Add a column to the various internal maps
 
         Arguments:
@@ -165,11 +184,12 @@ class DataViewConfig(object):
             src (str): The source key of the column value in container
             dst (str): The destination key for the column value
             datatype (str): The optional column data type
+            expr (str): The optional expression to apply
         """
         if idx is None:
             idx = len(self.columns)
 
-        col = ColumnSpec(container, src, dst, datatype)
+        col = ColumnSpec(container, src, dst, datatype=datatype, expr=expr)
         self.columns.insert(idx, col)
         if container not in self.column_map:
             self.column_map[container] = []

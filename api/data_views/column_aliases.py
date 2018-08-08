@@ -19,7 +19,7 @@ class ColumnAliases(object):
         for col in self.columns:
             if 'type' not in col:
                 col['type'] = 'string'
-            self.column_map[col['name']] = (col['src'], col.get('type'))
+            self.column_map[col['name']] = (col['src'], col.get('type'), col.get('expr'))
 
 
     @classmethod
@@ -52,5 +52,5 @@ class ColumnAliases(object):
         inst = cls.instance()
         if key in inst.column_map:
             return inst.column_map[key]
-        return (key, None)
+        return (key, None, None)
 

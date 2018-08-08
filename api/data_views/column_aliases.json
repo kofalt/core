@@ -63,6 +63,34 @@
 		"type": "int"
 	},
 	{
+		"name": "subject_age_years",
+		"src": "subject.age",
+		"description": "The subject age, in years",
+		"type": "float",
+		"expr": "x / 31557600.0"
+	},
+	{
+		"name": "subject_age_months",
+		"src": "subject.age",
+		"description": "The subject age, in months",
+		"type": "float",
+		"expr": "x / 2592000.0"
+	},
+	{
+		"name": "subject_age_weeks",
+		"src": "subject.age",
+		"description": "The subject age, in weeks",
+		"type": "float",
+		"expr": "x / 604800.0"
+	},
+	{
+		"name": "subject_age_days",
+		"src": "subject.age",
+		"description": "The subject age, in days",
+		"type": "float",
+		"expr": "x / 86400.0"
+	},
+	{
 		"name": "subject_sex",
 		"src": "subject.sex",
 		"description": "The subject sex (one of female|male|other|unknown)"
