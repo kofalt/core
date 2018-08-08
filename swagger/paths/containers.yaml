@@ -1,3 +1,8 @@
+$template_arguments:
+  resource: container
+  tag: containers
+  parameter: ContainerId
+
 /containers/{ContainerId}:
   parameters:
     - required: true
@@ -41,3 +46,57 @@
     responses:
       '200':
         description: Container was deleted
+
+
+# ===== Tags =====
+/containers/{ContainerId}/tags:
+  $template: templates/tags.yaml
+/containers/{ContainerId}/tags/{TagValue}:
+  $template: templates/tags-tag.yaml
+
+# ===== Files =====
+/containers/{ContainerId}/files:
+  $template: templates/file-list-upload.yaml
+/containers/{ContainerId}/files/{FileName}:
+  $template: templates/file-item.yaml
+/containers/{ContainerId}/files/{FileName}/info:
+  $template: templates/file-item-info.yaml
+/containers/{ContainerId}/files/{FileName}/classification:
+  $template: templates/file-item-classification.yaml
+
+# ===== Notes =====
+/containers/{ContainerId}/notes:
+  $template: templates/notes.yaml
+/containers/{ContainerId}/notes/{NoteId}:
+  $template: templates/notes-note.yaml
+
+# ===== Analyses =====
+/containers/{ContainerId}/analyses:
+  $template: templates/analyses-list.yaml
+  arguments:
+    allowCreate: true
+/containers/{ContainerId}/analyses/{AnalysisId}:
+  $template: templates/analysis-item.yaml
+  arguments:
+    supportsDelete: true
+/containers/{ContainerId}/analyses/{AnalysisId}/inputs:
+  $template: templates/analysis-files.yaml
+  arguments:
+    filegroup: inputs
+/containers/{ContainerId}/analyses/{AnalysisId}/inputs/{Filename}:
+  $template: templates/analysis-files-create-ticket-filename.yaml
+  arguments:
+    filegroup: inputs
+/containers/{ContainerId}/analyses/{AnalysisId}/files:
+  $template: templates/analysis-files.yaml
+  arguments:
+    filegroup: outputs
+    allow_upload: true
+/containers/{ContainerId}/analyses/{AnalysisId}/files/{Filename}:
+  $template: templates/analysis-files-create-ticket-filename.yaml
+  arguments:
+    filegroup: outputs
+/containers/{ContainerId}/analyses/{AnalysisId}/notes:
+  $template: templates/analysis-notes.yaml
+/containers/{ContainerId}/analyses/{AnalysisId}/notes/{NoteId}:
+  $template: templates/analysis-notes-item.yaml
