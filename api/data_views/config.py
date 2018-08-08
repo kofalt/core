@@ -82,24 +82,11 @@ class DataViewConfig(object):
 
         max_idx = -1 
         for col in columns:
-            # Lookup src alias
-            src, datatype = ColumnAliases.get_column_alias(col['src'])
-
             dst = col.get('dst', col['src'])
-            datatype = col.get('type', datatype)
+            datatype = col.get('type')
 
-            try:
-                container, field = src.split('.', 1)
-            except ValueError:
-                raise InputValidationException('Unknown column alias: {}'.format(src))
+            container = self.resolve_and_add_column(col['src'], dst, datatype)
 
-            if container == 'subject':
-                container = 'session'
-                field = src
-            elif container not in COLUMN_CONTAINERS:
-                raise InputValidationException('Unknown container for column: {}'.format(src))
-
-            self.add_column(container, field, dst, datatype)
             if container in VIEW_CONTAINERS:
                 max_idx = max(max_idx, VIEW_CONTAINERS.index(container))
 
@@ -137,6 +124,38 @@ class DataViewConfig(object):
 
             if include_labels:
                 self.add_column(cont, 'label', '{}_label'.format(cont), idx=next(idx) )
+
+    def resolve_and_add_column(self, src, dst, datatype=None, idx=None):
+        """Resolve a column by name and add it to the various internal maps
+
+        Arguments:
+            src (str): The source key of the column value in container
+            dst (str): The destination key for the column value
+            datatype (str): The optional column data type
+            idx (int): The index where the column should be inserted
+
+        Returns:
+            str: The container name
+        """
+        # Lookup src alias
+        src, resolved_datatype = ColumnAliases.get_column_alias(src)
+
+        if datatype is None:
+            datatype = resolved_datatype
+
+        try:
+            container, field = src.split('.', 1)
+        except ValueError:
+            raise InputValidationException('Unknown column alias: {}'.format(src))
+
+        if container == 'subject':
+            container = 'session'
+            field = src
+        elif container not in COLUMN_CONTAINERS:
+            raise InputValidationException('Unknown container for column: {}'.format(src))
+
+        self.add_column(container, field, dst, datatype, idx=idx)
+        return container
 
     def add_column(self, container, src, dst, datatype=None, idx=None):
         """Add a column to the various internal maps
