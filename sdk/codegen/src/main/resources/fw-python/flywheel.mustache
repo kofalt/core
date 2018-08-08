@@ -87,7 +87,7 @@ class Flywheel:
         {{#vendorExtensions.x-sdk-download-file-param}}
         :param str {{.}}: Destination file path
         {{/vendorExtensions.x-sdk-download-file-param}}
-        :param bool async: Perform the request asynchronously
+        :param bool async_: Perform the request asynchronously
         :return: {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}None{{/returnType}}
         """
         return self.{{classVarName}}.{{operationId}}({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}{{#vendorExtensions.x-sdk-download-file-param}}{{.}}, {{/vendorExtensions.x-sdk-download-file-param}}**kwargs)
@@ -108,7 +108,7 @@ class Flywheel:
         {{#vendorExtensions.x-sdk-download-file-param}}
         :param str {{.}}: Destination file path
         {{/vendorExtensions.x-sdk-download-file-param}}
-        :param bool async: Perform the request asynchronously
+        :param bool async_: Perform the request asynchronously
         :return: {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}None{{/returnType}}
         """
         req_info = {}

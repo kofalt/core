@@ -37,7 +37,7 @@ class {{classname}}(object):
 {{#vendorExtensions.x-sdk-download-file-param}}
         :param str {{.}}: Destination file path
 {{/vendorExtensions.x-sdk-download-file-param}}
-        :param bool async: Perform the request asynchronously
+        :param bool async_: Perform the request asynchronously
         :return: {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}None{{/returnType}}
         """
         kwargs['_return_http_data_only'] = True
@@ -55,7 +55,7 @@ class {{classname}}(object):
                     resp.close()
         {{/vendorExtensions.x-sdk-download-file-param}}
         {{^vendorExtensions.x-sdk-download-file-param}}
-        if kwargs.get('async'):
+        if kwargs.get('async_'):
             return self.{{operationId}}_with_http_info({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs)  # noqa: E501
         else:
             (data) = self.{{operationId}}_with_http_info({{#sortParamsByRequiredFlag}}{{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}{{/sortParamsByRequiredFlag}}**kwargs)  # noqa: E501
@@ -81,7 +81,7 @@ class {{classname}}(object):
         """
 
         all_params = [{{#allParams}}'{{paramName}}'{{#hasMore}}, {{/hasMore}}{{/allParams}}]  # noqa: E501
-        all_params.append('async')
+        all_params.append('async_')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
         all_params.append('_request_timeout')
@@ -218,7 +218,7 @@ class {{classname}}(object):
             files=local_var_files,
             response_type={{#returnType}}'{{returnType}}'{{/returnType}}{{^returnType}}None{{/returnType}},  # noqa: E501
             auth_settings=auth_settings,
-            async=params.get('async'),
+            async_=params.get('async_'),
             _return_http_data_only=params.get('_return_http_data_only'),
             _preload_content=params.get('_preload_content', True),
             _request_timeout=params.get('_request_timeout'),
