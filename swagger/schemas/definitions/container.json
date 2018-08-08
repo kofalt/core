@@ -57,6 +57,63 @@
               "modified":     {"$ref":"created-modified.json#/definitions/modified"}
           },
           "description": "Generic container output with files"
+        },
+        "container-output": {
+          "type": "object",
+          "properties": {
+            "container_type": {
+              "type": "string"
+            }
+          },
+          "discriminator": "container_type",
+          "required": ["container_type"],
+          "description": "Generic container output"
+        },
+        "group-output": {
+          "allOf": [
+            {"$ref":"#/definitions/container-output"},
+            {"$ref":"group.json#/definitions/group-output"}
+          ],
+          "x-discriminator-value": "group"
+        },
+        "project-output": {
+          "allOf": [
+            {"$ref":"#/definitions/container-output"},
+            {"$ref":"project.json#/definitions/project-output"}
+          ],
+          "x-discriminator-value": "project"
+        },
+        "session-output": {
+          "allOf": [
+            {"$ref":"#/definitions/container-output"},
+            {"$ref":"session.json#/definitions/session-output"}
+          ],
+          "x-discriminator-value": "session"
+        },
+        "acquisition-output": {
+          "allOf": [
+            {"$ref":"#/definitions/container-output"},
+            {"$ref":"acquisition.json#/definitions/acquisition-output"}
+          ],
+          "x-discriminator-value": "acquisition"
+        },
+        "file-output": {
+          "allOf": [
+            {"$ref":"#/definitions/container-output"},
+            {"$ref":"file.json#/definitions/file-output"}
+          ],
+          "x-discriminator-value": "file"
+        },
+        "analysis-output": {
+            "allOf": [
+                {"$ref":"#/definitions/container-output"},
+                {"$ref":"analysis.json#/definitions/analysis-output"}
+            ],
+            "x-discriminator-value": "analysis"
+        },
+        "container-update": {
+          "type": "object",
+          "description": "Generic input, should be validated by the correct schema later on"
         }
     }
 }

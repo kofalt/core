@@ -1,7 +1,7 @@
 from bson import ObjectId
 from webapp2 import Request
 
-from ..dao.containerutil import container_search
+from ..dao.containerutil import container_search, singularize
 from ..web import base
 from ..web.errors import APINotFoundException
 
@@ -31,6 +31,8 @@ class AbstractContainerHandler(base.RequestHandler):
         destination_environ = self.request.environ
         for key in 'PATH_INFO', 'REQUEST_URI':
             destination_environ[key] = destination_environ[key].replace('containers', cont_name, 1)
+
+        destination_environ['fw_container_type'] = singularize(cont_name)
         destination_request = Request(destination_environ)
 
         # Apply SciTranRequest attrs
