@@ -50,9 +50,10 @@ classdef Flywheel < handle
                 obj.apiClient.restClient.addDefaultParameter('root', 'true');
             end
 
-            obj.checkVersion = isempty(getenv('FLYWHEEL_SDK_SKIP_VERSION_CHECK'));
-            if obj.checkVersion && exist('skipVersionCheck', 'var') && skipVersionCheck
-                obj.checkVersion = false;
+            if exist('skipVersionCheck', 'var') && ~skipVersionCheck
+                obj.checkVersion = true;
+            else
+                obj.checkVersion = strcmp('0', getenv('FLYWHEEL_SDK_SKIP_VERSION_CHECK'));
             end
 
             userAgent = sprintf('Flywheel SDK/%s (Matlab %s; %s)', {{packageName}}.Flywheel.SDK_VERSION, version, computer);
