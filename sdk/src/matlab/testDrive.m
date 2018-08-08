@@ -202,6 +202,27 @@ assert(strcmp(job.gearId,gearId), errMsg)
 logs = fw.getJobLogs(jobId);
 % Likely will not have anything in them yet
 
+% Containers
+disp('Testing Abstract Containers')
+cgroup = fw.getContainer(groupId);
+assert(group.toJson() == cgroup.toJson, errMsg)
+
+cproject = fw.getContainer(projectId);
+assert(project.toJson() == cproject.toJson, errMsg)
+
+csession = fw.getContainer(sessionId);
+assert(session.toJson() == csession.toJson, errMsg)
+
+cacq = fw.getContainer(acqId);
+assert(acq.toJson() == cacq.toJson, errMsg)
+
+fw.modifyContainer(acqId, struct('label', 'testdrive'));
+cacq = fw.getContainer(acqId);
+acq = fw.getAcquisition(acqId);
+assert(strcmp(cacq.label,'testdrive'), errMsg)
+assert(strcmp(acq.label,'testdrive'), errMsg)
+
+
 %% Misc
 disp('Testing Misc')
 
