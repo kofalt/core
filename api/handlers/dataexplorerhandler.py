@@ -602,6 +602,10 @@ class DataExplorerHandler(base.RequestHandler):
         results = self._run_query(self._construct_query(return_type, search_string, filters, size), return_type)
 
         if self.is_true('simple'):
+            for entry in results:
+                # Add return_type field to each entry
+                entry['_source']['return_type'] = return_type
+
             #return a list of the results' `_source` key only
             return [x['_source'] for x in results]
 

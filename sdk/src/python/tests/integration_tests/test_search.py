@@ -31,6 +31,7 @@ class SearchTestCases(SdkTestCase):
         )
         search_result = fw.search(query)
         self.assertEqual(len(search_result), 1)
+        self.assertEqual(search_result[0]['return_type'], 'session')
 
         query = flywheel.SearchQuery(
             return_type='acquisition',
@@ -38,10 +39,4 @@ class SearchTestCases(SdkTestCase):
         )
         search_result = fw.search(query)
         self.assertEqual(len(search_result), 1)
-        
-
-        
-
-
-
-
+        self.assertEqual(search_result[0]['return_type'], 'acquisition')
