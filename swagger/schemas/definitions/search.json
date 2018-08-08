@@ -135,6 +135,7 @@
     	"search-response": {
     		"type": "object",
     		"properties": {
+    			"return_type": {"$ref":"#/definitions/search-type"},
     			"project":     {"$ref":"#/definitions/search-project-response"},
     			"group":       {"$ref":"#/definitions/search-group-response"},
     			"session":     {"$ref":"#/definitions/search-session-response"},
