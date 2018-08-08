@@ -139,15 +139,18 @@ class SubjectStorage(ContainerStorage):
         super(SubjectStorage, self).__init__('subjects', use_object_id=True, use_delete_tag=True, parent_cont_name='project', child_cont_name='session')
 
     def _from_mongo(self, cont):
-        if cont.get('code'):
-            cont['label'] = cont['code']
-        else:
-            cont['label'] = 'unknown'
+        if cont is not None:
+            if cont.get('code'):
+                cont['label'] = cont['code']
+            else:
+                cont['label'] = 'unknown'
 
     def create_or_update_el(self, payload, **kwargs):
         if self.dbc.find_one({'_id': payload['_id']}):
+            payload['modified'] = datetime.datetime.utcnow()
             return super(SubjectStorage, self).update_el(payload['_id'], payload, **kwargs)
         else:
+            payload['created'] = payload['modified'] = datetime.datetime.utcnow()
             return super(SubjectStorage, self).create_el(payload)
 
     def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):

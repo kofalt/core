@@ -1855,6 +1855,7 @@ def upgrade_to_55(dry_run=False):
                 a[k] = b[k]
 
     session_groups = config.db.sessions.aggregate([
+        {'$match': {'deleted': {'$exists': False}}},
         {'$group': {'_id': {'project': '$project', 'code': '$subject.code'},
                     'sessions': {'$push': '$$ROOT'}}},
         {'$sort': collections.OrderedDict([('_id.project', 1), ('_id.code', 1)])},
@@ -1874,6 +1875,7 @@ def upgrade_to_55(dry_run=False):
                 if session['subject']['_id'] in inserted_subject_ids:
                     session['subject']['_id'] = bson.ObjectId()
                 subject = extract_subject(session)
+                subject.update({'created': session['created'], 'modified': session['modified']})
                 logging.debug('extract codeless subject %s of session %s', subject['_id'], session['_id'])
                 if not dry_run:
                     config.db.subjects.insert_one(subject)
@@ -1892,6 +1894,9 @@ def upgrade_to_55(dry_run=False):
             session['subject']['_id'] = subject_id
             subject = extract_subject(session)
             merge_dict(merged_subject, subject)
+        min_created = min(s['created'] for s in sessions)
+        max_modified = max(s['modified'] for s in sessions)
+        subject.update({'created': min_created, 'modified': max_modified})
         logging.debug('inserting merged subject %s', subject_id)
         if not dry_run:
             config.db.subjects.insert_one(merged_subject)

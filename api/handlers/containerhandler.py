@@ -274,6 +274,10 @@ class ContainerHandler(base.RequestHandler):
         payload = self.request.json_body
         #validate the input payload
         payload_validator(payload, 'POST')
+        if cont_name == 'subjects' and 'project' not in payload:
+            # The new POST /subjects reuses json schema used for "embedded" subject creation,
+            # but requires project in the payload, too
+            raise InputValidationException('project required')
         # Load the parent container in which the new container will be created
         # to check permissions.
         parent_container, parent_id_property = self._get_parent_container(payload)

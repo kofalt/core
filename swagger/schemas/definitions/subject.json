@@ -43,6 +43,7 @@
             "type": "object",
             "properties": {
               "_id":              {"$ref":"#/definitions/_id"},
+              "project":          {"$ref":"#/definitions/_id"},
               "firstname":        {"$ref":"#/definitions/firstname"},
               "lastname":         {"$ref":"#/definitions/lastname"},
 
@@ -66,6 +67,7 @@
             "type": "object",
             "properties": {
               "_id":              {"$ref":"#/definitions/_id"},
+              "project":          {"$ref":"#/definitions/_id"},
               "firstname":        {"$ref":"#/definitions/firstname"},
               "lastname":         {"$ref":"#/definitions/lastname"},
 

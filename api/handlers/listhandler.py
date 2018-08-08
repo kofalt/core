@@ -78,6 +78,7 @@ def initialize_list_configurations():
             },
         },
         'projects': copy.deepcopy(container_default_configurations),
+        'subjects': copy.deepcopy(container_default_configurations),
         'sessions': copy.deepcopy(container_default_configurations),
         'acquisitions': copy.deepcopy(container_default_configurations),
         'collections': copy.deepcopy(container_default_configurations),
