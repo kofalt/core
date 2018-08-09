@@ -202,6 +202,44 @@ assert(strcmp(job.gearId,gearId), errMsg)
 logs = fw.getJobLogs(jobId);
 % Likely will not have anything in them yet
 
+%% Containers
+disp('Testing Abstract Containers')
+cgroup = fw.getContainer(groupId);
+assert(strcmp(group.id, cgroup.id), errMsg)
+
+cproject = fw.getContainer(projectId);
+assert(strcmp(project.id, cproject.id), errMsg)
+assert(strcmp(project.label, cproject.label), errMsg)
+
+csession = fw.getContainer(sessionId);
+assert(strcmp(session.id, csession.id), errMsg)
+assert(strcmp(session.label, csession.label), errMsg)
+
+cacq = fw.getContainer(acqId);
+assert(strcmp(acq.id, cacq.id), errMsg)
+assert(strcmp(acq.label, cacq.label), errMsg)
+
+fw.modifyContainer(acqId, struct('label', 'testdrive'));
+cacq = fw.getContainer(acqId);
+acq = fw.getAcquisition(acqId);
+assert(strcmp(cacq.label,'testdrive'), errMsg)
+assert(strcmp(acq.label,'testdrive'), errMsg)
+
+fw.uploadFileToContainer(acqId, filename);
+acquisitionDownloadFile = fullfile(tempdir, 'download3.txt');
+fw.downloadFileFromContainer(acqId, filename, acquisitionDownloadFile);
+
+acq = fw.getContainer(acqId);
+assert(strcmp(acq.tags{1},'blue'), errMsg)
+assert(strcmp(acq.label,'testdrive'), errMsg)
+assert(strcmp(acq.notes{1}.text, 'This is a note'), errMsg)
+assert(strcmp(acq.files{1}.name, filename), errMsg)
+s = dir(acquisitionDownloadFile);
+assert(acq.files{1}.size == s.bytes, errMsg)
+
+acqDownloadUrl = fw.getContainerDownloadUrl(acqId, filename);
+assert(~strcmp(acqDownloadUrl, ''), errMsg)
+
 %% Misc
 disp('Testing Misc')
 

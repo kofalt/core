@@ -46,6 +46,8 @@ tags:
     description: Batch job operations
   - name: views
     description: Data view operations
+  - name: containers
+    description: Abstract container operations
   - name: default
 
 paths:
@@ -78,6 +80,7 @@ paths:
     - paths/dataexplorer.yaml
     - paths/resolver.yaml
     - paths/data-views.yaml
+    - paths/containers.yaml
 
 securityDefinitions:
   ApiKey:

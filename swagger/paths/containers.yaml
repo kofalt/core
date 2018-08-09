@@ -1,0 +1,104 @@
+$template_arguments:
+  resource: container
+  tag: containers
+  parameter: ContainerId
+
+/containers/{ContainerId}:
+  parameters:
+    - required: true
+      type: string
+      in: path
+      name: ContainerId
+  get:
+    summary: Retrieve a single container
+    operationId: get_container
+    tags:
+    - containers
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/container.json
+        examples:
+          response:
+            $ref: examples/output/collection.json
+  put:
+    summary: Update a container and its contents
+    operationId: modify_container
+    tags:
+    - containers
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/container-update.json
+    responses:
+      '200':
+        description: Container updated
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+  delete:
+    summary: Delete a container
+    operationId: delete_container
+    tags:
+    - containers
+    responses:
+      '200':
+        description: Container was deleted
+
+/containers/{ContainerId}/info:
+  $template: templates/container-item-info.yaml
+
+# ===== Tags =====
+/containers/{ContainerId}/tags:
+  $template: templates/tags.yaml
+/containers/{ContainerId}/tags/{TagValue}:
+  $template: templates/tags-tag.yaml
+
+# ===== Files =====
+/containers/{ContainerId}/files:
+  $template: templates/file-list-upload.yaml
+/containers/{ContainerId}/files/{FileName}:
+  $template: templates/file-item.yaml
+/containers/{ContainerId}/files/{FileName}/info:
+  $template: templates/file-item-info.yaml
+/containers/{ContainerId}/files/{FileName}/classification:
+  $template: templates/file-item-classification.yaml
+
+# ===== Notes =====
+/containers/{ContainerId}/notes:
+  $template: templates/notes.yaml
+/containers/{ContainerId}/notes/{NoteId}:
+  $template: templates/notes-note.yaml
+
+# ===== Analyses =====
+/containers/{ContainerId}/analyses:
+  $template: templates/analyses-list.yaml
+  arguments:
+    allowCreate: true
+/containers/{ContainerId}/analyses/{AnalysisId}:
+  $template: templates/analysis-item.yaml
+  arguments:
+    supportsDelete: true
+/containers/{ContainerId}/analyses/{AnalysisId}/inputs:
+  $template: templates/analysis-files.yaml
+  arguments:
+    filegroup: inputs
+/containers/{ContainerId}/analyses/{AnalysisId}/inputs/{Filename}:
+  $template: templates/analysis-files-create-ticket-filename.yaml
+  arguments:
+    filegroup: inputs
+/containers/{ContainerId}/analyses/{AnalysisId}/files:
+  $template: templates/analysis-files.yaml
+  arguments:
+    filegroup: outputs
+    allow_upload: true
+/containers/{ContainerId}/analyses/{AnalysisId}/files/{Filename}:
+  $template: templates/analysis-files-create-ticket-filename.yaml
+  arguments:
+    filegroup: outputs
+/containers/{ContainerId}/analyses/{AnalysisId}/notes:
+  $template: templates/analysis-notes.yaml
+/containers/{ContainerId}/analyses/{AnalysisId}/notes/{NoteId}:
+  $template: templates/analysis-notes-item.yaml
