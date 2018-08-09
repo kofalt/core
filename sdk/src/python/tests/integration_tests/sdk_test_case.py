@@ -1,4 +1,4 @@
-import os, random, string
+import os, random, string, json, shutil, tempfile
 from datetime import datetime, timedelta
 import dateutil.tz
 import flywheel
@@ -19,7 +19,7 @@ def make_clients():
     if init_db.SCITRAN_PERSISTENT_DB_URI:
         # Initialize database first
         init_db.init_db()
-       
+
         site_url = urlparse(os.environ['SCITRAN_SITE_API_URL'])
         api_key = '{}:__force_insecure:{}'.format(site_url.netloc, init_db.SCITRAN_ADMIN_API_KEY)
     else:
@@ -29,13 +29,29 @@ def make_clients():
         print('Could not initialize test case, no api_key. Try setting the SdkTestKey environment variable!')
         exit(1)
 
+
     fw = flywheel.Flywheel(api_key)
     fw_root = flywheel.Flywheel(api_key, root=True)
 
-    return fw, fw_root
+    # Mock cli login
+    home = os.environ['HOME']
+    os.environ['HOME'] = tmp_path = tempfile.mkdtemp()
+    cli_config_path = os.path.expanduser('~/.config/flywheel/')
+    if not os.path.exists(cli_config_path):
+        os.makedirs(cli_config_path)
+    with open(os.path.join(cli_config_path, 'user.json'), 'w') as cli_config:
+        json.dump({'key': api_key}, cli_config)
+
+    client = flywheel.Client()
+
+    # Don't need the login anymore
+    shutil.rmtree(tmp_path)
+    os.environ['HOME'] = home
+
+    return fw, fw_root, client
 
 class SdkTestCase(unittest.TestCase):
-    fw, fw_root = make_clients()
+    fw, fw_root, client = make_clients()
 
     @classmethod
     def rand_string_lower(self, length=10):
@@ -69,7 +85,7 @@ class SdkTestCase(unittest.TestCase):
 
     def assertTimestampNearNow(self, value, toleranceSec=5):
         self.assertTimestampNear(value, utcnow(), toleranceSec)
-        
+
     def assertTimestampBefore(self, value, expected, toleranceSec=0):
         if toleranceSec:
             expected = expected + timedelta(seconds=toleranceSec)
@@ -94,7 +110,7 @@ class SdkTestCase(unittest.TestCase):
 
     def assertDownloadFileTextEqualsWithTicket(self, method, id, filename, expected):
         download_url = method(id, filename)
-        
+
         self.assertIsNotNone(download_url)
 
         resp = self.fw.api_client.rest_client.GET(download_url, _preload_content=False)
@@ -104,9 +120,9 @@ class SdkTestCase(unittest.TestCase):
 
             content = resp.content
             self.assertIsNotNone(content)
-            
+
             content = content.decode('utf-8')
-            
+
             self.assertEqual(content, expected)
         finally:
             resp.close()

@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import os
 import platform
 import logging
+import json
 
 log = logging.getLogger('Flywheel')
 
@@ -43,6 +44,15 @@ def config_from_api_key(api_key):
     config.api_key = {'Authorization': key}
     config.api_key_prefix = {'Authorization': 'scitran-user'}
     return config
+
+def get_api_key_from_cli(path):
+    try:
+        with open(path) as fp:
+            api_key = json.load(fp).get('key')
+    except FileNotFoundError:
+        raise Exception('Must login with flywheel command-line interface')
+    return api_key
+
 
 class Flywheel:
     def __init__(self, api_key, root=False, skip_version_check=True):
@@ -182,6 +192,11 @@ class Flywheel:
                 'to install a compatible version for this server')
 
 {{>flywheel_methods}}
+
+class Client(Flywheel):
+    def __init__(self, **kwargs):
+        api_key = get_api_key_from_cli(os.path.expanduser('~/.config/flywheel/user.json'))
+        Flywheel.__init__(self, api_key, **kwargs)
 
 {{/apiInfo}}
 

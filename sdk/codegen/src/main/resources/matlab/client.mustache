@@ -1,0 +1,39 @@
+classdef Client < {{packageName}}.Flywheel
+    methods
+        function obj = Client(varargin)
+            apiKey = {{packageName}}.Client.readApiKeyFromCLI();
+            if isempty(apiKey)
+                throw(MException('Client:loginException', 'Must login with flywheel command-line interface'));
+            end
+            obj@{{packageName}}.Flywheel(apiKey, varargin{:})
+        end
+    end
+    methods(Static)
+        function apiKey = readApiKeyFromCLI()
+            apiKey = [];
+
+            try
+                homedir = getenv('HOME');
+                if isempty(homedir)
+                    homedrive = getenv('HomeDrive');
+                    homepath = getenv('HomePath');
+                    if ~isempty(homedrive) && ~isempty(homepath)
+                        homedir = [homedrive, homepath];
+                    end
+                end
+                if isempty(homedir)
+                    return
+                end
+
+                fid = fopen(sprintf('%s/.config/flywheel/user.json', homedir));
+                raw = fread(fid, inf);
+                fclose(fid);
+
+                config = jsondecode(char(raw'));
+
+                apiKey = config.key;
+            catch ME
+            end
+        end
+    end
+end
