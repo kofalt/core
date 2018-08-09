@@ -28,6 +28,22 @@ class FileProcessor(object):
         else:
             self._temp_fs = fs.tempfs.TempFS('tmp')
 
+    def make_temp_file(self, mode='wb'):
+        """Create and open a temporary file for writing.
+
+        The file that is opened is wrapped in a FileHasherWriter, so once writing is
+        complete, you can get the size and hash of the written file.
+        
+        Arguments:
+            mode (str): The open mode (default is 'wb')
+
+        Returns:
+            str, file: The path and opened file
+        """
+        filename = str(uuid.uuid4())
+        fileobj = self._temp_fs.open(filename, mode)
+        return filename, FileHasherWriter(fileobj)
+
     def store_temp_file(self, src_path, dst_path, dst_fs=None):
         if not isinstance(src_path, unicode):
             src_path = six.u(src_path)
@@ -118,6 +134,32 @@ class FileProcessor(object):
             # Otherwise clean up manually
             self._presistent_fs.removetree(fs.path.join('tmp', self._tempdir_name))
 
+class FileHasherWriter(object):
+    """File wrapper that hashes while writing to a file"""
+    def __init__(self, fileobj, hash_alg=None):
+        """Create a new file hasher/writer
+        
+        Arguments:
+            fileobj (file): The wrapped file object
+            hash_alg (str): The hash algorithm, or None to use default
+        """
+        self.fileobj = fileobj
+        self.hash_alg = hash_alg or DEFAULT_HASH_ALG
+        self.hasher = hashlib.new(self.hash_alg)
+        self.size = 0
+
+    @property
+    def hash(self):
+        """Return the formatted hash of the file"""
+        return util.format_hash(self.hash_alg, self.hasher.hexdigest())
+
+    def write(self, data):
+        self.fileobj.write(data)
+        self.hasher.update(data)
+        self.size += len(data)
+
+    def close(self):
+        self.fileobj.close()
 
 def get_single_file_field_storage(file_system, use_filepath=False):
     # pylint: disable=attribute-defined-outside-init

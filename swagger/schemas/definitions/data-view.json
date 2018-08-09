@@ -173,6 +173,19 @@
       "description": "Represents a column alias for use in data views. Maps from src to name.",
       "additionalProperties": false,
       "required": ["name", "src", "description", "type"]
+    },
+    "save-data-view-input": {
+      "type": "object",
+      "properties": {
+        "view":          { "$ref": "#/definitions/data-view-input" },
+        "viewId":        { "$ref": "common.json#/definitions/objectid" },
+        "containerType": { "$ref": "container.json#/definitions/container-type" },
+        "containerId":   { "$ref": "container.json#/definitions/_id" },
+        "filename":      { "$ref": "file.json#/definitions/name" }
+      },
+      "description": "A request to save data-view data to a container",
+      "additionalProperties": false,
+      "required": [ "containerType", "containerId", "filename" ]
     }
   }
 }
