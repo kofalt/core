@@ -222,6 +222,20 @@ acq = fw.getAcquisition(acqId);
 assert(strcmp(cacq.label,'testdrive'), errMsg)
 assert(strcmp(acq.label,'testdrive'), errMsg)
 
+fw.uploadFileToContainer(acqId, filename);
+acquisitionDownloadFile = fullfile(tempdir, 'download3.txt');
+fw.downloadFileFromContainer(acqId, filename, acquisitionDownloadFile);
+
+acq = fw.getContainer(acqId);
+assert(strcmp(acq.tags{1},'blue'), errMsg)
+assert(strcmp(acq.label,'testdrive'), errMsg)
+assert(strcmp(acq.notes{1}.text, 'This is a note'), errMsg)
+assert(strcmp(acq.files{1}.name, filename), errMsg)
+s = dir(acquisitionDownloadFile);
+assert(acq.files{1}.size == s.bytes, errMsg)
+
+acqDownloadUrl = fw.getContainerDownloadUrl(acqId, filename);
+assert(~strcmp(acqDownloadUrl, ''), errMsg)
 
 %% Misc
 disp('Testing Misc')

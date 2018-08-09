@@ -47,6 +47,8 @@ $template_arguments:
       '200':
         description: Container was deleted
 
+/containers/{ContainerId}/info:
+  $template: templates/container-item-info.yaml
 
 # ===== Tags =====
 /containers/{ContainerId}/tags:
