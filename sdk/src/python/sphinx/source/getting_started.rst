@@ -112,6 +112,16 @@ group, I would call resolve with: ``'flywheel/Anxiety Study'``:
 	for el in result.children:
 		print('%s: %s' % (el.label, el.id))
 
+In a similar vein to resolve, :meth:`~flywheel.flywheel.Flywheel.lookup` will directly resolve a container by path. For example:
+
+.. code-block:: python
+
+	# Lookup project by id
+	project = fw.lookup('flywheel/Anxiety Study')
+
+	# Extract the resolved project id
+	project_id = project.id
+
 Handling Exceptions
 -------------------
 When an error is encountered while accessing an endpoint, an :class:`flywheel.rest.ApiException` is thrown. 

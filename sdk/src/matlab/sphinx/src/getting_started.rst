@@ -118,21 +118,31 @@ group, I would call resolve with: ``'flywheel/Anxiety Study'``:
 
 .. code-block:: matlab
 
-	# Resolve project by id
+	% Resolve project by id
 	result = fw.resolve('flywheel/Anxiety Study');
 
-	# Extract the resolved project id
-	projectId = result.path{2}.id
+	% Extract the resolved project id
+	projectId = result.path{2}.id;
 
-	# Print the ids and labels of the path elements
+	% Print the ids and labels of the path elements
 	for idx = 1:numel(result.path)
 	  fprintf('%s: %s\n', result.path{idx}.label, result.path{idx}.id);
 	end
 
-	# Print the children of project:
+	% Print the children of project:
 	for idx = 1:numel(result.children)
 	  fprintf('%s: %s\n', result.children{idx}.label, result.children{idx}.id);
 	end
+
+In a similar vein to resolve, :meth:`flywheel.Flywheel.lookup` will directly resolve a container by path. For example:
+
+.. code-block:: matlab
+
+	% Lookup project by id
+	project = fw.lookup('flywheel/Anxiety Study');
+
+	% Extract the resolved project id
+	projectId = project.id;
 
 Handling Exceptions
 -------------------
@@ -141,7 +151,7 @@ will have more details.
 
 For example:
 
-.. code-block:: python
+.. code-block:: matlab
 
 	try
 	  project = fw.getProject('NON_EXISTENT_ID');
