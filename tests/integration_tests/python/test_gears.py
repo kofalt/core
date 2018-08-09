@@ -2,6 +2,7 @@ def test_gear_add_versioning(default_payload, randstr, data_builder, as_root):
     gear_name = randstr()
     gear_version_1 = '0.0.1'
     gear_version_2 = '0.0.2'
+    gear_version_3 = '0.0.1-dev.1'
 
     gear_payload = default_payload['gear']
     gear_payload['gear']['name'] = gear_name
@@ -40,10 +41,19 @@ def test_gear_add_versioning(default_payload, randstr, data_builder, as_root):
     assert r.ok
     assert sum(gear['gear']['name'] == gear_name for gear in r.json()) == 1
 
+    # create new gear w/ gear_version_3
+    gear_payload['gear']['version'] = gear_version_3
+    gear_payload['gear'].setdefault('custom', {}).setdefault('flywheel', {})['disabled'] = True
+    r = as_root.post('/gears/' + gear_name, json=gear_payload)
+    assert r.ok
+    gear_id_3 = r.json()['_id']
+
     # list gears with ?all_versions=true, test gear name occurs twice
     r = as_root.get('/gears', params={'fields': 'all', 'all_versions': 'true'})
     assert r.ok
-    assert sum(gear['gear']['name'] == gear_name for gear in r.json()) == 2
+    all_gears = r.json()
+    assert sum(gear['gear']['name'] == gear_name for gear in all_gears) == 2
+    assert not any(gear['gear']['version'] == gear_version_3 for gear in all_gears)
 
     # try to create gear w/ same name and version (gear_version_2)
     r = as_root.post('/gears/' + gear_name, json=gear_payload)
@@ -54,6 +64,9 @@ def test_gear_add_versioning(default_payload, randstr, data_builder, as_root):
     assert r.ok
 
     r = as_root.delete('/gears/' + gear_id_2)
+    assert r.ok
+
+    r = as_root.delete('/gears/' + gear_id_3)
     assert r.ok
 
 

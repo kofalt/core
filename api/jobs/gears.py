@@ -24,7 +24,10 @@ def get_gears(all_versions=False, pagination=None):
     """
 
     if all_versions:
-        kwargs = {'sort': [('gear.name', 1), ('created', -1)]}
+        kwargs = {
+            'filter': { 'gear.custom.flywheel.disabled': {'$ne': True} },
+            'sort': [('gear.name', 1), ('created', -1)]
+        }
         page = dbutil.paginate_find(config.db.gears, kwargs, pagination)
         return page['results'] if pagination is None else page
 
@@ -32,6 +35,9 @@ def get_gears(all_versions=False, pagination=None):
         pagination['pipe_key'] = lambda key: 'original.' + key
 
     pipe = [
+        {'$match': {
+            'gear.custom.flywheel.disabled': {'$ne': True}}
+        },
         {'$sort': {
             'gear.name': 1,
             'created': -1,
