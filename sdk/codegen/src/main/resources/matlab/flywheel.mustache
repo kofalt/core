@@ -53,7 +53,8 @@ classdef Flywheel < handle
             if exist('skipVersionCheck', 'var') && ~skipVersionCheck
                 obj.checkVersion = true;
             else
-                obj.checkVersion = strcmp('0', getenv('FLYWHEEL_SDK_SKIP_VERSION_CHECK'));
+                skipEnv = getenv('FLYWHEEL_SDK_SKIP_VERSION_CHECK');
+                obj.checkVersion = strcmp('0', skipEnv) || strcmpi('false', skipEnv);
             end
 
             userAgent = sprintf('Flywheel SDK/%s (Matlab %s; %s)', {{packageName}}.Flywheel.SDK_VERSION, version, computer);
