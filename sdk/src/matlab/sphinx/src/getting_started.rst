@@ -45,6 +45,16 @@ Once you have a client instance, you can interact with the system. For instance,
 	self = fw.getCurrentUser();
 	fprintf('I am %s %s\n', self.firstname, self.lastname);
 
+Using CLI Credentials
+---------------------
+If you've logged in using the `CLI <https://docs.flywheel.io/display/EM/CLI+-+Installation>`_, you can create a client
+instance without using an API key. This is useful when sharing SDK scripts for others to use.
+
+.. code-block:: matlab
+
+	% Create client, using CLI credentials
+	fw = flywheel.Client()
+
 Getting Help
 ------------
 You can query the client or objects returned by api calls for additional information:

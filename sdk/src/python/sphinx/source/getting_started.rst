@@ -45,6 +45,16 @@ Once you have a client instance, you can interact with the system. For instance,
 	self = fw.get_current_user()
 	print('I am %s %s' % (self.firstname, self.lastname))
 
+Using CLI Credentials
+---------------------
+If you've logged in using the `CLI <https://docs.flywheel.io/display/EM/CLI+-+Installation>`_, you can create a client
+instance without using an API key. This is useful when sharing SDK scripts for others to use.
+
+.. code-block:: python
+
+	# Create client, using CLI credentials
+	fw = flywheel.Client()
+
 .. _dealing-with-files:
 
 Dealing with Files
