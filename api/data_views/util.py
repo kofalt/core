@@ -103,6 +103,8 @@ def convert_to_datatype(value, datatype):
 
     try:
         if datatype == 'int':
+            if value is None:
+                return nil_value
             return int(value)
         elif datatype == 'float':
             return float(value)
@@ -114,6 +116,8 @@ def convert_to_datatype(value, datatype):
             if value is None:
                 return ''
             return str(value)
+        elif datatype == 'object':
+            return value
         else:
             raise RuntimeError('Unknown datatype: {}'.format(datatype))
 
@@ -153,4 +157,29 @@ def contains_nil(obj, nil_hint=False):
             return True
 
     return False
+
+def deep_keys(obj, keys=None, prefix=None):
+    """Get the set of all flattened keys in an object
+
+    Arguments:
+        obj (dict): The dictionary to query
+
+    Returns:
+        set: The set of all keys
+    """
+    if keys is None:
+        keys = set()
+
+    if isinstance(obj, dict):
+        if prefix is None:
+            prefix = ''
+
+        for key, value in obj.items():
+            deep_key = prefix + key
+            if isinstance(value, dict):
+                deep_keys(value, keys=keys, prefix=(deep_key+'.'))
+            else:
+                keys.add(deep_key)
+
+    return keys 
 

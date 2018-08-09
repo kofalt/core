@@ -6,7 +6,6 @@ from ..auth import containerauth
 from ..dao import noop
 from ..dao.containerstorage import ContainerStorage
 from ..web import base, encoder
-from ..web.request import beta_feature
 from ..web.errors import APIStorageException, InputValidationException
 
 from .data_view import DataView
@@ -23,13 +22,11 @@ class DataViewHandler(base.RequestHandler):
     storage = DataViewStorage()
     parent_projection = {'permissions':1, 'public':1}
 
-    @beta_feature
     @require_login
     def get_columns(self):
         """Return all known column aliases with description and type"""
         return ColumnAliases.get_columns()
 
-    @beta_feature
     def list_views(self, parent):
         """List all views belonging to the parent container"""
         # Permission check is different here
@@ -43,7 +40,6 @@ class DataViewHandler(base.RequestHandler):
 
         return self.storage.get_data_views(parent, public_only=public_only)
 
-    @beta_feature
     @validators.verify_payload_exists
     def post(self, parent):
         """Create a new view on the parent container"""
@@ -64,7 +60,6 @@ class DataViewHandler(base.RequestHandler):
         else:
             self.abort(404, 'View {} not inserted'.format(result.inserted_id))
 
-    @beta_feature
     def delete(self, _id):
         """Delete the view identified by _id"""
         parent_container = self.storage.get_parent(_id, projection=self.parent_projection)
@@ -80,7 +75,6 @@ class DataViewHandler(base.RequestHandler):
 
         self.abort(404, 'Data view {} not deleted'.format(_id))
 
-    @beta_feature
     def get(self, _id):
         """Get the view identified by _id"""
         cont = self.storage.get_el(_id)
@@ -89,7 +83,6 @@ class DataViewHandler(base.RequestHandler):
 
         return cont
 
-    @beta_feature
     @validators.verify_payload_exists
     def put(self, _id):
         """Update the view identified by _id"""
@@ -106,7 +99,6 @@ class DataViewHandler(base.RequestHandler):
             return {'modified': result.modified_count}
         self.abort(404, 'Data view {} not updated'.format(_id))
 
-    @beta_feature
     def execute_saved(self, _id):
         """Execute the data view specified by id"""
         cont = self.storage.get_el(_id)
@@ -115,7 +107,6 @@ class DataViewHandler(base.RequestHandler):
 
         return self.do_execute_view(cont)
 
-    @beta_feature
     @require_login
     @validators.verify_payload_exists
     def execute_and_save(self):

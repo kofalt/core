@@ -1,6 +1,7 @@
 from .pipeline import PipelineStage, EndOfPayload
 
 from ..access_logger import create_access_logger, is_phi_field
+from ..util import is_nil, nil_value
 
 class LogAccess(PipelineStage):
     """Performs access logging for each row collected from the Aggregate stage.
@@ -50,8 +51,8 @@ class LogAccess(PipelineStage):
         for row in payload:
             meta = row.pop('_meta')
 
-            file_entry = row.get('file', None)
-            if file_entry:
+            file_entry = row.get('file', nil_value)
+            if not is_nil(file_entry):
                 filename = file_entry['name']
             else:
                 filename = None

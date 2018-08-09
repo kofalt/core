@@ -8,7 +8,10 @@ from __future__ import absolute_import
 
 {{#apiInfo}}
 
+import codecs
 import os
+import sys
+import six
 import platform
 import logging
 import json
@@ -16,7 +19,8 @@ import json
 log = logging.getLogger('Flywheel')
 
 from {{packageName}}.configuration import Configuration
-from {{packageName}}.api_client import  ApiClient
+from {{packageName}}.api_client import ApiClient
+from {{packageName}}.view_builder import ViewBuilder
 import {{apiPackage}}
 
 SDK_VERSION = "{{packageVersion}}"

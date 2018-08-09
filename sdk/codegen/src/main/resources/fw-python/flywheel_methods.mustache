@@ -98,3 +98,97 @@
     {{/operation}}
     {{/operations}}
     {{/apis}}
+
+    def View(self, **kwargs):
+        """Short-hand for flywheel.ViewBuilder(\*\*kwargs).build()
+
+        :param kwargs: The arguments to pass directly to ViewBuilder
+        :return: The built data view
+        """
+        return ViewBuilder(**kwargs).build()
+
+    def print_view_columns(self, file=sys.stdout):
+        """Print a list of column aliases that can be used in data views.
+
+        :param file-like file: The file to print to
+        """
+        for column in self.views_api.get_view_columns():
+            if column.group:
+                coltype = 'group'
+            else:
+                coltype = column.type
+            six.print_('{} ({}): {}'.format(column.name, coltype, column.description), file=file)
+
+    def read_view_data(self, view, container_id, decode=True, **kwargs):
+        """Execute a data view against container, and return a file-like object that can be streamed.
+
+        :param view: The view id or DataView object to execute.
+        :type view: str or DataView
+        :param str container_id: The id of the container to execute the view against
+        :param bool decode: Whether or not to decode the stream to utf-8 (default is true)
+        :param kwargs: Additional arguments to pass to the evaluate_view call. (e.g. format='csv')
+        :return: A file-like object where the contents can be read
+        """
+        kwargs['_return_http_data_only'] = True
+        kwargs['_preload_content'] = False
+        if isinstance(view, six.string_types):
+            resp = self.views_api.evaluate_view_with_http_info(view, container_id, **kwargs)
+        else:
+            resp = self.views_api.evaluate_view_adhoc_with_http_info(container_id, view, **kwargs)
+        resp.raw.decode_content = True
+        if decode:
+            return codecs.getreader(resp.encoding)(resp.raw)
+        return resp.raw
+
+    def read_view_dataframe(self, view, container_id, opts=None, **kwargs):
+        """Execute a data view against container, and return a DataFrame.
+
+        NOTE: This requires that the pandas module be installed on the system.
+
+        :param view: The view id or DataView object to execute.
+        :type view: str or DataView
+        :param str container_id: The id of the container to execute the view against
+        :param object opts: Additional options to pass to the pandas read_json function
+        :param kwargs: Additional arguments to pass to the evaluate_view call.
+        :return: A pandas DataFrame
+        """
+        import pandas
+
+        if opts is None:
+            opts = {}
+
+        kwargs['format'] = 'json-flat'
+        resp = self.read_view_data(view, container_id, decode=False, **kwargs)
+        if resp:
+            try:
+                df = pandas.read_json(resp, 'records', **opts)
+                return df
+            finally:
+                resp.close()
+        return None
+
+
+    def save_view_data(self, view, container_id, dest_file, **kwargs):
+        """Execute a data view against container, and save the results to disk.
+
+        :param view: The view id or DataView object to execute.
+        :type view: str or DataView
+        :param str container_id: The id of the container to execute the view against
+        :param str dest_file: The destination file path
+        :param kwargs: Additional arguments to pass to the evaluate_view call. (e.g. format='csv')
+        """
+        kwargs['_return_http_data_only'] = True
+        kwargs['_preload_content'] = False
+        # Stream response to file
+        with open(dest_file, 'wb') as out_file:
+            if isinstance(view, six.string_types):
+                resp = self.views_api.evaluate_view_with_http_info(view, container_id, **kwargs)
+            else:
+                resp = self.views_api.evaluate_view_adhoc_with_http_info(container_id, view, **kwargs)
+
+            if resp:
+                try:
+                    for chunk in resp.iter_content(chunk_size=65536):
+                        out_file.write(chunk)
+                finally:
+                    resp.close()

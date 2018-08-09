@@ -61,7 +61,7 @@
           "items": {"$ref":"#/definitions/column-spec"}
         }
       },
-      "required": ["filter"],
+      "required": ["container", "filter"],
       "additionalProperties": false,
       "description": "Specifies a file to be processed, including filename matching and parsing options"
     },
@@ -106,8 +106,7 @@
         },
         "columns": {
           "type": "array",
-          "items": {"$ref": "#/definitions/column-spec"},
-          "minItems": 1
+          "items": {"$ref": "#/definitions/column-spec"}
         },
         "fileSpec": {"$ref": "#/definitions/file-spec"},
         "includeIds": {
@@ -135,8 +134,7 @@
         },
         "columns": {
           "type": "array",
-          "items": {"$ref": "#/definitions/column-spec"},
-          "minItems": 1
+          "items": {"$ref": "#/definitions/column-spec"}
         },
         "fileSpec": {"$ref": "#/definitions/file-spec"},
         "includeIds": {
@@ -164,6 +162,11 @@
           "type": "string",
           "description": "The source for this column's data"
         },
+        "group": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The list of columns that belong to this group"
+        },
         "description": {
           "type": "string",
           "description": "A description of this field"
@@ -172,7 +175,7 @@
       },
       "description": "Represents a column alias for use in data views. Maps from src to name.",
       "additionalProperties": false,
-      "required": ["name", "src", "description", "type"]
+      "required": ["name", "description"]
     },
     "save-data-view-input": {
       "type": "object",

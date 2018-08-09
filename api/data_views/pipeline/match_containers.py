@@ -1,5 +1,5 @@
 from .pipeline import PipelineStage
-from ..util import filtered_container_list, file_filter_to_regex
+from ..util import filtered_container_list, file_filter_to_regex, nil_value
 
 def pop_collection(cont, key):
     """Nested pop of key from container.
@@ -72,7 +72,9 @@ class MatchContainers(PipelineStage):
                     new_row[self.output_key] = entry 
                     rows.append(new_row)
             else:
-                unmatched.append(row)
+                new_row = row.copy()
+                new_row[self.output_key] = nil_value
+                unmatched.append(new_row)
 
         self.emit(rows + unmatched)
 

@@ -1,177 +1,245 @@
 [
 	{
 		"name": "project",
+		"group": ["project.id", "project.label"],
+		"description": "All column aliases belonging to project"
+	},
+	{
+		"name": "project.id",
 		"src": "project._id",
 		"description": "The project id"
 	},
 	{
-		"name": "project_label",
+		"name": "project.label",
 		"src": "project.label",
 		"description": "The project label"
 	},
+	{
+		"name": "project.info",
+		"src": "project.info",
+		"type": "object",
+		"description": "The freeform project metadata"
+	},
 	
 	{
-		"name": "session",
-		"src": "session._id",
-		"description": "The session id"
-	},
-	{
-		"name": "session_label",
-		"src": "session.label",
-		"description": "The session label"
-	},
-	{
-		"name": "session_operator",
-		"src": "session.operator",
-		"description": "The session operator name"
-	},
-	{
-		"name": "session_timestamp",
-		"src": "session.timestamp",
-		"description": "The session timestamp"
-	},
-	{
-		"name": "session_timezone",
-		"src": "session.timezone",
-		"description": "The session timezone"
-	},
-
-	{
 		"name": "subject",
+		"group": ["subject.id", "subject.label", "subject.firstname", "subject.lastname", "subject.age", "subject.sex", "subject.race", "subject.ethnicity"],
+		"description": "All column aliases belonging to subject"
+	},
+	{
+		"name": "subject.id",
 		"src": "subject._id",
 		"description": "The subject id"
 	},
 	{
-		"name": "subject_label",
+		"name": "subject.label",
 		"src": "subject.code",
 		"description": "The subject label or code"
 	},
 	{
-		"name": "subject_firstname",
+		"name": "subject.firstname",
 		"src": "subject.firstname",
 		"description": "The subject first name"
 	},
 	{
-		"name": "subject_lastname",
+		"name": "subject.lastname",
 		"src": "subject.lastname",
 		"description": "The subject last name"
 	},
 	{
-		"name": "subject_age",
+		"name": "subject.age",
 		"src": "subject.age",
 		"description": "The subject age, in seconds",
 		"type": "int"
 	},
 	{
-		"name": "subject_age_years",
+		"name": "subject.age_years",
 		"src": "subject.age",
 		"description": "The subject age, in years",
 		"type": "float",
 		"expr": "x / 31557600.0"
 	},
 	{
-		"name": "subject_age_months",
+		"name": "subject.age_months",
 		"src": "subject.age",
 		"description": "The subject age, in months",
 		"type": "float",
 		"expr": "x / 2592000.0"
 	},
 	{
-		"name": "subject_age_weeks",
+		"name": "subject.age_weeks",
 		"src": "subject.age",
 		"description": "The subject age, in weeks",
 		"type": "float",
 		"expr": "x / 604800.0"
 	},
 	{
-		"name": "subject_age_days",
+		"name": "subject.age_days",
 		"src": "subject.age",
 		"description": "The subject age, in days",
 		"type": "float",
 		"expr": "x / 86400.0"
 	},
 	{
-		"name": "subject_sex",
+		"name": "subject.sex",
 		"src": "subject.sex",
 		"description": "The subject sex (one of female|male|other|unknown)"
 	},
 	{
-		"name": "subject_race",
+		"name": "subject.race",
 		"src": "subject.race",
 		"description": "The subject race (one of American Indian or Alaska Native|Asian|Native Hawaiian or Other Pacific Islander|Black or African American|White|More Than One Race|Unknown or Not Reported)"
 	},
 	{
-		"name": "subject_ethnicity",
+		"name": "subject.ethnicity",
 		"src": "subject.ethnicity",
 		"description": "The subject ethnicity (one of Not Hispanic or Latino|Hispanic or Latino|Unknown or Not Reported)"
 	},
+	{
+		"name": "subject.info",
+		"src": "subject.info",
+		"type": "object",
+		"description": "The freeform subject metadata"
+	},
+
+	{
+		"name": "session",
+		"group": ["session.id", "session.label", "session.operator", "session.timestamp", "session.timezone"],
+		"description": "All column aliases belonging to session"
+	},
+	{
+		"name": "session.id",
+		"src": "session._id",
+		"description": "The session id"
+	},
+	{
+		"name": "session.label",
+		"src": "session.label",
+		"description": "The session label"
+	},
+	{
+		"name": "session.operator",
+		"src": "session.operator",
+		"description": "The session operator name"
+	},
+	{
+		"name": "session.timestamp",
+		"src": "session.timestamp",
+		"description": "The session timestamp"
+	},
+	{
+		"name": "session.timezone",
+		"src": "session.timezone",
+		"description": "The session timezone"
+	},
+	{
+		"name": "session.info",
+		"src": "session.info",
+		"type": "object",
+		"description": "The freeform session metadata"
+	},
+
 
 	{
 		"name": "acquisition",
+		"group": ["acquisition.id", "acquisition.label", "acquisition.timestamp", "acquisition.timezone"],
+		"description": "All column aliases belonging to acquisition"
+	},
+	{
+		"name": "acquisition.id",
 		"src": "acquisition._id",
 		"description": "The acquisition id"
 	},
 	{
-		"name": "acquisition_label",
+		"name": "acquisition.label",
 		"src": "acquisition.label",
 		"description": "The acquisition label"
 	},
 	{
-		"name": "acquisition_timestamp",
+		"name": "acquisition.timestamp",
 		"src": "acquisition.timestamp",
 		"description": "The acquisition timestamp"
 	},
 	{
-		"name": "acquisition_timezone",
+		"name": "acquisition.timezone",
 		"src": "acquisition.timezone",
 		"description": "The acquisition timezone"
+	},
+	{
+		"name": "acquisition.info",
+		"src": "acquisition.info",
+		"type": "object",
+		"description": "The freeform acquisition metadata"
 	},
 
 	{
 		"name": "analysis",
+		"group": ["analysis.id", "analysis.label"],
+		"description": "All column aliases belonging to analysis"
+	},
+	{
+		"name": "analysis.id",
 		"src": "analysis._id",
 		"description": "The analysis id"
 	},
 	{
-		"name": "analysis_label",
+		"name": "analysis.label",
 		"src": "analysis.label",
 		"description": "The analysis label"
 	},
+	{
+		"name": "analysis.info",
+		"src": "analysis.info",
+		"type": "object",
+		"description": "The freeform analysis metadata"
+	},
+
 
 	{
 		"name": "file",
+		"group": ["file.id", "file.name", "file.type", "file.mimetype", "file.classification", "file.size"],
+		"description": "All column aliases belonging to file"
+	},
+	{
+		"name": "file.id",
 		"src": "file._id",
 		"description": "The file id"
 	},
 	{
-		"name": "file_name",
+		"name": "file.name",
 		"src": "file.name",
 		"description": "The filename"
 	},
 	{
-		"name": "file_type",
+		"name": "file.type",
 		"src": "file.type",
 		"description": "The type of file (e.g., dicom, image, document)"
 	},
 	{
-		"name": "file_mimetype",
+		"name": "file.mimetype",
 		"src": "file.mimetype",
 		"description": "The file mime type (e.g. application/json, text/csv)"
 	},
 	{
-		"name": "file_modality",
+		"name": "file.modality",
 		"src": "file.modality",
 		"description": "The file instrument type (e.g., MR, CT)"
 	},
 	{
-		"name": "file_classification",
+		"name": "file.classification",
 		"src": "file.classification",
 		"description": "The file classification object"
 	},
 	{
-		"name": "file_size",
+		"name": "file.size",
 		"src": "file.size",
 		"description": "The size of the file, in bytes",
 		"type": "int"
+	},
+	{
+		"name": "file.info",
+		"src": "file.info",
+		"type": "object",
+		"description": "The freeform file metadata"
 	}
 ]

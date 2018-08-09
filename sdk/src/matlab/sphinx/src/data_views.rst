@@ -31,43 +31,41 @@ results like this:
 Creating A View
 ---------------
 
-Views can be created using the :class:`~flywheel.view_builder.ViewBuilder` class, or the short-hand :meth:`~flywheel.flywheel.Flywheel.View` method. 
+Views can be created using the :class:`~flywheel.ViewBuilder` class, or the short-hand :meth:`~flywheel.Flywheel.View` method. 
 At a minimum, one column or file must be specified when creating a data view. A simple example would be to create a view that collects all of the built-in subject columns:
 
-.. code-block:: python
+.. code-block:: matlab
 
-	# Build a data view
-	view = fw.View(columns='subject')
+    % Build a data view
+    view = fw.View('columns', {{'subject'}})
 
 Executing A View
 ----------------
 
 A View object doesn't become useful until you execute it against a container. View results can be loaded directly into memory, or saved to a file. 
-If the `pandas <https://pandas.pydata.org/>`_ python package is available, you can also load view results directly into a DataFrame.
+View results can also be loaded directly into a struct array, or a table.
 Finally, you can also save the results of a view execution directly to a container as a file.
 
-Load JSON View
-++++++++++++++
+Load Struct View
+++++++++++++++++
 
-.. code-block:: python
+.. code-block:: matlab
 
-	import json
-	with fw.read_view_data(view, project_id) as resp:
-		data = json.load(resp)
+    response = fw.readViewStruct(view, projectId);
 
-Load pandas DataFrame
-+++++++++++++++++++++
+Load Table View
++++++++++++++++
 
-.. code-block:: python
+.. code-block:: matlab
 
-	df = fw.read_view_dataframe(view, project_id)
+    df = fw.readViewTable(view, projectId);
 
 Save DataFrame to Local CSV
 +++++++++++++++++++++++++++
 
-.. code-block:: python
+.. code-block:: matlab
 
-	fw.save_view_data(view, project_id, '/tmp/results.csv', format='csv')
+    fw.saveViewData(view, projectId, '/tmp/results.csv', 'format', 'csv');
 
 Data Formats
 ------------
@@ -87,23 +85,23 @@ Columns
 
 Data view columns are references to container fields in the form of ``<container>.<field>``.
 
-A current list of pre-defined columns and groups of columns is available via the :meth:`~flywheel.flywheel.Flywheel.print_view_columns` method.
+A current list of pre-defined columns and groups of columns is available via the :meth:`~flywheel.Flywheel.printViewColumns` method.
 For example:
 
 .. code-block:: text
 
-	project (group): All column aliases belonging to project
-	project.id (string): The project id
-	project.label (string): The project label
-	project.info (string): The freeform project metadata
-	subject (group): All column aliases belonging to subject
-	subject.id (string): The subject id
-	subject.label (string): The subject label or code
-	subject.firstname (string): The subject first name
-	subject.lastname (string): The subject last name
-	subject.age (int): The subject age, in seconds
-	subject.info (string): The freeform subject metadata
-	...
+    project (group): All column aliases belonging to project
+    project.id (string): The project id
+    project.label (string): The project label
+    project.info (string): The freeform project metadata
+    subject (group): All column aliases belonging to subject
+    subject.id (string): The subject id
+    subject.label (string): The subject label or code
+    subject.firstname (string): The subject first name
+    subject.lastname (string): The subject last name
+    subject.age (int): The subject age, in seconds
+    subject.info (string): The freeform subject metadata
+    ...
 
 Adding the ``project`` group column will result in ``project.id`` and ``project.label`` being added. Likewise adding the ``subject`` group column 
 will result in the subject ``id``, ``label``, ``firstname``, ``lastname``, ``age`` (and more) columns being added to the view.
@@ -121,35 +119,36 @@ Files
 
 Rows can also be extracted from CSV, TSV and JSON files that are present on the Flywheel instance. This can be done with the view builder by
 specifying which ``container`` type to find files on and a ``filename`` wildcard match. In addition, analysis files can be matched by specifying
-``analysis_label``, ``analysis_gear_name`` and/or ``analysis_gear_version``.
+``analysisLabel``, ``analysisGearName`` and/or ``analysisGearVersion``.
 
 For example:
 
-.. code-block:: python
+.. code-block:: matlab
 
-	# Read all columns from files named behavioral_results_*.csv on each session
-	view = fw.View(container='session', filename='behavioral_results*.csv')
+    % Read all columns from files named behavioral_results_*.csv on each session
+    view = fw.View('container', 'session', 'filename', 'behavioral_results*.csv');
 
-	# Read Mean_Diffusivity.csv results from the newest AFQ analyses on each session, and include session and subject labels
-	builder = flywheel.ViewBuilder(columns=['subject.label', 'session.label'], container='session', analysis_gear_name='afq', filename='Mean_Diffusivity.csv')
-	builder.file_match('newest')
-	builder.file_column('Left_Thalamic_Radiation', type='float')
-	builder.file_column('Right_Thalamic_Radiation', type='float')
-	view = builder.build()
+    % Read Mean_Diffusivity.csv results from the newest AFQ analyses on each session, and include session and subject labels
+    builder = flywheel.ViewBuilder('columns', { {'subject.label'}, {'session.label'} },...
+        'container', 'session', 'analysisGearName', 'afq', 'filename', 'Mean_Diffusivity.csv');
+    builder.fileMatch('newest');
+    builder.fileColumn('Left_Thalamic_Radiation', 'LTR', 'type', 'float');
+    builder.fileColumn('Right_Thalamic_Radiation', 'RTR', 'type', 'float');
+    view = builder.build();
 
 Saving Views
 ------------
 
 View definitions can be saved to your user account, or any project you have access to. For example:
-	
-.. code-block:: python
+    
+.. code-block:: matlab
 
-	me = fw.get_current_user().id
-	subjects_view = fw.View(label='Subject Info', columns=['subject'])
-	view_id = fw.add_view(me, subjects_view)
+    me = fw.getCurrentUser().id;
+    subjectsView = fw.View('label', 'Subject Info', 'columns', {{'subject'}});
+    viewId = fw.addView(me, subjectsView);
 
 Then you can execute the view any time against any container
 
-.. code-block:: python
+.. code-block:: matlab
 
-	df = fw.read_view_dataframe(view_id, project_id)
+    df = fw.readViewTable(viewId, projectId)

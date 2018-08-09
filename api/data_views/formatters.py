@@ -13,6 +13,8 @@ def get_formatter(strategy, fileobj):
     """
     if not strategy or strategy == 'json':
         return JsonObjectFormatter(fileobj)
+    if strategy == 'json-flat':
+        return JsonObjectFormatter(fileobj, wrap=False)
     if strategy == 'json-row-column':
         return JsonRowColumnFormatter(fileobj)
     if strategy == 'csv':
@@ -23,8 +25,9 @@ def get_formatter(strategy, fileobj):
 
 class JsonObjectFormatter(object):
     """A formatting strategy that will write a JSON list of objects"""
-    def __init__(self, fileobj):
+    def __init__(self, fileobj, wrap=True):
         self._file = fileobj 
+        self._wrap = wrap
         self._first_row = True
 
     def get_content_type(self):
@@ -35,7 +38,10 @@ class JsonObjectFormatter(object):
 
     def write_row(self, context, _columns):
         if self._first_row:
-            self._file.write('{"data":[')
+            if self._wrap:
+                self._file.write('{"data":[')
+            else:
+                self._file.write('[')
         else:
             self._file.write(',')
 
@@ -45,9 +51,17 @@ class JsonObjectFormatter(object):
     def finalize(self):
         # If we wrote no rows, write an empty array
         if self._first_row:
-            self._file.write('{"data":[]}')
-        else:
+            if self._wrap:
+                self._file.write('{"data":[]}')
+            else:
+                self._file.write('[]')
+        elif self._wrap:
             self._file.write(']}')
+        else:
+            self._file.write(']')
+
+    def is_flat_output(self):
+        return False
 
 class JsonRowColumnFormatter(object):
     """A formatting strategy that will write a JSON list of columns, then a list of lists of values (rows)"""
@@ -84,6 +98,9 @@ class JsonRowColumnFormatter(object):
         else:
             self._file.write(']}}')
 
+    def is_flat_output(self):
+        return False
+
 class CsvFormatter(object):
     """A formatting strategy that will write a comma or tab separated value file"""
     def __init__(self, fileobj, dialect='excel'):
@@ -112,4 +129,7 @@ class CsvFormatter(object):
 
     def finalize(self):
         pass
+
+    def is_flat_output(self):
+        return True
 

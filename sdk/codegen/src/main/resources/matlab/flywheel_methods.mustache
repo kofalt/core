@@ -26,6 +26,137 @@
             [returnData, resp] = obj.lookupPath(flywheel.model.ResolverInput('path', split(path, '/')), varargin{:});
         end
 
+        function view = View(obj, varargin)
+            % Create a new View object
+            %
+            % Parameters:
+            %   public: Whether or not to make this data view public when saving it.
+            %   match: The file match type, one of: first, last, newest, oldest, all
+            %   zipFiles: The zip file filter, see the zip_member_filter function
+            %   columns: The columns or column groups to add
+            %   processFiles: Whether or not to process files, default is true
+            %   includeIds: Whether or not to include id columns, default is true
+            %   includeLabels: Whether or not to include label columns, default is true
+            %   container: When matching files, the container to match on
+            %   filename: When matching files, the filename pattern to match
+            %   analysisLabel: When matching analysis files, the label match string
+            %   analysisGearName: When matching analysis files, the gear name match string
+            %   analysisGearVersion: When matching analysis files, the gear version match string
+            builder = flywheel.ViewBuilder(varargin{:});
+            view = builder.build();
+        end
+
+        function printViewColumns(obj)
+            % Print the list of common View columns
+            columns = obj.getViewColumns();
+            for i = 1:numel(columns)
+                column = columns{i};
+                if ~isempty(column.group)
+                    coltype = 'group';
+                else
+                    coltype = column.type;
+                end
+                fprintf('%s (%s): %s\n', column.name, coltype, column.description);
+            end
+        end
+
+        function data = readViewData(obj, view, containerId, varargin)
+            % Execute a data view against container, and return the view data
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            data = obj.evalView(view, containerId, [], varargin{:});
+        end
+
+        function destFile = saveViewData(obj, view, containerId, destFile, varargin)
+            % Execute a data view against container, and return the view data
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            %   destFile: The destination file path
+            destFile = obj.evalView(view, containerId, destFile, varargin{:});
+        end
+
+        function result = readViewStruct(obj, varargin)
+            % Execute a data view against container, and return the view data as a struct array.
+            % Requires Matlab 2016 or later
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            %   filter: The filter to apply
+            %   skip: The number of rows to skip
+            %   limit: The maximum number of rows to return
+            obj.requireVersion(9, 0);
+            % webread/webwrite did not support Headers before 2016
+
+            inp = inputParser;
+            inp.StructExpand = false;
+            addRequired(inp, 'view');
+            addRequired(inp, 'containerId');
+
+            addParameter(inp, 'filter', []);
+            addParameter(inp, 'skip', []);
+            addParameter(inp, 'limit', []);
+
+            parse(inp, varargin{:});
+
+            % Query parameters
+            queryParams = { 'containerId', inp.Results.containerId, 'format', 'json-flat' };
+            if ~isempty(inp.Results.filter)
+                queryParams = [queryParams, 'filter', inp.Results.filter];
+            end
+            if ~isempty(inp.Results.skip)
+                queryParams = [queryParams, 'skip', inp.Results.skip];
+            end
+            if ~isempty(inp.Results.limit)
+                queryParams = [queryParams, 'limit', inp.Results.limit];
+            end
+
+            % Get default web options
+            opts = obj.getWebOptions();
+            opts.ContentType = 'json';
+
+            if ischar(inp.Results.view)
+                % Saved view execution
+                path = '/views/{ViewId}/data';
+                pathParams = { 'ViewId', inp.Results.view };
+
+                opts.RequestMethod = 'GET';
+
+                url = obj.buildUrl(path, pathParams, queryParams);
+                result = webread(url, opts);
+            else
+                % Ad-hoc view execution
+                path = '/views/data';
+                pathParams = {};
+
+                opts.RequestMethod = 'POST';
+                opts.MediaType = 'application/json';
+
+                url = obj.buildUrl(path, pathParams, queryParams);
+                body = flywheel.model.DataView.ensureIsInstance(inp.Results.view);
+                body = flywheel.ApiClient.encodeJson(body.toJson());
+                result = webwrite(url, body, opts);
+            end
+        end
+
+        function result = readViewTable(obj, varargin)
+            % Execute a data view against container, and return the view data as a table.
+            % Requires Matlab 2016 or later
+            %
+            % Parameters:
+            %   view: The view id or instance
+            %   containerId: The id of the container to execute the view against
+            %   filter: The filter to apply
+            %   skip: The number of rows to skip
+            %   limit: The maximum number of rows to return
+            s = obj.readViewStruct(varargin{:});
+            result = struct2table(s);
+        end
+
     {{#apiInfo}}
     {{#apis}}
     {{#operations}}

@@ -7,7 +7,7 @@ from . import safe_eval
 
 # TODO: Add subject once formalized
 VIEW_CONTAINERS = [ 'project', 'session', 'acquisition' ]
-COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file' ]
+COLUMN_CONTAINERS = [ 'project', 'session', 'acquisition', 'analysis', 'file', 'file_data' ]
 
 COLUMN_BLACKLIST = [ 'permissions', 'files' ]
 
@@ -24,6 +24,14 @@ class ColumnSpec(object):
         self.datatype = datatype
         # The optional expression to apply
         self.expr = expr
+
+    def __hash__(self):
+        return hash((self.container, self.src, self.dst, self.datatype))
+
+    def __eq__(self, other):
+        return (self.container, self.src, self.dst, self.datatype) == (other.container, other.src, other.dst, other.datatype) 
+    def __ne__(self, other):
+        return not(self == other)
 
 class DataViewConfig(object):
     """Contains all relevant configuration for executing a DataView"""
@@ -92,10 +100,29 @@ class DataViewConfig(object):
 
     def determine_fetch_containers(self):
         """Determine how deep we need to fetch based on columns and file specs"""
-        columns = self.desc['columns']
+        columns = self.desc.get('columns', [])
+
+        # Resolve column groups
+        resolved_cols = []
+        for col in columns:
+            alias = ColumnAliases.get_column_alias(col['src'])
+            if isinstance(alias, list):
+                for alias_col in alias:
+                    # Preserve dst prefix when mapping to a group
+                    if 'dst' in col:
+                        _, _, colname = alias_col.rpartition('.')
+                        resolved_cols.append({
+                            'src': alias_col,
+                            'dst': col['dst'] + '.' + colname
+                        })
+                    else:
+                        resolved_cols.append({'src': alias_col})
+            else:
+                resolved_cols.append(col)
 
         max_idx = -1 
-        for col in columns:
+        for col in resolved_cols:
+            # Lookup src alias
             dst = col.get('dst', col['src'])
             datatype = col.get('type')
             expr = col.get('expr')
@@ -124,21 +151,23 @@ class DataViewConfig(object):
         include_ids = self.desc.get('includeIds', True)
         include_labels = self.desc.get('includeLabels', True)
 
-        idx = itertools.count()
-
-        for cont in self.containers:
-            if cont == 'session':
+        if include_labels:
+            # Prepend labels
+            idx = itertools.count()
+            for cont in self.containers:
                 # TODO: Remove once subjects are formalized
-                if include_ids:
-                    self.add_column( 'session', 'subject._id', 'subject', idx=next(idx) )
-                if include_labels:
-                    self.add_column( 'session', 'subject.code', 'subject_label', idx=next(idx) )
+                if cont == 'session':
+                    self.add_column( 'session', 'subject.code', 'subject.label', 'string', idx=next(idx), allow_duplicate=False )
+                self.add_column(cont, 'label', '{}.label'.format(cont), 'string', idx=next(idx), allow_duplicate=False )
 
-            if include_ids:
-                self.add_column( cont, '_id', cont, idx=next(idx) )
 
-            if include_labels:
-                self.add_column(cont, 'label', '{}_label'.format(cont), idx=next(idx) )
+        if include_ids:
+            # Append ids
+            for cont in self.containers:
+                # TODO: Remove once subjects are formalized
+                if cont == 'session':
+                    self.add_column( 'session', 'subject._id', 'subject.id', 'string', allow_duplicate=False )
+                self.add_column( cont, '_id', '{}.id'.format(cont), 'string', allow_duplicate=False )
 
     def resolve_and_add_column(self, src, dst, datatype=None, expr=None, idx=None):
         """Resolve a column by name and add it to the various internal maps
@@ -176,7 +205,7 @@ class DataViewConfig(object):
         self.add_column(container, field, dst, datatype=datatype, expr=expr, idx=idx)
         return container
 
-    def add_column(self, container, src, dst, datatype=None, expr=None, idx=None):
+    def add_column(self, container, src, dst, datatype=None, expr=None, idx=None, allow_duplicate=True):
         """Add a column to the various internal maps
 
         Arguments:
@@ -185,14 +214,45 @@ class DataViewConfig(object):
             dst (str): The destination key for the column value
             datatype (str): The optional column data type
             expr (str): The optional expression to apply
+            idx (int): The index where the column should be inserted
+            allow_duplicate (bool): Whether or not duplicate columns should be allowed
         """
         if idx is None:
             idx = len(self.columns)
 
         col = ColumnSpec(container, src, dst, datatype=datatype, expr=expr)
+
+        if not allow_duplicate and col in self.columns:
+            return
+
         self.columns.insert(idx, col)
         if container not in self.column_map:
             self.column_map[container] = []
         self.column_map[container].append(col)
         self.flat_columns.insert(idx, dst)
+
+    def replace_column(self, col, replacements=None):
+        """Replace a column with 0 or more replacements.
+
+        Arguments:
+            col: (ColumnSpec): The column to replace (must exist)
+            replacements (list): The list of replacement columns
+        """
+        # Find the original column
+        idx = self.columns.index(col)
+
+        # Remove the original column
+        del self.columns[idx]
+        del self.flat_columns[idx]
+        self.column_map[col.container].remove(col)
+
+        if replacements is None:
+            return
+
+        for repl in replacements:
+            self.columns.insert(idx, repl)
+            self.flat_columns.insert(idx, repl.dst)
+            self.column_map[repl.container].append(repl)
+
+            idx = idx + 1
 
