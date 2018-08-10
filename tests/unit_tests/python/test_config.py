@@ -12,7 +12,7 @@ def test_apply_env_variables(mocker, tmpdir):
         'SCITRAN_TEST_FALSE': 'false',
         'SCITRAN_TEST_NONE': 'none'})
     config = {
-        'auth': {},
+        'auth': {'google': 'google'},
         'test': {'true': '', 'false': '', 'none': ''}}
     api.config.apply_env_variables(config)
     assert config == {
