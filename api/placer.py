@@ -570,7 +570,7 @@ class PackfilePlacer(Placer):
         cgi_field = util.obj_from_map({
             'filename': self.name,
             'path': self.path,
-            'size': self.file_processor.temp_fs.getsize(self.path),
+            'size': int(self.file_processor.temp_fs.getsize(self.path)),
             'hash': self.file_processor.hash_file_formatted(self.path, self.file_processor.temp_fs),
             'uuid': str(uuid.uuid4()),
             'mimetype': util.guess_mimetype('lol.zip'),

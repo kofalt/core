@@ -2,19 +2,19 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "definitions":{
         "_id":            { "type": "string" },
-        "name":           { 
+        "name":           {
           "type": "string",
           "description": "The name of the file on disk"
         },
-        "file-type":      { 
+        "file-type":      {
           "type": "string",
           "description": "A descriptive file type (e.g. dicom, image, document, ...)"
         },
-        "mimetype":       { 
+        "mimetype":       {
           "type": "string",
           "description": "A MIME Content-Type of the file"
         },
-        "modality":       { 
+        "modality":       {
           "type": ["string", "null"],
           "description": "The type of instrument that originated the file (e.g. MR, CT, ...)"
         },
@@ -75,6 +75,7 @@
             "hash":           {"$ref":"#/definitions/hash"},
             "created":        {"$ref":"created-modified.json#/definitions/created"},
             "modified":       {"$ref":"created-modified.json#/definitions/modified"},
+            "replaced":       {"$ref":"created-modified.json#/definitions/replaced"},
             "size":           {"$ref":"#/definitions/size"},
             "info_exists":    {"type": "boolean"}
           },

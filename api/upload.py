@@ -135,7 +135,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
                 field.path,
                 file_processor.temp_fs.listdir('/'),
             ))
-        field.size = file_processor.temp_fs.getsize(field.path)
+        field.size = int(file_processor.temp_fs.getsize(field.path))
         field.uuid = str(uuid.uuid4())
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
