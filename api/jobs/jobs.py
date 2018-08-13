@@ -6,6 +6,7 @@ import bson
 import copy
 import datetime
 import string
+from urlparse import urlparse
 
 from ..types import Origin
 from ..dao.containerutil import create_filereference_from_dictionary, create_containerreference_from_dictionary, create_containerreference_from_filereference
@@ -278,11 +279,22 @@ class Job(object):
         if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
             raise Exception('Gear marked as invalid, will not run!')
 
+        uri = gear['exchange']['rootfs-url']
+        parsed = urlparse(uri)
+        scheme = parsed.scheme
+
+        if scheme == 'https':
+            # SSL does not change the input scheme type, both are just 'http'
+            scheme = 'http'
+        else:
+            # Other URI types keep the input scheme separate
+            uri = parsed.netloc + parsed.path
+
         r = {
             'inputs': [
                 {
-                    'type': 'http',
-                    'uri': gear['exchange']['rootfs-url'],
+                    'type': scheme,
+                    'uri': uri,
                     'vu': 'vu0:x-' + gear['exchange']['rootfs-hash'],
                     'location': '/',
                 }
