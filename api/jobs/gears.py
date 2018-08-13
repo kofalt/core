@@ -12,7 +12,6 @@ import gears as gear_tools
 
 from .. import config
 from ..dao import dbutil
-from .jobs import Job
 
 from ..web.errors import APIValidationException, APINotFoundException
 
