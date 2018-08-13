@@ -49,6 +49,9 @@ SYSTEM_DISK_WRITE_BYTES = Gauge('uwsgi_system_disk_write_bytes', 'Observed disk 
 # Disk Usage
 SYSTEM_DISK_BYTES_USED = Gauge('uwsgi_system_disk_bytes_used', 'Observed disk usage, in bytes', ['path'], multiprocess_mode='max')
 SYSTEM_DISK_BYTES_FREE = Gauge('uwsgi_system_disk_bytes_free', 'Observed disk availability, in bytes', ['path'], multiprocess_mode='max')
+# Timeout errors
+SYSTEM_TIMEOUT_ERROR_COUNT = Counter('uwsgi_timeout_errors', 'Observed TIMEOUT errors', [])
+SYSTEM_CONNECTION_RESET_COUNT = Counter('uwsgi_connection_resets', 'Observed Connection reset errors', [])
 
 # ===== DB Stats =====
 # DB Version
