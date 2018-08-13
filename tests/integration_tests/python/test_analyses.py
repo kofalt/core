@@ -222,7 +222,6 @@ def test_analysis_download(data_builder, as_admin, as_root, file_form, api_db):
         assert set(m.name for m in tar.getmembers()) == set(['legacy/input/input.csv', 'legacy/output/output.csv'])
 
 
-
 def test_analysis_inflate_job(data_builder, file_form, as_admin):
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
     session = data_builder.create_session()
