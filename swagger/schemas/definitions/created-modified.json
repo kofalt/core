@@ -10,6 +10,11 @@
       "type": "string",
       "format": "date-time",
       "description": "Last modification time (automatically updated)"
+    },
+    "replaced": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last replaced time (automatically updated)"
     }
   }
 }

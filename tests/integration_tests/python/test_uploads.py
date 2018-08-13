@@ -23,8 +23,7 @@ def upload_file_form(file_form, merge_dict, randstr):
                 'uid': prefix + '-session-uid',
                 'label': prefix + '-session-label',
                 'subject': {
-                    'code': prefix + '-subject-code',
-                    'files': [{'name': files['subject']}]
+                    'code': prefix + '-subject-code'
                 },
                 'files': [{'name': files['session']}]
             },
@@ -65,9 +64,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
                     'files': []
                 }}
     )
-    print file_form
     r = as_admin.post('/upload/reaper', files={"metadata": file_form.get("metadata")})
-    print r.json()
     assert r.status_code == 400
 
     # get session created by the upload
@@ -448,7 +445,7 @@ def test_label_project_search(data_builder, file_form, as_root):
 
     assert project['label'] == expected_project_label_2
     project_2 = project['_id']
-        
+
 
     assert len(as_root.get('/projects/' + project_2 + '/sessions').json()) == 1
     session = as_root.get('/projects/' + project_2 + '/sessions').json()[0]['_id']
@@ -479,7 +476,7 @@ def test_label_project_search(data_builder, file_form, as_root):
     project_list = r.json()
     # Ensure there are still only 2 projects
     assert len(project_list) == 2
-    
+
     # Order is not guaranteed
     if project_list[0]['_id'] == project_1:
         project = project_list[1]
@@ -575,8 +572,7 @@ def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
         'session': {
             'uid': 'uid_upload',
             'subject': {
-                'code': 'uid_upload',
-                'files': [{'name': 'subject.csv'}]
+                'code': 'uid_upload'
             },
             'files': [{'name': 'session.csv'}]
         },
@@ -681,8 +677,7 @@ def test_label_upload(data_builder, file_form, as_admin):
             'session': {
                 'label': 'test_session_label',
                 'subject': {
-                    'code': 'test_subject_code',
-                    'files': [{'name': 'subject.csv'}]
+                    'code': 'test_subject_code'
                 },
                 'files': [{'name': 'session.csv'}]
             },

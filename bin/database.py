@@ -25,6 +25,7 @@ from api.jobs import batch
 
 CURRENT_DATABASE_VERSION = 53 # An int that is bumped when a new schema change is made
 
+
 def get_db_version():
 
     version = config.get_version()

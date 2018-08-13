@@ -743,3 +743,278 @@ def test_auto_update_rules(data_builder, api_db, as_admin):
         'gear_id': gearv1
     })
     assert r.status_code == 400
+
+
+def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_root, as_admin, with_user, api_db):
+    """
+    Always run jobs from rules where at least one of the inputs were "replaced" during the upload.
+
+    When a file is uploaded to a container that already has a file with the same name,
+    the original file is replaced with a new one in mongo.
+      * Except when the upload type is "reaper", and the hash is the same. In that case the
+        file upload is ignored.
+
+    In the rule evaluation step, the rules are evaluated against the container's state before
+    the upload (set A) and after (set B). Jobs in set B that are not in set A are queued if
+    no files were replaced during the upload.
+
+    If files were replaced, any job in set A that has a replaced file as input is also queued.
+
+    In this test I set up a rule system similar to the default rule configuration on a new FW project,
+    replacing the initial dicom after all rules and gears have completed, ensure the entire "suite"
+    runs again.
+    """
+
+    def simulate_engine_run(job_id, acquisition_id, files):
+        """
+        Given a job id and a fileform, simulate the running of a job, ending with an engine upload
+        """
+        job = as_root.get('/jobs/next').json()
+        assert job['id'] == job_id # ensure jobs/next gives expected job
+
+        assert as_root.post('/engine',
+            params={'level': 'acquisition', 'id': acquisition_id, 'job': job_id},
+            files=files
+        ).ok
+        assert as_root.put('/jobs/' + job_id, json={'state': 'complete'}).ok
+
+
+    # Create gears
+    classifier_gear = data_builder.create_gear(gear={'version': '0.0.1', 'name': 'classifier-gear'})
+    converter_gear = data_builder.create_gear(gear={'version': '0.0.1', 'name': 'converter-gear'})
+    qa_gear = data_builder.create_gear(gear={'version': '0.0.1', 'name': 'qa-gear'})
+
+    # Create group and project
+    group = data_builder.create_group()
+    project_label = 'rerun-rule-project'
+    project = data_builder.create_project(group=group, label='rerun-rule-project')
+
+    # UID and filename used for repeat reaper uploads
+    dicom_file_name = 'some_dicom.dcm.zip'
+    nifti_file_name = 'some_dicom.nii.gz'
+    qa_file_name = 'qa_report.qa.png'
+    session_uid = 'rerun-rule-session-uid'
+
+    # Run classifier gear when new dicom is added
+    classifier_rule = {
+        'gear_id': classifier_gear,
+        'name': 'classifer-rule',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.type', 'value': 'dicom'}
+        ]
+    }
+
+    # Run converter gear when classifier has complete
+    converter_rule = {
+        'gear_id': converter_gear,
+        'name': 'converter-rule',
+        'any': [],
+        'not': [
+            {'type': 'file.classification', 'value': 'Non-Image'}
+        ],
+        'all': [
+            {'type': 'file.type', 'value': 'dicom'},
+            {'regex': True, 'type': 'file.classification', 'value': '.+'}
+        ]
+    }
+
+    # Run QA gear when converter has complete
+    qa_rule = {
+        'gear_id': qa_gear,
+        'name': 'qa-rule',
+        'any': [
+            {'type': 'file.classification', 'value': 'functional'}
+        ],
+        'not': [],
+        'all': [
+            {'type': 'file.type', 'value': 'nifti'}
+        ]
+    }
+
+    # add rules to project
+    assert as_admin.post('/projects/' + project + '/rules', json=classifier_rule).ok
+    assert as_admin.post('/projects/' + project + '/rules', json=converter_rule).ok
+    assert as_admin.post('/projects/' + project + '/rules', json=qa_rule).ok
+
+
+    # get project rules (verify rules were added)
+    r = as_admin.get('/projects/' + project + '/rules')
+    assert r.ok
+    assert len(r.json()) == 3
+
+    # upload initial dicom via reaper
+    r = as_admin.post('/upload/reaper', files=file_form(
+        dicom_file_name,
+        meta={
+            'group': {'_id': group},
+            'project': {'label': project_label},
+            'session': {'uid': session_uid},
+            'acquisition': {
+                'uid': session_uid,
+                'files': [{'name': dicom_file_name}]
+            }
+        })
+    )
+    assert r.ok
+
+    # Ensure session and acquisition created, dicom file uploaded
+    r = as_admin.get('/projects/' + project + '/sessions')
+    assert r.ok
+    assert len(r.json()) == 1
+    session = r.json()[0]['_id']
+
+    r = as_admin.get('/sessions/' + session + '/acquisitions')
+    assert r.ok
+    assert len(r.json()) == 1
+    assert len(r.json()[0]['files']) == 1
+    acquisition = r.json()[0]['_id']
+
+
+    # Test that classifier-gear job was created via rule
+    jobs = list(api_db.jobs.find({'gear_id': classifier_gear}))
+    assert len(jobs) == 1
+    job_id = str(jobs[0]['_id'])
+
+    # Simulate engine run
+    payload = file_form(meta={
+        'acquisition':{
+            'files':[
+                {
+                    'name': dicom_file_name,
+                    'classification': {'Intent': ['Functional']}
+                }
+            ]
+        }
+    })
+    simulate_engine_run(job_id, acquisition, payload)
+
+
+    # Test that converter-gear job was created via rule
+    jobs = list(api_db.jobs.find({'gear_id': converter_gear}))
+    assert len(jobs) == 1
+    job_id = str(jobs[0]['_id'])
+
+    # Simulate engine runs
+    payload = file_form(nifti_file_name, meta={
+        'acquisition':{
+            'files':[
+                {
+                    'name': nifti_file_name,
+                    'classification': {'Intent': ['Functional']}
+                }
+            ]
+        }
+    })
+    simulate_engine_run(job_id, acquisition, payload)
+
+    # Test that qa-gear job was created via rule
+    jobs = list(api_db.jobs.find({'gear_id': qa_gear}))
+    assert len(jobs) == 1
+    job_id = str(jobs[0]['_id'])
+
+    # Simulate engine runs
+    payload = file_form(qa_file_name, meta={
+        'acquisition':{
+            'files':[
+                {
+                    'name': qa_file_name
+                }
+            ]
+        }
+    })
+    simulate_engine_run(job_id, acquisition, payload)
+
+    # Ensure all 3 files exist on acquisition
+    assert len(as_admin.get('/acquisitions/' + acquisition).json()['files']) == 3
+
+    # upload dicom with same hash via reaper
+    r = as_admin.post('/upload/reaper', files=file_form(
+        dicom_file_name,
+        meta={
+            'group': {'_id': group},
+            'project': {'label': project_label},
+            'session': {'uid': session_uid},
+            'acquisition': {
+                'uid': session_uid,
+                'files': [{'name': dicom_file_name}]
+            }
+        })
+    )
+    assert r.ok
+
+    # Ensure no jobs were queued
+    assert as_root.get('/jobs/next').status_code == 400
+
+    # Ensure file still has classification
+    r = as_root.get('/acquisitions/' + acquisition + '/files/' + dicom_file_name + '/info')
+    assert 'Functional' in r.json()['classification']['Intent']
+
+    # Upload dicom with different hash via reaper
+    r = as_admin.post('/upload/reaper', files=file_form(
+        (dicom_file_name, 'new_file_content'),
+        meta={
+            'group': {'_id': group},
+            'project': {'label': project_label},
+            'session': {'uid': session_uid},
+            'acquisition': {
+                'uid': session_uid,
+                'files': [{'name': dicom_file_name}]
+            }
+        })
+    )
+    assert r.ok
+
+    # Ensure file now does not have classification
+    r = as_root.get('/acquisitions/' + acquisition + '/files/' + dicom_file_name + '/info')
+    assert not r.json().get('classification')
+
+    # Test that classifier-gear job was created via rule
+    jobs = list(api_db.jobs.find({'gear_id': classifier_gear}))
+    assert len(jobs) == 2
+    job_id = str(jobs[1]['_id'])
+
+    # Simulate engine run
+    payload = file_form(meta={
+        'acquisition':{
+            'files':[
+                {
+                    'name': dicom_file_name,
+                    'classification': {'Intent': ['Functional']}
+                }
+            ]
+        }
+    })
+    simulate_engine_run(job_id, acquisition, payload)
+
+    # Test that converter-gear job was created via rule
+    jobs = list(api_db.jobs.find({'gear_id': converter_gear}))
+    assert len(jobs) == 2
+    job_id = str(jobs[1]['_id'])
+
+    # Simulate engine run
+    payload = file_form((nifti_file_name, 'new_nifti_content'), meta={
+        'acquisition':{
+            'files':[
+                {
+                    'name': nifti_file_name,
+                    'classification': {'Intent': ['Functional']}
+                }
+            ]
+        }
+    })
+    simulate_engine_run(job_id, acquisition, payload)
+
+    # Test that qa-gear job was created via rule
+    jobs = list(api_db.jobs.find({'gear_id': qa_gear}))
+    assert len(jobs) == 2
+
+    data_builder.delete_group(group, recursive=True)
+
+
+
+
+
+
+
