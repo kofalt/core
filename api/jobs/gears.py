@@ -165,29 +165,8 @@ def insert_gear(doc):
 
     result = config.db.gears.insert(doc)
 
-    if config.get_item('queue', 'prefetch'):
-        log.info('Queuing prefetch job for gear %s', doc['gear']['name'])
-
-        job = Job(doc, {}, destination={}, tags=['prefetch'], request={
-            'inputs': [
-                {
-                    'type': 'http',
-                    'uri': doc['exchange']['rootfs-url'],
-                    'vu': 'vu0:x-' + doc['exchange']['rootfs-hash']
-                }
-            ],
-            'target': {
-                'command': ['uname', '-a'],
-                'env': {
-                    'PATH': '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-                },
-            },
-            'outputs': [ ],
-        })
-        job.insert()
     if last_gear:
         auto_update_rules(doc['_id'], last_gear.get('_id'))
-
 
     return result
 

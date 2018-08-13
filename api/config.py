@@ -51,8 +51,7 @@ DEFAULT_CONFIG = {
     },
     'queue': {
         'max_retries': 3,
-        'retry_on_fail': False,
-        'prefetch': False
+        'retry_on_fail': False
     },
     'auth': {
         'google': {
