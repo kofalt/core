@@ -22,6 +22,11 @@
         description: The batch proposal
         schema:
           $ref: schemas/input/propose-batch.json
+      - name: ignore_optional_inputs
+        in: query
+        required: false
+        description: Ignore optional inputs
+        type: boolean
     responses:
       '200':
         description: The batch proposal object that was created

@@ -83,9 +83,9 @@ def find_matching_conts(gear, containers, container_type, context_inputs=False,
             ambiguous = False  # Are any of the inputs ambiguous?
             not_matched = False
             for input_name, files in suggestions.iteritems():
-                if len(files) > 1:
+                if len(files) > 1 and not (ignore_optional and gear['gear']['inputs'][input_name].get('optional', False)):
                     ambiguous = True
-                elif not gear['gear']['inputs'][input_name].get('optional', False) and (ignore_optional or len(files) == 0):
+                elif not gear['gear']['inputs'][input_name].get('optional', False) and len(files) == 0:
                     not_matched = True
                     break
 
