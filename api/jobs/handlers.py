@@ -697,6 +697,8 @@ class BatchHandler(base.RequestHandler):
         analysis_data = payload.get('analysis', {})
         tags = payload.get('tags', [])
 
+        ignore_optional = self.is_true('ignore_optional_inputs')
+
         # Request might specify a collection context
         collection_id = payload.get('target_context', {}).get('id', None)
         if collection_id:
@@ -774,7 +776,9 @@ class BatchHandler(base.RequestHandler):
 
         else:
             # Look for file matches in each acquisition
-            results = batch.find_matching_conts(gear, perm_checked_conts, 'acquisition', context_inputs=context_inputs, uid=context_uid)
+            results = batch.find_matching_conts(gear, perm_checked_conts, 'acquisition',
+                                                context_inputs=context_inputs, uid=context_uid,
+                                                ignore_optional=ignore_optional)
 
         matched = results['matched']
         batch_proposal = {}

@@ -54,7 +54,8 @@ def get(batch_id, projection=None, get_jobs=False):
 
     return batch_job
 
-def find_matching_conts(gear, containers, container_type, context_inputs=False, uid=None):
+def find_matching_conts(gear, containers, container_type, context_inputs=False,
+                        uid=None, ignore_optional=False):
     """
     Give a gear and a list of containers, find files that:
       - have no solution to the gear's input schema (not matched)
@@ -79,12 +80,12 @@ def find_matching_conts(gear, containers, container_type, context_inputs=False, 
             suggestions = gears.suggest_for_files(gear, files, context=context)
 
             # Determine if any of the inputs are ambiguous or not satisfied
-            ambiguous = False # Are any of the inputs ambiguous?
+            ambiguous = False  # Are any of the inputs ambiguous?
             not_matched = False
-            for files in suggestions.itervalues():
+            for input_name, files in suggestions.iteritems():
                 if len(files) > 1:
                     ambiguous = True
-                elif len(files) == 0:
+                elif not gear['gear']['inputs'][input_name].get('optional', False) and (ignore_optional or len(files) == 0):
                     not_matched = True
                     break
 
@@ -97,7 +98,9 @@ def find_matching_conts(gear, containers, container_type, context_inputs=False, 
                 # Create input map of file refs
                 inputs = {}
                 for input_name, suggested_inputs in suggestions.iteritems():
-                    if suggested_inputs[0]['base'] == 'file':
+                    if (ignore_optional or len(suggested_inputs) == 0) and gear['gear']['inputs'][input_name].get('optional', False):
+                        continue
+                    elif suggested_inputs[0]['base'] == 'file':
                         inputs[input_name] = {'type': container_type, 'id': str(c['_id']), 'name': suggested_inputs[0]['name']}
                     else:
                         inputs[input_name] = suggested_inputs[0]
