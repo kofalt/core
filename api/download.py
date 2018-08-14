@@ -330,7 +330,7 @@ class Download(base.RequestHandler):
                     tarinfo.name = arcpath + '.MISSING'
                     yield tarinfo.tobuf()
 
-                self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
+                self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), origin_override=ticket['origin'], download_ticket=ticket['_id']) # log download
         yield stream.getvalue()  # get tar stream trailer
         stream.close()
 
@@ -340,7 +340,7 @@ class Download(base.RequestHandler):
             t.type = tarfile.SYMTYPE
             t.linkname = fs.path.relpath(filepath)
             yield t.tobuf()
-            self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), multifile=True, origin_override=ticket['origin']) # log download
+            self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), origin_override=ticket['origin'], download_ticket=ticket['_id']) # log download
         stream = cStringIO.StringIO()
         with tarfile.open(mode='w|', fileobj=stream) as _:
             pass

@@ -3,12 +3,13 @@ import pytest
 
 from api.web.request import AccessType
 
-from api.access_log import create_entry, bulk_log_access 
+from api.access_log import create_entry, bulk_log_access
 
 class MockRequest:
     def __init__(self, method, path):
         self.method = method
         self.path = path
+        self.client_addr = '127.0.0.1'
 
 
 # NOTE these tests assume they are not running in parallel w/ other tests
@@ -412,7 +413,7 @@ def test_create_entry_validation():
 
     try:
         # Invalid access type
-        create_entry(req, 'view_subject', origin, { 'group': { 'id': 'test' } }) 
+        create_entry(req, 'view_subject', origin, { 'group': { 'id': 'test' } })
         pytest.fail('Expected exception!')
     except Exception:
         pass
@@ -444,10 +445,10 @@ def test_bulk_access(data_builder, as_admin, log_db):
     origin = { 'type': 'user', 'id': 'admin@user.com' }
 
     entries = [
-        (AccessType.view_container, { 
-            'group': { 'id': 'test', 'label': 'Test Group' } 
+        (AccessType.view_container, {
+            'group': { 'id': 'test', 'label': 'Test Group' }
         }),
-        (AccessType.view_file, { 
+        (AccessType.view_file, {
             'group': { 'id': 'test', 'label': 'Test Group' },
             'project': { 'id': project, 'label': 'Test Project' },
             'file': { 'name': 'example.csv' }
