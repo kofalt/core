@@ -710,9 +710,51 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     assert r.ok
     gear = r.json()['_id']
 
-    # create a batch w/o inputs targeting sessions
+    # create a batch without policy
     r = as_admin.post('/batch', json={
         'gear_id': gear,
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.status_code == 400
+
+    # create a batch with invalid policy
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        "optional_input_policy": "not_policy",
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.status_code == 400
+
+    # create a batch requiring optional inputs
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        'optional_input_policy': 'required',
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.ok
+    batch1 = r.json()
+
+    assert len(batch1['matched']) == 1
+    assert batch1['matched'][0]['_id'] == acquisition2
+    assert 'inputs' not in batch1['matched'][0]
+
+    batch_id = batch1['_id']
+
+    # run batch
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    # Check job config for inputs
+    jobs = r.json()
+    job1_inputs = jobs[0]['config']['inputs']
+    assert len(job1_inputs) == 2
+    assert 'text' in job1_inputs
+    assert 'csv' in job1_inputs
+
+    # create a batch not requiring optional inputs
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        'optional_input_policy': 'flexible',
         'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
     })
     assert r.ok
@@ -747,8 +789,9 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
 
     r = as_admin.post('/batch', json={
         'gear_id': gear,
+        'optional_input_policy': 'ignored',
         'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
-    }, params={'ignore_optional_inputs': 'true'})
+    })
     assert r.ok
     batch2 = r.json()
 

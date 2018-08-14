@@ -696,8 +696,7 @@ class BatchHandler(base.RequestHandler):
         config_ = payload.get('config', {})
         analysis_data = payload.get('analysis', {})
         tags = payload.get('tags', [])
-
-        ignore_optional = self.is_true('ignore_optional_inputs')
+        optional_input_policy = payload.get('optional_input_policy')
 
         # Request might specify a collection context
         collection_id = payload.get('target_context', {}).get('id', None)
@@ -710,6 +709,9 @@ class BatchHandler(base.RequestHandler):
         gear = get_gear(gear_id)
         if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
             self.abort(400, 'Gear marked as invalid, will not run!')
+        has_optional_input = any([input_.get('optional', False) for input_ in gear['gear']['inputs'].itervalues()])
+        if has_optional_input and optional_input_policy not in ['ignored', 'flexible', 'required']:
+            self.abort(400, 'Gear has optional inputs but no policy on optional inputs was given, will not run!')
         validate_gear_config(gear, config_)
 
         container_ids = []
@@ -777,8 +779,8 @@ class BatchHandler(base.RequestHandler):
         else:
             # Look for file matches in each acquisition
             results = batch.find_matching_conts(gear, perm_checked_conts, 'acquisition',
-                                                context_inputs=context_inputs, uid=context_uid,
-                                                ignore_optional=ignore_optional)
+                                                optional_input_policy, context_inputs=context_inputs,
+                                                uid=context_uid)
 
         matched = results['matched']
         batch_proposal = {}
