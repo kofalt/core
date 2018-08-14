@@ -173,6 +173,8 @@ class Queue(object):
 
         gear = get_gear(gear_id)
 
+        # Invalid disables a gear from running entirely.
+        # https://github.com/flywheel-io/gears/tree/master/spec#reserved-custom-keys
         if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
             raise InputValidationException('Gear marked as invalid, will not run!')
 

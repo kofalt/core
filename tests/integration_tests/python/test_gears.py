@@ -43,7 +43,7 @@ def test_gear_add_versioning(default_payload, randstr, data_builder, as_root):
 
     # create new gear w/ gear_version_3
     gear_payload['gear']['version'] = gear_version_3
-    gear_payload['gear'].setdefault('custom', {}).setdefault('flywheel', {})['disabled'] = True
+    gear_payload['gear'].setdefault('custom', {}).setdefault('flywheel', {})['invalid'] = True
     r = as_root.post('/gears/' + gear_name, json=gear_payload)
     assert r.ok
     gear_id_3 = r.json()['_id']

@@ -25,7 +25,10 @@ def get_gears(all_versions=False, pagination=None):
 
     if all_versions:
         kwargs = {
-            'filter': { 'gear.custom.flywheel.disabled': {'$ne': True} },
+            # Invalid disables a gear from running entirely.
+            # https://github.com/flywheel-io/gears/tree/master/spec#reserved-custom-keys
+            'filter': { 'gear.custom.flywheel.invalid': {'$ne': True} },
+
             'sort': [('gear.name', 1), ('created', -1)]
         }
         page = dbutil.paginate_find(config.db.gears, kwargs, pagination)
@@ -36,7 +39,8 @@ def get_gears(all_versions=False, pagination=None):
 
     pipe = [
         {'$match': {
-            'gear.custom.flywheel.disabled': {'$ne': True}}
+            # Same as above.
+            'gear.custom.flywheel.invalid': {'$ne': True}}
         },
         {'$sort': {
             'gear.name': 1,
