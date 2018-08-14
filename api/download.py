@@ -127,6 +127,8 @@ class Download(base.RequestHandler):
         base_query = {'deleted': {'$exists': False}}
         if not self.superuser_request:
             base_query['permissions._id'] = self.uid
+        else:
+            base_query['permissions._id'] = None
 
         for item in req_spec['nodes']:
 
@@ -221,11 +223,15 @@ class Download(base.RequestHandler):
                 analysis_query = copy.deepcopy(base_query)
                 perm_query = analysis_query.pop('permissions._id')
                 analysis = config.db.analyses.find_one(analysis_query, ['parent', 'label', 'inputs', 'files', 'uid', 'timestamp'])
-                analysis_query["permissions._id"] = perm_query
+                analysis_query = {
+                    'deleted': {'$exists': False},
+                    "_id": analysis.get('parent', {}).get('id'),
+                    "permissions._id": perm_query
+                }
+                if perm_query is None:
+                    analysis_query.pop('permissions._id')
                 if analysis:
-                    parent = config.db[pluralize(analysis.get('parent', {}).get('type'))].find_one({'deleted': {'$exists': False},
-                                                                                         "_id": analysis.get('parent', {}).get('id'),
-                                                                                         "permissions._id": perm_query})
+                    parent = config.db[pluralize(analysis.get('parent', {}).get('type'))].find_one(analysis_query)
                 if not analysis or not parent:
                     # silently(while logging it) skip missing objects/objects user does not have access to
                     self.log.warn("Expected anaylysis {} to exist but it is missing. Node will be skipped".format(item_id))

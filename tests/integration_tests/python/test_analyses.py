@@ -187,7 +187,7 @@ def test_legacy_analysis(data_builder, as_admin, file_form, api_db):
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
 
-def test_analysis_download(data_builder, as_admin, file_form, api_db):
+def test_analysis_download(data_builder, as_admin, as_root, file_form, api_db):
     session = data_builder.create_session()
 
     # Create legacy analysis
@@ -206,6 +206,17 @@ def test_analysis_download(data_builder, as_admin, file_form, api_db):
 
     # Verify both inputs and outputs are present
     r = as_admin.get('/download', params={'ticket': ticket})
+    assert r.ok
+    with tarfile.open(mode='r', fileobj=cStringIO.StringIO(r.content)) as tar:
+        assert set(m.name for m in tar.getmembers()) == set(['legacy/input/input.csv', 'legacy/output/output.csv'])
+
+    # Test with root
+    r = as_root.get('/download', params={'ticket': ''}, json={'optional': True, 'nodes': [{'level':'analysis','_id': analysis}]})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # Verify both inputs and outputs are present
+    r = as_root.get('/download', params={'ticket': ticket})
     assert r.ok
     with tarfile.open(mode='r', fileobj=cStringIO.StringIO(r.content)) as tar:
         assert set(m.name for m in tar.getmembers()) == set(['legacy/input/input.csv', 'legacy/output/output.csv'])
