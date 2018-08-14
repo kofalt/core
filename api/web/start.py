@@ -67,6 +67,7 @@ from . import encoder
 from .. import util
 from .request import SciTranRequest
 from ..metrics.request_wrapper import RequestWrapper
+from ..metrics import register_signal_handlers
 
 try:
     import uwsgi
@@ -74,6 +75,7 @@ except ImportError:
     uwsgi = None
 
 log = config.log
+register_signal_handlers() # Register signal handlers to capture connection errors
 
 def dispatcher(router, request, response):
     with RequestWrapper(request, response) as metrics:
