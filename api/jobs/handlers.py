@@ -653,7 +653,7 @@ class JobHandler(base.RequestHandler):
         # Create any automatic jobs for the accepted files
         create_jobs(config.db, container_before, container, cont_name)
 
-        self.log_user_access(AccessType.accept_failed_output, cont_name=j.destination.type, cont_id=j.destination.id, multifile=True)
+        self.log_user_access(AccessType.accept_failed_output, cont_name=j.destination.type, cont_id=j.destination.id)
 
 class BatchHandler(base.RequestHandler):
 

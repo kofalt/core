@@ -22,6 +22,7 @@ BYTES_IN_MEGABYTE = float(1<<20)
 ACCESS_LOG_FIELDS = [
     "_id",
     "timestamp",
+    "ip",
     "access_type",
     "origin.id",
     "origin.method",

@@ -6,7 +6,7 @@ from .dao.hierarchy import get_parent_tree
 from .web.request import AccessType
 
 
-def log_user_access(request, access_type, cont_name=None, cont_id=None, filename=None, multifile=False, origin=None, download_ticket=None):
+def log_user_access(request, access_type, cont_name=None, cont_id=None, filename=None, origin=None, download_ticket=None):
     """Create a single access log entry, populating context automatically.
 
     Only creates one access log entry for multiple downloads of a single file via ticket.
@@ -18,7 +18,6 @@ def log_user_access(request, access_type, cont_name=None, cont_id=None, filename
         cont_name (str): The name of the container collection being accessed
         cont_id (str): The id of the container being accessed
         filename (str): If this is a file access, the name of the file accessed.
-        multifile (bool): Whether or not this is a multi file download 
         origin (dict): The request origin (e.g. user id)
         download_ticket (str): The ticket_id if if this is a ticketed file_access
 
@@ -49,18 +48,11 @@ def log_user_access(request, access_type, cont_name=None, cont_id=None, filename
         if filename:
             context['file'] = {'name': filename}
 
-    log_map = create_entry(request, access_type, origin, context)
+        if download_ticket:
+            context['ticket_id'] = download_ticket
 
-    if access_type is AccessType.download_file and download_ticket and not multifile:
-        # If this is a ticket download, log only once per ticket
-        log_map['context']['ticket_id'] = download_ticket
-        config.log_db.access_log.update(
-            {'context.ticket_id': download_ticket},
-            {'$setOnInsert': log_map},
-            upsert=True
-        )
-    else:
-        config.log_db.access_log.insert_one(log_map)
+    log_map = create_entry(request, access_type, origin, context)
+    config.log_db.access_log.insert_one(log_map)
 
 def create_entry(request, access_type, origin, context=None):
     """Create a single access log entry, without inserting it into the database.
@@ -72,7 +64,7 @@ def create_entry(request, access_type, origin, context=None):
         request (object): The request object
         access_type (AccessType): The access log entry type
         origin (dict): The request origin (e.g. user id)
-        context (dict): The context object. MUST BE SPECIFIED for all entries 
+        context (dict): The context object. MUST BE SPECIFIED for all entries
             except for user_login and user_logout.
 
     Returns:
@@ -88,6 +80,7 @@ def create_entry(request, access_type, origin, context=None):
         'access_type':      access_type.value,
         'request_method':   request.method,
         'request_path':     request.path,
+        'ip':               request.client_addr,
         'origin':           origin,
         'timestamp':        datetime.datetime.utcnow()
     }

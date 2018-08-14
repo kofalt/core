@@ -404,7 +404,7 @@ class AnalysesHandler(RefererHandler):
                     # log download if we haven't already for this ticket
                     if ticket:
                         if not ticket.get('logged', False):
-                            self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'])
+                            self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'], download_ticket=ticket['_id'])
                             config.db.downloads.update_one({'_id': ticket_id}, {'$set': {'logged': True}})
                     else:
                         self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'])
@@ -496,7 +496,7 @@ class AnalysesHandler(RefererHandler):
             if ticket:
                 ticket = config.db.downloads.find_one({'_id': ticket_id})
                 if not ticket.get('logged', False):
-                    self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'])
+                    self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'], download_ticket=ticket['_id'])
                     config.db.downloads.update_one({'_id': ticket_id}, {'$set': {'logged': True}})
             else:
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cid, filename=fileinfo['name'])
