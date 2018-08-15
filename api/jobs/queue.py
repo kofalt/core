@@ -353,7 +353,7 @@ class Queue(object):
                     # API-key gears cannot be peeked
                     return None
 
-        # Return if there is a job request already (probably prefetch)
+        # Return if there is a job request already
         if job.request is not None:
             log.info('Job %s already has a request, so not generating', job.id_)
             return job
