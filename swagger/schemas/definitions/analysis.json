@@ -87,6 +87,7 @@
 				"description": {"$ref":"common.json#/definitions/description"},
 				"label":       {"$ref":"common.json#/definitions/label"},
 				"parent":      {"$ref":"#/definitions/parent"},
+                "parents":      {"$ref":"container.json#/definitions/parents"},
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
 				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
 			},
@@ -110,6 +111,7 @@
 				"description": {"$ref":"common.json#/definitions/description"},
 				"label":       {"$ref":"common.json#/definitions/label"},
 				"parent":      {"$ref":"#/definitions/parent"},
+                "parents":      {"$ref":"container.json#/definitions/parents"},
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
 				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
 			},

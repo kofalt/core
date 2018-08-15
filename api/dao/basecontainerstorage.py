@@ -21,7 +21,7 @@ CHILD_MAP = {
     'sessions': 'acquisitions'
 }
 
-PARENT_MAP = {v: k for k,v in CHILD_MAP.iteritems()}
+PARENT_MAP = {v: k for k, v in CHILD_MAP.iteritems()}
 
 # All "containers" are required to return these fields
 # 'All' includes users
@@ -206,6 +206,37 @@ class ContainerStorage(object):
 
         return parents
 
+    def r_get_parent_tree(self, cont):
+        """
+        Given a contanier and an id, returns that container and its parent tree.
+
+        For example, given `sessions`, `<session_id>`, it will return:
+        {
+            'session':  <session>,
+            'project':  <project>,
+            'group':    <group>
+        }
+        """
+        if self.cont_name == 'group':
+            return {}
+        elif self.cont_name in ['projects', 'sessions', 'acquisitions', 'analyses']:
+            parent, p_type = self.get_real_parent(cont=cont)
+            parents = parent.get('parents', {})
+            parents[p_type] = parent['_id']
+            return parents
+        return {}
+
+    def get_real_parent(self, cont):
+        if self.cont_name == 'analyses':
+            p_type = cont['parent']['type']
+            ps = ContainerStorage.factory(p_type)
+            parent = ps.get_container(cont['parent']['id'])
+            return parent, p_type
+        p_type = containerutil.singularize(PARENT_MAP[self.cont_name])
+        ps = ContainerStorage.factory(p_type)
+        parent = ps.get_container(cont[p_type])
+        return parent, p_type
+
     def get_parent(self, _id, cont=None, projection=None):
         if not cont:
             cont = self.get_container(_id, projection=projection)
@@ -250,6 +281,10 @@ class ContainerStorage(object):
 
     def create_el(self, payload):
         self._to_mongo(payload)
+        if self.cont_name in ['acquisitions', 'sessions', 'projects', 'analyses']:
+            # log.debug(parent_id)
+            parents = self.r_get_parent_tree(payload)
+            payload['parents'] = parents
         try:
             result = self.dbc.insert_one(payload)
         except pymongo.errors.DuplicateKeyError:
@@ -278,6 +313,18 @@ class ContainerStorage(object):
             update['$set'].update(replace)
 
         _id = self.format_id(_id)
+
+        if self.cont_name == 'sessions':
+            parent_name = 'project'
+        elif self.cont_name in ['projects', 'acquisitions', 'analyses']:
+            parent_name = containerutil.singularize(PARENT_MAP[self.cont_name])
+        else:
+            parent_name = None
+        if parent_name and parent_name in payload:
+            if r_payload is None:
+                r_payload = {}
+            r_payload['parents.{}'.format(parent_name)] = payload[parent_name]
+            update['$set']['parents.{}'.format(parent_name)] = payload[parent_name]
 
         if recursive and r_payload is not None:
             containerutil.propagate_changes(self.cont_name, _id, {}, {'$set': util.mongo_dict(r_payload)})

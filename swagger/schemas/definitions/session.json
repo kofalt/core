@@ -51,6 +51,7 @@
                 "info_exists":  {"$ref":"container.json#/definitions/info_exists"},
                 "operator":     {"$ref":"#/definitions/operator"},
                 "project":      {"$ref":"common.json#/definitions/objectid"},
+                "parents":      {"$ref":"container.json#/definitions/parents"},
                 "uid":          {"$ref":"container.json#/definitions/uid"},
                 "timestamp":    {"$ref":"container.json#/definitions/timestamp"},
                 "timezone":     {"$ref":"container.json#/definitions/timezone"},
