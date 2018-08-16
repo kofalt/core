@@ -315,6 +315,13 @@ class Job(object):
             ],
         }
 
+        custom_uid = gear['gear'].get('custom', {}).get('flywheel', {}).get('uid', 0)
+        custom_gid = gear['gear'].get('custom', {}).get('flywheel', {}).get('gid', 0)
+
+        if custom_uid > 0 or custom_gid > 0:
+            r['target']['uid'] = int(custom_uid)
+            r['target']['gid'] = int(custom_gid)
+
         # Map destination to upload URI
         r['outputs'][0]['uri'] = '/engine?level=' + self.destination.type + '&id=' + self.destination.id
 
