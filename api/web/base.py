@@ -28,6 +28,7 @@ class RequestHandler(webapp2.RequestHandler):
 
         self.uid = None
         self.origin = None
+        self.scope = None
 
         # If user is attempting to log in through `/login`, ignore Auth here:
         # In future updates, move login and logout handlers to class that overrides this init
