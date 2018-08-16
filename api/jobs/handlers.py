@@ -13,7 +13,7 @@ from .. import config
 from .. import upload
 from .. import files
 from ..auth import require_drone, require_login, require_admin, has_access
-from ..auth.apikeys import JobApiKey
+from ..auth.apikeys import JobApiKey, RuleApiKey
 from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..types import Origin
@@ -478,11 +478,15 @@ class JobHandler(base.RequestHandler):
                     the_input = gear['gear']['inputs'][key]
 
                     if the_input['base'] == 'api-key':
-                        if j.origin['type'] != 'user':
+                        if j.origin['type'] == 'user':
+                            uid = j.origin['id']
+                            api_key = JobApiKey.generate(uid, j.id_)
+                        elif 'auto' in j.tags:
+                            project_id = hierarchy.get_parent(pluralize(j.destination.type), j.destination.id, 'project')
+                            api_key = RuleApiKey.generate(j.id_, {'level': 'project', 'id': project_id, 'access': 'ro'})
+                        else:
                             raise Exception('Cannot provide an API key to a job not launched by a user')
 
-                        uid = j.origin['id']
-                        api_key = JobApiKey.generate(uid, j.id_)
                         parsed_url = urlparse(config.get_item('site', 'api_url'))
 
                         if parsed_url.port != 443:

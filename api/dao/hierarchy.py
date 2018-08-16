@@ -39,6 +39,12 @@ def get_container(cont_name, _id):
         '_id': _id,
     })
 
+def get_parent(cont_name, _id, parent_type):
+    cont = get_container(cont_name, _id)
+    if cont.get('parents') and cont['parents'].get(parent_type):
+        return cont['parents'][parent_type]
+    return cont.get('parents', {}).get('group')
+
 def get_parent_tree(cont_name, _id):
     """
     Given a contanier and an id, returns that container and its parent tree.

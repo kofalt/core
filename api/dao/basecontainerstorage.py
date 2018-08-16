@@ -293,6 +293,7 @@ class ContainerStorage(object):
 
     def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
         replace = None
+        include_refs = False
         if replace_metadata:
             replace = {}
             if payload.get('info') is not None:

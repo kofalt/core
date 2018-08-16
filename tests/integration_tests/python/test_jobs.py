@@ -996,7 +996,6 @@ def test_job_reap_ticketed_jobs(data_builder, default_payload, as_drone, as_admi
     assert r.ok
     assert r.json()['state'] == 'failed'
 
-
 def test_job_requests(randstr, default_payload, data_builder, as_admin, as_drone, file_form):
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
@@ -1060,3 +1059,81 @@ def test_job_requests(randstr, default_payload, data_builder, as_admin, as_drone
     not_url_job_request_inputs = r.json()['request']['inputs']
     for request_input in not_url_job_request_inputs:
         assert request_input.get('type')
+
+
+def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, as_root, api_db, file_form):
+    gear_doc = default_payload['gear']['gear']
+    gear_name = 'gear-name'
+    gear_doc['name'] = gear_name
+    gear_doc['inputs'] = {
+        "api_key": {
+          "base": "api-key"
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+
+    project = data_builder.create_project(public=False)
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+
+    # Test the gear name tag with auto job rule
+    rule = {
+        'gear_id': gear,
+        'name': 'job-trigger-rule',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.type', 'value': 'tabular data'}],
+        'disabled': False
+    }
+
+    # add project rule
+    r = as_admin.post('/projects/' + project + '/rules', json=rule)
+    assert r.ok
+    rule_id = r.json()['_id']
+
+    # create job
+    # print gear_doc
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
+
+    # get next job as admin
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    job_id = r.json()['id']
+
+    # get config
+    r = as_root.get('/jobs/' + job_id + '/config.json')
+    assert r.ok
+    config = r.json()
+
+    assert config['destination']['id'] == acquisition
+    assert type(config['config']) is dict
+    api_key = config['inputs']['api_key']['key']
+    # print api_key
+    # ensure api_key works
+    as_job_key = as_public
+    as_job_key.headers.update({'Authorization': 'scitran-user ' + api_key.split(':')[-1]})
+
+    r = as_job_key.get('/projects/' + project)
+    assert r.ok
+
+    # ensure only ro access
+    r = as_job_key.put('/projects/' + project, json={label='NewLabel'})
+    assert r.status_code == 403
+
+    # ensure api_key can access public projects
+    project_2 = data_builder.create_project(public=True)
+    r = as_job_key.get('/projects/' + project_2)
+    assert r.ok
+
+    # ensure api_key can't access other non public projects
+    project_3 = data_builder.create_project(public=False)
+    r = as_job_key.get('/projects/' + project_3)
+    assert r.status_code == 403
+
+    # complete job and ensure API key no longer works
+    r = as_root.put('/jobs/' + job_id, json={'state': 'complete'})
+    assert r.ok
+
+    r = as_job_key.get('/projects/' + project)
+    assert r.status_code == 401

@@ -2,7 +2,7 @@
 Purpose of this module is to define all the permissions checker decorators for the ContainerHandler classes.
 """
 
-from . import _get_access, INTEGER_PERMISSIONS
+from . import _get_access, _check_scope, INTEGER_PERMISSIONS
 from ..web.errors import APIPermissionException
 
 
@@ -18,14 +18,16 @@ def default_container(handler, container=None, target_parent_container=None):
             errors = None
             if method == 'GET' and container.get('public', False):
                 has_access = True
+            elif not _check_scope(handler.scope, container, parent_container=target_parent_container):
+                has_access = False
             elif method == 'GET':
-                has_access = _get_access(handler.uid, container) >= INTEGER_PERMISSIONS['ro']
+                has_access = _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['ro']
             elif method == 'POST':
                 required_perm = 'rw'
                 if target_parent_container.get('cont_name') == 'group':
                     # Create project on group, require admin
                     required_perm = 'admin'
-                has_access = _get_access(handler.uid, target_parent_container) >= INTEGER_PERMISSIONS[required_perm]
+                has_access = _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS[required_perm]
             elif method == 'DELETE':
                 # Project delete requires admin, others require rw
                 if container['cont_name'] == 'project' or container.get('has_original_data', False):
@@ -33,7 +35,7 @@ def default_container(handler, container=None, target_parent_container=None):
                 else:
                     required_perm = 'rw'
 
-                user_perms = _get_access(handler.uid, container)
+                user_perms = _get_access(handler.uid, container, scope=handler.scope)
                 has_access = user_perms >= INTEGER_PERMISSIONS[required_perm]
 
                 if not has_access and container.get('has_original_data', False) and user_perms == INTEGER_PERMISSIONS['rw']:
@@ -44,12 +46,12 @@ def default_container(handler, container=None, target_parent_container=None):
 
             elif method == 'PUT' and target_parent_container is not None:
                 has_access = (
-                    _get_access(handler.uid, container) >= INTEGER_PERMISSIONS['admin'] and
-                    _get_access(handler.uid, target_parent_container) >= INTEGER_PERMISSIONS['admin']
+                    _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin'] and
+                    _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin']
                 )
             elif method == 'PUT' and target_parent_container is None:
                 required_perm = 'rw'
-                has_access = _get_access(handler.uid, container) >= INTEGER_PERMISSIONS[required_perm]
+                has_access = _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS[required_perm]
             else:
                 has_access = False
 
@@ -93,9 +95,11 @@ def collection_permissions(handler, container=None, _=None):
 def default_referer(handler, parent_container=None):
     def g(exec_op):
         def f(method, _id=None, payload=None):
-            access = _get_access(handler.uid, parent_container)
+            access = _get_access(handler.uid, parent_container, scope=handler.scope)
             if method == 'GET' and parent_container.get('public', False):
                 has_access = True
+            elif not _check_scope(handler.scope, None, parent_container=parent_container):
+                has_access = False
             elif method == 'GET':
                 has_access = access >= INTEGER_PERMISSIONS['ro']
             elif method in ['POST', 'PUT', 'DELETE']:

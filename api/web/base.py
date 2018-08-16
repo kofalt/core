@@ -73,6 +73,7 @@ class RequestHandler(webapp2.RequestHandler):
                     self.origin = {'type': Origin.user, 'id': self.uid}
                     if 'job' in api_key:
                         self.origin['via'] = {'type': Origin.job, 'id': api_key['job']}
+                        self.scope = api_key.get('scope')
             else:
                 # User (oAuth) authentication
                 self.uid = self.authenticate_user_token(session_token)
@@ -123,6 +124,9 @@ class RequestHandler(webapp2.RequestHandler):
         elif drone_request:
             self.superuser_request = True
             self.user_is_admin = True
+        elif self.scope is not None:
+            self.superuser_request = False
+            self.user_is_admin = False
         else:
             user = config.db.users.find_one({'_id': self.uid}, ['root', 'disabled'])
             if not user:
