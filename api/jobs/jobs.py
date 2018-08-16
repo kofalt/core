@@ -276,7 +276,7 @@ class Job(object):
             A gear_list map from the gears table.
         """
 
-        if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
+        if gear['gear'].get('custom', {}).get('flywheel', {}).get('invalid', False):
             raise Exception('Gear marked as invalid, will not run!')
 
         uri = gear['exchange']['rootfs-url']
