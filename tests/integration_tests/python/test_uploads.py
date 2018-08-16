@@ -147,7 +147,10 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
     project = project_list[0]
     assert 'Unsorted' == project_list[0]['label']
     unknown_project = project['_id']
-    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 1
+    r = as_root.get('/projects/' + unknown_project + '/sessions')
+    assert r.ok
+    assert len(r.json()) == 1
+    assert r.json()[0].get('label') == 'gr-{}_proj-_ses-{}'.format(group_3, session_uid + '3')
 
     # Group given but project is missed typed
     r = as_root.post('/upload/reaper', files=upload_file_form(
