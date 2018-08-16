@@ -126,7 +126,7 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     assert update_result.modified_count == 1
 
     r = as_admin.get('/download', params={'ticket': ticket})
-    assert r.status_code == 400
+    assert r.status_code == 403
 
     # Try to retrieve a ticket referencing nonexistent containers
     r = as_admin.post('/download', json={
@@ -158,10 +158,6 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     })
     assert r.ok
     ticket = r.json()['ticket']
-
-    # Perform the download using symlinks
-    r = as_admin.get('/download', params={'ticket': ticket, 'symlinks': 'true'})
-    assert r.ok
 
     # test legacy cas file handling
     (project_legacy, file_name_legacy, file_content) = legacy_cas_file

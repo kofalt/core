@@ -1,7 +1,7 @@
 import webapp2
 import webapp2_extras.routes
 
-from .download                          import Download
+from .download.handlers                 import DownloadHandler
 from .handlers.abstractcontainerhandler import AbstractContainerHandler
 from .handlers.collectionshandler       import CollectionsHandler
 from .handlers.confighandler            import Config, Version
@@ -91,8 +91,8 @@ endpoints = [
 
         # General-purpose upload & download
 
-        route('/download',                                      Download, h='download',              m=['GET', 'POST']),
-        route('/download/summary',                              Download, h='summary',               m=['POST']),
+        route('/download',                                      DownloadHandler, h='download',              m=['GET', 'POST']),
+        route('/download/summary',                              DownloadHandler, h='summary',               m=['POST']),
         route('/upload/<strategy:label|uid|uid-match|reaper>',  Upload,   h='upload',                m=['POST']),
         route('/clean-packfiles',                               Upload,   h='clean_packfile_tokens', m=['POST']),
         route('/engine',                                        Upload,   h='engine',                m=['POST']),
