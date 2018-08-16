@@ -323,7 +323,7 @@ class Job(object):
             r['target']['env'][key] = gear['gear']['environment'][key]
 
         # Add command, if any
-        command_base = 'env; rm -rf output; mkdir -p output; '
+        command_base = ''
         if gear['gear'].get('command') is not None:
 
             command = render_template(gear['gear']['command'], self.config['config'])
