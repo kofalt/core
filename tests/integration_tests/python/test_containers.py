@@ -12,6 +12,7 @@ def test_switching_project_between_groups(data_builder, as_admin):
     r = as_admin.get('/projects/' + project)
     assert r.ok
     assert r.json()['group'] == group_2
+    assert r.json()['parents']['group'] == group_2
 
     # Test switching to nonexisting project
     r = as_admin.put('/projects/' + project, json={'group': "doesnotexist"})
@@ -29,6 +30,7 @@ def test_switching_session_between_projects(data_builder, as_admin):
     r = as_admin.get('/sessions/' + session)
     assert r.ok
     assert r.json()['project'] == project_2
+    assert r.json()['parents']['project'] == project_2
 
     # Test switching to nonexisting project
     r = as_admin.put('/sessions/' + session, json={'project': "000000000000000000000000"})
@@ -46,6 +48,7 @@ def test_switching_acquisition_between_sessions(data_builder, as_admin):
     r = as_admin.get('/acquisitions/' + acquisition)
     assert r.ok
     assert r.json()['session'] == session_2
+    assert r.json()['parents']['session'] == session_2
 
     # Test switching to nonexisting project
     r = as_admin.put('/acquisitions/' + acquisition, json={'session': "000000000000000000000000"})

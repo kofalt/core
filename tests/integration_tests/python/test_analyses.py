@@ -330,3 +330,29 @@ def check_files(as_admin, analysis_id, filegroup, *filenames):
     dirname = 'input' if filegroup == 'inputs' else 'output'
     with tarfile.open(mode='r', fileobj=cStringIO.StringIO(r.content)) as tar:
         assert set(m.name for m in tar.getmembers()) == set('/'.join([analysis['label'], dirname, fn]) for fn in filenames)
+
+
+def test_moving_session_moves_analyses(data_builder, as_admin):
+    project_1 = data_builder.create_project()
+    project_2 = data_builder.create_project()
+    session = data_builder.create_session(project=project_1)
+
+    # Create ad-hoc analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'offline'
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    parents = r.json()['parents']
+    assert parents['project'] == project_1
+
+    r = as_admin.put('/sessions/' + session, json={'project': project_2})
+    assert r.ok
+
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    parents = r.json()['parents']
+    assert parents['project'] == project_2

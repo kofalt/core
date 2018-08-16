@@ -1118,7 +1118,7 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
     assert r.ok
 
     # ensure only ro access
-    r = as_job_key.put('/projects/' + project, json={label='NewLabel'})
+    r = as_job_key.put('/projects/' + project, json={'label': 'NewLabel'})
     assert r.status_code == 403
 
     # ensure api_key can access public projects
@@ -1130,6 +1130,11 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
     project_3 = data_builder.create_project(public=False)
     r = as_job_key.get('/projects/' + project_3)
     assert r.status_code == 403
+
+    # test get_all
+    r = as_job_key.get('/projects')
+    assert r.ok
+    assert len(r.json()) == 2
 
     # complete job and ensure API key no longer works
     r = as_root.put('/jobs/' + job_id, json={'state': 'complete'})
