@@ -23,7 +23,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 53 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 54 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -1779,6 +1779,38 @@ def upgrade_to_53():
             {'_id': rule['_id']},
             {'$set': {'gear_id': gear_name_to_id[rule['alg']], 'auto_update': True},
              '$unset': {'alg': True}})
+
+def upgrade_children_to_54(cont, cont_name):
+    CHILD_MAP ={
+        "projects": "sessions",
+        "sessions": "acquisitions"
+    }
+    if cont_name == 'projects':
+        config.db.projects.update_one({'_id': cont['_id']}, {'$set': {'parents': {'group': cont['group']}}})
+        cont['parents'] = {'group': cont['group']}
+
+    cont_type = containerutil.singularize(cont_name)
+    parents = cont.get('parents', {})
+    parents[cont_type] = cont['_id']
+    config.db['analyses'].update_many({'parent.id': cont['_id']}, {'$set': {'parents': parents}})
+
+    if cont_name != 'acquisitions':
+        child_name = CHILD_MAP[cont_name]
+        config.db[child_name].update_many({cont_type: cont['_id']}, {'$set': {'parents': parents}})
+
+        cursor = config.db[child_name].find({cont_type: cont['_id']})
+        process_cursor(cursor, upgrade_children_to_54, child_name)
+
+    return True
+
+def upgrade_to_54():
+    """
+    Set parents for all projects, sessions, acquisitions, and analyses
+    """
+
+    cursor = config.db.projects.find({})
+    process_cursor(cursor, upgrade_children_to_54, 'projects')
+
 
 
 ###
