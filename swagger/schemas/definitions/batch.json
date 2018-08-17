@@ -15,7 +15,8 @@
     },
     "optional_input_policy": {
       "type": "string",
-      "enum": ["ignored", "flexible", "required"]
+      "enum": ["ignored", "flexible", "required"],
+      "description": "ignored: Ignore all optional inputs, flexible: match a file if it's there, otherwise still match the container, required: treat all optional inputs as required inputs."
     },
     "batch": {
       "type": "object",

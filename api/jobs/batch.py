@@ -87,8 +87,11 @@ def find_matching_conts(gear, containers, container_type, optional_input_policy,
                 opt_ignore = optional_input_policy == 'ignored' and is_optional_input
                 opt_required = optional_input_policy == 'required' or not is_optional_input
 
+                # Skip ambiguity check for this input if the policy is to ignore and the input is optional
                 if len(files) > 1 and not opt_ignore:
                     ambiguous = True
+                # Skip the not_matched check for this input if the policy is to ignore or to be flexible
+                # and the input is an optional input
                 elif opt_required and len(files) == 0:
                     not_matched = True
                     break
