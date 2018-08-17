@@ -127,8 +127,6 @@ class Download(base.RequestHandler):
         base_query = {'deleted': {'$exists': False}}
         if not self.superuser_request:
             base_query['permissions._id'] = self.uid
-        else:
-            base_query['permissions._id'] = None
 
         for item in req_spec['nodes']:
 
@@ -221,7 +219,7 @@ class Download(base.RequestHandler):
 
             elif item['level'] == 'analysis':
                 analysis_query = copy.deepcopy(base_query)
-                perm_query = analysis_query.pop('permissions._id')
+                perm_query = analysis_query.pop('permissions._id', None)
                 analysis = config.db.analyses.find_one(analysis_query, ['parent', 'label', 'inputs', 'files', 'uid', 'timestamp'])
                 analysis_query = {
                     'deleted': {'$exists': False},

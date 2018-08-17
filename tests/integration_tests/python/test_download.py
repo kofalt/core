@@ -9,7 +9,7 @@ import pytest
 from api import config, util
 
 
-def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
+def test_download_k(data_builder, file_form, as_admin, as_root, api_db, legacy_cas_file):
     project = data_builder.create_project(label='project1')
     session = data_builder.create_session(label='session1', project=project)
     session2 = data_builder.create_session(label='session1', project=project)
@@ -47,6 +47,23 @@ def test_download_k(data_builder, file_form, as_admin, api_db, legacy_cas_file):
     # Try to download w/ nonexistent ticket
     r = as_admin.get('/download', params={'ticket': missing_object_id})
     assert r.status_code == 404
+
+    # Retrieve a ticket for a batch download as superuser
+    r = as_root.post('/download', json={
+        'optional': False,
+        'filters': [{'tags': {
+            '-': ['minus']
+        }}],
+        'nodes': [
+            {'level': 'project', '_id': project},
+        ]
+    })
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # Perform the download
+    r = as_root.get('/download', params={'ticket': ticket})
+    assert r.ok
 
     # Retrieve a ticket for a batch download
     r = as_admin.post('/download', json={
