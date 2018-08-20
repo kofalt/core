@@ -27,7 +27,6 @@
         "rule-input": {
             "type": "object",
             "properties": {
-                "_id":          { "type": "string" },
                 "project_id":   { "type": "string" },
                 "gear_id":      { "type": "string" },
                 "name":         { "type": "string" },
