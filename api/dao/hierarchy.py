@@ -538,6 +538,8 @@ def upsert_top_down_hierarchy(metadata, type_='label', user=None, unsorted_proje
     now = datetime.datetime.utcnow()
     project_files = dict_fileinfos(project.pop('files', []))
     project_obj = _find_or_create_destination_project(group['_id'], project['label'], now, user, unsorted_projects)
+    if unsorted_projects and project_obj['label'] == 'Unsorted':
+        session['label'] = 'gr-{}_proj-{}_ses-{}'.format(group['_id'], project['label'], session['uid'])
     target_containers = _get_targets(project_obj, session, acquisition, type_, now)
     target_containers.append(
         (TargetContainer(project_obj, 'project'), project_files)
