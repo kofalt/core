@@ -83,6 +83,12 @@ class JobsTestCases(SdkTestCase):
 
         self.assertIn(r_job, jobs.jobs)
 
+        # Get all jobs
+        jobs = fw.get_all_jobs(limit=100, sort='created:desc')
+        self.assertIsNotNone(jobs)
+        self.assertGreaterEqual(len(jobs), 1)
+        self.assertTrue(any([ job.id == job_id for job in jobs]))
+
         # Cancel
         job_mod = flywheel.Job(state='cancelled')
         fw.modify_job(job_id, job_mod)
