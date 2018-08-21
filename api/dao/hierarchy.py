@@ -41,6 +41,8 @@ def get_container(cont_name, _id):
 
 def get_parent(cont_name, _id, parent_type):
     cont = get_container(cont_name, _id)
+    if cont_name == containerutil.pluralize(parent_type):
+        return cont['_id']
     if cont.get('parents') and cont['parents'].get(parent_type):
         return cont['parents'][parent_type]
 

@@ -57,7 +57,8 @@ class APIKey(object):
             'created': datetime.datetime.utcnow(),
             'uid': uid,
             'type': cls.key_type,
-            'last_used': None
+            'last_used': None,
+            'origin': {'type': cls.key_type, 'id': uid}
         }
 
     @classmethod
@@ -97,7 +98,7 @@ class JobApiKey(APIKey):
 
     # pylint: disable=arguments-differ
     @classmethod
-    def generate(cls, uid, job_id):
+    def generate(cls, uid, job_id, scope=None):
         """
         Returns an API key for user for use by a specific job.
         Re-uses such a key if it already exists.
@@ -116,6 +117,12 @@ class JobApiKey(APIKey):
         else:
             api_key = cls.generate_api_key(uid)
             api_key['job'] = job_id
+            if scope:
+                api_key['scope'] = scope
+            else:
+                api_key['origin']['via'] = {'type': api_key['origin']['type'],
+                                            'id': job_id}
+                api_key['origin']['type'] = 'user'
 
             config.db.apikeys.insert_one(api_key)
             return api_key['_id']
@@ -131,39 +138,8 @@ class JobApiKey(APIKey):
             raise APIAuthProviderException('Use of API key requires job to be in progress')
 
 
-class RuleApiKey(JobApiKey):
-    key_type = 'rule-job'
-
-    # pylint: disable=arguments-differ
-    @classmethod
-    def generate(cls, job_id, scope):
-        """
-        Returns an API key for the system for use by a specific job.
-        Re-uses such a key if it already exists.
-        """
-
-        job_id = str(job_id)
-
-        existing_key = config.db.apikeys.find_one({
-            'uid': 'system',
-            'job': job_id,
-        })
-
-        if existing_key is not None:
-            return existing_key['_id']
-
-        else:
-            api_key = cls.generate_api_key('system')
-            api_key['job'] = job_id
-            api_key['scope'] = scope
-
-            config.db.apikeys.insert_one(api_key)
-            return api_key['_id']
-
-
 APIKeyTypes = {
     'device': DeviceApiKey,
     'user': UserApiKey,
     'job': JobApiKey,
-    'rule-job': RuleApiKey,
 }

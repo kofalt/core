@@ -277,7 +277,8 @@ class DataBuilder(object):
                 'created': datetime.datetime.utcnow(),
                 'last_seen': None,
                 'type': 'user',
-                'uid': _id
+                'uid': _id,
+                'origin': {'type': 'user', 'id': _id}
             })
 
         self.resources.append((resource, _id))

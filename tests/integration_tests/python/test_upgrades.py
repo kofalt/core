@@ -480,6 +480,10 @@ def test_54(randstr, api_db, database):
     analysis = bson.ObjectId()
     api_db.analyses.insert_one({'_id': analysis, 'parent': {'type': 'session', 'id': session_2}})
 
+    # Create Apikey
+    apikey = bson.ObjectId()
+    api_db.apikeys.insert_one({'_id': apikey, 'uid': 'Me@some.com', 'type': 'user'})
+
     database.upgrade_to_54()
 
     project_1_parents = api_db.projects.find_one({'_id': project_1})['parents']
@@ -488,6 +492,7 @@ def test_54(randstr, api_db, database):
     session_2_parents = api_db.sessions.find_one({'_id': session_2})['parents']
     acquisition_parents = api_db.acquisitions.find_one({'_id': acquisition})['parents']
     analysis_parents = api_db.analyses.find_one({'_id': analysis})['parents']
+    apikey_origin = api_db.apikeys.find_one({'_id': apikey})['origin']
 
     assert project_1_parents['group'] == group
     assert project_2_parents['group'] == group
@@ -504,6 +509,9 @@ def test_54(randstr, api_db, database):
     assert acquisition_parents['session'] == session_1
     assert analysis_parents['session'] == session_2
 
+    assert apikey_origin['id'] == 'Me@some.com'
+    assert apikey_origin['type'] == 'user'
+
     api_db.groups.delete_one({'_id': group})
     api_db.projects.delete_one({'_id': project_1})
     api_db.projects.delete_one({'_id': project_2})
@@ -511,3 +519,4 @@ def test_54(randstr, api_db, database):
     api_db.sessions.delete_one({'_id': session_2})
     api_db.acquisitions.delete_one({'_id': acquisition})
     api_db.analyses.delete_one({'_id': analysis})
+    api_db.apikeys.delete_one({'_id': apikey})
