@@ -11,7 +11,7 @@ class FileSpec:
         self.content_type = content_type
 
     def to_file_tuple(self):
-        if not self.contents:
+        if self.contents is None:
             if not self.name:
                 raise RuntimeError('FileSpec is invalid, file or content is required!')
             # TODO: Switch to library that supports file streaming
