@@ -2,7 +2,7 @@
 Purpose of this module is to define all the permissions checker decorators for the ContainerHandler classes.
 """
 
-from . import _get_access, _check_scope, INTEGER_PERMISSIONS
+from . import _get_access, INTEGER_PERMISSIONS
 from ..web.errors import APIPermissionException
 
 
@@ -18,8 +18,6 @@ def default_container(handler, container=None, target_parent_container=None):
             errors = None
             if method == 'GET' and container.get('public', False):
                 has_access = True
-            elif not _check_scope(handler.scope, container, parent_container=target_parent_container):
-                has_access = False
             elif method == 'GET':
                 has_access = _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['ro']
             elif method == 'POST':
@@ -98,8 +96,6 @@ def default_referer(handler, parent_container=None):
             access = _get_access(handler.uid, parent_container, scope=handler.scope)
             if method == 'GET' and parent_container.get('public', False):
                 has_access = True
-            elif not _check_scope(handler.scope, None, parent_container=parent_container):
-                has_access = False
             elif method == 'GET':
                 has_access = access >= INTEGER_PERMISSIONS['ro']
             elif method in ['POST', 'PUT', 'DELETE']:

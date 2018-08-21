@@ -8,7 +8,7 @@ import sys
 from .. import config
 from ..types import Origin
 from ..web.errors import APIPermissionException
-from . import _get_access, _check_scope, INTEGER_PERMISSIONS
+from . import _get_access, INTEGER_PERMISSIONS
 
 log = config.log
 
@@ -48,9 +48,7 @@ def files_sublist(handler, container):
         def f(method, _id, query_params=None, payload=None, fileinfo=None, exclude_params=None):
             errors = None
             min_access = sys.maxint
-            if not _check_scope(handler.scope, container):
-                pass
-            elif method == 'GET':
+            if method == 'GET':
                 min_access = INTEGER_PERMISSIONS['ro']
             elif method in ['POST', 'PUT']:
                 min_access = INTEGER_PERMISSIONS['rw']
@@ -111,12 +109,10 @@ def permissions_sublist(handler, container):
     """
     the customized permissions checker for permissions operations.
     """
-    access = _get_access(handler.uid, container)
+    access = _get_access(handler.uid, container, scope=handler.scope)
     def g(exec_op):
         def f(method, _id, query_params = None, payload = None, exclude_params=None):
-            if not _check_scope(handler.scope, container):
-                handler.abort(403, 'user not authorized to perform a {} operation on the list'.format(method))
-            elif method in ['GET', 'DELETE']  and query_params.get('_id') == handler.uid:
+            if method in ['GET', 'DELETE']  and query_params.get('_id') == handler.uid:
                 return exec_op(method, _id, query_params, payload, exclude_params)
             elif access >= INTEGER_PERMISSIONS['admin']:
                 return exec_op(method, _id, query_params, payload, exclude_params)
@@ -132,9 +128,7 @@ def notes_sublist(handler, container):
     access = _get_access(handler.uid, container, scope=handler.scope)
     def g(exec_op):
         def f(method, _id, query_params = None, payload = None, exclude_params=None):
-            if not _check_scope(handler.scope, container):
-                handler.abort(403, 'user not authorized to perform a {} operation on the list'.format(method))
-            elif access >= INTEGER_PERMISSIONS['admin']:
+            if access >= INTEGER_PERMISSIONS['admin']:
                 pass
             elif method == 'POST' and access >= INTEGER_PERMISSIONS['rw'] and payload['user'] == handler.uid:
                 pass

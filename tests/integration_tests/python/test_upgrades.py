@@ -462,3 +462,52 @@ def test_53(randstr, default_payload, as_root, api_db, database):
     assert 'alg' not in rule
     assert 'gear_id' in rule
     assert rule['gear_id'] == gear_id_2
+
+def test_54(randstr, api_db, database):
+    # Create hierarchy
+    group = 'g1'
+    api_db.groups.insert_one({'_id': group})
+    project_1 = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project_1, 'group': group})
+    project_2 = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project_2, 'group': group})
+    session_1 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_1, 'project': project_1, 'group': group})
+    session_2 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_2, 'project': project_2, 'group': group})
+    acquisition = bson.ObjectId()
+    api_db.acquisitions.insert_one({'_id': acquisition, 'session': session_1})
+    analysis = bson.ObjectId()
+    api_db.analyses.insert_one({'_id': analysis, 'parent': {'type': 'session', 'id': session_2}})
+
+    database.upgrade_to_54()
+
+    project_1_parents = api_db.projects.find_one({'_id': project_1})['parents']
+    project_2_parents = api_db.projects.find_one({'_id': project_2})['parents']
+    session_1_parents = api_db.sessions.find_one({'_id': session_1})['parents']
+    session_2_parents = api_db.sessions.find_one({'_id': session_2})['parents']
+    acquisition_parents = api_db.acquisitions.find_one({'_id': acquisition})['parents']
+    analysis_parents = api_db.analyses.find_one({'_id': analysis})['parents']
+
+    assert project_1_parents['group'] == group
+    assert project_2_parents['group'] == group
+    assert session_1_parents['group'] == group
+    assert session_2_parents['group'] == group
+    assert acquisition_parents['group'] == group
+    assert analysis_parents['group'] == group
+
+    assert session_1_parents['project'] == project_1
+    assert session_2_parents['project'] == project_2
+    assert acquisition_parents['project'] == project_1
+    assert analysis_parents['project'] == project_2
+
+    assert acquisition_parents['session'] == session_1
+    assert analysis_parents['session'] == session_2
+
+    api_db.groups.delete_one({'_id': group})
+    api_db.projects.delete_one({'_id': project_1})
+    api_db.projects.delete_one({'_id': project_2})
+    api_db.sessions.delete_one({'_id': session_1})
+    api_db.sessions.delete_one({'_id': session_2})
+    api_db.acquisitions.delete_one({'_id': acquisition})
+    api_db.analyses.delete_one({'_id': analysis})

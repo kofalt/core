@@ -1072,9 +1072,16 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
     }
     gear = data_builder.create_gear(gear=gear_doc)
 
+    group = data_builder.create_group()
     project = data_builder.create_project(public=False)
-    session = data_builder.create_session()
-    acquisition = data_builder.create_acquisition()
+    session = data_builder.create_session(public=False)
+    acquisition = data_builder.create_acquisition(public=False)
+    # Create ad-hoc analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'offline_1',
+    })
+    assert r.ok
+    analysis = r.json()['_id']
 
     # Test the gear name tag with auto job rule
     rule = {
@@ -1093,7 +1100,6 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
     rule_id = r.json()['_id']
 
     # create job
-    # print gear_doc
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
 
     # get next job as admin
@@ -1117,10 +1123,6 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
     r = as_job_key.get('/projects/' + project)
     assert r.ok
 
-    # ensure only ro access
-    r = as_job_key.put('/projects/' + project, json={'label': 'NewLabel'})
-    assert r.status_code == 403
-
     # ensure api_key can access public projects
     project_2 = data_builder.create_project(public=True)
     r = as_job_key.get('/projects/' + project_2)
@@ -1131,10 +1133,81 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
     r = as_job_key.get('/projects/' + project_3)
     assert r.status_code == 403
 
+    # Test getting lists of containers
+    session_2 = data_builder.create_session(project=project_3, public=False)
+    acquisition_2 = data_builder.create_acquisition(session=session_2, public=False)
+    assert as_admin.post('/acquisitions/' + acquisition_2 + '/files', files=file_form('test.csv')).ok
+    # Create ad-hoc analysis
+    r = as_admin.post('/sessions/' + session_2 + '/analyses', json={
+        'label': 'offline_2',
+    })
+    assert r.ok
+    analysis_2 = r.json()['_id']
+
     # test get_all
     r = as_job_key.get('/projects')
     assert r.ok
     assert len(r.json()) == 2
+
+    r = as_job_key.get('/sessions')
+    assert r.ok
+    print r.json()
+    assert len(r.json()) == 1
+    assert session == r.json()[0]['_id']
+
+    r = as_job_key.get('/acquisitions')
+    assert r.ok
+    assert len(r.json()) == 1
+    assert acquisition == r.json()[0]['_id']
+
+    r = as_job_key.get('/sessions/' + session + '/analyses')
+    assert r.ok
+    assert len(r.json()) == 1
+    assert analysis == r.json()[0]['_id']
+
+    r = as_job_key.get('/sessions/' + session_2 + '/analyses')
+    assert r.status_code == 403
+
+    # Download file in scope
+    r = as_job_key.get('/acquisitions/' + acquisition + '/files/test.csv')
+    assert r.ok
+
+    # Try getting file from outside of scope
+    r = as_job_key.get('/acquisitions/' + acquisition_2 + '/files/test.csv')
+    assert r.status_code == 403
+
+    # Try creating containers
+    # r = as_job_key.post('/projects', json={'label': 'NewLabel', 'group': group})
+    # assert r.status_code == 403
+    r = as_job_key.post('/sessions', json={'label': 'NewLabel', 'project': project})
+    assert r.status_code == 403
+    r = as_job_key.post('/acquisitions', json={'label': 'NewLabel', 'session': session})
+    assert r.status_code == 403
+    # Create ad-hoc analysis
+    r = as_job_key.post('/sessions/' + session + '/analyses', json={
+        'label': 'offline_2'
+    })
+    assert r.status_code == 403
+
+    # Try uploading a file
+    r = as_job_key.post('/acquisitions/' + acquisition + '/files', files=file_form('test_1.csv'))
+    assert r.status_code == 403
+
+    # Try to modify different containers and sublists
+    r = as_job_key.put('/projects/' + project, json={'label': 'NewLabel'})
+    assert r.status_code == 403
+    r = as_job_key.put('/sessions/' + session, json={'label': 'NewLabel'})
+    assert r.status_code == 403
+    r = as_job_key.put('/acquisitions/' + acquisition, json={'label': 'NewLabel'})
+    assert r.status_code == 403
+    r = as_job_key.put('/sessions/' + session + '/analyses/' + analysis, json={'label': 'NewLabel'})
+    assert r.status_code == 403
+
+    # Try modifying the info of a file in the scope
+    r = as_job_key.post('/acquisitions/' + acquisition + '/files/test.csv/info', json={
+        'set': {'Key': 'Value'}
+    })
+    assert r.status_code == 403
 
     # complete job and ensure API key no longer works
     r = as_root.put('/jobs/' + job_id, json={'state': 'complete'})

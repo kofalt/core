@@ -27,6 +27,7 @@ def test_switching_session_between_projects(data_builder, as_admin):
     r = as_admin.put('/sessions/' + session, json={'project': project_2})
     assert r.ok
 
+    # Test that session parents and projects are up to date
     r = as_admin.get('/sessions/' + session)
     assert r.ok
     assert r.json()['project'] == project_2
