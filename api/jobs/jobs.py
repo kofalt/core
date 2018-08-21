@@ -276,7 +276,7 @@ class Job(object):
             A gear_list map from the gears table.
         """
 
-        if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
+        if gear['gear'].get('custom', {}).get('flywheel', {}).get('invalid', False):
             raise Exception('Gear marked as invalid, will not run!')
 
         uri = gear['exchange']['rootfs-url']
@@ -315,6 +315,13 @@ class Job(object):
             ],
         }
 
+        custom_uid = gear['gear'].get('custom', {}).get('flywheel', {}).get('uid', 0)
+        custom_gid = gear['gear'].get('custom', {}).get('flywheel', {}).get('gid', 0)
+
+        if custom_uid > 0 or custom_gid > 0:
+            r['target']['uid'] = int(custom_uid)
+            r['target']['gid'] = int(custom_gid)
+
         # Map destination to upload URI
         r['outputs'][0]['uri'] = '/engine?level=' + self.destination.type + '&id=' + self.destination.id
 
@@ -323,7 +330,7 @@ class Job(object):
             r['target']['env'][key] = gear['gear']['environment'][key]
 
         # Add command, if any
-        command_base = 'env; rm -rf output; mkdir -p output; '
+        command_base = ''
         if gear['gear'].get('command') is not None:
 
             command = render_template(gear['gear']['command'], self.config['config'])
