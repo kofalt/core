@@ -156,13 +156,12 @@ class DataViewConfig(object):
             for cont in self.containers:
                 # TODO: Remove once subject.code moves to label
                 label_key = 'code' if cont == 'subject' else 'label'
-                self.add_column(cont, label_key, '{}_label'.format(cont), idx=next(idx), allow_duplicate=False )
-
+                self.add_column(cont, label_key, '{}_label'.format(cont), datatype='string', idx=next(idx), allow_duplicate=False )
 
         if include_ids:
             # Append ids
             for cont in self.containers:
-                self.add_column( cont, '_id', '{}.id'.format(cont), 'string', allow_duplicate=False )
+                self.add_column( cont, '_id', '{}.id'.format(cont), datatype='string', allow_duplicate=False )
 
     def resolve_and_add_column(self, src, dst, datatype=None, expr=None, idx=None):
         """Resolve a column by name and add it to the various internal maps
