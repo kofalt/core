@@ -89,9 +89,6 @@
       "type": "array",
       "items": {"$ref": "file.json#/definitions/name"}
     },
-    "produced-metadata": {
-      "type": "object"
-    },
     "tags": {
       "type": "array",
       "items": {
@@ -147,8 +144,7 @@
         "modified":{"$ref":"created-modified.json#/definitions/modified"},
         "config":{"$ref":"#/definitions/config"},
         "request":{"$ref":"#/definitions/request"},
-        "saved_files":{"$ref":"#/definitions/saved_files"},
-        "produced_metadata":{"$ref":"#/definitions/produced-metadata"}
+        "saved_files":{"$ref":"#/definitions/saved_files"}
       },
       "additionalProperties":false,
       "x-sdk-model":"job"
@@ -170,8 +166,7 @@
         "modified":{"$ref":"created-modified.json#/definitions/modified"},
         "config":{"$ref":"#/definitions/config"},
         "request":{"$ref":"#/definitions/request"},
-        "saved_files":{"$ref":"#/definitions/saved_files"},
-        "produced_metadata":{"$ref":"#/definitions/produced-metadata"}
+        "saved_files":{"$ref":"#/definitions/saved_files"}
       },
       "additionalProperties":false
     },
