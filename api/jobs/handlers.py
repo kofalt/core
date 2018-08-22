@@ -825,6 +825,8 @@ class BatchHandler(base.RequestHandler):
             batch_proposal.pop('proposal')
 
         # Either way, return information about the status of the containers
+        if has_optional_input:
+            batch_proposal['optional_input_policy'] = optional_input_policy
         batch_proposal['not_matched'] = results.get('not_matched', [])
         batch_proposal['ambiguous'] = results.get('ambiguous', [])
         batch_proposal['matched'] = matched
