@@ -66,6 +66,13 @@ def get_latest_gear(name):
     if gears.count() > 0:
         return gears[0]
 
+def requires_read_write_key(gear):
+    for x in gear['gear'].get('inputs', {}).keys():
+        input_ = gear['gear']['inputs'][x]
+        if input_.get('base') == 'api-key' and not input_.get('read-only'):
+            return True
+    return False
+
 def get_invocation_schema(gear):
     return gear_tools.derive_invocation_schema(gear['gear'])
 

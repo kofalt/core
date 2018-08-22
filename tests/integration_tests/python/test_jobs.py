@@ -1061,16 +1061,22 @@ def test_job_requests(randstr, default_payload, data_builder, as_admin, as_drone
         assert request_input.get('type')
 
 
-def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, as_root, api_db, file_form):
+def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, as_admin, as_root, api_db, file_form):
     gear_doc = default_payload['gear']['gear']
-    gear_name = 'gear-name'
-    gear_doc['name'] = gear_name
+
+    rw_gear_name = randstr()
+    gear_doc['name'] = rw_gear_name
     gear_doc['inputs'] = {
         "api_key": {
           "base": "api-key"
         }
     }
-    gear = data_builder.create_gear(gear=gear_doc)
+    rw_gear = data_builder.create_gear(gear=gear_doc)
+    gear_name = randstr()
+    gear_doc['name'] = gear_name
+    ro_gear = data_builder.create_gear(gear=gear_doc)
+
+    api_db.gears.update_one({'_id': bson.ObjectId(ro_gear)}, {'$set': {'gear.inputs.api_key.read-only': True}})
 
     group = data_builder.create_group()
     project = data_builder.create_project(public=False)
@@ -1085,7 +1091,7 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
 
     # Test the gear name tag with auto job rule
     rule = {
-        'gear_id': gear,
+        'gear_id': rw_gear,
         'name': 'job-trigger-rule',
         'any': [],
         'not': [],
@@ -1093,6 +1099,12 @@ def test_scoped_job_api_key(data_builder, default_payload, as_public, as_admin, 
             {'type': 'file.type', 'value': 'tabular data'}],
         'disabled': False
     }
+
+    # Try to add rule with gear that requires read-write api-key
+    r = as_admin.post('/projects/' + project + '/rules', json=rule)
+    assert r.status_code == 400
+
+    rule['gear_id'] = ro_gear
 
     # add project rule
     r = as_admin.post('/projects/' + project + '/rules', json=rule)

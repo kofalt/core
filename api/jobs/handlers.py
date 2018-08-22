@@ -29,7 +29,7 @@ from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear,
     get_invocation_schema, remove_gear,
     upsert_gear, check_for_gear_insertion,
-    add_suggest_info_to_files, count_file_inputs
+    add_suggest_info_to_files, count_file_inputs, requires_read_write_key
 )
 
 from .jobs import Job, JobTicket, Logs
@@ -46,16 +46,25 @@ class GearsHandler(base.RequestHandler):
     def get(self):
         """List all gears."""
 
-        # NOTE Filtering with `?filter=single_input` is not compatible with pagination
+        # NOTE Filtering with `?filter=single_input` or `read_only_key` is not compatible with pagination
         # because filtering after the query invalidates total and count.
         # Ignoring any pagination headers/params for backwards compatibility.
-        if 'single_input' in self.request.GET.getall('filter'):
-            gears = get_gears(all_versions=self.is_true('all_versions'))
-            return [gear for gear in gears if count_file_inputs(gear) <= 1]
+        filters = self.request.GET.getall('filter')
+        filtered = False
+
+        gears = get_gears(all_versions=self.is_true('all_versions'))
+        if 'single_input' in filters:
+            filtered = True
+            gears = [gear for gear in gears if count_file_inputs(gear) <= 1]
+        if 'read_only_key' in filters:
+            filtered = True
+            gears = [gear for gear in gears if not requires_read_write_key(gear)]
+
+        if filtered:
+            return gears
 
         gear_page = get_gears(all_versions=self.is_true('all_versions'), pagination=self.pagination)
         return self.format_page(gear_page)
-
 
     @require_login
     def check(self):
@@ -279,6 +288,9 @@ class RulesHandler(base.RequestHandler):
         validate_regexes(payload)
         validate_gear_config(get_gear(payload['gear_id']), payload.get('config'))
 
+        if requires_read_write_key(get_gear(payload['gear_id'])):
+            raise InputValidationException("Cannot create rule with a gear that requires a read-write api-key.")
+
         if payload.get('auto_update'):
             gear_name = get_gear(payload['gear_id'])['gear']['name']
             gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
@@ -359,6 +371,8 @@ class RuleHandler(base.RequestHandler):
         gear_id = updates.get('gear_id', doc['gear_id'])
         config_ = updates.get('config', doc.get('config'))
         validate_gear_config(get_gear(gear_id), config_)
+        if requires_read_write_key(get_gear(gear_id)):
+            raise InputValidationException("Rule cannot use a gear that requires a read-write api-key.")
 
         doc.update(updates)
         config.db.project_rules.replace_one({'_id': bson.ObjectId(rid)}, doc)
