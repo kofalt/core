@@ -1,5 +1,4 @@
 import calendar
-import copy
 import datetime
 from api.web.request import AccessTypeList
 
