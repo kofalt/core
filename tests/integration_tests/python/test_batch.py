@@ -817,9 +817,46 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     assert len(job2_inputs) == 1
     assert 'text' in job2_inputs
 
+    # Try creating batch with optional inputs and api-key input
+    gear_doc['gear']['inputs'] = {
+        'text': {
+            'base': 'file',
+            'name': {'pattern': '^.*.txt$'},
+            'size': {'maximum': 100000}
+        },
+        'csv': {
+            'base': 'file',
+            'name': {'pattern': '^.*.csv$'},
+            'size': {'maximum': 100000},
+            'optional': True
+        },
+        'api_key': {
+            'base': 'api-key'
+        }
+    }
+    gear_doc['gear']['version'] = '1'
+
+    r = as_root.post('/gears/' + gear_name, json=gear_doc)
+    assert r.ok
+    gear_v1 = r.json()['_id']
+
+    # create a batch not requiring optional inputs
+    r = as_admin.post('/batch', json={
+        'gear_id': gear_v1,
+        'optional_input_policy': 'flexible',
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.ok
+    batch3 = r.json()
+    r = as_admin.post('/batch/' + batch3['_id'] + '/run')
+    assert r.ok
+
+
     # Cleanup
     r = as_root.delete('/gears/' + gear)
     assert r.ok
+    r = as_root.delete('/gears/' + gear_v1)
+    assert r.ok
 
     # must remove jobs manually because gears were added manually
-    api_db.jobs.remove({'gear_id': {'$in': [gear]}})
+    api_db.jobs.remove({'gear_id': {'$in': [gear, gear_v1]}})
