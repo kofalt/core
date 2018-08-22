@@ -1,4 +1,7 @@
 import unittest
+import tempfile
+import os
+
 from sdk_test_case import SdkTestCase
 from test_acquisition import create_test_acquisition
 from test_gear import create_test_gear
@@ -17,18 +20,30 @@ class MixinTestCases(SdkTestCase):
         if self.gear_id is not None:
             self.fw.delete_gear(self.gear_id)
 
+    def test_update(self):
+        fw = self.fw
+
+        project = fw.get_project(self.project_id)
+        # Two styles of updates
+        project.update(label='My Project')
+        project.update({'description': 'This is my test project'})
+
+        r_project = project.reload()
+        self.assertEqual(r_project.label, 'My Project')
+        self.assertEqual(r_project.description, 'This is my test project')
+
     def test_child_mixins(self):
         fw = self.fw
 
         # Upload file to project
-        poem = 'When a vast image out of Spiritus Mundi'
-        fw.upload_file_to_project(self.project_id, flywheel.FileSpec('yeats.txt', poem))
+        poem = b'When a vast image out of Spiritus Mundi'
+        fw.upload_file_to_project(self.project_id, flywheel.FileSpec('yeats.dat', poem))
 
         # TODO: Test Analyses
 
         # GROUP
         r_group = fw.get_group(self.group_id)
-        projects = r_group.get_projects()
+        projects = r_group.projects
 
         self.assertIsNotNone(projects)
         self.assertEqual(len(projects), 1)
@@ -37,21 +52,49 @@ class MixinTestCases(SdkTestCase):
         self.assertEqual(r_project.id, self.project_id)
         self.assertEqual(r_project.container_type, 'project')
 
-        # Try project.resolve_children()
-        # - even though we will only get 1 session here
-        children = r_project.resolve_children()
-        self.assertIsNotNone(children)
-
-        self.assertEqual(len(children), 2)
-        r_session = children[0]
+        self.assertEqual(1, len(r_project.sessions))
+        r_session = r_project.sessions[0]
         self.assertEqual(r_session.id, self.session_id)
         self.assertEqual(r_session.project, self.project_id)
 
-        r_file = children[1]
-        self.assertEqual(r_file.name, 'yeats.txt')
+        # Assert that file has a parent
+        self.assertEqual(1, len(r_project.files))
+        self.assertEqual(r_project.files[0].parent, r_project)
+
+        # Test load files
+        r_project._files = None
+
+        self.assertEqual(1, len(r_project.files))
+        r_file = r_project.files[0]
+        self.assertEqual(r_file.parent, r_project)
+        self.assertEqual(r_file.name, 'yeats.dat')
         self.assertEqual(r_file.size, len(poem))
 
-        acquisitions = r_session.get_acquisitions()
+        # Read file
+        data = r_file.read()
+        self.assertEqual(data, poem)
+
+        # Get url
+        ticket_url1 = r_file.url
+        self.assertIsNotNone(ticket_url1)
+        ticket_url2 = r_file.url
+        self.assertNotEqual(ticket_url1, ticket_url2)
+
+        # Download file
+        fd, path = tempfile.mkstemp()
+        os.close(fd)
+
+        try:
+            r_file.download(path)
+
+            with open(path, 'rb') as f:
+                data = f.read()
+            self.assertEqual(data, poem)
+        finally:
+            os.remove(path)
+
+        # Read acquisitions
+        acquisitions = r_session.acquisitions
         self.assertIsNotNone(acquisitions)
         self.assertEqual(len(acquisitions), 1)
 
