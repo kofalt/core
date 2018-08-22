@@ -1806,7 +1806,8 @@ def upgrade_children_to_54(cont, cont_name):
 def upgrade_api_keys_to_54(cont):
     config.db.apikeys.update_one({'_id': cont['_id']},
                                  {'$set': {'origin': {'type': cont['type'],
-                                                      'id': cont['uid']}}})
+                                                      'id': cont['uid']}},
+                                  '$unset': {'uid': ''}})
     return True
 
 def upgrade_to_54():

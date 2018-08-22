@@ -55,7 +55,6 @@ class APIKey(object):
         return {
             '_id': util.create_nonce(),
             'created': datetime.datetime.utcnow(),
-            'uid': uid,
             'type': cls.key_type,
             'last_used': None,
             'origin': {'type': cls.key_type, 'id': uid}
@@ -67,13 +66,13 @@ class APIKey(object):
         Generates API key, replaces existing API key if it exists
         """
         api_key = cls.generate_api_key(uid)
-        config.db.apikeys.delete_many({'uid': uid, 'type': cls.key_type})
+        config.db.apikeys.delete_many({'origin.id': uid, 'type': cls.key_type})
         config.db.apikeys.insert_one(api_key)
         return api_key['_id']
 
     @classmethod
     def get(cls, uid):
-        return config.db.apikeys.find_one({'uid': uid, 'type': cls.key_type})
+        return config.db.apikeys.find_one({'origin.id': uid, 'type': cls.key_type})
 
     @classmethod
     def check(cls, api_key):
@@ -107,7 +106,7 @@ class JobApiKey(APIKey):
         job_id = str(job_id)
 
         existing_key = config.db.apikeys.find_one({
-            'uid': uid,
+            'origin.id': uid,
             'job': job_id,
         })
 

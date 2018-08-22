@@ -34,7 +34,7 @@ def _check_scope(scope, container, parent_container=None):
     if container and container.get('parents'):
         return scope['id'] in container['parents'].itervalues() or scope['id'] == container['_id']
     elif parent_container and parent_container.get('parents'):
-        return scope['id'] in parent_container['parents'].itervalues()
+        return scope['id'] in parent_container['parents'].itervalues() or scope['id'] == parent_container['_id']
 
 def has_access(uid, container, perm):
     return _get_access(uid, container) >= INTEGER_PERMISSIONS[perm]

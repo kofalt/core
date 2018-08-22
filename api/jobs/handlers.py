@@ -496,7 +496,7 @@ class JobHandler(base.RequestHandler):
                             uid = j.origin['id']
                             api_key = JobApiKey.generate(uid, j.id_)
                         elif 'auto' in j.tags:
-                            project_id = hierarchy.get_parent(pluralize(j.destination.type), j.destination.id, 'project')
+                            project_id = cs_factory(pluralize(j.destination.type)).get_parent_id(j.destination.id, 'project')
                             api_key = JobApiKey.generate(None, j.id_, scope={'level': 'project', 'id': project_id, 'access': 'ro'})
                         else:
                             raise Exception('Cannot provide an API key to a job not launched by a user')

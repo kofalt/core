@@ -480,7 +480,10 @@ def test_54(randstr, api_db, database):
     analysis = bson.ObjectId()
     api_db.analyses.insert_one({'_id': analysis, 'parent': {'type': 'session', 'id': session_2}})
 
-    # Create Apikey
+    # Create Apikey, also make sure other apikeys follow old schema
+    cursor = api_db.apikeys.find({})
+    for key in cursor:
+        api_db.apikeys.update_one({'_id': key['_id']}, {'$set': {'uid': key['origin']['id']}, '$unset': {'origin': ""}})
     apikey = bson.ObjectId()
     api_db.apikeys.insert_one({'_id': apikey, 'uid': 'Me@some.com', 'type': 'user'})
 

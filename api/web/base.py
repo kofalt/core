@@ -69,7 +69,7 @@ class RequestHandler(webapp2.RequestHandler):
                 if api_key.get('type') == 'device':
                     drone_request = True  # Grant same access for backwards compatibility
                 else:
-                    self.uid = api_key['uid']
+                    self.uid = api_key['origin']['id']
                     if 'job' in api_key:
                         self.scope = api_key.get('scope')
             else:

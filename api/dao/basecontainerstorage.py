@@ -249,6 +249,13 @@ class ContainerStorage(object):
         else:
             raise APIStorageException('The container level {} has no parent.'.format(self.cont_name))
 
+    def get_parent_id(self, _id, parent_type):
+        cont = self.get_container(_id)
+        if self.cont_name == containerutil.pluralize(parent_type):
+            return cont['_id']
+        if cont.get('parents') and cont['parents'].get(parent_type):
+            return cont['parents'][parent_type]
+
 
     def _from_mongo(self, cont):
         pass
