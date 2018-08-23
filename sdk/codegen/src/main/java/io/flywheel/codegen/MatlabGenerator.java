@@ -207,6 +207,23 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         // Dataview files
         supportingFiles.add(new SupportingFile("ViewBuilder.m", packageFolder, "ViewBuilder.m"));
 
+        // Mixin Files
+        final String mixinFolder = packageFolder + "/+mixins";
+        supportingFiles.add(new SupportingFile("mixins/ContainerBase.mustache", mixinFolder, "ContainerBase.m"));
+
+        supportingFiles.add(new SupportingFile("mixins/FileMethods.mustache", mixinFolder, "FileMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/InfoMethods.mustache", mixinFolder, "InfoMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/NoteMethods.mustache", mixinFolder, "NoteMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/PermissionMethods.mustache", mixinFolder, "PermissionMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/TagMethods.mustache", mixinFolder, "TagMethods.m"));
+
+        supportingFiles.add(new SupportingFile("mixins/GroupMixin.mustache", mixinFolder, "GroupMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/ProjectMixin.mustache", mixinFolder, "ProjectMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/SessionMixin.mustache", mixinFolder, "SessionMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/AcquisitionMixin.mustache", mixinFolder, "AcquisitionMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/AnalysisMixin.mustache", mixinFolder, "AnalysisMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/FileMixin.mustache", mixinFolder, "FileMixin.m"));
+
         // Documentation Files
         final String docFolder = "sphinx/source";
         supportingFiles.add(new SupportingFile("doc/conf.mustache", docFolder, "conf.py"));

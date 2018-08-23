@@ -1,0 +1,23 @@
+classdef SessionMixin < {{packageName}}.mixins.ContainerBase ...
+        & {{packageName}}.mixins.TagMethods ...
+        & {{packageName}}.mixins.InfoMethods ...
+        & {{packageName}}.mixins.NoteMethods ...
+        & {{packageName}}.mixins.FileMethods
+    properties
+        containerType = 'Session';
+        acquisitions_ = false;
+        analyses_ = false;
+    end
+    properties(Dependent)
+        acquisitions
+        analyses
+    end
+    methods
+        function sessions = get.acquisitions(obj)
+            sessions = obj.getChildren('Acquisitions');
+        end
+        function analyses = get.analyses(obj)
+            analyses = obj.getChildren('Analyses');
+        end
+    end
+end

@@ -57,19 +57,20 @@ assert(strcmp(group.label,'testdrive'), errMsg)
 disp('Testing Projects')
 
 projectId = fw.addProject(struct('label',testString,'group',groupId));
+project = fw.getProject(projectId);
 
-fw.addProjectTag(projectId, 'blue');
-fw.modifyProject(projectId, struct('label','testdrive'));
-fw.addProjectNote(projectId, 'This is a note');
+project.addTag('blue');
+project.update('label', 'testdrive');
+project.addNote('This is a note');
 
 projects = fw.getAllProjects();
 assert(~isempty(projects), errMsg)
 
-fw.uploadFileToProject(projectId, filename);
+project.uploadFile(filename);
 projectDownloadFile = fullfile(tempdir, 'download.txt');
-fw.downloadFileFromProject(projectId, filename, projectDownloadFile);
+project.downloadFile(filename, projectDownloadFile);
 
-project = fw.getProject(projectId);
+project = project.reload();
 assert(strcmp(project.tags{1},'blue'), errMsg)
 assert(strcmp(project.label,'testdrive'), errMsg)
 assert(strcmp(project.notes{1}.text, 'This is a note'), errMsg)
@@ -77,7 +78,7 @@ assert(strcmp(project.files{1}.name, filename), errMsg)
 s = dir(projectDownloadFile);
 assert(project.files{1}.size == s.bytes, errMsg)
 
-projectDownloadUrl = fw.getProjectDownloadUrl(projectId, filename);
+projectDownloadUrl = project.files{1}.url;
 assert(~strcmp(projectDownloadUrl, ''), errMsg)
 
 %% Subjects
@@ -127,7 +128,7 @@ fw.addSessionTag(sessionId, 'blue');
 fw.modifySession(sessionId, struct('label', 'testdrive'));
 fw.addSessionNote(sessionId, 'This is a note');
 
-sessions = fw.getProjectSessions(projectId);
+sessions = project.sessions;
 assert(~isempty(sessions), errMsg)
 
 sessions = fw.getAllSessions();
@@ -185,6 +186,54 @@ assert(acq.files{1}.size == s.bytes, errMsg)
 
 acqDownloadUrl = fw.getAcquisitionDownloadUrl(acqId, filename);
 assert(~strcmp(acqDownloadUrl, ''), errMsg)
+
+acqFile = acq.files{1};
+
+% Update file modality and type
+acqFile.update('modality', 'modality', 'type', 'type');
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(strcmp(acqFile.modality, 'modality'), errMsg);
+assert(strcmp(acqFile.type, 'type'), errMsg);
+
+% Test classification functions
+acqFile.replaceClassification('classification', ...
+    struct('Custom', {{'measurement1', 'measurement2'}}), ...
+    'modality', 'modality2');
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(strcmp(acqFile.modality, 'modality2'));
+assert(strcmp(acqFile.classification.Custom{1}, 'measurement1'), errMsg);
+assert(strcmp(acqFile.classification.Custom{2}, 'measurement2'), errMsg);
+
+acqFile.updateClassification(struct('Custom', {{'HelloWorld'}}));
+acqFile.deleteClassification(struct('Custom', {{'measurement2'}}));
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(strcmp(acqFile.classification.Custom{1}, 'measurement1'), errMsg);
+assert(strcmp(acqFile.classification.Custom{2}, 'HelloWorld'), errMsg);
+
+% Test file info
+acqFile.replaceInfo(struct('a', 1, 'b', 2, 'c', 3, 'd', 4));
+acqFile.updateInfo('c', 5);
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(acqFile.info.a == 1, errMsg);
+assert(acqFile.info.b == 2, errMsg);
+assert(acqFile.info.c == 5, errMsg);
+assert(acqFile.info.d == 4, errMsg);
+
+acqFile.deleteInfo({{'c', 'd'}});
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(acqFile.info.a == 1, errMsg);
+assert(acqFile.info.b == 2, errMsg);
+assert(~isfield(acqFile.info, 'c'), errMsg);
+assert(~isfield(acqFile.info, 'd'), errMsg);
 
 %% Collections
 disp('Testing Collections')

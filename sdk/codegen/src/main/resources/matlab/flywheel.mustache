@@ -62,7 +62,7 @@ classdef Flywheel < handle
 
             {{#apiInfo}}
             {{#apis}}
-            obj.{{classVarName}} = {{apiPackage}}.{{classname}}(obj.apiClient);
+            obj.{{classVarName}} = {{apiPackage}}.{{classname}}(obj.apiClient, obj);
             {{/apis}}
             {{/apiInfo}}
 

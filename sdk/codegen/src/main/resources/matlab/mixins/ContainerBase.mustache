@@ -1,0 +1,45 @@
+classdef ContainerBase < handle
+    properties
+        context_
+    end
+    methods
+        function [returnData, resp] = update(obj, varargin)
+            body = {{packageName}}.mixins.ContainerBase.structFromArgs(varargin);
+            [returnData, resp] = obj.invokeContainerApi('modify%s', obj.get('id'), body);
+        end
+        function [returnData, resp] = reload(obj)
+            [returnData, resp] = obj.invokeContainerApi('get%s', obj.get('id'));
+        end
+    end
+    methods(Hidden)
+        function [returnData, resp] = invokeContainerApi(obj, name, varargin)
+            fn = str2func(sprintf(name, obj.containerType));
+            [returnData, resp] = fn(obj.context_, varargin{:});
+        end
+        function result = getChildren(obj, childName)
+            varName = strcat(lower(childName), '_');
+            if islogical(obj.(varName)) && obj.(varName) == false
+                fn = str2func(sprintf('get%s%s', obj.containerType, childName));
+                obj.(varName) = fn(obj.context_, obj.get('id'));
+            end
+            result = obj.(varName);
+        end
+    end
+    methods(Static, Hidden)
+        function body = structFromArgs(varargs)
+            if numel(varargs) == 1
+                body = varargs{1};
+            else
+                p = inputParser;
+                p.StructExpand = false;
+                p.KeepUnmatched = true;
+                parse(p, varargs{:});
+                body = p.Unmatched;
+            end
+
+            if isempty(body)
+                throw(MException('ApiClient:inputError', 'Must provide a body!'));
+            end
+        end
+    end
+end

@@ -1,0 +1,18 @@
+classdef AcquisitionMixin < {{packageName}}.mixins.ContainerBase ...
+        & {{packageName}}.mixins.TagMethods ...
+        & {{packageName}}.mixins.InfoMethods ...
+        & {{packageName}}.mixins.NoteMethods ...
+        & {{packageName}}.mixins.FileMethods
+    properties
+        containerType = 'Acquisition';
+        analyses_ = false;
+    end
+    properties(Dependent)
+        analyses
+    end
+    methods
+        function analyses = get.analyses(obj)
+            analyses = obj.getChildren('Analyses');
+        end
+    end
+end

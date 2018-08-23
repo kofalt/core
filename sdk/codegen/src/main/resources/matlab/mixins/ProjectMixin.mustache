@@ -1,0 +1,24 @@
+classdef ProjectMixin < {{packageName}}.mixins.ContainerBase ...
+        & {{packageName}}.mixins.TagMethods ...
+        & {{packageName}}.mixins.InfoMethods ...
+        & {{packageName}}.mixins.NoteMethods ...
+        & {{packageName}}.mixins.FileMethods ...
+        & {{packageName}}.mixins.PermissionMethods
+    properties
+        containerType = 'Project';
+        sessions_ = false;
+        analyses_ = false;
+    end
+    properties(Dependent)
+        sessions
+        analyses
+    end
+    methods
+        function sessions = get.sessions(obj)
+            sessions = obj.getChildren('Sessions');
+        end
+        function analyses = get.analyses(obj)
+            analyses = obj.getChildren('Analyses');
+        end
+    end
+end
