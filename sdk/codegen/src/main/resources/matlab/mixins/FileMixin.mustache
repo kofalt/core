@@ -4,10 +4,14 @@ classdef FileMixin < {{packageName}}.mixins.ContainerBase
     end
     properties(Dependent)
         url
+        parent
     end
     methods
         function result = get.url(obj)
             result = obj.parent_.getFileDownloadUrl(obj.get('name'));
+        end
+        function result = get.parent(obj)
+            result = obj.parent_;
         end
         function resp = download(obj, destFile, varargin)
             resp = obj.parent_.downloadFile(obj.get('name'), destFile, varargin{:});
