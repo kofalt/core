@@ -3,13 +3,16 @@ import copy
 import datetime
 import dateutil
 import pymongo
+import os
 import uuid
 import zipfile
+
+from backports import tempfile
 
 import fs.path
 import fs.errors
 
-from . import config, util, validators
+from . import config, util, validators, files
 from .dao import containerutil, hierarchy
 from .dao.containerstorage import SessionStorage, AcquisitionStorage
 from .jobs import rules
@@ -447,6 +450,8 @@ class PackfilePlacer(Placer):
         self.folder         = None
         self.dir_           = None
         self.name           = None
+        self.local_path     = None
+        self.local_zip_     = None
         self.path           = None
         self.zip_           = None
         self.ziptime        = None
@@ -514,6 +519,16 @@ class PackfilePlacer(Placer):
         self.dir_ = util.sanitize_string_to_filename(self.a_label)
         self.name = self.dir_ + '.zip'
 
+        ######
+        # TODO: improve hash calculation
+        # Temp solution to avoid download the zip file again to calculate its hash
+        self.tempdir = tempfile.TemporaryDirectory(prefix='.tmp', dir=config.get_item('persistent', 'data_path'))
+
+        self.local_path = os.path.join(self.tempdir.name, 'temp.zip')
+        self.local_zip_ = zipfile.ZipFile(self.local_path, 'w', zipfile.ZIP_DEFLATED, allowZip64=True)
+        ######
+
+        # Zipfile on the destination storage
         # Create a zip in the tempdir that later gets moved into the CAS.
         self.path = u'temp.zip'
         self.zip_ = zipfile.ZipFile(self.file_processor.temp_fs.open(self.path, 'wb'),
@@ -542,6 +557,10 @@ class PackfilePlacer(Placer):
 
             # Place file into the zip folder we created before
             with config.local_fs.open(full_path, 'rb') as f:
+                # TODO: Remove this when the hash calculation improved
+                self.local_zip_.writestr(fs.path.join(self.dir_, path), f.read())
+                #####
+                f.seek(0)
                 self.zip_.writestr(fs.path.join(self.dir_, path), f.read())
 
             # Report progress
@@ -551,6 +570,8 @@ class PackfilePlacer(Placer):
                 'data': { 'done': complete, 'total': total, 'percent': (complete / float(total)) * 100 },
             })
 
+        # TODO: Remove this when the hash calculation improved
+        self.local_zip_.close()
         self.zip_.close()
 
         # Remove the folder created by TokenPlacer
@@ -563,7 +584,9 @@ class PackfilePlacer(Placer):
             'type': str(Origin.user),
             'id': uid
         }
-
+        with open(self.local_path, 'rb') as f:
+            hash = files.FileProcessor.hash_file_formatted(f)
+        os.remove(self.local_path)
 
         # Create an anyonmous object in the style of our augmented file fields.
         # Not a great practice. See process_upload() for details.
@@ -571,7 +594,7 @@ class PackfilePlacer(Placer):
             'filename': self.name,
             'path': self.path,
             'size': int(self.file_processor.temp_fs.getsize(self.path)),
-            'hash': self.file_processor.hash_file_formatted(self.path, self.file_processor.temp_fs),
+            'hash': hash,
             'uuid': str(uuid.uuid4()),
             'mimetype': util.guess_mimetype('lol.zip'),
             'modified': self.timestamp

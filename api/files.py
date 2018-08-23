@@ -91,23 +91,20 @@ class FileProcessor(object):
 
         return form
 
-    def hash_file_formatted(self, filepath, f_system, hash_alg=None, buffer_size=65536):
+    @staticmethod
+    def hash_file_formatted(file_obj, hash_alg=None, buffer_size=65536):
         """
         Return the scitran-formatted hash of a file, specified by path.
         """
 
-        if not isinstance(filepath, unicode):
-            filepath = six.u(filepath)
-
         hash_alg = hash_alg or DEFAULT_HASH_ALG
         hasher = hashlib.new(hash_alg)
 
-        with f_system.open(filepath, 'rb') as f:
-            while True:
-                data = f.read(buffer_size)
-                if not data:
-                    break
-                hasher.update(data)
+        while True:
+            data = file_obj.read(buffer_size)
+            if not data:
+                break
+            hasher.update(data)
 
         return util.format_hash(hash_alg, hasher.hexdigest())
 
