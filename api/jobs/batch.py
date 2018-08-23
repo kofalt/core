@@ -54,7 +54,8 @@ def get(batch_id, projection=None, get_jobs=False):
 
     return batch_job
 
-def find_matching_conts(gear, containers, container_type, context_inputs=False, uid=None):
+def find_matching_conts(gear, containers, container_type, optional_input_policy,
+                        context_inputs=False, uid=None):
     """
     Give a gear and a list of containers, find files that:
       - have no solution to the gear's input schema (not matched)
@@ -79,12 +80,19 @@ def find_matching_conts(gear, containers, container_type, context_inputs=False, 
             suggestions = gears.suggest_for_files(gear, files, context=context)
 
             # Determine if any of the inputs are ambiguous or not satisfied
-            ambiguous = False # Are any of the inputs ambiguous?
+            ambiguous = False  # Are any of the inputs ambiguous?
             not_matched = False
-            for files in suggestions.itervalues():
-                if len(files) > 1:
+            for input_name, files in suggestions.iteritems():
+                is_optional_input = gear['gear']['inputs'][input_name].get('optional', False)
+                opt_ignore = optional_input_policy == 'ignored' and is_optional_input
+                opt_required = optional_input_policy == 'required' or not is_optional_input
+
+                # Skip ambiguity check for this input if the policy is to ignore and the input is optional
+                if len(files) > 1 and not opt_ignore:
                     ambiguous = True
-                elif len(files) == 0:
+                # Skip the not_matched check for this input if the policy is to ignore or to be flexible
+                # and the input is an optional input
+                elif opt_required and len(files) == 0:
                     not_matched = True
                     break
 
@@ -97,7 +105,12 @@ def find_matching_conts(gear, containers, container_type, context_inputs=False, 
                 # Create input map of file refs
                 inputs = {}
                 for input_name, suggested_inputs in suggestions.iteritems():
-                    if suggested_inputs[0]['base'] == 'file':
+                    is_optional_input = gear['gear']['inputs'][input_name].get('optional', False)
+                    no_suggested_inputs = optional_input_policy == 'ignored' or len(suggested_inputs) == 0
+
+                    if no_suggested_inputs and is_optional_input:
+                        continue
+                    elif suggested_inputs[0]['base'] == 'file':
                         inputs[input_name] = {'type': container_type, 'id': str(c['_id']), 'name': suggested_inputs[0]['name']}
                     else:
                         inputs[input_name] = suggested_inputs[0]

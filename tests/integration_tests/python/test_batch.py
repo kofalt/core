@@ -674,3 +674,189 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, as_ro
     api_db.jobs.remove({'gear_id': {'$in': [gear]}})
 
 
+def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, file_form, randstr, api_db):
+    project = data_builder.create_project()
+    session = data_builder.create_session(project=project)
+    session2 = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    acquisition2 = data_builder.create_acquisition(session=session2)
+
+    as_admin.post('/acquisitions/' + acquisition + '/files', files={
+        'file': ('test.txt', 'test\ncontent\n')})
+
+    as_admin.post('/acquisitions/' + acquisition2 + '/files', files={
+        'file': ('test2.txt', 'test\ncontent2\n')})
+    as_admin.post('/acquisitions/' + acquisition2 + '/files', files={
+        'file': ('test2.csv', 'test\ncsv2\n')})
+
+    gear_name = randstr()
+    gear_doc = default_payload['gear']
+    gear_doc['gear']['name'] = gear_name
+    gear_doc['gear']['inputs'] = {
+        'text': {
+            'base': 'file',
+            'name': {'pattern': '^.*.txt$'},
+            'size': {'maximum': 100000}
+        },
+        'csv': {
+            'base': 'file',
+            'name': {'pattern': '^.*.csv$'},
+            'size': {'maximum': 100000},
+            'optional': True
+        }
+    }
+
+    r = as_root.post('/gears/' + gear_name, json=gear_doc)
+    assert r.ok
+    gear = r.json()['_id']
+
+    # create a batch without policy
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.status_code == 400
+
+    # create a batch with invalid policy
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        "optional_input_policy": "not_policy",
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.status_code == 400
+
+    # create a batch requiring optional inputs
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        'optional_input_policy': 'required',
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.ok
+    batch1 = r.json()
+
+    assert len(batch1['matched']) == 1
+    assert batch1['matched'][0]['_id'] == acquisition2
+    assert 'inputs' not in batch1['matched'][0]
+
+    batch_id = batch1['_id']
+
+    # run batch
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    # Check job config for inputs
+    jobs = r.json()
+    job1_inputs = jobs[0]['config']['inputs']
+    assert len(job1_inputs) == 2
+    assert 'text' in job1_inputs
+    assert 'csv' in job1_inputs
+
+    # create a batch not requiring optional inputs
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        'optional_input_policy': 'flexible',
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.ok
+    batch1 = r.json()
+
+    assert len(batch1['matched']) == 2
+    assert batch1['matched'][0]['_id'] == acquisition
+    assert 'inputs' not in batch1['matched'][0]
+    assert batch1['matched'][1]['_id'] == acquisition2
+    assert 'inputs' not in batch1['matched'][1]
+
+    batch_id = batch1['_id']
+
+    # run batch
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    # Check job configs for inputs
+    jobs = r.json()
+    job1_inputs = jobs[0]['config']['inputs']
+    assert len(job1_inputs) == 1
+    assert 'text' in job1_inputs
+
+    job2_inputs = jobs[1]['config']['inputs']
+    assert len(job2_inputs) == 2
+    assert 'text' in job2_inputs
+    assert 'csv' in job2_inputs
+
+    # Test ignore_optional_inputs param so that ambiguity is not a problem for optional inputs
+    as_admin.post('/acquisitions/' + acquisition2 + '/files', files={
+        'file': ('test2_2.csv', 'test\ncsv2_2\n')})
+
+    r = as_admin.post('/batch', json={
+        'gear_id': gear,
+        'optional_input_policy': 'ignored',
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.ok
+    batch2 = r.json()
+
+    assert len(batch2['matched']) == 2
+    assert batch2['matched'][0]['_id'] == acquisition
+    assert 'inputs' not in batch2['matched'][0]
+    assert batch2['matched'][1]['_id'] == acquisition2
+    assert 'inputs' not in batch2['matched'][1]
+
+    batch_id = batch2['_id']
+
+    # run batch
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    # Check job configs for inputs
+    jobs = r.json()
+    job1_inputs = jobs[0]['config']['inputs']
+    assert len(job1_inputs) == 1
+    assert 'text' in job1_inputs
+
+    job2_inputs = jobs[1]['config']['inputs']
+    assert len(job2_inputs) == 1
+    assert 'text' in job2_inputs
+
+    # Try creating batch with optional inputs and api-key input
+    gear_doc['gear']['inputs'] = {
+        'text': {
+            'base': 'file',
+            'name': {'pattern': '^.*.txt$'},
+            'size': {'maximum': 100000}
+        },
+        'csv': {
+            'base': 'file',
+            'name': {'pattern': '^.*.csv$'},
+            'size': {'maximum': 100000},
+            'optional': True
+        },
+        'api_key': {
+            'base': 'api-key'
+        }
+    }
+    gear_doc['gear']['version'] = '1'
+
+    r = as_root.post('/gears/' + gear_name, json=gear_doc)
+    assert r.ok
+    gear_v1 = r.json()['_id']
+
+    # create a batch not requiring optional inputs
+    r = as_admin.post('/batch', json={
+        'gear_id': gear_v1,
+        'optional_input_policy': 'flexible',
+        'targets': [{'type': 'session', 'id': session}, {'type': 'session', 'id': session2}]
+    })
+    assert r.ok
+    batch3 = r.json()
+    r = as_admin.post('/batch/' + batch3['_id'] + '/run')
+    assert r.ok
+
+
+    # Cleanup
+    r = as_root.delete('/gears/' + gear)
+    assert r.ok
+    r = as_root.delete('/gears/' + gear_v1)
+    assert r.ok
+
+    # must remove jobs manually because gears were added manually
+    api_db.jobs.remove({'gear_id': {'$in': [gear, gear_v1]}})

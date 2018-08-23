@@ -5,6 +5,7 @@
     "example": {
 	    "_id": "5a33fa6352e95c001707489b",
 	    "gear_id": "59b1b5b0e105c40019f50015",
+	    "optional_input_policy": "required",
 	    "config": {},
 	    "state": "pending",
 	    "origin": {

@@ -5,6 +5,7 @@
     "example": {
 	    "gear_id": "59b1b5b0e105c40019f50015",
 	    "config": {},
+	    "optional_input_policy": "flexible",
 	    "tags": ["test-tag"],
 	    "targets": [{
 	    	"type": "session",

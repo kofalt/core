@@ -13,6 +13,11 @@
       },
       "additionalProperties": false
     },
+    "optional_input_policy": {
+      "type": "string",
+      "enum": ["ignored", "flexible", "required"],
+      "description": "ignored: Ignore all optional inputs, flexible: match a file if it's there, otherwise still match the container, required: treat all optional inputs as required inputs."
+    },
     "batch": {
       "type": "object",
       "properties": {
@@ -43,6 +48,7 @@
         "ambiguous": { "$ref": "#/definitions/matched-container-list" },
         "matched": { "$ref": "#/definitions/matched-container-list" },
         "not_matched": { "$ref": "#/definitions/matched-container-list" },
+        "optional_input_policy": {"$ref": "#/definitions/optional_input_policy"},
 
         "improper_permissions": {
           "type": "array",
@@ -60,6 +66,7 @@
         "gear_id": {"$ref":"job.json#/definitions/gear_id"},
         "config": {"$ref":"job.json#/definitions/config"},
         "tags": {"$ref":"tag.json#/definitions/tag-list"},
+        "optional_input_policy": {"$ref": "#/definitions/optional_input_policy"},
         "analysis": {"$ref": "analysis.json#/definitions/analysis-input-job"},
         "targets": {
           "type": "array",
