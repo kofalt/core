@@ -1,3 +1,45 @@
+/jobs:
+  get:
+    summary: Return all jobs
+    operationId: get_all_jobs
+    tags:
+    - jobs
+    parameters:
+      - in: query
+        type: string
+        name: states
+        description: filter results by job state
+      - in: query
+        type: string
+        name: tags
+        description: filter results by job tags
+      - in: query
+        type: integer
+        name: skip
+        description: Skip number of jobs
+      - in: query
+        type: integer
+        name: limit
+        description: Limit number of returned jobs
+        x-sdk-default: 1000
+      - in: query
+        type: string
+        name: after_id
+        description: Return jobs after the given id
+      - in: query
+        type: string
+        name: filter
+        description: Filter to apply
+      - in: query
+        type: string
+        name: sort
+        description: The sorting algorithm to use
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/all-jobs-list.json
+
 /jobs/add:
   post:
     summary: Add a job
