@@ -42,16 +42,19 @@ def test_subject_endpoints(data_builder, as_admin, file_form):
     assert r.ok
     assert type(r.json()) is list
 
-    r = as_admin.post('/subjects', json={'project': project, 'code': 'test', 'sex': 'male'})
+    r = as_admin.post('/subjects', json={'project': project, 'code': 'test', 'firstname': 'foo', 'sex': 'male'})
     assert r.ok
     subject = r.json()['_id']
 
     r = as_admin.get('/subjects')
     assert r.ok
     assert subject in [s['_id'] for s in r.json()]
+    assert not any('firstname' in s for s in r.json())
+    assert not any('sex' in s for s in r.json())
 
     r = as_admin.get('/subjects/' + subject)
     assert r.ok
+    assert r.json()['firstname'] == 'foo'
     assert r.json()['sex'] == 'male'
 
     r = as_admin.put('/subjects/' + subject, json={'sex': 'female'})
@@ -61,13 +64,16 @@ def test_subject_endpoints(data_builder, as_admin, file_form):
     assert r.ok
     assert r.json()['sex'] == 'female'
 
-    # TBD - is this desired functionality?
-    # r = as_admin.post('/subjects/' + subject + '/files', files=file_form('test.txt'))
-    # assert r.ok
+    r = as_admin.post('/subjects/' + subject + '/files', files=file_form('test.txt'))
+    assert r.ok
 
-    # r = as_admin.get('/subjects/' + subject)
-    # assert r.ok
-    # assert 'test.txt' in [f['name'] for f in r.json()['files']]
+    r = as_admin.get('/subjects/' + subject)
+    assert r.ok
+    assert 'test.txt' in [f['name'] for f in r.json()['files']]
+
+    r = as_admin.get('/subjects/' + subject + '/files/test.txt')
+    assert r.ok
+    assert r.text == 'test\ndata\n'
 
     r = as_admin.delete('/subjects/' + subject)
     assert r.ok

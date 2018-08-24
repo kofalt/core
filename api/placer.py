@@ -626,10 +626,12 @@ class PackfilePlacer(Placer):
         if 'timestamp' in insert_map:
             insert_map['timestamp'] = dateutil.parser.parse(insert_map['timestamp'])
 
-        project = {'_id': bson.ObjectId(self.p_id), 'permissions': self.permissions}
-        subject = containerutil.extract_subject(insert_map, project)
-        SubjectStorage().create_or_update_el(subject)
-        query['subject'] = subject['_id']
+        session_exists = config.db.sessions.find_one(query)
+        if self.s_code or not session_exists:
+            project = {'_id': bson.ObjectId(self.p_id), 'permissions': self.permissions}
+            subject = containerutil.extract_subject(insert_map, project)
+            SubjectStorage().create_or_update_el(subject)
+            query['subject'] = subject['_id']
 
         session = config.db.sessions.find_one_and_update(
             query, {

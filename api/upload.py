@@ -68,8 +68,10 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     if id_ is not None and container_type == None:
         raise Exception('Unspecified container type')
 
-    if container_type is not None and container_type not in (
-    'acquisition', 'session', 'project', 'collection', 'analysis', 'gear'):
+    allowed_container_types = ('project', 'subject', 'session', 'acquisition',
+                               'gear', 'analysis',
+                               'collection')
+    if container_type is not None and container_type not in allowed_container_types:
         raise Exception('Unknown container type')
 
     timestamp = datetime.datetime.utcnow()

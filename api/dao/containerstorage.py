@@ -164,6 +164,9 @@ class SubjectStorage(ContainerStorage):
 
         return super(SubjectStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination, **kwargs)
 
+    def get_list_projection(self):
+        return {'info': 0, 'files.info': 0, 'firstname': 0, 'lastname': 0, 'sex': 0, 'race': 0, 'ethnicity': 0}
+
 
 class SessionStorage(ContainerStorage):
 
@@ -294,12 +297,7 @@ class SessionStorage(ContainerStorage):
         return self.get_all_el(query, user, projection)
 
     def get_list_projection(self):
-        # Remove subject first/last from list view to better log access to this information
-        return {'info': 0, 'analyses': 0, 'subject.firstname': 0,
-            'subject.lastname': 0, 'subject.sex': 0, 'subject.age': 0,
-            'subject.race': 0, 'subject.ethnicity': 0, 'subject.info': 0,
-            'files.info': 0, 'tags': 0}
-
+        return {'info': 0, 'files.info': 0, 'analyses': 0, 'tags': 0, 'subject_age': 0}
 
 
 class AcquisitionStorage(ContainerStorage):
@@ -368,7 +366,7 @@ class AcquisitionStorage(ContainerStorage):
         return self.get_all_el(query, user, projection)
 
     def get_list_projection(self):
-        return {'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0}        
+        return {'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0}
 
 
 class CollectionStorage(ContainerStorage):

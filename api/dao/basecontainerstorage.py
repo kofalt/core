@@ -372,8 +372,8 @@ class ContainerStorage(object):
     def get_el(self, _id, projection=None, fill_defaults=False):
         _id = self.format_id(_id)
         cont = self.dbc.find_one({'_id': _id, 'deleted': {'$exists': False}}, projection)
-        if self.cont_name == 'sessions' and cont and 'subject' in cont:
-            ContainerStorage.join_subjects([cont])
+        if self.cont_name == 'sessions':
+            ContainerStorage.join_subjects(cont)
         self._from_mongo(cont)
         if fill_defaults:
             self._fill_default_values(cont)
@@ -402,13 +402,12 @@ class ContainerStorage(object):
                 query['permissions'] = {'$elemMatch': user}
         query['deleted'] = {'$exists': False}
 
-        # if projection includes files.info, add new key `info_exists` and allow reserved info keys through
-        if projection and ('info' in projection or 'files.info' in projection or 'subject.info' in projection):
+        # if projection includes info/files.info, add new key `info_exists` and allow only reserved info keys through
+        if projection and ('info' in projection or 'files.info' in projection):
             projection = copy.deepcopy(projection)
             replace_info_with_bool = True
-            projection.pop('subject.info', None)
-            projection.pop('files.info', None)
             projection.pop('info', None)
+            projection.pop('files.info', None)
 
             # Replace with None if empty (empty projections only return ids)
             if not projection:
@@ -421,7 +420,7 @@ class ContainerStorage(object):
         page = dbutil.paginate_find(self.dbc, kwargs, pagination)
         results = page['results']
 
-        if self.cont_name == 'sessions' and results and 'subject' in results[0]:
+        if self.cont_name == 'sessions':
             ContainerStorage.join_subjects(results)
 
         for cont in results:
@@ -434,11 +433,6 @@ class ContainerStorage(object):
                 info = cont.pop('info', {})
                 cont['info_exists'] = bool(info)
                 cont['info'] = containerutil.sanitize_info(info)
-
-                if cont.get('subject'):
-                    s_info = cont['subject'].pop('info', {})
-                    cont['subject']['info_exists'] = bool(s_info)
-                    cont['subject']['info'] = containerutil.sanitize_info(s_info)
 
                 for f in cont.get('files', []):
                     f_info = f.pop('info', {})
@@ -542,16 +536,26 @@ class ContainerStorage(object):
 
     @staticmethod
     def join_subjects(sessions):
-        """Given a list of sessions, join their subjects."""
+        """Given an instance or a list of sessions, join their subjects."""
         storage = ContainerStorage.factory('subjects')
-        query = {'_id': {'$in': list(set(sess['subject'] for sess in sessions))}}
-        subjects = {subj['_id']: subj for subj in storage.get_all_el(query, None, None)}
-        for session in sessions:
-            subject = subjects[session['subject']]
-            if session.get('subject_age'):
-                subject = copy.deepcopy(subject)
-                subject['age'] = session.pop('subject_age')
-            session['subject'] = subject
+
+        # If `sessions` is a list, use list projection
+        if type(sessions) is list:
+            projection = storage.get_list_projection()
+        else:
+            sessions = [sessions]
+            projection = None
+
+        # Skip the join when sessions[0] is None or it has no subject (eg. filtered via projection)
+        if sessions and sessions[0] is not None and 'subject' in sessions[0]:
+            query = {'_id': {'$in': list(set(sess['subject'] for sess in sessions))}}
+            subjects = {subj['_id']: subj for subj in storage.get_all_el(query, None, projection)}
+            for session in sessions:
+                subject = subjects[session['subject']]
+                if session.get('subject_age'):
+                    subject = copy.deepcopy(subject)
+                    subject['age'] = session.pop('subject_age')
+                session['subject'] = subject
 
 
     def get_list_projection(self):

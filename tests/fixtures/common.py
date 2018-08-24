@@ -302,7 +302,7 @@ class DataBuilder(object):
         if resource == 'project':
             # Subjects are implicitly created via sessions.
             # Remove them even with recursive=False
-            _api_db.subjects.delete_many({resource: _id})
+            self.api_db.subjects.delete_many({resource: _id})
         if recursive and resource in self.parent_to_child:
             child_cont = self.parent_to_child[resource]
             for child in self.api_db[child_cont + 's'].find({resource: _id}, {'_id': 1}):

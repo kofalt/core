@@ -156,7 +156,7 @@ class DataViewConfig(object):
             for cont in self.containers:
                 # TODO: Remove once subject.code moves to label
                 label_key = 'code' if cont == 'subject' else 'label'
-                self.add_column(cont, label_key, '{}_label'.format(cont), datatype='string', idx=next(idx), allow_duplicate=False )
+                self.add_column(cont, label_key, '{}.label'.format(cont), datatype='string', idx=next(idx), allow_duplicate=False )
 
         if include_ids:
             # Append ids
