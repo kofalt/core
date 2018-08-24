@@ -239,34 +239,36 @@ assert(~isfield(acqFile.info, 'd'), errMsg);
 disp('Testing Collections')
 
 colId = fw.addCollection(struct('label', testString));
+collection = fw.getCollection(colId);
 
-fw.addSessionsToCollection(colId, {sessionId});
-fw.addAcquisitionsToCollection(colId, {acqId});
+collection.addSessions(sessionId);
+collection.addAcquisitions(acqId);
 
-collSessions = fw.getCollectionSessions(colId);
+collSessions = collection.sessions;
 assert(~isempty(collSessions), errMsg)
 
-collAqs = fw.getCollectionAcquisitions(colId);
+collAqs = collection.acquisitions;
 assert(~isempty(collAqs), errMsg)
 
-fw.addCollectionNote(colId, 'This is a note');
+collection.addNote('This is a note');
 
-fw.uploadFileToCollection(colId, filename);
+collection.uploadFile(filename);
 collectionDownloadFile = fullfile(tempdir, 'download4.txt');
-fw.downloadFileFromCollection(colId, filename, collectionDownloadFile);
+collection.downloadFile(filename, collectionDownloadFile);
 
-collection = fw.getCollection(colId);
+collection = collection.reload();
 assert(strcmp(collection.notes{1}.text, 'This is a note'), errMsg)
 assert(strcmp(collection.files{1}.name, filename), errMsg)
 s = dir(collectionDownloadFile);
-assert(collection.files{1}.size == s.bytes, errMsg)
+collFile = collection.files{1};
+assert(collFile.size == s.bytes, errMsg)
 
-colDownloadUrl = fw.getCollectionDownloadUrl(colId, filename);
+colDownloadUrl = collFile.url;
 assert(~strcmp(colDownloadUrl, ''), errMsg)
 
-fw.deleteCollectionFile(colId, filename);
+collection.deleteFile(filename);
 
-collection = fw.getCollection(colId);
+collection = collection.reload();
 assert(isempty(collection.files), errMsg)
 
 %% Gears

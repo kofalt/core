@@ -2,15 +2,15 @@ classdef GroupMixin < {{packageName}}.mixins.ContainerBase ...
         & {{packageName}}.mixins.TagMethods ...
         & {{packageName}}.mixins.PermissionMethods
     properties
-        containerType = 'Project';
+        containerType_ = 'Group';
         projects_ = false;
     end
     properties(Dependent)
         projects
     end
     methods
-        function sessions = get.projects(obj)
-            sessions = obj.getChildren('Projects');
+        function projects = get.projects(obj)
+            projects = obj.getChildren('Projects');
         end
     end
 end

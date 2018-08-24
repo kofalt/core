@@ -4,7 +4,7 @@ classdef AcquisitionMixin < {{packageName}}.mixins.ContainerBase ...
         & {{packageName}}.mixins.NoteMethods ...
         & {{packageName}}.mixins.FileMethods
     properties
-        containerType = 'Acquisition';
+        containerType_ = 'Acquisition';
         analyses_ = false;
     end
     properties(Dependent)

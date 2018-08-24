@@ -35,6 +35,7 @@
                 "description":  {"$ref": "common.json#/definitions/description"}
             },
             "x-sdk-model": "collection",
+            "x-sdk-container-mixin": "collection-mixin",
             "additionalProperties": false
         },
         "collection-input-with-contents":{
@@ -47,6 +48,7 @@
                 "contents":     {"$ref": "#/definitions/collection-operation"}
             },
             "x-sdk-model": "collection",
+            "x-sdk-container-mixin": "collection-mixin",
             "additionalProperties": false
         },
         "collection-new-output": {
@@ -85,6 +87,7 @@
                 }
             },
             "x-sdk-model": "collection",
+            "x-sdk-container-mixin": "collection-mixin",
             "additionalProperties":false
         }
     }

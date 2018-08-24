@@ -4,7 +4,7 @@ classdef SessionMixin < {{packageName}}.mixins.ContainerBase ...
         & {{packageName}}.mixins.NoteMethods ...
         & {{packageName}}.mixins.FileMethods
     properties
-        containerType = 'Session';
+        containerType_ = 'Session';
         acquisitions_ = false;
         analyses_ = false;
     end
@@ -13,8 +13,8 @@ classdef SessionMixin < {{packageName}}.mixins.ContainerBase ...
         analyses
     end
     methods
-        function sessions = get.acquisitions(obj)
-            sessions = obj.getChildren('Acquisitions');
+        function acquisitions = get.acquisitions(obj)
+            acquisitions = obj.getChildren('Acquisitions');
         end
         function analyses = get.analyses(obj)
             analyses = obj.getChildren('Analyses');

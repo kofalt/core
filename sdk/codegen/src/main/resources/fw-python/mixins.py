@@ -237,6 +237,30 @@ class AnalysisMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMet
     container_type = 'analysis'
     child_types = ['files']
 
+class CollectionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods):
+    container_type = 'collection'
+    child_types = ['sessions', 'acquisitions', 'analyses', 'files']
+
+    def add_sessions(self, *args, **kwargs):
+        session_ids = []
+        for arg in args:
+            if isinstance(arg, str):
+                session_ids.append(arg)
+            else:
+                session_ids.append(arg.id)
+
+        return self._invoke_container_api('add_sessions_to_{}', self.id, session_ids, **kwargs)
+
+    def add_acquisitions(self, *args, **kwargs):
+        acquisition_ids = []
+        for arg in args:
+            if isinstance(arg, str):
+                acquisition_ids.append(arg)
+            else:
+                acquisition_ids.append(arg.id)
+
+        return self._invoke_container_api('add_acquisitions_to_{}', self.id, acquisition_ids, **kwargs)
+
 
 class FileMixin(ContainerBase):
     container_type = 'file'

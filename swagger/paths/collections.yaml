@@ -157,16 +157,16 @@ $template_arguments:
   $template: templates/file-list-upload.yaml
 /collections/{CollectionId}/files/{FileName}:
   $template: templates/file-item.yaml
+/collections/{CollectionId}/files/{FileName}/info:
+  $template: templates/file-item-info.yaml
+/collections/{CollectionId}/files/{FileName}/classification:
+  $template: templates/file-item-classification.yaml
 
 # ===== Permissions =====
 /collections/{CollectionId}/permissions:
   $template: templates/permissions.yaml
 /collections/{CollectionId}/permissions/{UserId}:
   $template: templates/permissions-user.yaml
-/collections/{CollectionId}/files/{FileName}/info:
-  $template: templates/file-item-info.yaml
-/collections/{CollectionId}/files/{FileName}/classification:
-  $template: templates/file-item-classification.yaml
 
 # ===== Notes =====
 /collections/{CollectionId}/notes:
