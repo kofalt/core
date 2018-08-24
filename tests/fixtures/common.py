@@ -139,6 +139,7 @@ def bootstrap_users(session, api_db):
     yield data_builder
     api_db.users.delete_many({})
     api_db.singletons.delete_one({'_id': 'bootstrap'})
+    api_db.apikeys.delete_many({})
 
 
 @pytest.fixture(scope='session')

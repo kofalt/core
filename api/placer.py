@@ -585,7 +585,7 @@ class PackfilePlacer(Placer):
             'id': uid
         }
         with open(self.local_path, 'rb') as f:
-            hash = files.FileProcessor.hash_file_formatted(f)
+            _hash = files.FileProcessor.hash_file_formatted(f)
         os.remove(self.local_path)
 
         # Create an anyonmous object in the style of our augmented file fields.
@@ -594,7 +594,7 @@ class PackfilePlacer(Placer):
             'filename': self.name,
             'path': self.path,
             'size': int(self.file_processor.temp_fs.getsize(self.path)),
-            'hash': hash,
+            'hash': _hash,
             'uuid': str(uuid.uuid4()),
             'mimetype': util.guess_mimetype('lol.zip'),
             'modified': self.timestamp
