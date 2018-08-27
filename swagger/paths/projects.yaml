@@ -57,6 +57,7 @@ $template_arguments:
   get:
     summary: List all sessions for the given project.
     operationId: get_project_sessions
+    x-fw-pagination: true
     tags:
     - projects
     responses:
@@ -74,6 +75,7 @@ $template_arguments:
   get:
     summary: List all acquisitions for the given project.
     operationId: get_project_acquisitions
+    x-fw-pagination: true
     tags:
     - projects
     responses:

@@ -8,6 +8,7 @@ $template_arguments:
   get:
     summary: List all collections.
     operationId: get_all_collections
+    x-fw-pagination: true
     tags:
     - collections
     responses:

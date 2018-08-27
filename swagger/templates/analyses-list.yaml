@@ -21,6 +21,7 @@ template: |
     summary: Get analyses for {{resource}}.
     description: Returns analyses that directly belong to this resource.
     operationId: get_{{resource}}_analyses
+    x-fw-pagination: true
     tags:
     - '{{tag}}'
     responses:

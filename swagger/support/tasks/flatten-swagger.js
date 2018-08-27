@@ -7,6 +7,7 @@ module.exports = function(grunt) {
 	var resolve = require('json-refs').resolveRefs;
 
 	var SwaggerResolver = require('../swagger-resolver');
+  var METHODS = [ 'get', 'put', 'post', 'delete' ];
 
 	// Filter out non-relative paths, and any schema $refs
 	function refFilter(ref, path) {
@@ -78,6 +79,9 @@ module.exports = function(grunt) {
 
 		var done = this.async();
 		resolve(root, resolveOpts).then(function(results) {
+      // Add pagination for paths with x-fw-pagination
+      addPaginationParams(results.resolved);
+
 			var data;
 			if( options.format === 'yaml' ) {
 				data = yaml.safeDump(results.resolved);
@@ -89,5 +93,76 @@ module.exports = function(grunt) {
 			done();
 		});
 	});
+
+  // Add pagination to operations with x-fw-pagination
+  function addPaginationParams(root) {
+    for( var path in root.paths ) {
+      var pathobj = root.paths[path];
+      METHODS.forEach(function(method) {
+        var op = pathobj[method];
+        if( op && op['x-fw-pagination'] ) {
+          addPaginationParamsToOperation(op);
+        }
+      });      
+    }
+  }
+
+  // Add pagination to an individual operation
+  function addPaginationParamsToOperation(op) {
+    op.parameters = op.parameters || [];
+
+    // Filter
+    op.parameters.push({ 
+      'in': 'query', 
+      'type': 'string', 
+      'name': 'filter',
+      'description': 'The filter to apply. (e.g. label=my-label,created>2018-09-22)'
+    });
+
+    // Sort
+    op.parameters.push({ 
+      'in': 'query', 
+      'type': 'string', 
+      'name': 'sort',
+      'description': 'The sort fields and order. (e.g. label:asc,created:desc)'
+    });
+
+    // Limit
+    op.parameters.push({ 
+      'in': 'query', 
+      'type': 'integer', 
+      'name': 'limit',
+      'description': 'The maximum number of entries to return.'
+    });
+
+    if( op['x-fw-default-limit'] ) {
+      op.parameters[op.parameters.length-1]['x-sdk-default'] = op['x-fw-default-limit'];
+    }
+
+    // Skip
+    op.parameters.push({ 
+      'in': 'query', 
+      'type': 'integer', 
+      'name': 'skip',
+      'description': 'The number of entries to skip.'
+    });
+
+    // Page
+    op.parameters.push({ 
+      'in': 'query', 
+      'type': 'integer', 
+      'name': 'page',
+      'description': 'The page number (i.e. skip limit*page entries)'
+    });
+
+    // After-ID
+    op.parameters.push({ 
+      'in': 'query', 
+      'type': 'string', 
+      'name': 'after_id',
+      'description': 'Paginate after the given id. (Cannot be used with sort, page or skip)'
+    });
+  }
+
 };
 

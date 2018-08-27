@@ -70,6 +70,15 @@ Then the template arguments for the `templates/tags.yaml` template invocation wi
 * `tag`: tags
 * `parameter`: GroupId
 
+#### x-fw-pagination: true
+Adds the following pagination fields at doc generation time:
+
+* filter - Limit returned values based on criteria
+* sort - Set the sort fields and sort order
+* limit - Limit the number of returned records
+* skip - Skip N records
+* page - Skip page number * limit records (instead of skip)
+
 ### JSON Schemas
 
 JSON Schemas are used both for input validation and as the definitions for the Swagger documentation.

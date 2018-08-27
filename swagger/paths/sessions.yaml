@@ -28,6 +28,7 @@ $template_arguments:
   get:
     summary: Return any jobs that use inputs from this session
     operationId: get_session_jobs
+    x-fw-pagination: true
     tags:
     - 'sessions'
     parameters:
@@ -76,6 +77,7 @@ $template_arguments:
   get:
     summary: List acquisitions in a session
     operationId: get_session_acquisitions
+    x-fw-pagination: true
     tags:
     - 'sessions'
     responses:

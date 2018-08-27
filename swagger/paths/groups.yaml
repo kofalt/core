@@ -7,6 +7,7 @@ $template_arguments:
   get:
     summary: List all groups
     operationId: get_all_groups
+    x-fw-pagination: true
     tags:
     - groups
     responses:
@@ -87,6 +88,7 @@ $template_arguments:
   get:
     summary: Get all projects in a group
     operationId: get_group_projects
+    x-fw-pagination: true
     tags:
     - groups
     responses:
