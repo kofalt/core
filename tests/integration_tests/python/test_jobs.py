@@ -1061,7 +1061,7 @@ def test_job_requests(randstr, default_payload, data_builder, as_admin, as_drone
         assert request_input.get('type')
 
 
-def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, as_admin, as_root, api_db, file_form):
+def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, as_admin, as_root, file_form):
     gear_doc = default_payload['gear']['gear']
 
     rw_gear_name = randstr()
@@ -1074,9 +1074,13 @@ def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, a
     rw_gear = data_builder.create_gear(gear=gear_doc)
     gear_name = randstr()
     gear_doc['name'] = gear_name
+    gear_doc['inputs'] = {
+        "api_key": {
+          "base": "api-key",
+          "read-only": True
+        }
+    }
     ro_gear = data_builder.create_gear(gear=gear_doc)
-
-    api_db.gears.update_one({'_id': bson.ObjectId(ro_gear)}, {'$set': {'gear.inputs.api_key.read-only': True}})
 
     group = data_builder.create_group()
     project = data_builder.create_project(public=False)

@@ -402,13 +402,14 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr)
     assert r.ok
 
 
-def test_filter_gears_read_only_key(randstr, data_builder, default_payload, as_admin, api_db):
+def test_filter_gears_read_only_key(randstr, data_builder, default_payload, as_admin):
     gear_name = randstr()
     gear_doc = default_payload['gear']
     gear_doc['gear']['name'] = gear_name
     gear_doc['gear']['inputs'] = {
         'api_key': {
-            'base': 'api-key'
+            'base': 'api-key',
+            'read-only': True
         }
     }
 
@@ -416,11 +417,10 @@ def test_filter_gears_read_only_key(randstr, data_builder, default_payload, as_a
 
     non_key_gear = data_builder.create_gear()
 
-    # gear_doc['gear']['inputs']['api_key']['read-only'] = False
+    gear_doc['gear']['inputs']['api_key']['read-only'] = False
     gear_doc['gear']['name'] = randstr()
     rw_gear = data_builder.create_gear(gear=gear_doc['gear'])
 
-    api_db.gears.update_one({'_id': bson.ObjectId(ro_gear)}, {'$set': {'gear.inputs.api_key.read-only': True}})
 
 
     r = as_admin.get('/gears', params={'filter': 'read_only_key'})
