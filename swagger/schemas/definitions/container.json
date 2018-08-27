@@ -22,7 +22,7 @@
         "timezone":     {"type": "string"},
         "container-type": {
           "type": "string",
-          "enum": ["group", "project", "session", "acquisition", "collection", "analysis"],
+          "enum": ["group", "project", "subject", "session", "acquisition", "collection", "analysis"],
           "description": "The type of container (e.g. session)"
         },
 

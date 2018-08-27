@@ -256,8 +256,8 @@ class Upload(base.RequestHandler):
         level = self.get_param('level')
         if level is None:
             self.abort(400, 'container level is required')
-        if level not in ['analysis', 'acquisition', 'session', 'project']:
-            self.abort(400, 'container level must be analysis, acquisition, session or project.')
+        if level not in ['analysis', 'acquisition', 'session', 'subject', 'project']:
+            self.abort(400, 'container level must be analysis, acquisition, session, subject or project.')
         cid = self.get_param('id')
         if not cid:
             self.abort(400, 'container id is required')

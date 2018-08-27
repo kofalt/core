@@ -12,6 +12,7 @@ from ..web.errors import APINotFoundException, APIPermissionException
 CONT_TYPES = [
     'acquisition',
     'session',
+    'subject',
     'project',
     'group',
     'analysis',

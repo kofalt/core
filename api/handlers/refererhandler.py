@@ -16,7 +16,7 @@ from .. import config, files, upload, util, validators
 from ..auth import containerauth, always_ok
 from ..dao import containerstorage, noop
 from ..dao.basecontainerstorage import ContainerStorage
-from ..dao.containerutil import singularize
+from ..dao.containerutil import singularize, CONTAINER_HIERARCHY
 from ..web import base
 from ..web import errors
 from ..web.request import log_access, AccessType
@@ -65,7 +65,7 @@ class AnalysesHandler(RefererHandler):
     def post(self, cont_name, cid):
         """
         Create new analysis.
-         * Online/job-based - on JSON with 'job' key (analysis-input-job) - only allowed at session level, also creates job
+         * Online/job-based - on JSON with 'job' key (analysis-input-job) - allowed at subject or session level, also creates job
          * Offline/ad-hoc   - on JSON with 'inputs' key (analysis-input-adhoc)
          * Legacy:          - on file-form with inputs, outputs and metadata (analysis-input-legacy)
         """
@@ -156,15 +156,12 @@ class AnalysesHandler(RefererHandler):
         permchecker(noop)('GET')
         # cont_level is the sub_container name for which the analysis.parent.type should be
         cont_level = kwargs.get('sub_cont_name')
-        cont_names = {'groups':0, 'projects':1, 'sessions':2, 'acquisitions':3}
-        sub_cont_names = {'projects':0, 'sessions':1, 'acquisitions':2, 'all':3}
 
         # Check that the url is valid
-        if cont_name not in cont_names:
+        if cont_name not in CONTAINER_HIERARCHY:
             raise errors.InputValidationException("Analysis lists not supported for {}.".format(cont_name))
-        elif cont_level:
-            if cont_names[cont_name] > sub_cont_names.get(cont_level, -1):
-                raise errors.InputValidationException("{} not a child of {} or 'all'.".format(cont_level, cont_name))
+        if cont_level and cont_level != 'all' and not CONTAINER_HIERARCHY.index(cont_level) > CONTAINER_HIERARCHY.index(cont_name):
+            raise errors.InputValidationException("{} not a child of {} or 'all'.".format(cont_level, cont_name))
 
         if cont_level:
             parent_tree = ContainerStorage.get_top_down_hierarchy(cont_name, cid)

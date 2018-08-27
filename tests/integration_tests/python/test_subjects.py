@@ -85,5 +85,74 @@ def test_subject_endpoints(data_builder, as_admin, file_form):
     assert r.status_code == 404
 
 
-def test_job_on_subject():
-    pass
+def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
+    # Create gear, project and subject with one input file
+    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+    project = data_builder.create_project()
+    r = as_admin.post('/subjects', json={'project': project, 'code': 'test'})
+    assert r.ok
+    subject = r.json()['_id']
+    r = as_admin.post('/subjects/' + subject + '/files', files=file_form('input.csv'))
+    assert r.ok
+
+    # Create analysis job on subject
+    r = as_admin.post('/subjects/' + subject + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'subject', 'id': subject, 'name': 'input.csv'}}}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Verify analysis was created and is accessible on subject
+    r = as_admin.get('/subjects/' + subject + '/analyses')
+    assert r.ok
+    assert analysis in [a['_id'] for a in r.json()]
+    r = as_admin.get('/subjects/' + subject + '/analyses/' + analysis)
+    assert r.ok
+    assert analysis == r.json()['_id']
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    job = r.json().get('job')
+    assert job
+
+    # Engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis, 'job': job},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+
+    # Verify output was uploaded and is accessible on subject/x/analysis/y
+    r = as_admin.get('/subjects/' + subject + '/analyses/' + analysis)
+    assert r.ok
+    assert 'output.csv' in [f['name'] for f in r.json()['files']]
+    r = as_admin.get('/subjects/' + subject + '/analyses/' + analysis + '/files/output.csv')
+    assert r.ok
+
+    # Create job with subject as destination (and input)
+    r = as_admin.post('/jobs/add', json={
+        'gear_id': gear,
+        'inputs': {'csv': {'type': 'subject', 'id': subject, 'name': 'input.csv'}},
+        'destination': {'type': 'subject', 'id': subject}
+    })
+    assert r.ok
+    job = r.json()['_id']
+    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'state': 'running'}})
+
+    # Engine upload to subject
+    r = as_drone.post('/jobs/' + job + '/prepare-complete', json={'success': True, 'elapsed': 3})
+    assert r.ok
+    job_ticket = r.json()['ticket']
+    r = as_drone.post('/engine',
+        params={'level': 'subject', 'id': subject, 'job': job, 'job_ticket': job_ticket},
+        files=file_form('result.txt', meta={
+            'subject': {'files': [{'name': 'result.txt', 'type': 'text'}]}
+        })
+    )
+    assert r.ok
+
+    r = as_admin.get('/subjects/' + subject)
+    assert r.ok
+    assert 'result.txt' in [f['name'] for f in r.json()['files']]

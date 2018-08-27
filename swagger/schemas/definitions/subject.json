@@ -63,6 +63,18 @@
             "additionalProperties": false,
             "x-sdk-model": "subject"
         },
+        "subject-metadata-input": {
+            "type": "object",
+            "properties": {
+                "code":  {"type": ["string", "null"]},
+                "info":  {"type": ["object", "null"]},
+                "files": {
+                    "type":  ["array", "null"],
+                    "items": {"$ref": "file.json#/definitions/file-input"}
+                }
+            },
+            "additionalProperties": false
+        },
         "subject-output":{
             "type": "object",
             "properties": {
@@ -83,6 +95,10 @@
               "files":{
                   "type":"array",
                   "items":{"$ref":"file.json#/definitions/file-output"}
+              },
+              "analyses":{
+                  "type":"array",
+                  "items":{"$ref":"analysis.json#/definitions/analysis-output"}
               }
             },
             "additionalProperties": false,
