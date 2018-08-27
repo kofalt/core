@@ -995,3 +995,68 @@ def test_job_reap_ticketed_jobs(data_builder, default_payload, as_drone, as_admi
     r = as_admin.get('/jobs/' + job_id2)
     assert r.ok
     assert r.json()['state'] == 'failed'
+
+
+def test_job_requests(randstr, default_payload, data_builder, as_admin, as_drone, file_form):
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Create gears
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['name'] = randstr()
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file',
+            'optional': True
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    gear_doc['name'] = randstr()
+    not_url_gear = data_builder.create_gear(gear=gear_doc, exchange={'rootfs-url': '/api/gears/temp/5b840961bef39f0018b73e64'})
+
+    job = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    # Create jobs
+    r = as_admin.post('/jobs/add', json=job)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    job['gear_id'] = not_url_gear
+
+    r = as_admin.post('/jobs/add', json=job)
+    assert r.ok
+    not_url_job_id = r.json()['_id']
+
+    # Start jobs
+    r = as_drone.put('/jobs/' + job_id, json={'state': 'running'})
+    assert r.ok
+
+    r = as_drone.put('/jobs/' + not_url_job_id, json={'state': 'running'})
+    assert r.ok
+
+    # Check request inputs all have types
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    job_request_inputs = r.json()['request']['inputs']
+    for request_input in job_request_inputs:
+        assert request_input.get('type')
+    r = as_admin.get('/jobs/' + not_url_job_id)
+    assert r.ok
+    not_url_job_request_inputs = r.json()['request']['inputs']
+    for request_input in not_url_job_request_inputs:
+        assert request_input.get('type')
