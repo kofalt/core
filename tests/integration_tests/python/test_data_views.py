@@ -1280,6 +1280,19 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     rows = r.json()['data']
     assert len(rows) == 1
 
+    # Regex filter=subject.code~=\d+
+    r = as_admin.post('/views/data?containerId={}&filter=subject.code=~%5Cd%2B'.format(project), json={
+        'includeIds': True,
+        'includeLabels': True,
+        'columns': [
+            { 'src': 'session.label' },
+        ]
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 2
+
     assert rows[0]['project.id'] == project
     assert rows[0]['project.label'] == 'test-project'
     assert rows[0]['subject.label'] == subject1['code']

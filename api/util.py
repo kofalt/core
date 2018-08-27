@@ -428,7 +428,8 @@ def parse_pagination_filter_param(filter_param):
                   '=':  '$eq',
                   '!=': '$ne',
                   '>=': '$gte',
-                  '>':  '$gt'}
+                  '>':  '$gt',
+                  '=~': '$regex'}
     for filter_str in filter_param.split(','):
         for filter_op in sorted(filter_ops, key=len, reverse=True):
             key, op, value = filter_str.partition(filter_op)

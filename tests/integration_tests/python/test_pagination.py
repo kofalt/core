@@ -202,6 +202,12 @@ def test_filter(data_builder, as_admin):
     r = as_admin.get('/acquisitions?filter=label>=b')
     assert {aq['_id'] for aq in r.json()} == {b, c}
 
+    r = as_admin.get('/acquisitions?filter=label=~(a|c)')
+    assert {aq['_id'] for aq in r.json()} == {a, c}
+
+    r = as_admin.get('/acquisitions?filter=label=~[ab]')
+    assert {aq['_id'] for aq in r.json()} == {a, b}
+
     r = as_admin.get('/acquisitions?filter=label>b')
     assert {aq['_id'] for aq in r.json()} == {c}
 
