@@ -283,15 +283,12 @@ class Job(object):
         parsed = urlparse(uri)
         scheme = parsed.scheme
 
-        if scheme == 'https':
+        if scheme == 'https' or scheme == '':
             # SSL does not change the input scheme type, both are just 'http'
             scheme = 'http'
         else:
             # Other URI types keep the input scheme separate
             uri = parsed.netloc + parsed.path
-
-        if scheme == "":
-            scheme = "http"
 
         r = {
             'inputs': [
