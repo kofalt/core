@@ -22,6 +22,12 @@
               { "type": "string", "enum": ["male", "female", "other", "unknown"] }
             ]
         },
+        "cohort": {
+            "oneOf": [
+              { "type": "null"},
+              { "type": "string", "enum": ["control", "subject"] }
+            ]
+        },
         "race": {
             "oneOf": [
               { "type": "null"},
@@ -85,6 +91,7 @@
 
               "age":              {"$ref":"#/definitions/age"},
               "sex":              {"$ref":"#/definitions/sex"},
+              "cohort":           {"$ref":"#/definitions/sex"},
               "race":             {"$ref":"#/definitions/race"},
               "ethnicity":        {"$ref":"#/definitions/ethnicity"},
 

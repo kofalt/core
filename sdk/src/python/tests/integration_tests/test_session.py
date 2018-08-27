@@ -280,7 +280,8 @@ class SessionsTestCases(SdkTestCase):
             id = session.subject.id,
             code = session.subject.code,
             info = {},
-            info_exists = info_exists
+            info_exists = info_exists,
+            project = session.project
         )
 
 
