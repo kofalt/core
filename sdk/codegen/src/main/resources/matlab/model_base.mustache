@@ -30,11 +30,12 @@ classdef ModelBase < handle & matlab.mixin.CustomDisplay
         function result = get(obj, name)
             if isKey(obj.propMap_, name)
                 propName = obj.propMap_(name);
-                if isKey(obj.props_, propName)
-                    result = obj.props_(propName);
-                else
-                    result = [];
-                end
+            else
+                propName = name;
+            end
+
+            if isKey(obj.props_, propName)
+                result = obj.props_(propName);
             else
                 result = [];
             end
@@ -42,10 +43,11 @@ classdef ModelBase < handle & matlab.mixin.CustomDisplay
         function set(obj, name, value)
             if isKey(obj.propMap_, name)
                 propName = obj.propMap_(name);
-                obj.props_(propName) = value;
             else
-                error('set', 'Unknown property name!');
+                propName = name;
             end
+
+            obj.props_(propName) = value;
         end
     end
     methods(Static)

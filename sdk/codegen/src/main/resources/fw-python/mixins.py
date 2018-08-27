@@ -68,7 +68,8 @@ class ContainerBase(object):
     def __getattribute__(self, name):
         # Handle lazy load and update of files
         if name == 'files' and self.id is not None:
-            if self._files is None:
+            files = getattr(self, '_files', None)
+            if files is None:
                 obj = self._invoke_container_api('get_{}', self.id)
                 self._files = getattr(obj, '_files', None)
                 if self._files is None:
@@ -314,3 +315,31 @@ class FileMixin(ContainerBase):
     def delete_classification(self, classification):
         """Delete a file's classification fields"""
         return self._parent.delete_file_classification(self.name, classification)
+
+
+class SearchResponseMixin(object):
+    def __init__(self):
+        self.__context = None
+
+    def _set_context(self, context):
+        if self.group is not None:
+            self.group._set_context(context)
+
+        if self.project is not None:
+            self.project._set_context(context)
+
+        if self.session is not None:
+            self.session._set_context(context)
+
+        if self.acquisition is not None:
+            self.acquisition._set_context(context)
+
+        if self.collection is not None:
+            self.collection._set_context(context)
+
+        if self.analysis is not None:
+            self.analysis._set_context(context)
+
+        if self.file is not None:
+            # Set parent object on file
+            self.file._parent = self.parent

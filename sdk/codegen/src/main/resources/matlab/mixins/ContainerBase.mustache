@@ -18,6 +18,9 @@ classdef ContainerBase < handle
         end
     end
     methods(Hidden)
+        function setContext_(obj, context)
+            obj.context_ = context;
+        end
         function [returnData, resp] = invokeContainerApi(obj, name, varargin)
             fn = str2func(sprintf(name, obj.containerType_));
             [returnData, resp] = fn(obj.context_, varargin{:});
