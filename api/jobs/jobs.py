@@ -290,6 +290,9 @@ class Job(object):
             # Other URI types keep the input scheme separate
             uri = parsed.netloc + parsed.path
 
+        if scheme == "":
+            scheme = "http"
+
         r = {
             'inputs': [
                 {
