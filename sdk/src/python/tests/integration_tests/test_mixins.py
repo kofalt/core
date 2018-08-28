@@ -43,7 +43,7 @@ class MixinTestCases(SdkTestCase):
 
         # GROUP
         r_group = fw.get_group(self.group_id)
-        projects = r_group.projects
+        projects = r_group.projects()
 
         self.assertIsNotNone(projects)
         self.assertEqual(len(projects), 1)
@@ -52,8 +52,9 @@ class MixinTestCases(SdkTestCase):
         self.assertEqual(r_project.id, self.project_id)
         self.assertEqual(r_project.container_type, 'project')
 
-        self.assertEqual(1, len(r_project.sessions))
-        r_session = r_project.sessions[0]
+        sessions = r_project.sessions()
+        self.assertEqual(1, len(sessions))
+        r_session = sessions[0]
         self.assertEqual(r_session.id, self.session_id)
         self.assertEqual(r_session.project, self.project_id)
 
@@ -75,9 +76,9 @@ class MixinTestCases(SdkTestCase):
         self.assertEqual(data, poem)
 
         # Get url
-        ticket_url1 = r_file.url
+        ticket_url1 = r_file.url()
         self.assertIsNotNone(ticket_url1)
-        ticket_url2 = r_file.url
+        ticket_url2 = r_file.url()
         self.assertNotEqual(ticket_url1, ticket_url2)
 
         # Download file
@@ -94,7 +95,7 @@ class MixinTestCases(SdkTestCase):
             os.remove(path)
 
         # Read acquisitions
-        acquisitions = r_session.acquisitions
+        acquisitions = r_session.acquisitions()
         self.assertIsNotNone(acquisitions)
         self.assertEqual(len(acquisitions), 1)
 

@@ -21,6 +21,7 @@ log = logging.getLogger('Flywheel')
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.api_client import ApiClient
 from {{packageName}}.view_builder import ViewBuilder
+from {{packageName}}.finder import Finder
 import {{apiPackage}}
 
 SDK_VERSION = "{{packageVersion}}"
@@ -78,6 +79,16 @@ class Flywheel:
         {{#apis}}
         self.{{classVarName}} = {{apiPackage}}.{{classname}}(self.api_client)
         {{/apis}}
+
+        # Finder objects
+        self.users = Finder(self, 'get_all_users')
+        self.groups = Finder(self, 'get_all_groups')
+        self.projects = Finder(self, 'get_all_projects')
+        self.sessions = Finder(self, 'get_all_sessions')
+        self.acquisitions = Finder(self, 'get_all_acquisitions')
+        self.jobs = Finder(self, 'get_all_jobs')
+        self.gears = Finder(self, 'get_all_gears')
+        self.collections = Finder(self, 'get_all_collections')
 
         # Perform version check
         self.check_version = not skip_version_check

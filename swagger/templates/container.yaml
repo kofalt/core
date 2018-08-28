@@ -16,6 +16,7 @@ template: |
     summary: Get a list of {{#pluralize}}{{resource}}{{/pluralize}}
     operationId: get_all_{{#pluralize}}{{resource}}{{/pluralize}}
     x-fw-pagination: true
+    x-fw-default-limit: 1000
     tags:
       - '{{tag}}'
     responses:

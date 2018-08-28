@@ -1,4 +1,6 @@
 import collections
+from ..finder import Finder
+
 
 def params_to_dict(method_name, args, kwargs):
     """Given args and kwargs, return a dictionary object"""
@@ -14,6 +16,7 @@ def params_to_dict(method_name, args, kwargs):
         raise ValueError(method_name + '() expects either a dictionary or kwargs')
     return kwargs
 
+
 def params_to_list(args):
     """Convert a list of arguments (some of which may be lists) to a flat list"""
     result = []
@@ -23,6 +26,7 @@ def params_to_list(args):
         else:
             result.append(arg)
     return result
+
 
 class ContainerBase(object):
     def __init__(self):
@@ -63,6 +67,10 @@ class ContainerBase(object):
         """Reload the object from the server, and return the result"""
         return self._invoke_container_api('get_{}', self.id)
 
+    def _find_children(self, child_type, filters, find_first=False, find_one=False, **kwargs):
+        fname = 'get_{}_{}'.format(self.container_type, child_type)
+        return self.__context._find(fname, [self.id], filters, find_first=find_first, find_one=find_one, **kwargs)
+
     def __update_files(self):
         """Update the _parent attribute for each file"""
         if self.__files_updated:
@@ -90,22 +98,14 @@ class ContainerBase(object):
         return object.__getattribute__(self, name)
 
     def __getattr__(self, name):
-        # Lazily load children
+        # Return finders for children
         if name in self.child_types and self.id is not None:
             prop_name = '_{}'.format(name)
             result = getattr(self, prop_name, None)
             if result is None:
                 # e.g. get_project_sessions
                 fname = 'get_{}_{}'.format(self.container_type, name)
-                fn = getattr(self.__context, fname, None)
-
-                if not fn:
-                    raise ValueError('Unknown child type for {}: {}'.format(self.container_type, name))
-
-                result = fn(self.id)
-                if result is None:
-                    result = []
-
+                result = Finder(self.__context, fname, self.id)
                 setattr(self, prop_name, result)
             return result
 
@@ -222,6 +222,13 @@ class FileMethods(object):
         """Delete a file's classification fields"""
         return self._invoke_container_api('delete_{}_file_classification_fields', self.id, file_name, classification)
 
+    def get_file(self, name):
+        """Get the first file entry with the given name"""
+        for entry in self.files:
+            if entry.name == name:
+                return entry
+        return None
+
 
 class GroupMixin(ContainerBase, TagMethods, PermissionMethods):
     container_type = 'group'
@@ -319,7 +326,6 @@ class FileMixin(ContainerBase):
     def parent(self):
         return self._parent
 
-    @property
     def url(self):
         """Get a ticketed download url for the file"""
         return self._parent.get_file_download_url(self.name)

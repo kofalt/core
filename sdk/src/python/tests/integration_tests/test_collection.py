@@ -45,12 +45,12 @@ class CollectionsTestCases(SdkTestCase):
         saved_collection.add_acquisitions(acquisition_id)
 
         # Get sessions
-        saved_sessions = saved_collection.sessions
+        saved_sessions = saved_collection.sessions()
         self.assertEqual(len(saved_sessions), 1)
         self.assertEqual(saved_sessions[0].id, session_id)
 
         # Get acquisitions
-        saved_acquisitions = saved_collection.acquisitions
+        saved_acquisitions = saved_collection.acquisitions()
         self.assertEqual(len(saved_acquisitions), 1)
         self.assertEqual(saved_acquisitions[0].id, acquisition_id)
 
@@ -67,13 +67,13 @@ class CollectionsTestCases(SdkTestCase):
         saved_collection = saved_collection.reload()
         
         # Get sessions
-        saved_sessions = saved_collection.sessions
+        saved_sessions = saved_collection.sessions()
         self.assertEqual(len(saved_sessions), 2)
         self.assertEqual(len(list(filter(lambda x: x.id == session_id, saved_sessions))), 1)
         self.assertEqual(len(list(filter(lambda x: x.id == session_id2, saved_sessions))), 1)
 
         # Get acquisitions
-        saved_acquisitions = saved_collection.acquisitions
+        saved_acquisitions = saved_collection.acquisitions()
         self.assertEqual(len(saved_acquisitions), 2)
         self.assertEqual(len(list(filter(lambda x: x.id == acquisition_id, saved_acquisitions))), 1)
         self.assertEqual(len(list(filter(lambda x: x.id == acquisition_id2, saved_acquisitions))), 1)
