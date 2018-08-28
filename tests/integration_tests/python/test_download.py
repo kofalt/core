@@ -42,6 +42,12 @@ def test_download_k(data_builder, file_form, as_admin, as_root, api_db, legacy_c
     as_admin.post('/projects/' + project + '/files', files=file_form(
         file_name, meta={'name': file_name, 'type': 'csv', 'tags': ['plus', 'minus']}))
 
+    # also a deleted file to make sure it doesn't show up
+    as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(
+        file_name, meta={'name': 'deleted_'+file_name, 'type': 'csv'}))
+    r = as_admin.delete('/acquisitions/' + acquisition + '/files/deleted_' + file_name)
+    assert r.ok
+
     missing_object_id = '000000000000000000000000'
 
     # Try to download w/ nonexistent ticket
@@ -854,6 +860,13 @@ def test_summary(data_builder, as_admin, file_form):
 
     as_admin.post('/projects/' + project + '/files', files=file_form(
         file_name, meta={'name': file_name, 'type': 'csv', 'tags': ['plus', 'minus']}))
+
+
+    # also a deleted file to make sure it doesn't show up
+    as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(
+        file_name, meta={'name': 'deleted_'+file_name, 'type': 'csv'}))
+    r = as_admin.delete('/acquisitions/' + acquisition + '/files/deleted_' + file_name)
+    assert r.ok
 
     missing_object_id = '000000000000000000000000'
 
