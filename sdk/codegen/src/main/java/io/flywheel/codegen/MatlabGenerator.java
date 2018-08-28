@@ -206,6 +206,9 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         supportingFiles.add(new SupportingFile("client.mustache", packageFolder, "Client.m"));
         // Dataview files
         supportingFiles.add(new SupportingFile("ViewBuilder.m", packageFolder, "ViewBuilder.m"));
+        // Finder
+        supportingFiles.add(new SupportingFile("Finder.mustache", packageFolder, "Finder.m"));
+        supportingFiles.add(new SupportingFile("Cursor.m", packageFolder, "Cursor.m"));
 
         // Mixin Files
         final String mixinFolder = packageFolder + "/+mixins";

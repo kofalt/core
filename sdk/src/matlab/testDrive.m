@@ -128,10 +128,10 @@ fw.addSessionTag(sessionId, 'blue');
 fw.modifySession(sessionId, struct('label', 'testdrive'));
 fw.addSessionNote(sessionId, 'This is a note');
 
-sessions = project.sessions;
+sessions = project.sessions();
 assert(~isempty(sessions), errMsg)
 
-sessions = fw.getAllSessions();
+sessions = fw.sessions();
 assert(~isempty(sessions), errMsg)
 
 fw.uploadFileToSession(sessionId, filename);
@@ -166,10 +166,10 @@ fw.addAcquisitionTag(acqId, 'blue');
 fw.modifyAcquisition(acqId, struct('label', 'testdrive'));
 fw.addAcquisitionNote(acqId, 'This is a note');
 
-acqs = fw.getSessionAcquisitions(sessionId);
+acqs = session.acquisitions();
 assert(~isempty(acqs), errMsg)
 
-acqs = fw.getAllAcquisitions();
+acqs = fw.acquisitions();
 assert(~isempty(acqs), errMsg)
 
 fw.uploadFileToAcquisition(acqId, filename);
@@ -241,13 +241,19 @@ disp('Testing Collections')
 colId = fw.addCollection(struct('label', testString));
 collection = fw.getCollection(colId);
 
+collSessions = collection.sessions();
+assert(isempty(collSessions), errMsg)
+
+collAqs = collection.acquisitions();
+assert(isempty(collAqs), errMsg)
+
 collection.addSessions(sessionId);
 collection.addAcquisitions(acqId);
 
-collSessions = collection.sessions;
+collSessions = collection.sessions();
 assert(~isempty(collSessions), errMsg)
 
-collAqs = collection.acquisitions;
+collAqs = collection.acquisitions();
 assert(~isempty(collAqs), errMsg)
 
 collection.addNote('This is a note');

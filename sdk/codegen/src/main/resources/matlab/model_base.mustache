@@ -151,7 +151,7 @@ classdef ModelBase < handle & matlab.mixin.CustomDisplay
                             result = builtin('subsref', obj, s);
                         end
                     else
-                        result = {{packageName}}.ModelBase.recursiveRef(obj.(subs), s(2:end));
+                        result = builtin('subsref', obj, s);
                     end
                 elseif s(1).type == '{}'
                     if length(subs) > 1
@@ -159,9 +159,7 @@ classdef ModelBase < handle & matlab.mixin.CustomDisplay
                     end
                     result = {{packageName}}.ModelBase.recursiveRef(obj{subs{1}}, s(2:end));
                 else
-                    for i = 1:length(subs)
-                        result = {{packageName}}.ModelBase.recursiveRef(obj(subs{i}), s(2:end));
-                    end
+                    result = builtin('subsref', obj, s);
                 end
             end
         end

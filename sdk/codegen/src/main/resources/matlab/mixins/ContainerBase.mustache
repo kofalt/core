@@ -28,8 +28,8 @@ classdef ContainerBase < handle
         function result = getChildren(obj, childName)
             varName = strcat(lower(childName), '_');
             if islogical(obj.(varName)) && obj.(varName) == false
-                fn = str2func(sprintf('get%s%s', obj.containerType_, childName));
-                obj.(varName) = fn(obj.context_, obj.get('id'));
+                fname = sprintf('get%s%s', obj.containerType_, childName);
+                obj.(varName) = {{packageName}}.Finder(obj.context_, fname, obj.get('id'));
             end
             result = obj.(varName);
         end
