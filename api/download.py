@@ -36,6 +36,12 @@ def _filter_check(property_filter, property_values):
 
 
 class Download(base.RequestHandler):
+    BLOCKSIZE = 512
+    CHUNKSIZE = 2 ** 20
+
+    def __init__(self, *args, **kwargs):
+        self.session = requests.Session()
+        super(Download, self).__init__(*args, **kwargs)
 
     def _append_targets(self, targets, cont_name, container, prefix, total_size, total_cnt, filters):
         inputs = [('input', f) for f in container.get('inputs', [])]
@@ -291,14 +297,53 @@ class Download(base.RequestHandler):
         ids_of_paths[_id] = path
         return path
 
+    def stream_file_signed_url(self, signed_url, tarinfo_buf, file_info):
+        response = self.session.get(signed_url, stream=True)
+        f_iter = response.iter_content(chunk_size=self.CHUNKSIZE)
+        try:
+            yield tarinfo_buf
+            chunk = ''
+            for chunk in f_iter:
+                yield chunk
+            if len(chunk) % self.BLOCKSIZE != 0:
+                yield (self.BLOCKSIZE - (len(chunk) % self.BLOCKSIZE)) * b'\0'
+        except (req_exceptions.ChunkedEncodingError,
+                req_exceptions.ConnectionError,
+                req_exceptions.ContentDecodingError):
+            msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                   "container: %s/%s, archive path: %s" % file_info)
+            self.log.critical(msg)
+            self.abort(500, msg)
+
+    def stream_regular_file(self, filepath, tarinfo_buf, file_info):
+        try:
+            file_system = files.get_fs_by_file_path(filepath)
+            with file_system.open(filepath, 'rb') as fd:
+                f_iter = iter(lambda: fd.read(self.CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
+                try:
+                    yield tarinfo_buf
+                    chunk = ''
+                    for chunk in f_iter:
+                        yield chunk
+                    if len(chunk) % self.BLOCKSIZE != 0:
+                        yield (self.BLOCKSIZE - (len(chunk) % self.BLOCKSIZE)) * b'\0'
+
+                except (IOError, fs.errors.OperationFailed):
+                    msg = ("Error happened during sending file content in archive stream, file path: %s, "
+                           "container: %s/%s, archive path: %s" % file_info)
+                    self.log.critical(msg)
+                    self.abort(500, msg)
+        except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
+            self.log.critical("Couldn't find the file during creating archive stream: %s, "
+                              "container: %s/%s, archive path: %s" % file_info)
+            tarinfo = TarInfo()
+            tarinfo.name = file_info[3] + '.MISSING'
+            yield tarinfo.tobuf()
+
     def archivestream(self, ticket):
         stream = cStringIO.StringIO()
-        BLOCKSIZE = 512
-        CHUNKSIZE = 2 ** 20
 
         with tarfile.open(mode='w|', fileobj=stream):
-            s = requests.Session()
-
             for filepath, arcpath, cont_name, cont_id, f_size, f_modified in ticket['target']:
                 tarinfo = TarInfo()
                 tarinfo.name = arcpath.lstrip('/')
@@ -312,46 +357,12 @@ class Download(base.RequestHandler):
                     pass
 
                 if signed_url:
-                    response = s.get(signed_url, stream=True)
-                    f_iter = response.iter_content(chunk_size=CHUNKSIZE)
-                    try:
-                        yield tarinfo_buf
-                        chunk = ''
-                        for chunk in f_iter:
-                            yield chunk
-                        if len(chunk) % BLOCKSIZE != 0:
-                            yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
-                    except (req_exceptions.ChunkedEncodingError,
-                            req_exceptions.ConnectionError,
-                            req_exceptions.ContentDecodingError):
-                        msg = ("Error happened during sending file content in archive stream, file path: %s, "
-                               "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
-                        self.log.critical(msg)
-                        self.abort(500, msg)
+                    content_generator = self.stream_file_signed_url(signed_url, tarinfo_buf, (filepath, cont_name, cont_id, arcpath))
                 else:
-                    try:
-                        file_system = files.get_fs_by_file_path(filepath)
-                        with file_system.open(filepath, 'rb') as fd:
-                            f_iter = iter(lambda: fd.read(CHUNKSIZE), '')  # pylint: disable=cell-var-from-loop
-                            try:
-                                yield tarinfo_buf
-                                chunk = ''
-                                for chunk in f_iter:
-                                    yield chunk
-                                if len(chunk) % BLOCKSIZE != 0:
-                                    yield (BLOCKSIZE - (len(chunk) % BLOCKSIZE)) * b'\0'
+                    content_generator = self.stream_regular_file(filepath, tarinfo_buf, (filepath, cont_name, cont_id, arcpath))
 
-                            except (IOError, fs.errors.OperationFailed):
-                                msg = ("Error happened during sending file content in archive stream, file path: %s, "
-                                       "container: %s/%s, archive path: %s" % (filepath, cont_name, cont_id, arcpath))
-                                self.log.critical(msg)
-                                self.abort(500, msg)
-                    except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError):
-                        self.log.critical("Couldn't find the file during creating archive stream: %s, "
-                                     "container: %s/%s, archive path: %s", filepath, cont_name, cont_id, arcpath)
-                        tarinfo = TarInfo()
-                        tarinfo.name = arcpath + '.MISSING'
-                        yield tarinfo.tobuf()
+                for chunk in content_generator:
+                    yield chunk
 
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=cont_id, filename=os.path.basename(arcpath), origin_override=ticket['origin'], download_ticket=ticket['_id']) # log download
         yield stream.getvalue()  # get tar stream trailer
