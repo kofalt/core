@@ -59,6 +59,15 @@ classdef ApiClient < handle
             catch
             end
         end
+        function result = castParam(value, type)
+            if strcmp(type, 'integer')
+                result = int64(value);
+            elseif strcmp(type, 'logical')
+                result = logical(value);
+            else
+                result = value;
+            end
+        end
         function params = formatParamCollection(params, name, value, format)
             if iscell(value)
                 if format == 'multi'

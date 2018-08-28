@@ -79,7 +79,7 @@ classdef {{classname}} < handle
             {{#queryParams}}
             if ~isempty(x__inp.Results.{{paramName}})
                 {{^isListContainer}}
-                queryParams = [queryParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+                queryParams = [queryParams, '{{baseName}}', {{packageName}}.ApiClient.castParam(x__inp.Results.{{paramName}}, '{{dataType}}')];
                 {{/isListContainer}}
                 {{#isListContainer}}
                 queryParams = {{packageName}}.ApiClient.formatParamCollection(queryParams, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
