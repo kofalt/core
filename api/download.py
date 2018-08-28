@@ -38,7 +38,7 @@ class Download(base.RequestHandler):
 
     def _append_targets(self, targets, cont_name, container, prefix, total_size, total_cnt, filters):
         inputs = [('input', f) for f in container.get('inputs', [])]
-        outputs = [('output', f) for f in container.get('files', [])]
+        outputs = [('output', f) for f in container.get('files', []) if not f.get('deleted')]
         for file_group, f in inputs + outputs:
             if filters:
                 filtered = True
@@ -441,6 +441,7 @@ class Download(base.RequestHandler):
             pipeline = [
                 {'$match': cont_query[cont_name]},
                 {'$unwind': '$files'},
+                {'$match': {'files.deleted': {'$exists': False}}},
                 {'$project': {'_id': '$_id', 'type': '$files.type','mbs': {'$divide': ['$files.size', BYTES_IN_MEGABYTE]}}},
                 {'$group': {
                     '_id': '$type',
