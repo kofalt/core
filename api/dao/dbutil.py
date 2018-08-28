@@ -71,7 +71,8 @@ def paginate_find(collection, find_kwargs, pagination):
         if 'after_id' in pagination:
             if find_kwargs.get('sort'):
                 raise PaginationError('pagination "after_id" does not support sorting')
-            pagination['filter'] = {'_id': {'$gt': pagination['after_id']}}
+            if pagination['after_id']:
+                pagination.setdefault('filter', {})['_id'] = {'$gt': pagination['after_id']}
             pagination['sort'] = [('_id', pymongo.ASCENDING)]
 
         if 'filter' in pagination:
