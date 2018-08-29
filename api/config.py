@@ -83,7 +83,7 @@ def apply_env_variables(config):
         file_path = os.environ['SCITRAN_AUTH_CONFIG_FILE']
         with open(file_path) as config_file:
             environ_config = json.load(config_file)
-        config['auth'] = environ_config['auth']
+        config['auth'] = environ_config.get('auth', DEFAULT_CONFIG['auth'])
 
     for outer_key, scoped_config in config.iteritems():
         if outer_key == 'auth':
