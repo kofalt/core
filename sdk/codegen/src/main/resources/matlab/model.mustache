@@ -76,7 +76,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 result('{{baseName}}') = obj.props_('{{baseName}}').toJson();
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result('{{baseName}}') = cellfun(@(x) x.toJson(), obj.props_('{{baseName}}'), 'UniformOutput', false);
+                result('{{baseName}}') = {{packageName}}.ModelBase.cellmap(@toJson, obj.props_('{{baseName}}'));
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             {{#vendorExtensions.x-sdk-include-empty}}
@@ -109,7 +109,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 result(key) = obj.props_(key).toJson();
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result(key) = cellfun(@(x) x.toJson(), obj.props_(key), 'UniformOutput', false);
+                result(key) = {{packageName}}.ModelBase.cellmap(@toJson, obj.props_(key));
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             end
@@ -132,11 +132,11 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 result.{{name}} = struct(obj.props_('{{baseName}}'));
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result.{{name}} = cellfun(@(x) struct(x), obj.props_('{{baseName}}'));
+                result.{{name}} = {{packageName}}.ModelBase.cellmap(@struct, obj.props_('{{baseName}}'));
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             else
-                result.{{name}} = {};
+                result.{{name}} = [];
             end
             {{/vars}}
             {{^vars}}
@@ -152,7 +152,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 result.(key) = struct(obj.props_(key));
                 {{/isListContainer}}
                 {{#isListContainer}}
-                result.(key) = cellfun(@(x) struct(x), obj.props_(key), 'UniformOutput', false);
+                result.(key) = {{packageName}}.ModelBase.cellmap(@struct, obj.props_(key));
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
                 {{/vendorExtensions.x-matlab-additionalProperties}}
@@ -209,7 +209,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                 obj.props_('{{baseName}}') = {{modelPackage}}.{{complexType}}.fromJson(json.{{vendorExtensions.x-matlab-baseName}});
                 {{/isListContainer}}
                 {{#isListContainer}}
-                obj.props_('{{baseName}}') = {{packageName}}.ModelBase.cellmap(@(x)  {{modelPackage}}.{{complexType}}.fromJson(x), json.{{vendorExtensions.x-matlab-baseName}});
+                obj.props_('{{baseName}}') = {{packageName}}.ModelBase.cellmap(@{{modelPackage}}.{{complexType}}.fromJson, json.{{vendorExtensions.x-matlab-baseName}});
                 {{/isListContainer}}
                 {{/isPrimitiveType}}
             end
@@ -287,7 +287,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                     obj.props_('{{baseName}}') =  {{modelPackage}}.{{complexType}}.ensureIsInstance(obj.props_('{{baseName}}'));
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    obj.props_('{{baseName}}') = {{packageName}}.ModelBase.cellmap(@(x) {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_('{{baseName}}'));
+                    obj.props_('{{baseName}}') = {{packageName}}.ModelBase.cellmap(@{{modelPackage}}.{{complexType}}.ensureIsInstance, obj.props_('{{baseName}}'));
                     {{/isListContainer}}
                     {{/isPrimitiveType}}
                 end
@@ -302,7 +302,7 @@ classdef {{classname}} < {{packageName}}.ModelBase
                     obj.props_(key) =  {{modelPackage}}.{{complexType}}.ensureIsInstance(obj.props_(key));
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    obj.props_(key) = {{packageName}}.ModelBase.cellmap(@(x) {{modelPackage}}.{{complexType}}.ensureIsInstance(x), obj.props_(key));
+                    obj.props_(key) = {{packageName}}.ModelBase.cellmap(@{{modelPackage}}.{{complexType}}.ensureIsInstance, obj.props_(key));
                     {{/isListContainer}}
                 end
                 {{/isPrimitiveType}}
