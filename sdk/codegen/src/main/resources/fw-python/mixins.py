@@ -184,6 +184,19 @@ class PermissionMethods(object):
         return self._invoke_container_api('delete_{}_user_permission', self.id, user_id)
 
 
+class DownloadMethods(object):
+    def download_tar(self, dest_file, include_types=None, exclude_types=None):
+        """Download the container as a tarball to dest_file.
+
+        :param str dest_file: (required) The destination file on disk
+        :param list include_types: The optional list of types to include in the download (e.g. ['nifti'])
+        :param list exclude_types: The optional list of types to exclude from the download (e.g. ['dicom'])
+        :return: A summary of the download
+        """
+        return self._invoke_container_api('download_tar', self, dest_file, include_types=include_types,
+            exclude_types=exclude_types)
+
+
 class FileMethods(object):
     def upload_file(self, file):
         """Upload a file to a container"""
@@ -277,7 +290,7 @@ class GroupMixin(ContainerBase, TagMethods, PermissionMethods):
         return self._add_child('project', args, kwargs)
 
 
-class ProjectMixin(ContainerBase, TagMethods, NoteMethods, PermissionMethods, FileMethods, InfoMethods):
+class ProjectMixin(ContainerBase, TagMethods, NoteMethods, PermissionMethods, FileMethods, InfoMethods, DownloadMethods):
     container_type = 'project'
     child_types = ['subjects', 'sessions', 'analyses', 'files']
 
@@ -308,7 +321,7 @@ class SubjectMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMeth
         return self._invoke_container_api(fname, body)
 
 
-class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMethods, TimestampMethods):
+class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMethods, TimestampMethods, DownloadMethods):
     container_type = 'session'
     child_types = ['acquisitions', 'analyses', 'files']
 
@@ -317,12 +330,12 @@ class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMeth
         return self._add_child('acquisition', args, kwargs)
 
 
-class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods, TimestampMethods):
+class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods, TimestampMethods, DownloadMethods):
     container_type = 'acquisition'
     child_types = ['analyses', 'files']
 
 
-class AnalysisMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods):
+class AnalysisMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods, DownloadMethods):
     container_type = 'analysis'
     child_types = ['files']
 

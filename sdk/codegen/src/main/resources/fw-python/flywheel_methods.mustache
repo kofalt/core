@@ -75,6 +75,46 @@
 
         return result.path[-1].url()
 
+    def download_tar(self, containers, dest_file, include_types=None, exclude_types=None):
+        """Download the given set of containers as a tarball to dest_file.
+
+        Supports downloading Projects, Sessions, Acquisitions and/or Analyses.
+
+        :param containers: (required) The container, or list of containers to download.
+        :param str dest_file: (required) The destination file on disk
+        :param list include_types: The optional list of types to include in the download (e.g. ['nifti'])
+        :param list exclude_types: The optional list of types to exclude from the download (e.g. ['dicom'])
+        :return: A summary of the download
+        """
+        if not isinstance(containers, list):
+            containers = [containers]
+
+        # Extract the list of nodes
+        nodes = []
+        for container in containers:
+            container_type = getattr(container, 'container_type', None)
+            if container_type is None:
+                raise ValueError('Unknown container specified!')
+
+            nodes.append(flywheel.DownloadNode(level=container_type, id=container.id))
+
+        # Setup filters
+        type_filter = None
+        if include_types or exclude_types:
+            type_filter = flywheel.DownloadFilterDefinition(plus=include_types, minus=exclude_types)
+
+        download_filters = None
+        if type_filter:
+            download_filters = [flywheel.DownloadFilter(types=type_filter)]
+
+        # Create download request
+        request = flywheel.Download(nodes=nodes, filters=download_filters, optional=True)
+        summary = self.create_download_ticket(request)
+
+        # Perform download
+        self.download_ticket(summary.ticket, dest_file)
+        return summary
+
     {{#apis}}
     {{#operations}}
     {{#operation}}

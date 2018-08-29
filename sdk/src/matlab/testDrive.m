@@ -149,11 +149,8 @@ assert(session.files{1}.size == s.bytes, errMsg)
 sessionDownloadUrl = fw.getSessionDownloadUrl(sessionId, filename);
 assert(~strcmp(sessionDownloadUrl, ''), errMsg)
 
-downloadNodes = { struct('level', 'session', 'id', sessionId) };
-summary = fw.createDownloadTicket(struct('optional', false, 'nodes', downloadNodes));
-assert(~isempty(summary.ticket), errMsg)
 sessionDownloadTar = fullfile(tempdir, 'session-download.tar');
-fw.downloadTicket(summary.ticket, sessionDownloadTar);
+summary = session.downloadTar(sessionDownloadTar);
 s = dir(sessionDownloadTar);
 assert(s.bytes >= summary.size, errMsg)
 
