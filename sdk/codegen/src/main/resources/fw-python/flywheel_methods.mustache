@@ -42,7 +42,7 @@
         return self.modify_job(job_id, { 'state': state })
 
     def resolve(self, path):
-        """Perform a path absed lookup of nodes in the Flywheel hierarchy.
+        """Perform a path based lookup of nodes in the Flywheel hierarchy.
 
         :param str path: (required) The path to resolve
         :return: ResolverOutput
@@ -53,10 +53,27 @@
         return self.resolve_path(flywheel.ResolverInput(path=path))
 
     def lookup(self, path):
+        """Perform a path based lookup of a single node in the Flywheel hierarchy.
+
+        :param str path: (required) The path to resolve
+        :return: ResolverOutput
+        """
         if not isinstance(path, list):
             path = path.split('/')
 
         return self.lookup_path(flywheel.ResolverInput(path=path))
+
+    def file_url(self, path):
+        """Perform a path based lookup of a file in the Flywheel hierarchy, and return a single-use download URL.
+
+        :param str path: (required) The path to resolve
+        :return: The file URL if found, otherwise raises an error
+        """
+        result = self.resolve(path)
+        if getattr(result.path[-1], 'container_type', None) != 'file':
+            raise ValueError('Resolved path is not a file!')
+
+        return result.path[-1].url()
 
     {{#apis}}
     {{#operations}}

@@ -229,6 +229,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         supportingFiles.add(new SupportingFile("mixins/CollectionMixin.mustache", mixinFolder, "CollectionMixin.m"));
         supportingFiles.add(new SupportingFile("mixins/FileMixin.mustache", mixinFolder, "FileMixin.m"));
         supportingFiles.add(new SupportingFile("mixins/SearchResponseMixin.mustache", mixinFolder, "SearchResponseMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/ResolverOutputMixin.mustache", mixinFolder, "ResolverOutputMixin.m"));
 
         // Documentation Files
         final String docFolder = "sphinx/source";

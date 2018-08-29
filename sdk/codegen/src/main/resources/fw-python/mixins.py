@@ -367,10 +367,31 @@ class FileMixin(ContainerBase):
         return self._parent.delete_file_classification(self.name, classification)
 
 
-class SearchResponseMixin(object):
-    def __init__(self):
-        self.__context = None
+class ResolverOutputMixin(object):
+    def _set_context(self, context):
+        """Set context and parent for files"""
+        parent = None
 
+        if self.path:
+            for node in self.path:
+                if getattr(node, 'container_type', None) == 'file':
+                    node._parent = parent
+
+                if hasattr(node, '_set_context'):
+                    node._set_context(context)
+
+                parent = node
+
+        if self.children:
+            for node in self.children:
+                if hasattr(node, '_set_context'):
+                    node._set_context(context)
+
+            if getattr(node, 'container_type', None) == 'file':
+                node._parent = parent
+
+
+class SearchResponseMixin(object):
     def _set_context(self, context):
         if self.group is not None:
             self.group._set_context(context)

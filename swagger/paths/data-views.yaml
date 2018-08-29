@@ -7,7 +7,6 @@
       description: The ID of the container, one of user, group or project
   get:
     summary: Return a list of all views belonging to container
-    description: This is a BETA feature, and is not yet available.
     operationId: get_views
     tags:
     - views
@@ -18,7 +17,6 @@
           $ref: schemas/output/data-view-list.json
   post:
     summary: Add a new data view
-    description: This is a BETA feature, and is not yet available.
     operationId: add_view
     tags:
     - views
@@ -39,7 +37,6 @@
 /views/columns:
   get:
     summary: Return a list of all known column aliases for use in data views
-    description: This is a BETA feature, and is not yet available.
     operationId: get_view_columns
     tags:
     - views
@@ -52,7 +49,6 @@
 /views/data:
   post:
     summary: Execute an ad-hoc view, returning data in the preferred format.
-    description: This is a BETA feature, and is not yet available.
     operationId: evaluate_view_adhoc
     tags:
     - views
@@ -149,7 +145,6 @@
       description: The ID of the view
   get:
     summary: Return the view identified by ViewId
-    description: This is a BETA feature, and is not yet available.
     operationId: get_view
     tags:
     - views
@@ -160,7 +155,6 @@
           $ref: schemas/output/data-view.json
   put:
     summary: Update the view identified by ViewId
-    description: This is a BETA feature, and is not yet available.
     operationId: modify_view
     tags:
     - views
@@ -177,7 +171,6 @@
         $ref: '#/responses/400:invalid-body-json'
   delete:
     summary: Delete a data view
-    description: This is a BETA feature, and is not yet available.
     operationId: delete_view
     tags:
     - views
@@ -194,7 +187,6 @@
       description: The ID of the view
   get:
     summary: Execute a view, returning data in the preferred format.
-    description: This is a BETA feature, and is not yet available.
     operationId: evaluate_view 
     tags:
     - views

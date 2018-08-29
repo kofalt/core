@@ -20,7 +20,8 @@
     			"path": { "$ref": "#/definitions/resolver-node-list" },
     			"children": { "$ref": "#/definitions/resolver-node-list" }
     		},
-   			"required": ["path"]
+   			"required": ["path"],
+        "x-sdk-container-mixin": "resolver-output-mixin"
     	},
     	"resolver-node": {
     		"type": "object",

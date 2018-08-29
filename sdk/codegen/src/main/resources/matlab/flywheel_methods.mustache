@@ -26,6 +26,15 @@
             [returnData, resp] = obj.lookupPath(flywheel.model.ResolverInput('path', split(path, '/')), varargin{:});
         end
 
+        function url = fileUrl(obj, path)
+            result = obj.resolve(path);
+            tail = result.path{end};
+            if ~isprop(tail, 'containerType') || ~strcmp(tail.containerType, 'file')
+                throw(MException('ApiClient:apiException', 'Resolved path is not a file!'));
+            end
+            url = tail.url();
+        end
+
         function view = View(obj, varargin)
             % Create a new View object
             %
