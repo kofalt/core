@@ -1013,8 +1013,52 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
     data_builder.delete_group(group, recursive=True)
 
 
+def test_optional_input_gear_rules(default_payload, data_builder, api_db, as_admin, as_root, file_form):
+    # Create gear and project
+    gear_doc = default_payload['gear']
+    # Try creating batch with optional inputs and api-key input
+    gear_doc['gear']['inputs'] = {
+        'text': {
+            'base': 'file',
+            'name': {'pattern': '^.*.txt$'},
+            'size': {'maximum': 100000}
+        },
+        'csv': {
+            'base': 'file',
+            'name': {'pattern': '^.*.csv$'},
+            'size': {'maximum': 100000},
+            'optional': True
+        },
+        'api_key': {
+            'base': 'api-key',
+            'read-only': True
+        }
+    }
 
+    gear = data_builder.create_gear(gear=gear_doc['gear'])
+    project = data_builder.create_project()
+    acquisition = data_builder.create_acquisition()
 
+    r = as_admin.get('/gears', params={'filter': ['single_input', 'read_only_key']})
+    assert r.ok
+    assert r.json()[0]['_id'] == gear
 
+    # Try posting rule with config and that auto-updates
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'test-optional-input-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'text'}],
+        'disabled': False,
+        'auto_update': True
+    })
+    assert r.ok
+    rule_id = r.json()['_id']
 
+    # create job
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.txt')).ok
 
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    job_id = r.json()['id']

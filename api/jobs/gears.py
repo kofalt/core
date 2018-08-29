@@ -160,6 +160,12 @@ def fill_gear_default_values(gear, config_):
 def count_file_inputs(geardoc):
     return len([inp for inp in geardoc['gear']['inputs'].values() if inp['base'] == 'file'])
 
+def filter_optional_inputs(geardoc):
+    filtered_gear_doc = copy.deepcopy(geardoc)
+    inputs = filtered_gear_doc['gear']['inputs'].iteritems()
+    filtered_gear_doc['gear']['inputs'] = {inp: inp_val for inp, inp_val in inputs if not inp_val.get('optional')}
+    return filtered_gear_doc
+
 def insert_gear(doc):
     gear_tools.validate_manifest(doc['gear'])
     last_gear = get_latest_gear(doc['gear']['name'])

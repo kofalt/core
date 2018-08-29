@@ -156,6 +156,7 @@ def queue_job_legacy(gear_id, input_):
     """
 
     gear = gears.get_gear(gear_id)
+    gear = gears.filter_optional_inputs(gear)
 
     if gears.count_file_inputs(gear) != 1:
         raise Exception("Legacy gear enqueue attempt of " + gear_id + " failed: must have exactly 1 input in manifest")
@@ -200,6 +201,7 @@ def create_potential_jobs(db, container, container_type, file_):
 
             gear_id = rule['gear_id']
             gear = gears.get_gear(gear_id)
+            gear = gears.filter_optional_inputs(gear)
             gear_name = gear['gear']['name']
 
             if rule.get('match') is None:

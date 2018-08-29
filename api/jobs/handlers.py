@@ -28,7 +28,7 @@ from ..web.request import AccessType
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear,
     get_invocation_schema, remove_gear,
-    upsert_gear, check_for_gear_insertion,
+    upsert_gear, check_for_gear_insertion, filter_optional_inputs,
     add_suggest_info_to_files, count_file_inputs, requires_read_write_key
 )
 
@@ -55,7 +55,7 @@ class GearsHandler(base.RequestHandler):
         gears = get_gears(all_versions=self.is_true('all_versions'))
         if 'single_input' in filters:
             filtered = True
-            gears = [gear for gear in gears if count_file_inputs(gear) <= 1]
+            gears = [gear for gear in gears if count_file_inputs(filter_optional_inputs(gear)) <= 1]
         if 'read_only_key' in filters:
             filtered = True
             gears = [gear for gear in gears if not requires_read_write_key(gear)]
