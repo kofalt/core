@@ -1,4 +1,7 @@
-classdef ResolverOutputMixin < {{packageName}}.mixins.ContainerBase
+classdef ResolverOutputMixin < handle
+    properties
+        context_
+    end
     methods(Hidden)
         function setContext_(obj, context)
             obj.context_ = context;

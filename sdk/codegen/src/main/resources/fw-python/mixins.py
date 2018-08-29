@@ -67,6 +67,24 @@ class ContainerBase(object):
         """Reload the object from the server, and return the result"""
         return self._invoke_container_api('get_{}', self.id)
 
+    def _localize_date(self, name):
+        """Localize the date attribute for name"""
+        value = getattr(self, name, None)
+        if not value:
+            return None
+        from dateutil.tz import tzlocal
+        return value.astimezone(tzlocal())
+
+    @property
+    def local_created(self):
+        """Get the creation time in the local timezone"""
+        return self._localize_date('created')
+
+    @property
+    def local_modified(self):
+        """Get the modification time in the local timezone"""
+        return self._localize_date('modified')
+
     def _find_children(self, child_type, filters, find_first=False, find_one=False, **kwargs):
         fname = 'get_{}_{}'.format(self.container_type, child_type)
         return self.__context._find(fname, [self.id], filters, find_first=find_first, find_one=find_one, **kwargs)
@@ -230,6 +248,26 @@ class FileMethods(object):
         return None
 
 
+class TimestampMethods(object):
+    @property
+    def local_timestamp(self):
+        """Get the timestamp in the local timezone"""
+        return self._localize_date('timestamp')
+
+    @property
+    def original_timestamp(self):
+        """Get the timestamp in the original timezone"""
+        if not self.timestamp:
+            return None
+
+        if not self.timezone:
+            raise ValueError('No original timezone was specified!')
+
+        import pytz
+        tz = pytz.timezone(self.timezone)
+        return self.timestamp.astimezone(tz)
+
+
 class GroupMixin(ContainerBase, TagMethods, PermissionMethods):
     container_type = 'group'
     child_types = ['projects']
@@ -270,7 +308,7 @@ class SubjectMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMeth
         return self._invoke_container_api(fname, body)
 
 
-class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMethods):
+class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMethods, TimestampMethods):
     container_type = 'session'
     child_types = ['acquisitions', 'analyses', 'files']
 
@@ -279,7 +317,7 @@ class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMeth
         return self._add_child('acquisition', args, kwargs)
 
 
-class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods):
+class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods, TimestampMethods):
     container_type = 'acquisition'
     child_types = ['analyses', 'files']
 
@@ -325,6 +363,11 @@ class FileMixin(ContainerBase):
     @property
     def parent(self):
         return self._parent
+
+    @property
+    def local_replaced(self):
+        """Get the replaced timestamp in local time"""
+        return self._localize_date('replaced')
 
     def url(self):
         """Get a ticketed download url for the file"""

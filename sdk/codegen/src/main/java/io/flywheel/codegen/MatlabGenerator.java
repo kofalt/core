@@ -219,6 +219,7 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         supportingFiles.add(new SupportingFile("mixins/NoteMethods.mustache", mixinFolder, "NoteMethods.m"));
         supportingFiles.add(new SupportingFile("mixins/PermissionMethods.mustache", mixinFolder, "PermissionMethods.m"));
         supportingFiles.add(new SupportingFile("mixins/TagMethods.mustache", mixinFolder, "TagMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/TimestampMethods.mustache", mixinFolder, "TimestampMethods.m"));
 
         supportingFiles.add(new SupportingFile("mixins/GroupMixin.mustache", mixinFolder, "GroupMixin.m"));
         supportingFiles.add(new SupportingFile("mixins/ProjectMixin.mustache", mixinFolder, "ProjectMixin.m"));

@@ -4,6 +4,8 @@ classdef ContainerBase < handle
     end
     properties(Dependent)
         containerType
+        localCreated
+        localModified
     end
     methods
         function result = get.containerType(obj)
@@ -15,6 +17,12 @@ classdef ContainerBase < handle
         end
         function [returnData, resp] = reload(obj)
             [returnData, resp] = obj.invokeContainerApi('get%s', obj.get('id'));
+        end
+        function result = get.localCreated(obj)
+            result = obj.localizeDate('created');
+        end
+        function result = get.localModified(obj)
+            result = obj.localizeDate('modified');
         end
     end
     methods(Hidden)
@@ -38,6 +46,12 @@ classdef ContainerBase < handle
             body.(obj.containerType) = obj.id;
             fn = str2func(sprintf('add%s', childName));
             [returnData, resp] = fn(obj.context_, body);
+        end
+        function result = localizeDate(obj, key)
+            result = obj.get(key);
+            if ~isempty(result)
+                result = datetime(result, 'TimeZone', 'local');
+            end
         end
     end
     methods(Static, Hidden)

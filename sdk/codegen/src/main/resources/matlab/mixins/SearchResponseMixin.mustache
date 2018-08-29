@@ -1,4 +1,7 @@
-classdef SearchResponseMixin < {{packageName}}.mixins.ContainerBase
+classdef SearchResponseMixin < handle
+    properties
+        context_
+    end
     methods(Hidden)
         function setContext_(obj, context)
             obj.context_ = context;
