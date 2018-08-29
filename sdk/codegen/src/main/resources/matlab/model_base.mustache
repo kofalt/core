@@ -76,13 +76,23 @@ classdef ModelBase < matlab.mixin.CustomDisplay
                         else
                             if isKey(obj.propMap_, subs)
                                 propName = obj.propMap_(subs);
-                                obj.props_(propName) = {{packageName}}.ModelBase.recursiveAsgn(obj.props_(propName), s(2:end), val);
+                                srest = s(2:end);
+                                if isempty(srest)
+                                    obj.props_(propName) = val;
+                                else
+                                    obj.props_(propName) = {{packageName}}.ModelBase.recursiveAsgn(obj.props_(propName), s(2:end), val);
+                                end
                             else
                                 error('subsasgn', 'No property ' + subs + ' exists for class ' + class(obj));
                             end
                         end
                     else
-                        obj.(subs) = {{packageName}}.ModelBase.recursiveAsgn(obj.(subs), s(2:end), val);
+                        srest = s(2:end);
+                        if isempty(srest)
+                            obj.(subs) = val;
+                        else
+                            obj.(subs) = {{packageName}}.ModelBase.recursiveAsgn(obj.(subs), s(2:end), val);
+                        end
                     end
                 elseif s(1).type == '{}'
                     if length(subs) > 1
