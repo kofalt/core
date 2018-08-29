@@ -12,12 +12,28 @@ def test_apply_env_variables(mocker, tmpdir):
         'SCITRAN_TEST_FALSE': 'false',
         'SCITRAN_TEST_NONE': 'none'})
     config = {
-        'auth': {},
+        'auth': {'initial': 'auth'},
         'test': {'true': '', 'false': '', 'none': ''}}
     api.config.apply_env_variables(config)
     assert config == {
         'auth': {'test': 'test'},
         'test': {'true': True, 'false': False, 'none': None}}
+
+
+    # Test that objects don't persist
+    auth_file, auth_content = 'auth_config.json', {'auth': {'test2': 'test2'}}
+    tmpdir.join(auth_file).write(json.dumps(auth_content))
+
+    api.config.apply_env_variables(config)
+    assert config == {
+        'auth': {'test2': 'test2'},
+        'test': {'true': True, 'false': False, 'none': None}}
+
+    # Test Default is used when no auth is provided
+    auth_file, auth_content = 'auth_config.json', {}
+    tmpdir.join(auth_file).write(json.dumps(auth_content))
+    api.config.apply_env_variables(config)
+    assert config['auth'].get('google')
 
 
 def test_create_or_recreate_ttl_index(mocker):
