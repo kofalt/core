@@ -1,5 +1,6 @@
 import bson
 import datetime
+import re
 
 from .pipeline import PipelineStage, EndOfPayload
 from ...util import datetime_from_str
@@ -49,6 +50,8 @@ def make_filter_fn(key, op, value):
     if compare_fn_name not in globals():
         # If this is encountered, it's probably because a new filter operation was added to pagination
         raise RuntimeError('Invalid filter operation: {}'.format(op))
+    if op == '$regex':
+        value = re.compile(value)
     compare_fn = globals()[compare_fn_name](value)
 
     # Type coercion for value type
@@ -94,6 +97,10 @@ def compare_fn_gt(rhs):
     """Compare lhs > rhs"""
     return lambda lhs: lhs > rhs
 
+def compare_fn_regex(rhs):
+    """Check that regex matches"""
+    return lambda lhs: bool(rhs.match(lhs))
+
 def get_coerce_fn(cls):
     """Get a function that coerces values into the given type"""
     if cls == bson.ObjectId:
@@ -102,7 +109,7 @@ def get_coerce_fn(cls):
         return coerce_float
     if cls == datetime.datetime:
         return coerce_datetime
-    if cls == str or cls == unicode:
+    if cls == str or cls == unicode or cls == re._pattern_type:  # pylint: disable=protected-access
         return coerce_str
     # pylint: disable=unnecessary-lambda
     return lambda x: x
