@@ -24,7 +24,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 57 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 58 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -1965,6 +1965,78 @@ def upgrade_to_57():
     cursor = config.db.subjects.find({'parents': {'$exists': False}})
     process_cursor(cursor, upgrade_children_to_57, 'subjects')
 
+def modality_maker():
+    modalities = [m['_id'] for m in config.db.modalities.find({})]
+    lower_modalities = [m.lower() for m in modalities]
+    def upgrade_files_to_new_modalities(cont, cont_name):
+        files = cont.get('files', [])
+        file_updated = False
+        for file_ in files:
+            if file_['classification'].get('Custom') and not file_.get('modality'):
+                try:
+                    modality_index = lower_modalities.index(file_['classification'].get('Custom')[0].lower())
+                    file_updated = True
+                    file_['modality'] = modalities[modality_index]
+                except ValueError:
+                    continue
+        if file_updated:
+            config.db[cont_name].update_one({'_id': cont['_id']}, {"$set": {'files': files}})
+        return True
+    return upgrade_files_to_new_modalities
+
+def upgrade_to_58():
+    """
+    Add new modalities and check if files belong to any of them
+    """
+    new_modalities = [
+    {
+        '_id': 'CT',
+        'classification': {}
+    },
+    {
+        '_id': 'PET',
+        'classification': {}
+    },
+    {
+        '_id': 'US',
+        'classification': {}
+    },
+    {
+        '_id': 'EEG',
+        'classification': {}
+    },
+    {
+        '_id': 'iEEG',
+        'classification': {}
+    },
+    {
+        '_id': 'X-ray',
+        'classification': {}
+    },
+    {
+        '_id': 'ECG',
+        'classification': {}
+    },
+    {
+        '_id': 'MEG',
+        'classification': {}
+    },
+    {
+        '_id': 'NIRS',
+        'classification': {}
+    }
+    ]
+
+    for modality in new_modalities:
+        if not config.db.modalities.find_one({'_id': modality['_id']}):
+            config.db.modalities.insert(modality)
+
+    closure = modality_maker()
+    for cont_name in ['projects', 'sessions', 'acquisitions', 'analyses']:
+        cursor = config.db[cont_name].find({'files': {'$elemMatch': {'modality': {'$in': ['', None]},
+                                                                     '$and': [{'classification.Custom': {'$ne': []}},
+                                                                              {'classification.Custom': {'$exists': True}}]}}})
+        process_cursor(cursor, closure, cont_name)
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION
