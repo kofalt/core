@@ -27,6 +27,11 @@ classdef {{classname}} < {{packageName}}.ModelBase
             { {{#children}}'{{modelPackage}}.{{classname}}.fromJson'{{^-last}}, {{/-last}}{{/children}} });
         {{/discriminator}}
     end
+    properties(Dependent)
+        {{#vars}}
+        {{name}}
+        {{/vars}}
+    end
     methods
         function obj = {{classname}}(varargin)
             obj@{{packageName}}.ModelBase({{modelPackage}}.{{classname}}.propertyMap);

@@ -23,6 +23,10 @@
           }
         }
     },
+    "destination": {
+      "type": "acquisition",
+      "id": "57ac7394c700190017123fb7"
+    },    
     "config":{
       "speed":3
     }
