@@ -167,15 +167,18 @@ class ContainerNode(Node):
     # As neither property should ever change, this sort should be consistent
     sorting = [('created', 1), ('_id', 1)]
 
-    def __init__(self, cont_name, files=True, use_id=False, analyses=True):
+    def __init__(self, cont_name, files=True, use_id=False, analyses=True, include_subjects=False):
         self.cont_name = cont_name
         self.storage = ContainerStorage.factory(cont_name)
         # container_type is also the parent id field name
         self.container_type = containerutil.singularize(cont_name)
         self.files = files
-        self.use_id = use_id        
+        self.use_id = use_id
         self.analyses = analyses
-        self.child_name = self.storage.get_child_container_name_legacy()
+        self.include_subjects = include_subjects
+        self.child_name = self.storage.child_cont_name
+        if self.container_type == 'project' and not include_subjects:
+            self.child_name = 'sessions'
 
     def next(self, path_in, path_out, id_only):
         use_id, criterion = self.parse_criterion(path_in)
@@ -194,11 +197,12 @@ class ContainerNode(Node):
             else:
                 query['_id'] = criterion
         else:
-            query['label'] = criterion
+            label_key = 'code' if self.container_type == 'subject' else 'label'
+            query[label_key] = criterion
 
         # Setup projection
         if id_only: 
-            proj = ContainerNode.get_id_only_projection()
+            proj = self.get_id_only_projection()
             if fetch_files:
                 proj['files'] = 1
         else:
@@ -231,7 +235,7 @@ class ContainerNode(Node):
 
             # Otherwise, the next node is our child container
             if self.child_name:
-                return ContainerNode(self.child_name)
+                return ContainerNode(self.child_name, include_subjects=self.include_subjects)
 
         return None
 
@@ -273,13 +277,13 @@ class ContainerNode(Node):
         # they try to resolve something they don't have access to
         return self.storage.get_all_el(query, None, proj, sort=ContainerNode.sorting, limit=1)
 
-    @staticmethod
-    def get_id_only_projection():
+    def get_id_only_projection(self):
         """Return a projection that will return the minimal values required for id-only resolution."""
+        label_key = 'code' if self.container_type == 'subject' else 'label'
         return {
-            'label':             1,
-            'permissions':       1,
-            'files':             1,
+            label_key:     1,
+            'permissions': 1,
+            'files':       1,
         }
 
     @staticmethod
@@ -352,13 +356,16 @@ class AnalysesNode(ContainerNode):
 
 class RootNode(Node):
     """The root node of the resolver tree"""
+    def __init__(self, include_subjects=False):
+        self.include_subjects = include_subjects
+
     def next(self, path_in, path_out, id_only):
         """Get the next node in the hierarchy"""
         if path_in[0] == 'gears':
             path_in.popleft()
             return GearsNode()
 
-        return ContainerNode('groups', files=False, use_id=True, analyses=False)
+        return ContainerNode('groups', files=False, use_id=True, analyses=False, include_subjects=self.include_subjects)
 
     def get_children(self, path_out):
         """Get the children of the current node in the hierarchy"""
@@ -371,8 +378,9 @@ class Resolver(object):
 
     Does not tolerate ambiguity at any level of the path except the final node.
     """
-    def __init__(self, id_only=False):
-        self.id_only = id_only 
+    def __init__(self, id_only=False, include_subjects=False):
+        self.id_only = id_only
+        self.include_subjects = include_subjects
 
     def resolve(self, path):
         if not isinstance(path, list):
@@ -380,7 +388,7 @@ class Resolver(object):
 
         path = deque(path)
         node = None
-        next_node = RootNode()
+        next_node = RootNode(include_subjects=self.include_subjects)
 
         resolved_path = []
         resolved_children = []

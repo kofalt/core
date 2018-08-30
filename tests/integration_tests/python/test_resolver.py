@@ -633,4 +633,86 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert result['children'] == []
 
 
+def test_resolve_subjects(data_builder, as_admin, as_user, as_public, file_form):
+    group = data_builder.create_group()
 
+    project = data_builder.create_project(label='project_label')
+    assert as_admin.post('/projects/' + project + '/files', files=file_form('project_file'))
+    project_analysis = create_analysis(as_admin, file_form, 'projects', project, 'project_analysis', 'project_file')
+
+    session = data_builder.create_session(label='session_label', subject={'code': 'subject_code'})
+    assert as_admin.post('/sessions/' + session + '/files', files=file_form('session_file'))
+    session_analysis = create_analysis(as_admin, file_form, 'sessions', session, 'session_analysis', 'session_file')
+
+    subject = as_admin.get('/sessions/' + session).json()['subject']['_id']
+    assert as_admin.post('/subjects/' + subject + '/files', files=file_form('subject_file'))
+    subject_file = as_admin.get('/subjects/' + subject).json()['files'][0]['_id']
+    subject_analysis = create_analysis(as_admin, file_form, 'subjects', subject, 'subject_analysis', 'subject_file')
+
+    acquisition = data_builder.create_acquisition(label='acquisition_label')
+
+    enable_subjects = {'X-Accept-Feature': 'Resolve-Subjects'}
+
+    # PROJECT
+    # resolve root/group/project
+    r = as_admin.post('/resolve', json={'path': [group, 'project_label']}, headers=enable_subjects)
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project], result)
+    assert child_in_result({'name': 'project_file', 'container_type': 'file'}, result)
+    assert child_in_result({'_id': subject, 'container_type': 'subject'}, result)
+    assert child_in_result({'_id': project_analysis, 'container_type': 'analysis'}, result)
+    assert len(result['children']) == 3
+
+    # SUBJECT
+    # resolve root/group/project/subject
+    r = as_admin.post('/resolve', json={'path': [group, 'project_label', 'subject_code']}, headers=enable_subjects)
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project, subject], result)
+    assert child_in_result({'name': 'subject_file', 'container_type': 'file'}, result)
+    assert child_in_result({'_id': session, 'container_type': 'session'}, result)
+    assert child_in_result({'_id': subject_analysis, 'container_type': 'analysis'}, result)
+    assert len(result['children']) == 3
+
+    # resolve root/group/project/subject/analysis
+    r = as_admin.post('/resolve', json={'path': [group, 'project_label', 'subject_code', 'analyses']}, headers=enable_subjects)
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project, subject], result)
+    assert child_in_result({'_id': subject_analysis, 'container_type': 'analysis'}, result)
+    assert len(result['children']) == 1
+
+    # resolve root/group/project/subject/analysis/name
+    r = as_admin.post('/resolve', json={'path': [group, 'project_label', 'subject_code', 'analyses', 'subject_analysis']}, headers=enable_subjects)
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project, subject, subject_analysis], result)
+    assert child_in_result({'name': 'one.csv', 'container_type': 'file'}, result)
+    assert len(result['children']) == 1
+
+    # resolve root/group/project/subject/files
+    r = as_admin.post('/resolve', json={'path': [group, 'project_label', 'subject_code', 'files']}, headers=enable_subjects)
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project, subject], result)
+    assert child_in_result({'name': 'subject_file', 'container_type': 'file'}, result)
+    assert len(result['children']) == 1
+
+    # resolve root/group/project/subject/files/name
+    r = as_admin.post('/resolve', json={'path': [group, 'project_label', 'subject_code', 'files', 'subject_file']}, headers=enable_subjects)
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project, subject, subject_file], result)
+    assert result['children'] == []
+
+    # SESSION
+    # resolve root/group/project/subject/session
+    r = as_admin.post('/resolve', json={'path': [group, 'project_label', 'subject_code', 'session_label']}, headers=enable_subjects)
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project, subject, session], result)
+    assert child_in_result({'name': 'session_file', 'container_type': 'file'}, result)
+    assert child_in_result({'_id': acquisition, 'container_type': 'acquisition'}, result)
+    assert child_in_result({'_id': session_analysis, 'container_type': 'analysis'}, result)
+    assert len(result['children']) == 3
