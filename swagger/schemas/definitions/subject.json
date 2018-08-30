@@ -28,6 +28,12 @@
               { "type": "string", "enum": ["control", "subject"] }
             ]
         },
+        "type": {
+            "oneOf": [
+              { "type": "null"},
+              { "type": "string", "enum": ["human", "animal", "phantom"] }
+            ]
+        },
         "race": {
             "oneOf": [
               { "type": "null"},
@@ -54,9 +60,14 @@
               "lastname":         {"$ref":"#/definitions/lastname"},
 
               "age":              {"$ref":"#/definitions/age"},
+
               "sex":              {"$ref":"#/definitions/sex"},
+              "cohort":           {"$ref":"#/definitions/cohort"},
+              "type":             {"$ref":"#/definitions/type"},
               "race":             {"$ref":"#/definitions/race"},
               "ethnicity":        {"$ref":"#/definitions/ethnicity"},
+              "species":          {"type": ["string", "null"]},
+              "strain":           {"type": ["string", "null"]},
 
               "code":             {"$ref":"#/definitions/code"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},
@@ -90,10 +101,14 @@
               "lastname":         {"$ref":"#/definitions/lastname"},
 
               "age":              {"$ref":"#/definitions/age"},
+
               "sex":              {"$ref":"#/definitions/sex"},
-              "cohort":           {"$ref":"#/definitions/sex"},
+              "cohort":           {"$ref":"#/definitions/cohort"},
+              "type":             {"$ref":"#/definitions/type"},
               "race":             {"$ref":"#/definitions/race"},
               "ethnicity":        {"$ref":"#/definitions/ethnicity"},
+              "species":          {"type": ["string", "null"]},
+              "strain":           {"type": ["string", "null"]},
 
               "code":             {"$ref":"#/definitions/code"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},

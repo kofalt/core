@@ -192,7 +192,6 @@ class DataViewConfig(object):
 
         if container == 'subject' and field == 'age':
             container = 'session'
-            field = 'subject_age'
         elif container not in COLUMN_CONTAINERS:
             raise InputValidationException('Unknown container for column: {}'.format(src))
 

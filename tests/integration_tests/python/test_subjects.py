@@ -8,7 +8,7 @@ def test_subject_collection(data_builder, api_db, as_admin):
     # verify subject is created in separate collection
     session_doc = api_db.sessions.find_one({'_id': bson.ObjectId(session)})
     assert type(session_doc['subject']) is bson.ObjectId
-    assert session_doc['subject_age'] == 123
+    assert session_doc['age'] == 123
     subject_doc = api_db.subjects.find_one({'_id': session_doc['subject']})
     assert subject_doc['code'] == 'test'
     assert subject_doc['project'] == session_doc['project']
@@ -23,7 +23,7 @@ def test_subject_collection(data_builder, api_db, as_admin):
     assert r.json()['subject']['age'] == 123
 
     # create new session w/ same subject - implicit subject update
-    # NOTE session_2.subject_age will not be populated (even though implicitly known)
+    # NOTE session_2.age will not be populated (even though implicitly known)
     session_2 = data_builder.create_session(subject={'code': 'test', 'sex': 'female'})
 
     # verify the same subject was used
@@ -156,3 +156,26 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
     r = as_admin.get('/subjects/' + subject)
     assert r.ok
     assert 'result.txt' in [f['name'] for f in r.json()['files']]
+
+
+def test_subject_fields(data_builder, as_admin):
+    subject_fields = dict(
+        code='test', cohort='subject',
+        type='animal', species='dog', strain='free-string')
+    session_fields = dict(age=123, weight=74.8, subject=subject_fields)
+
+    # create new-style session/subject
+    session = data_builder.create_session(**session_fields)
+
+    r = as_admin.get('/sessions/' + session)
+    assert r.ok
+    doc = r.json()
+
+    assert doc.get('age') == 123
+    assert doc.get('weight') == 74.8
+
+    assert doc['subject'].get('age') == 123
+    assert doc['subject'].get('cohort') == 'subject'
+    assert doc['subject'].get('type') == 'animal'
+    assert doc['subject'].get('species') == 'dog'
+    assert doc['subject'].get('strain') == 'free-string'

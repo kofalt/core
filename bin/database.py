@@ -1835,7 +1835,7 @@ def upgrade_to_55(dry_run=False):
         if subject.get('race') or subject.get('ethnicity'):
             subject['type'] = 'human'
         if subject.get('age'):
-            session['subject_age'] = subject.pop('age')
+            session['age'] = subject.pop('age')
         return subject
 
     def merge_dict(a, b):

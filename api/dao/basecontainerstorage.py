@@ -552,9 +552,9 @@ class ContainerStorage(object):
             subjects = {subj['_id']: subj for subj in storage.get_all_el(query, None, projection)}
             for session in sessions:
                 subject = subjects[session['subject']]
-                if session.get('subject_age'):
+                if session.get('age'):
                     subject = copy.deepcopy(subject)
-                    subject['age'] = session.pop('subject_age')
+                    subject['age'] = session['age']
                 session['subject'] = subject
 
 

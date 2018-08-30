@@ -114,7 +114,7 @@ def extract_subject(session, project):
         subject['_id'] = bson.ObjectId()
     session['subject'] = subject['_id']
     if subject.get('age'):
-        session['subject_age'] = subject.pop('age')
+        session['age'] = subject.pop('age')
     return subject
 
 

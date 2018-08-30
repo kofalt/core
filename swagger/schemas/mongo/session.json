@@ -22,7 +22,8 @@
         "timestamp":    {},
         "timezone":     {"type": "string"},
         "subject":      {},
-        "subject_age":  {"type": ["number", "null"]}
+        "age":          {"type": ["number", "null"]},
+        "weight":       {"type": ["number", "null"]}
     },
     "additionalProperties": false
 }

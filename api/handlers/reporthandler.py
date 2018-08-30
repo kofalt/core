@@ -414,11 +414,11 @@ class ProjectReport(Report):
             # Count subjects by age group
             # Age is taken as an average over all subject entries
             age_q = copy.deepcopy(base_query)
-            age_q['subject_age'] = {'$gt': 0}
+            age_q['age'] = {'$gt': 0}
 
             pipeline = [
                 {'$match': age_q},
-                {'$group': {'_id': '$subject', 'age': { '$avg': '$subject_age'}}},
+                {'$group': {'_id': '$subject', 'age': { '$avg': '$age'}}},
                 {'$project': {'_id': 1, 'over_18':  {'$cond': [{'$gte': ['$age', EIGHTEEN_YEARS_IN_SEC]}, 1, 0]},
                                         'under_18': {'$cond': [{'$lt': ['$age', EIGHTEEN_YEARS_IN_SEC]}, 1, 0]}}},
                 {'$group': {'_id': 1, 'over_18': {'$sum': '$over_18'}, 'under_18': {'$sum': '$under_18'}}}

@@ -610,8 +610,8 @@ def test_55(api_db, data_builder, database):
     assert get_subject(different_subject_id_1)['_id'] == get_subject(different_subject_id_2)['_id']
     assert get_subject(matching_subject_id_1)['_id'] == get_subject(matching_subject_id_2)['_id'] == matching_subject_id
 
-    # verify subject.age is moved to session.subject_age
-    assert api_db.sessions.find_one({'_id': test_age}).get('subject_age') == 123
+    # verify subject.age is moved to session.age
+    assert api_db.sessions.find_one({'_id': test_age}).get('age') == 123
 
     # verify merging works as expected
     merge_subject = get_subject(test_merge)

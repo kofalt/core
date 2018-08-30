@@ -273,6 +273,7 @@ class SessionsTestCases(SdkTestCase):
 
     def sanitize_for_collection(self, session, info_exists=True):
         # workaround: all-container endpoints skip some fields, single-container does not. this sets up the equality check 
+        session.age = None
         session.info = {}
         session.info_exists = info_exists
         session.analyses = None

@@ -297,7 +297,7 @@ class SessionStorage(ContainerStorage):
         return self.get_all_el(query, user, projection)
 
     def get_list_projection(self):
-        return {'info': 0, 'files.info': 0, 'analyses': 0, 'tags': 0, 'subject_age': 0}
+        return {'info': 0, 'files.info': 0, 'analyses': 0, 'tags': 0, 'age': 0}
 
 
 class AcquisitionStorage(ContainerStorage):
