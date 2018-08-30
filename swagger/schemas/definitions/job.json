@@ -192,6 +192,18 @@
       ],
       "x-sdk-model":"job"
     },
+    "job-config-inputs": {
+      "type": "object"
+    },
+    "job-config-output": {
+      "type": "object",
+      "properties": {
+        "config":      {"$ref":"#/definitions/config"},
+        "destination": {"$ref":"#/definitions/destination"},
+        "inputs":      {"$ref":"#/definitions/job-config-inputs"}
+      },
+      "required": ["config", "destination", "inputs"]
+    },
     "job-completion-input": {
       "type": "object",
       "properties": {

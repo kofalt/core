@@ -190,8 +190,7 @@
       '200':
         description: ''
         schema:
-          example:
-            $ref: examples/output/job-config.json
+          $ref: schemas/output/job-config.json
 /jobs/{JobId}/logs:
   parameters:
     - required: true
