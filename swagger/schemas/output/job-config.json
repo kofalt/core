@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf": [{"$ref":"../definitions/job.json#/definitions/job-config-output"}],
+  "example": {
+    "inputs": {
+      "dicom":{
+          "base": "file",
+          "hierarchy": {
+            "type": "acquisition",
+            "id": "57ac7394c700190017123fb7"
+          },
+          "location": {
+            "name": "anat-T1w.zip",
+            "path": "/flywheel/v0/input/file/anat-T1w.zip"
+          },
+          "object": {
+            "classification": {
+              "Intent": ["Structural"],
+              "Measurement": ["T1"]
+            },
+            "modality": "MR"
+          }
+        }
+    },
+    "destination": {
+      "type": "acquisition",
+      "id": "57ac7394c700190017123fb7"
+    },    
+    "config":{
+      "speed":3
+    }
+  }
+}
