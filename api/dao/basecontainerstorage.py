@@ -21,7 +21,7 @@ CHILD_MAP = {
     'sessions': 'acquisitions'
 }
 
-PARENT_MAP = {v: k for k,v in CHILD_MAP.iteritems()}
+PARENT_MAP = {v: k for k, v in CHILD_MAP.iteritems()}
 
 # All "containers" are required to return these fields
 # 'All' includes users
@@ -206,6 +206,37 @@ class ContainerStorage(object):
 
         return parents
 
+    def get_parents(self, cont):
+        """
+        Given a contanier and an id, returns that container and its parent tree.
+
+        For example, given `sessions`, `<session_id>`, it will return:
+        {
+            'session':  <session>,
+            'project':  <project>,
+            'group':    <group>
+        }
+        """
+        if self.cont_name == 'group':
+            return {}
+        elif self.cont_name in ['projects', 'sessions', 'acquisitions', 'analyses']:
+            parent, p_type = self.get_container_parent(cont=cont)
+            parents = parent.get('parents', {})
+            parents[p_type] = parent['_id']
+            return parents
+        return {}
+
+    def get_container_parent(self, cont):
+        if self.cont_name == 'analyses':
+            p_type = cont['parent']['type']
+            ps = ContainerStorage.factory(p_type)
+            parent = ps.get_container(cont['parent']['id'])
+            return parent, p_type
+        p_type = containerutil.singularize(PARENT_MAP[self.cont_name])
+        ps = ContainerStorage.factory(p_type)
+        parent = ps.get_container(cont[p_type])
+        return parent, p_type
+
     def get_parent(self, _id, cont=None, projection=None):
         if not cont:
             cont = self.get_container(_id, projection=projection)
@@ -217,6 +248,13 @@ class ContainerStorage(object):
 
         else:
             raise APIStorageException('The container level {} has no parent.'.format(self.cont_name))
+
+    def get_parent_id(self, _id, parent_type):
+        cont = self.get_container(_id)
+        if self.cont_name == containerutil.pluralize(parent_type):
+            return cont['_id']
+        if cont.get('parents') and cont['parents'].get(parent_type):
+            return cont['parents'][parent_type]
 
 
     def _from_mongo(self, cont):
@@ -250,6 +288,10 @@ class ContainerStorage(object):
 
     def create_el(self, payload):
         self._to_mongo(payload)
+        if self.cont_name in ['acquisitions', 'sessions', 'projects', 'analyses']:
+            # log.debug(parent_id)
+            parents = self.get_parents(payload)
+            payload['parents'] = parents
         try:
             result = self.dbc.insert_one(payload)
         except pymongo.errors.DuplicateKeyError:
@@ -258,6 +300,7 @@ class ContainerStorage(object):
 
     def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
         replace = None
+        include_refs = False
         if replace_metadata:
             replace = {}
             if payload.get('info') is not None:
@@ -279,13 +322,37 @@ class ContainerStorage(object):
 
         _id = self.format_id(_id)
 
+        if self.cont_name == 'sessions':
+            parent_name = 'project'
+        elif self.cont_name in ['projects', 'acquisitions']:
+            parent_name = containerutil.singularize(PARENT_MAP[self.cont_name])
+        elif self.cont_name == 'analyses':
+            parent_name = self.get_container(_id)['parent']['type']
+        else:
+            parent_name = None
+        if parent_name and payload and parent_name in payload:
+            recursive = True
+            include_refs = True
+            if r_payload is None:
+                r_payload = {}
+            new_parents = self.get_parents(payload)
+            for p_type, p_id in new_parents.iteritems():
+                update['$set']['parents.{}'.format(p_type)] = p_id
+                if not r_payload.get('parents'):
+                    r_payload['parents'] = {p_type: p_id}
+                else:
+                    r_payload['parents'][p_type] = p_id
+
         if recursive and r_payload is not None:
-            containerutil.propagate_changes(self.cont_name, _id, {}, {'$set': util.mongo_dict(r_payload)})
+            containerutil.propagate_changes(self.cont_name, _id, {}, {'$set': util.mongo_dict(r_payload)}, include_refs=include_refs)
 
         return self.dbc.update_one({'_id': _id}, update)
 
     def replace_el(self, _id, payload):
         payload['_id'] = self.format_id(_id)
+        if self.cont_name in ['acquisitions', 'sessions', 'projects', 'analyses']:
+            parents = self.get_parents(payload)
+            payload['parents'] = parents
         return self.dbc.replace_one({'_id': _id}, payload)
 
 

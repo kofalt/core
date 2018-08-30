@@ -416,7 +416,7 @@ class APIKeyAuthProvider(AuthProvider):
             raise APIAuthProviderException('Only user API keys can be used to grant a session.')
         return {
             'access_token': code,
-            'uid': api_key['uid'],
+            'uid': api_key['origin']['id'],
             'auth_type': self.auth_type,
             'expires': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
         }

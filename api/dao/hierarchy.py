@@ -50,8 +50,8 @@ def get_parent_tree(cont_name, _id):
         'group':    <group>
     }
     """
-    cont_name = containerutil.singularize(cont_name)
 
+    cont_name = containerutil.singularize(cont_name)
 
     if cont_name not in ['acquisition', 'session', 'project', 'group', 'analysis']:
         raise ValueError('Can only construct tree from group, project, session, analysis or acquisition level')
@@ -423,6 +423,8 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
         if cont_type == 'session':
             insert_vals['group'] = parent['group']
         cont.update(insert_vals)
+        if cont_name in ['acquisitions', 'sessions', 'projects', 'analyses']:
+            cont['parents'] = ContainerStorage.factory(cont_name).get_parents(cont)
         insert_id = config.db[cont_name].insert(cont)
         cont['_id'] = insert_id
         return cont

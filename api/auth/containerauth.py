@@ -19,13 +19,13 @@ def default_container(handler, container=None, target_parent_container=None):
             if method == 'GET' and container.get('public', False):
                 has_access = True
             elif method == 'GET':
-                has_access = _get_access(handler.uid, container) >= INTEGER_PERMISSIONS['ro']
+                has_access = _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['ro']
             elif method == 'POST':
                 required_perm = 'rw'
                 if target_parent_container.get('cont_name') == 'group':
                     # Create project on group, require admin
                     required_perm = 'admin'
-                has_access = _get_access(handler.uid, target_parent_container) >= INTEGER_PERMISSIONS[required_perm]
+                has_access = _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS[required_perm]
             elif method == 'DELETE':
                 # Project delete requires admin, others require rw
                 if container['cont_name'] == 'project' or container.get('has_original_data', False):
@@ -33,7 +33,7 @@ def default_container(handler, container=None, target_parent_container=None):
                 else:
                     required_perm = 'rw'
 
-                user_perms = _get_access(handler.uid, container)
+                user_perms = _get_access(handler.uid, container, scope=handler.scope)
                 has_access = user_perms >= INTEGER_PERMISSIONS[required_perm]
 
                 if not has_access and container.get('has_original_data', False) and user_perms == INTEGER_PERMISSIONS['rw']:
@@ -44,12 +44,12 @@ def default_container(handler, container=None, target_parent_container=None):
 
             elif method == 'PUT' and target_parent_container is not None:
                 has_access = (
-                    _get_access(handler.uid, container) >= INTEGER_PERMISSIONS['admin'] and
-                    _get_access(handler.uid, target_parent_container) >= INTEGER_PERMISSIONS['admin']
+                    _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin'] and
+                    _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin']
                 )
             elif method == 'PUT' and target_parent_container is None:
                 required_perm = 'rw'
-                has_access = _get_access(handler.uid, container) >= INTEGER_PERMISSIONS[required_perm]
+                has_access = _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS[required_perm]
             else:
                 has_access = False
 
@@ -93,7 +93,7 @@ def collection_permissions(handler, container=None, _=None):
 def default_referer(handler, parent_container=None):
     def g(exec_op):
         def f(method, _id=None, payload=None):
-            access = _get_access(handler.uid, parent_container)
+            access = _get_access(handler.uid, parent_container, scope=handler.scope)
             if method == 'GET' and parent_container.get('public', False):
                 has_access = True
             elif method == 'GET':
@@ -177,9 +177,13 @@ def public_request(handler, container=None):
 def list_permission_checker(handler):
     def g(exec_op):
         def f(method, query=None, user=None, public=False, projection=None, pagination=None):
-            if user and (user['_id'] != handler.uid):
+            if handler.scope:
+                query['$or'] = [{'parents.{}'.format(handler.scope['level']): handler.scope['id']},
+                                {'_id': handler.scope['id']}, {'public': True}]
+            elif user and (user['_id'] != handler.uid):
                 handler.abort(403, 'User ' + handler.uid + ' may not see the Projects of User ' + user['_id'])
-            query['permissions'] = {'$elemMatch': {'_id': handler.uid}}
+            else:
+                query['permissions'] = {'$elemMatch': {'_id': handler.uid}}
             if handler.is_true('public'):
                 query['$or'] = [{'public': True}, {'permissions': query.pop('permissions')}]
             return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination)

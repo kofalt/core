@@ -19,7 +19,7 @@ def default_sublist(handler, container):
     The resulting permissions checker modifies the exec_op method by checking the user permissions
     on the container before actually executing this method.
     """
-    access = _get_access(handler.uid, container)
+    access = _get_access(handler.uid, container, scope=handler.scope)
     def g(exec_op):
         def f(method, _id, query_params=None, payload=None, exclude_params=None):
             if method == 'GET' and container.get('public', False):
@@ -43,7 +43,7 @@ def files_sublist(handler, container):
     Files have slightly modified permissions centered around origin.
     Admin is required to remove files with an origin type other than engine or user.
     """
-    access = _get_access(handler.uid, container)
+    access = _get_access(handler.uid, container, scope=handler.scope)
     def g(exec_op):
         def f(method, _id, query_params=None, payload=None, fileinfo=None, exclude_params=None):
             errors = None
@@ -109,7 +109,7 @@ def permissions_sublist(handler, container):
     """
     the customized permissions checker for permissions operations.
     """
-    access = _get_access(handler.uid, container)
+    access = _get_access(handler.uid, container, scope=handler.scope)
     def g(exec_op):
         def f(method, _id, query_params = None, payload = None, exclude_params=None):
             if method in ['GET', 'DELETE']  and query_params.get('_id') == handler.uid:
@@ -125,7 +125,7 @@ def notes_sublist(handler, container):
     """
     permissions checker for notes_sublist
     """
-    access = _get_access(handler.uid, container)
+    access = _get_access(handler.uid, container, scope=handler.scope)
     def g(exec_op):
         def f(method, _id, query_params = None, payload = None, exclude_params=None):
             if access >= INTEGER_PERMISSIONS['admin']:

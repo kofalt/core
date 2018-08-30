@@ -47,11 +47,17 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     assert r.ok
     analysis = r.json()['_id']
 
+    # Test that permission updates don't make it to analyses
+    r = as_admin.post('/projects/' + project + '/permission', json={
+        '_id': 'user@user.com',
+        'access': 'ro'})
+
     # Verify job was created with it
     r = as_admin.get('/analyses/' + analysis)
     assert r.ok
     job = r.json().get('job')
     assert job
+    assert not r.json().get('permissions')
 
     # Engine upload
     r = as_drone.post('/engine',
@@ -330,3 +336,59 @@ def check_files(as_admin, analysis_id, filegroup, *filenames):
     dirname = 'input' if filegroup == 'inputs' else 'output'
     with tarfile.open(mode='r', fileobj=cStringIO.StringIO(r.content)) as tar:
         assert set(m.name for m in tar.getmembers()) == set('/'.join([analysis['label'], dirname, fn]) for fn in filenames)
+
+
+def test_moving_session_moves_analyses(data_builder, as_admin):
+    project_1 = data_builder.create_project()
+    project_2 = data_builder.create_project()
+    session = data_builder.create_session(project=project_1)
+    acquisition = data_builder.create_acquisition(session=session)
+
+    # Create ad-hoc analysis on session
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'session_offline'
+    })
+    assert r.ok
+    session_analysis = r.json()['_id']
+
+    # Create ad-hoc analysis on acquisition
+    r = as_admin.post('/acquisitions/' + acquisition + '/analyses', json={
+        'label': 'acquisition_offline'
+    })
+    assert r.ok
+    acquisition_analysis = r.json()['_id']
+
+    # Test that session analysis has current parents
+    r = as_admin.get('/analyses/' + session_analysis)
+    assert r.ok
+    parents = r.json()['parents']
+    assert parents['project'] == project_1
+
+    # Test that acquisition analysis has current parents
+    r = as_admin.get('/analyses/' + acquisition_analysis)
+    assert r.ok
+    parents = r.json()['parents']
+    assert parents['project'] == project_1
+
+    # Move session
+    r = as_admin.put('/sessions/' + session, json={'project': project_2})
+    assert r.ok
+
+    # Test session analysis parents updated
+    r = as_admin.get('/analyses/' + session_analysis)
+    assert r.ok
+    parents = r.json()['parents']
+    assert parents['project'] == project_2
+
+    # Test that acquisition parents are up to date
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    assert r.json()['session'] == session
+    assert r.json()['parents']['session'] == session
+    assert r.json()['parents']['project'] == project_2
+
+    # Test acquisition analysis parents updated
+    r = as_admin.get('/analyses/' + acquisition_analysis)
+    assert r.ok
+    parents = r.json()['parents']
+    assert parents['project'] == project_2

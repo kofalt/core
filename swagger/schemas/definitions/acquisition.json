@@ -34,12 +34,13 @@
                 }
             },
             "additionalProperties": false
-        }, 
+        },
         "acquisition-output":{
             "type":"object",
             "properties": {
               "_id":          {"$ref":"common.json#/definitions/objectid"},
               "public":       {"$ref":"container.json#/definitions/public"},
+              "parents":      {"$ref":"container.json#/definitions/parents"},
               "label":        {"$ref":"common.json#/definitions/label"},
               "info":         {"$ref":"container.json#/definitions/info"},
               "session":      {"$ref":"common.json#/definitions/objectid"},

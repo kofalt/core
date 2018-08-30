@@ -55,9 +55,9 @@ class APIKey(object):
         return {
             '_id': util.create_nonce(),
             'created': datetime.datetime.utcnow(),
-            'uid': uid,
             'type': cls.key_type,
-            'last_used': None
+            'last_used': None,
+            'origin': {'type': cls.key_type, 'id': uid}
         }
 
     @classmethod
@@ -66,13 +66,13 @@ class APIKey(object):
         Generates API key, replaces existing API key if it exists
         """
         api_key = cls.generate_api_key(uid)
-        config.db.apikeys.delete_many({'uid': uid, 'type': cls.key_type})
+        config.db.apikeys.delete_many({'origin.id': uid, 'type': cls.key_type})
         config.db.apikeys.insert_one(api_key)
         return api_key['_id']
 
     @classmethod
     def get(cls, uid):
-        return config.db.apikeys.find_one({'uid': uid, 'type': cls.key_type})
+        return config.db.apikeys.find_one({'origin.id': uid, 'type': cls.key_type})
 
     @classmethod
     def check(cls, api_key):
@@ -97,7 +97,7 @@ class JobApiKey(APIKey):
 
     # pylint: disable=arguments-differ
     @classmethod
-    def generate(cls, uid, job_id):
+    def generate(cls, uid, job_id, scope=None):
         """
         Returns an API key for user for use by a specific job.
         Re-uses such a key if it already exists.
@@ -106,7 +106,7 @@ class JobApiKey(APIKey):
         job_id = str(job_id)
 
         existing_key = config.db.apikeys.find_one({
-            'uid': uid,
+            'origin.id': uid,
             'job': job_id,
         })
 
@@ -116,6 +116,12 @@ class JobApiKey(APIKey):
         else:
             api_key = cls.generate_api_key(uid)
             api_key['job'] = job_id
+            if scope:
+                api_key['scope'] = scope
+            else:
+                api_key['origin']['via'] = {'type': api_key['origin']['type'],
+                                            'id': job_id}
+                api_key['origin']['type'] = 'user'
 
             config.db.apikeys.insert_one(api_key)
             return api_key['_id']

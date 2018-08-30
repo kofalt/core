@@ -277,7 +277,7 @@ class DataBuilder(object):
                 'created': datetime.datetime.utcnow(),
                 'last_seen': None,
                 'type': 'user',
-                'uid': _id
+                'origin': {'type': 'user', 'id': _id}
             })
 
         self.resources.append((resource, _id))
@@ -306,7 +306,7 @@ class DataBuilder(object):
         if resource == 'gear':
             self.api_db.jobs.remove({'gear_id': str(_id)})
         if resource == 'user':
-            self.api_db.apikeys.delete_one({'uid': _id})
+            self.api_db.apikeys.delete_one({'origin.id': _id})
         self.api_db[resource + 's'].remove({'_id': _id})
 
 

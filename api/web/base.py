@@ -28,6 +28,7 @@ class RequestHandler(webapp2.RequestHandler):
 
         self.uid = None
         self.origin = None
+        self.scope = None
 
         # If user is attempting to log in through `/login`, ignore Auth here:
         # In future updates, move login and logout handlers to class that overrides this init
@@ -64,14 +65,13 @@ class RequestHandler(webapp2.RequestHandler):
                 # API key authentication
                 key = session_token.split()[1]
                 api_key = APIKey.validate(key)
+                self.origin = api_key['origin']
                 if api_key.get('type') == 'device':
-                    self.origin = {'type': Origin.device, 'id': api_key['uid']}
                     drone_request = True  # Grant same access for backwards compatibility
                 else:
-                    self.uid = api_key['uid']
-                    self.origin = {'type': Origin.user, 'id': self.uid}
+                    self.uid = api_key['origin']['id']
                     if 'job' in api_key:
-                        self.origin['via'] = {'type': Origin.job, 'id': api_key['job']}
+                        self.scope = api_key.get('scope')
             else:
                 # User (oAuth) authentication
                 self.uid = self.authenticate_user_token(session_token)
@@ -114,7 +114,7 @@ class RequestHandler(webapp2.RequestHandler):
             if is_job_upload and job_id is not None:
                 self.origin = {'type': Origin.job, 'id': job_id}
 
-        self.public_request = not drone_request and not self.uid
+        self.public_request = not drone_request and not self.uid and not self.scope
 
         if self.public_request:
             self.superuser_request = False
@@ -122,6 +122,9 @@ class RequestHandler(webapp2.RequestHandler):
         elif drone_request:
             self.superuser_request = True
             self.user_is_admin = True
+        elif self.scope is not None:
+            self.superuser_request = False
+            self.user_is_admin = False
         else:
             user = config.db.users.find_one({'_id': self.uid}, ['root', 'disabled'])
             if not user:

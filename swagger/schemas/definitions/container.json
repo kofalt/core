@@ -34,6 +34,16 @@
           "required": ["_id"],
           "x-sdk-return": "_id"
         },
+        "parents": {
+          "type": "object",
+          "properties": {
+            "analysis": {"$ref": "#/definitions/_id"},
+            "acquisition": {"$ref": "#/definitions/_id"},
+            "session": {"$ref": "#/definitions/_id"},
+            "project": {"$ref": "#/definitions/_id"},
+            "group": {"$ref": "#/definitions/_id"}
+          }
+        },
         "container-reference": {
           "type": "object",
           "properties": {

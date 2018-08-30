@@ -1,3 +1,5 @@
+import bson
+
 def test_gear_add_versioning(default_payload, randstr, data_builder, as_root):
     gear_name = randstr()
     gear_version_1 = '0.0.1'
@@ -400,3 +402,29 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr)
     assert r.ok
 
 
+def test_filter_gears_read_only_key(randstr, data_builder, default_payload, as_admin):
+    gear_name = randstr()
+    gear_doc = default_payload['gear']
+    gear_doc['gear']['name'] = gear_name
+    gear_doc['gear']['inputs'] = {
+        'api_key': {
+            'base': 'api-key',
+            'read-only': True
+        }
+    }
+
+    ro_gear = data_builder.create_gear(gear=gear_doc['gear'])
+
+    non_key_gear = data_builder.create_gear()
+
+    gear_doc['gear']['inputs']['api_key']['read-only'] = False
+    gear_doc['gear']['name'] = randstr()
+    rw_gear = data_builder.create_gear(gear=gear_doc['gear'])
+
+
+
+    r = as_admin.get('/gears', params={'filter': 'read_only_key'})
+    assert r.ok
+    assert len(r.json()) == 2
+    for response_gear in r.json():
+        assert response_gear['_id'] != rw_gear

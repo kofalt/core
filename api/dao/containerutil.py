@@ -64,8 +64,10 @@ def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
 
     if include_refs:
         analysis_query = copy.deepcopy(query)
+        analysis_update = copy.deepcopy(update)
+        analysis_update.get('$set', {}).pop('permissions', None)
         analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': {'$in': cont_ids}})
-        config.db.analyses.update_many(analysis_query, update)
+        config.db.analyses.update_many(analysis_query, analysis_update)
 
     if cont_name in ('groups', 'projects', 'sessions'):
         child_cont = containers[containers.index(cont_name) + 1]

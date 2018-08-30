@@ -18,12 +18,23 @@ PERMISSIONS = [
 
 INTEGER_PERMISSIONS = {r['rid']: i for i, r in enumerate(PERMISSIONS)}
 
-def _get_access(uid, container):
+def _get_access(uid, container, scope=None):
+    if scope:
+        if _check_scope(scope, container):
+            return INTEGER_PERMISSIONS[scope['access']]
+        else:
+            return -1
     permissions_list = container.get('permissions', [])
     for perm in permissions_list:
         if perm['_id'] == uid:
             return INTEGER_PERMISSIONS[perm['access']]
     return -1
+
+def _check_scope(scope, container, parent_container=None):
+    if container and container.get('parents'):
+        return scope['id'] in container['parents'].itervalues() or scope['id'] == container['_id']
+    elif parent_container and parent_container.get('parents'):
+        return scope['id'] in parent_container['parents'].itervalues() or scope['id'] == parent_container['_id']
 
 def has_access(uid, container, perm):
     return _get_access(uid, container) >= INTEGER_PERMISSIONS[perm]

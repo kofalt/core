@@ -27,7 +27,7 @@ def create_user(db, _id, api_key, **kwargs):
         'created': datetime.datetime.utcnow(),
         'last_seen': None,
         'type': 'user',
-        'uid': _id
+        'origin': {'type': 'user', 'id': _id}
     }, upsert=True)
 
 def init_db():

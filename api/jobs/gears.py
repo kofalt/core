@@ -66,6 +66,13 @@ def get_latest_gear(name):
     if gears.count() > 0:
         return gears[0]
 
+def requires_read_write_key(gear):
+    for x in gear['gear'].get('inputs', {}).keys():
+        input_ = gear['gear']['inputs'][x]
+        if input_.get('base') == 'api-key' and not input_.get('read-only'):
+            return True
+    return False
+
 def get_invocation_schema(gear):
     return gear_tools.derive_invocation_schema(gear['gear'])
 
@@ -152,6 +159,12 @@ def fill_gear_default_values(gear, config_):
 
 def count_file_inputs(geardoc):
     return len([inp for inp in geardoc['gear']['inputs'].values() if inp['base'] == 'file'])
+
+def filter_optional_inputs(geardoc):
+    filtered_gear_doc = copy.deepcopy(geardoc)
+    inputs = filtered_gear_doc['gear']['inputs'].iteritems()
+    filtered_gear_doc['gear']['inputs'] = {inp: inp_val for inp, inp_val in inputs if not inp_val.get('optional')}
+    return filtered_gear_doc
 
 def insert_gear(doc):
     gear_tools.validate_manifest(doc['gear'])
