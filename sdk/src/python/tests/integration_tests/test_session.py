@@ -282,7 +282,10 @@ class SessionsTestCases(SdkTestCase):
             code = session.subject.code,
             info = {},
             info_exists = info_exists,
-            project = session.project
+            project = session.project,
+            created = session.subject.created,
+            modified = session.subject.modified,
+            permissions = session.permissions,
         )
 
 

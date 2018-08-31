@@ -97,6 +97,13 @@
             "properties": {
               "_id":              {"$ref":"#/definitions/_id"},
               "project":          {"$ref":"#/definitions/_id"},
+              "code":             {"$ref":"#/definitions/code"},
+
+              "created":          {"$ref":"created-modified.json#/definitions/created"},
+              "modified":         {"$ref":"created-modified.json#/definitions/modified"},
+              "permissions":      {"$ref":"permission.json#/definitions/permission-output-list"},
+              "public":           {"$ref":"container.json#/definitions/public"},
+
               "firstname":        {"$ref":"#/definitions/firstname"},
               "lastname":         {"$ref":"#/definitions/lastname"},
 
@@ -110,8 +117,8 @@
               "species":          {"type": ["string", "null"]},
               "strain":           {"type": ["string", "null"]},
 
-              "code":             {"$ref":"#/definitions/code"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},
+              "notes":            {"$ref":"note.json#/definitions/notes-list-output"},
               "info":             {"$ref":"common.json#/definitions/info"},
               "info_exists":      {"$ref":"container.json#/definitions/info_exists"},
               "files":{

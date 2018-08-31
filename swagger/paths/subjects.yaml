@@ -1,0 +1,90 @@
+$template_arguments:
+  resource: subject
+  tag: subjects
+  parameter: SubjectId
+
+/subjects:
+  $template: templates/container.yaml
+  arguments:
+    list-output-schema: schemas/output/subject-list.json
+    create-input-schema: schemas/input/subject.json
+
+/subjects/{SubjectId}:
+  $template: templates/container-item.yaml
+  arguments:
+    update-input-schema: schemas/input/subject.json
+    get-output-schema: schemas/output/subject.json
+    delete-description: Read-write project permissions are required to delete a subject. </br>Admin project permissions are required if the subject or it's acquisitions contain data uploaded by sources other than users and jobs.
+
+/subjects/{SubjectId}/info:
+  $template: templates/container-item-info.yaml
+
+# ===== Tags =====
+/subjects/{SubjectId}/tags:
+  $template: templates/tags.yaml
+/subjects/{SubjectId}/tags/{TagValue}:
+  $template: templates/tags-tag.yaml
+
+# ===== Files =====
+/subjects/{SubjectId}/files:
+  $template: templates/file-list-upload.yaml
+/subjects/{SubjectId}/files/{FileName}:
+  $template: templates/file-item.yaml
+/subjects/{SubjectId}/files/{FileName}/info:
+  $template: templates/file-item-info.yaml
+/subjects/{SubjectId}/files/{FileName}/classification:
+  $template: templates/file-item-classification.yaml
+
+# ===== Notes =====
+/subjects/{SubjectId}/notes:
+  $template: templates/notes.yaml
+/subjects/{SubjectId}/notes/{NoteId}:
+  $template: templates/notes-note.yaml
+
+/subjects/{SubjectId}/sessions:
+  parameters:
+    - in: path
+      type: string
+      name: SubjectId
+      required: true
+  get:
+    summary: List sessions of a subject
+    operationId: get_subject_sessions
+    tags:
+    - sessions
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/session-list.json
+
+# ===== Analyses =====
+/subjects/{SubjectId}/analyses:
+  $template: templates/analyses-list.yaml
+  arguments:
+    allowCreate: true
+/subjects/{SubjectId}/analyses/{AnalysisId}:
+  $template: templates/analysis-item.yaml
+  arguments:
+    supportsDelete: true
+/subjects/{SubjectId}/analyses/{AnalysisId}/inputs:
+  $template: templates/analysis-files.yaml
+  arguments:
+    filegroup: inputs
+/subjects/{SubjectId}/analyses/{AnalysisId}/inputs/{Filename}:
+  $template: templates/analysis-files-create-ticket-filename.yaml
+  arguments:
+    filegroup: inputs
+/subjects/{SubjectId}/analyses/{AnalysisId}/files:
+  $template: templates/analysis-files.yaml
+  arguments:
+    filegroup: outputs
+    allow_upload: true
+/subjects/{SubjectId}/analyses/{AnalysisId}/files/{Filename}:
+  $template: templates/analysis-files-create-ticket-filename.yaml
+  arguments:
+    filegroup: outputs
+/subjects/{SubjectId}/analyses/{AnalysisId}/notes:
+  $template: templates/analysis-notes.yaml
+/subjects/{SubjectId}/analyses/{AnalysisId}/notes/{NoteId}:
+  $template: templates/analysis-notes-item.yaml
