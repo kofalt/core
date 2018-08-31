@@ -70,12 +70,18 @@ class ContainerStorage(object):
         return cls(containerutil.pluralize(cont_name))
 
     @classmethod
-    def get_top_down_hierarchy(cls, cont_name, cid):
+    def get_top_down_hierarchy(cls, cont_name, cid, include_subjects=False):
         parent_to_child = {
             'groups': 'projects',
             'projects': 'sessions',
             'sessions': 'acquisitions'
         }
+
+        if include_subjects:
+            parent_to_child.update({
+                'projects': 'subjects',
+                'subjects': 'sessions',
+            })
 
         parent_tree = {
             cont_name: [cid]
@@ -89,7 +95,8 @@ class ContainerStorage(object):
 
             # For each parent id, find all of its children and add them to the list of child ids in the parent tree
             for parent_id in parent_tree[parent_name]:
-                parent_tree[child_name] = parent_tree[child_name] + [cont["_id"] for cont in storage.get_children_legacy(parent_id, projection={'_id':1})]
+                children = [cont['_id'] for cont in storage.get_children(parent_id, projection={'_id':1}, include_subjects=include_subjects)]
+                parent_tree[child_name].extend(children)
 
             parent_name = child_name
         return parent_tree
@@ -128,35 +135,10 @@ class ContainerStorage(object):
             cont[containerutil.pluralize(self.child_cont_name)] = children
         return cont
 
-    def get_child_container_name_legacy(self):
-        """Get the name of the child container, returning sessions from project, rather than subject.
-        Will be removed when Subject completes it's transition to a stand alone collection.
-        """
-        return CHILD_MAP.get(self.cont_name)
-
-    def get_children_legacy(self, _id, projection=None, uid=None):
-        """
-        A get_children method that returns sessions from the project level rather than subjects.
-        Will be removed when Subject completes it's transition to a stand alone collection.
-        """
-        try:
-            child_name = CHILD_MAP[self.cont_name]
-        except KeyError:
-            raise APIStorageException('Children cannot be listed from the {0} level'.format(self.cont_name))
-        if not self.use_object_id:
-            query = {containerutil.singularize(self.cont_name): _id}
-        else:
-            query = {containerutil.singularize(self.cont_name): bson.ObjectId(_id)}
-
-        if uid:
-            query['permissions'] = {'$elemMatch': {'_id': uid}}
-        if not projection:
-            projection = {'info': 0, 'files.info': 0, 'subject': 0, 'tags': 0}
-        return ContainerStorage.factory(child_name).get_all_el(query, None, projection)
-
-
-    def get_children(self, _id, query=None, projection=None, uid=None):
+    def get_children(self, _id, query=None, projection=None, uid=None, include_subjects=True):
         child_name = self.child_cont_name
+        if self.cont_name == 'projects' and not include_subjects:
+            child_name = 'session'
         if not child_name:
             raise APIStorageException('Children cannot be listed from the {0} level'.format(self.cont_name))
         if not query:
@@ -169,7 +151,8 @@ class ContainerStorage(object):
         if not projection:
             projection = {'info': 0, 'files.info': 0, 'subject': 0, 'tags': 0}
 
-        return ContainerStorage.factory(child_name).get_all_el(query, None, projection)
+        results = ContainerStorage.factory(child_name).get_all_el(query, None, projection)
+        return results
 
 
     def get_parent_tree(self, _id, cont=None, projection=None, add_self=False):

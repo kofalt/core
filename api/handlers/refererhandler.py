@@ -164,7 +164,7 @@ class AnalysesHandler(RefererHandler):
             raise errors.InputValidationException("{} not a child of {} or 'all'.".format(cont_level, cont_name))
 
         if cont_level:
-            parent_tree = ContainerStorage.get_top_down_hierarchy(cont_name, cid)
+            parent_tree = ContainerStorage.get_top_down_hierarchy(cont_name, cid, include_subjects=self.is_enabled('Subject-Container'))
             # We only need a list of all the ids, no need for the tree anymore
             if cont_level == 'all':
                 parents = [pid for parent in parent_tree.keys() for pid in parent_tree[parent]]

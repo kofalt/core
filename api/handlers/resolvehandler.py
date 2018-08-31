@@ -68,7 +68,7 @@ class ResolveHandler(base.RequestHandler):
 
         doc = self.request.json
 
-        resolver = Resolver(id_only=id_only, include_subjects=self.is_enabled('Resolve-Subjects'))
+        resolver = Resolver(id_only=id_only, include_subjects=self.is_enabled('Subject-Container'))
         result = resolver.resolve(doc['path'])
 
         # Cancel the request if anything in the path is unauthorized; remove any children that are unauthorized.

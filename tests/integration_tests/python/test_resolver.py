@@ -651,7 +651,7 @@ def test_resolve_subjects(data_builder, as_admin, as_user, as_public, file_form)
 
     acquisition = data_builder.create_acquisition(label='acquisition_label')
 
-    enable_subjects = {'X-Accept-Feature': 'Resolve-Subjects'}
+    enable_subjects = {'X-Accept-Feature': 'Subject-Container'}
 
     # PROJECT
     # resolve root/group/project

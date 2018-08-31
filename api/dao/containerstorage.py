@@ -87,14 +87,14 @@ class ProjectStorage(ContainerStorage):
 
         if payload and 'template' in payload:
             # We are adding/changing the project template, update session compliance
-            sessions = self.get_children_legacy(_id, projection={'_id':1})
+            sessions = self.get_children(_id, projection={'_id':1}, include_subjects=False)
             session_storage = SessionStorage()
             for s in sessions:
                 session_storage.update_el(s['_id'], {'project_has_template': True})
 
         elif unset_payload and 'template' in unset_payload:
             # We are removing the project template, remove session compliance
-            sessions = self.get_children_legacy(_id, projection={'_id':1})
+            sessions = self.get_children(_id, projection={'_id':1}, include_subjects=False)
             session_storage = SessionStorage()
             for s in sessions:
                 session_storage.update_el(s['_id'], None, unset_payload={'project_has_template': '', 'satisfies_template': ''})
