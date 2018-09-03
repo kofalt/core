@@ -97,6 +97,7 @@
             "properties": {
               "_id":              {"$ref":"#/definitions/_id"},
               "project":          {"$ref":"#/definitions/_id"},
+              "parents":          {"$ref":"container.json#/definitions/parents"},
               "code":             {"$ref":"#/definitions/code"},
 
               "created":          {"$ref":"created-modified.json#/definitions/created"},

@@ -34,9 +34,6 @@ SINGULAR_TO_PLURAL = {
 PLURAL_TO_SINGULAR = {p: s for s, p in SINGULAR_TO_PLURAL.iteritems()}
 PLURAL_CONT_TYPES = [ SINGULAR_TO_PLURAL[_type] for _type in CONT_TYPES ]
 
-# NOTE: Following structures have subject as a hierarhcy level although
-# it is not yet a formalized level of the hierarchy throughout API
-
 CONTAINER_HIERARCHY = [
     'groups',
     'projects',
@@ -65,20 +62,21 @@ def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
 
     if include_refs:
         analysis_query = copy.deepcopy(query)
+        analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': {'$in': cont_ids}})
         analysis_update = copy.deepcopy(update)
         analysis_update.get('$set', {}).pop('permissions', None)
-        analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': {'$in': cont_ids}})
         config.db.analyses.update_many(analysis_query, analysis_update)
 
     if cont_name in containers[:-1]:
         child_cont = containers[containers.index(cont_name) + 1]
         child_ids = [c['_id'] for c in config.db[child_cont].find({singularize(cont_name): {'$in': cont_ids}}, [])]
-        child_query = copy.deepcopy(query)
-        child_query['_id'] = {'$in': child_ids}
-        config.db[child_cont].update_many(child_query, update)
 
-        # Recurse to the next hierarchy level
-        propagate_changes(child_cont, child_ids, query, update, include_refs=include_refs)
+        if child_ids:
+            child_query = copy.deepcopy(query)
+            child_query['_id'] = {'$in': child_ids}
+            config.db[child_cont].update_many(child_query, update)
+            # Recurse to the next hierarchy level
+            propagate_changes(child_cont, child_ids, query, update, include_refs=include_refs)
 
 
 def extract_subject(session, project):

@@ -3,12 +3,13 @@ Resolve an ambiguous path through the data hierarchy.
 
 The goal of the resolver is to provide a virtual graph that can be navigated using
 path notation. Below is how the graph will ultimately be represented. Currently
-subjects are not formalized and are excluded from the implementation.
+subjects are excluded by default, and can be enabled with the feature-toggle
+"Subject-Container".
 
 Quoted strings represent literal nodes in the graph. For example, to find the gear
 called dicom-mr-classifier, you would use the path: ["gears", "dicom-mr-classifier"]
 
-NOTE: Currently subjects and gear versions are not supported!
+NOTE: Currently gear versions are not supported!
 
 +----+   +-------+   +-----+   +-------+
 |Root+---+"gears"+---+Gears+---+Version|

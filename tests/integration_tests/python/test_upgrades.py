@@ -540,6 +540,8 @@ def test_55(api_db, data_builder, database):
             '_id': session,
             'group': group,
             'project': project,
+            'parents': {'group': group,
+                        'project': project},
             'subject': subject_doc,
             'created': now_,
             'modified': now_,
@@ -569,23 +571,25 @@ def test_55(api_db, data_builder, database):
     test_age = create_session({'age': 123})
 
     # test merge of subject fields
-    test_merge = create_session({'code': 'merge'})
-    test_merge = create_session({'code': 'merge', 'key': 'value1'})  # key: value1
-    test_merge = create_session({'code': 'merge', 'key': 'value1'})  # noop
-    test_merge = create_session({'code': 'merge', 'key': 'value2'})  # key: value2, key_history: ['value1']
-    test_merge = create_session({'code': 'merge'})                   # noop
-    test_merge = create_session({'code': 'merge', 'key': None})      # noop
-    test_merge = create_session({'code': 'merge', 'key': ''})        # noop
+    create_session({'code': 'merge'})
+    create_session({'code': 'merge', 'key': 'value1'})  # key: value1
+    create_session({'code': 'merge', 'key': 'value1'})  # noop
+    create_session({'code': 'merge', 'key': 'value2'})  # key: value2, key_history: ['value1']
+    create_session({'code': 'merge'})                   # noop
+    create_session({'code': 'merge', 'key': None})      # noop
+    create_session({'code': 'merge', 'key': ''})        # noop
+    # test on the most recently created session
     test_merge = create_session({'code': 'merge', 'key': 'value3'})  # key: value3, key_history: ['value1', 'value2']
 
     # test merge of deep subject fields (eg. info, expect same behavior as above)
-    test_deep_merge = create_session({'code': 'deep-merge'})
-    test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': 'value1'}})  # info.key: value1
-    test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': 'value1'}})  # noop
-    test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': 'value2'}})  # info.key: value2, info.key_history: ['value1']
-    test_deep_merge = create_session({'code': 'deep-merge'})                             # noop
-    test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': None}})      # noop
-    test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': ''}})        # noop
+    create_session({'code': 'deep-merge'})
+    create_session({'code': 'deep-merge', 'info': {'key': 'value1'}})  # info.key: value1
+    create_session({'code': 'deep-merge', 'info': {'key': 'value1'}})  # noop
+    create_session({'code': 'deep-merge', 'info': {'key': 'value2'}})  # info.key: value2, info.key_history: ['value1']
+    create_session({'code': 'deep-merge'})                             # noop
+    create_session({'code': 'deep-merge', 'info': {'key': None}})      # noop
+    create_session({'code': 'deep-merge', 'info': {'key': ''}})        # noop
+    # test on the most recently created session
     test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': 'value3'}})  # info.key: value3, info.key_history: ['value1', 'value2']
 
     database.upgrade_to_55()

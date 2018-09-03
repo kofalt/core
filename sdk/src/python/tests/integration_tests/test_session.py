@@ -277,16 +277,13 @@ class SessionsTestCases(SdkTestCase):
         session.info = {}
         session.info_exists = info_exists
         session.analyses = None
-        session.subject = flywheel.Subject(
-            id = session.subject.id,
-            code = session.subject.code,
-            info = {},
-            info_exists = info_exists,
-            project = session.project,
-            created = session.subject.created,
-            modified = session.subject.modified,
-            permissions = session.permissions,
-        )
+
+        session.subject.age = None
+        session.subject.sex = None
+        session.subject.firstname = None
+        session.subject.lastname = None
+        session.subject.info = {}
+        session.subject.info_exists = info_exists
 
 
 def create_test_session():

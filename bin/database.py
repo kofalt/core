@@ -1830,7 +1830,11 @@ def upgrade_to_55(dry_run=False):
     def extract_subject(session):
         """Extract and return augmented subject document, leave subject reference on session"""
         subject = session.pop('subject')
-        subject.update({'project': session['project'], 'permissions': session['permissions']})
+        subject.update({
+            'parents': session['parents'],
+            'project': session['project'],
+            'permissions': session['permissions']
+        })
         session['subject'] = subject['_id']
         if subject.get('race') or subject.get('ethnicity'):
             subject['type'] = 'human'
@@ -1905,6 +1909,12 @@ def upgrade_to_55(dry_run=False):
             logging.debug('updating session %s to subject reference', session['_id'])
             if not dry_run:
                 config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
+        parents_update = {'$set': {'parents.subject': subject_id}}
+        session_ids = [s['_id'] for s in sessions]
+        acquisition_ids = [a['_id'] for a in config.db.acquisitions.find({'session': {'$in': session_ids}})]
+        config.db.sessions.update_many({'_id': {'$in': session_ids}}, parents_update)
+        config.db.acquisitions.update_many({'_id': {'$in': acquisition_ids}}, parents_update)
+        config.db.analyses.update_many({'parent.id': {'$in': session_ids + acquisition_ids}}, parents_update)
 
 
 ###
