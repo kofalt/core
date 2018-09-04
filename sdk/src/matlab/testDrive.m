@@ -137,7 +137,7 @@ fw.uploadFileToSession(sessionId, filename);
 sessionDownloadFile = fullfile(tempdir, 'download2.txt');
 fw.downloadFileFromSession(sessionId, filename, sessionDownloadFile);
 
-session = fw.getSesSubjectsion(sessionId);
+session = fw.getSession(sessionId);
 assert(strcmp(session.tags{1}, 'blue'), errMsg)
 assert(strcmp(session.label, 'testdrive'), errMsg)
 assert(strcmp(session.notes{1}.text, 'This is a note'), errMsg)
