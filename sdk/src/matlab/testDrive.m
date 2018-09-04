@@ -80,6 +80,44 @@ assert(project.files{1}.size == s.bytes, errMsg)
 projectDownloadUrl = fw.getProjectDownloadUrl(projectId, filename);
 assert(~strcmp(projectDownloadUrl, ''), errMsg)
 
+%% Subjects
+disp('Testing Subjects')
+
+subjectId = fw.addSubject(struct('code', testString, 'project', projectId));
+
+fw.addSubjectTag(subjectId, 'blue');
+fw.modifySubject(subjectId, struct('label', 'testdrive'));
+fw.addSubjectNote(subjectId, 'This is a note');
+
+subjects = fw.getProjectSubjects(projectId);
+assert(~isempty(subjects), errMsg)
+
+subjects = fw.getAllSubjects();
+assert(~isempty(subjects), errMsg)
+
+fw.uploadFileToSubject(subjectId, filename);
+subjectDownloadFile = fullfile(tempdir, 'download2.txt');
+fw.downloadFileFromSubject(subjectId, filename, subjectDownloadFile);
+
+subject = fw.getSubject(subjectId);
+assert(strcmp(subject.tags{1}, 'blue'), errMsg)
+assert(strcmp(subject.label, 'testdrive'), errMsg)
+assert(strcmp(subject.notes{1}.text, 'This is a note'), errMsg)
+assert(strcmp(subject.files{1}.name, filename), errMsg)
+s = dir(subjectDownloadFile);
+assert(subject.files{1}.size == s.bytes, errMsg)
+
+subjectDownloadUrl = fw.getSubjectDownloadUrl(subjectId, filename);
+assert(~strcmp(subjectDownloadUrl, ''), errMsg)
+
+downloadNodes = { struct('level', 'session', 'id', subjectId) };
+summary = fw.createDownloadTicket(struct('optional', false, 'nodes', downloadNodes));
+assert(~isempty(summary.ticket), errMsg)
+subjectDownloadTar = fullfile(tempdir, 'subject-download.tar');
+fw.downloadTicket(summary.ticket, subjectDownloadTar);
+s = dir(subjectDownloadTar);
+assert(s.bytes >= summary.size, errMsg)
+
 %% Sessions
 disp('Testing Sessions')
 
@@ -99,7 +137,7 @@ fw.uploadFileToSession(sessionId, filename);
 sessionDownloadFile = fullfile(tempdir, 'download2.txt');
 fw.downloadFileFromSession(sessionId, filename, sessionDownloadFile);
 
-session = fw.getSession(sessionId);
+session = fw.getSesSubjectsion(sessionId);
 assert(strcmp(session.tags{1}, 'blue'), errMsg)
 assert(strcmp(session.label, 'testdrive'), errMsg)
 assert(strcmp(session.notes{1}.text, 'This is a note'), errMsg)
