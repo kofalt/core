@@ -62,6 +62,7 @@ class FileCreator(object):
             metadata, timestamp, origin, {'uid': self.handler.uid}, self.file_processor, self.handler.log_user_access)
 
         for pending_file in self._files:
+            pending_file.fileobj.close()
             # Not a great practice. See process_upload() for details.
             cgi_field = util.obj_from_map({
                 'filename': pending_file.filename,
