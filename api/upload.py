@@ -27,7 +27,8 @@ Strategy = util.Enum('Strategy', {
     'reaper'         : pl.UIDReaperPlacer,
     'analysis'       : pl.AnalysisPlacer,       # Upload N files to an analysis as input and output (no db updates - deprecated)
     'analysis_job'   : pl.AnalysisJobPlacer,    # Upload N files to an analysis as output from job results
-    'gear'           : pl.GearPlacer
+    'gear'           : pl.GearPlacer,
+    'null'           : pl.NullPlacer,
 })
 
 
@@ -213,13 +214,12 @@ class Upload(base.RequestHandler):
 
     def upload(self, strategy):
         """Receive a sortable reaper upload."""
-
-        if not self.superuser_request:
+        if not self.superuser_request and strategy != 'null':
             user = self.uid
             if not user:
                 self.abort(403, 'Uploading requires login')
 
-        if strategy in ['label', 'uid', 'uid-match', 'reaper']:
+        if strategy in ['label', 'uid', 'uid-match', 'reaper', 'null']:
             strategy = strategy.replace('-', '')
             strategy = getattr(Strategy, strategy)
 

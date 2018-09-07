@@ -810,3 +810,14 @@ class GearPlacer(Placer):
 
     def finalize(self):
         return self.saved
+
+
+class NullPlacer(Placer):
+    def check(self):
+        pass
+
+    def process_file_field(self, field, file_attrs):
+        self.saved.append(file_attrs)
+
+    def finalize(self):
+        return self.saved
