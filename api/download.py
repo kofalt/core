@@ -143,23 +143,19 @@ class Download(base.RequestHandler):
                 prefix = '/'.join([arc_prefix, project['group'], project['label']])
                 total_size, file_cnt = self._append_targets(targets, 'projects', project, prefix, total_size, file_cnt, req_spec.get('filters'))
 
-                sessions = config.db.sessions.find({'project': item_id, 'deleted': {'$exists': False}}, ['label', 'files', 'uid', 'timestamp', 'timezone', 'subject'])
-                session_dict = {session['_id']: session for session in sessions}
-                session_prefixes = {}
-
-                subjects = config.db.subjects.find({'_id': {'$in': list(set(sess['subject'] for sess in session_dict.itervalues()))}})
-                subject_dict = {}
+                subjects = config.db.subjects.find({'project': item_id, 'deleted': {'$exists': False}}, ['code', 'files'])
+                subject_dict = {subject['_id']: subject for subject in subjects}
                 subject_prefixes = {}
-                for subject in subjects:
+                for subject in subject_dict.itervalues():
                     if not subject.get('code'):
                         subject['code'] = 'unknown_subject'
-                    subject_dict[subject['_id']] = subject
-
-                for subject in subject_dict.itervalues():
                     subject_prefix = self._path_from_container(prefix, subject, ids_of_paths, subject['code'])
                     subject_prefixes[subject['_id']] = subject_prefix
                     total_size, file_cnt = self._append_targets(targets, 'subjects', subject, subject_prefix, total_size, file_cnt, req_spec.get('filters'))
 
+                sessions = config.db.sessions.find({'subject': {'$in': subject_dict.keys()}, 'deleted': {'$exists': False}}, ['label', 'files', 'uid', 'timestamp', 'timezone', 'subject'])
+                session_dict = {session['_id']: session for session in sessions}
+                session_prefixes = {}
                 for session in session_dict.itervalues():
                     session_prefix = self._path_from_container(subject_prefixes[session['subject']], session, ids_of_paths, session['_id'])
                     session_prefixes[session['_id']] = session_prefix
@@ -171,6 +167,32 @@ class Download(base.RequestHandler):
                     acq_prefix = self._path_from_container(session_prefixes[session['_id']], acq, ids_of_paths, acq['_id'])
                     total_size, file_cnt = self._append_targets(targets, 'acquisitions', acq, acq_prefix, total_size, file_cnt, req_spec.get('filters'))
 
+            elif item['level'] == 'subject':
+                subject = config.db.subjects.find_one(base_query, ['project', 'code', 'files'])
+                if not subject:
+                    # silently(while logging it) skip missing objects/objects user does not have access to
+                    self.log.warn("Expected subject {} to exist but it is missing. Node will be skipped".format(item_id))
+                    continue
+                if not subject.get('code'):
+                    subject['code'] = 'unknown_subject'
+
+                project = config.db.projects.find_one({'_id': subject['project']}, ['group', 'label'])
+                prefix = self._path_from_container(project['group'] + '/' + project['label'], subject, ids_of_paths, subject["code"])
+                total_size, file_cnt = self._append_targets(targets, 'subjects', subject, prefix, total_size, file_cnt, req_spec.get('filters'))
+
+                sessions = config.db.sessions.find({'subject': item_id, 'deleted': {'$exists': False}}, ['label', 'files', 'uid', 'timestamp', 'timezone', 'subject'])
+                session_dict = {session['_id']: session for session in sessions}
+                session_prefixes = {}
+                for session in session_dict.itervalues():
+                    session_prefix = self._path_from_container(prefix, session, ids_of_paths, session['_id'])
+                    session_prefixes[session['_id']] = session_prefix
+                    total_size, file_cnt = self._append_targets(targets, 'sessions', session, session_prefix, total_size, file_cnt, req_spec.get('filters'))
+
+                acquisitions = config.db.acquisitions.find({'session': {'$in': session_dict.keys()}, 'deleted': {'$exists': False}}, ['label', 'files', 'session', 'uid', 'timestamp', 'timezone'])
+                for acq in acquisitions:
+                    session = session_dict[acq['session']]
+                    acq_prefix = self._path_from_container(session_prefixes[session['_id']], acq, ids_of_paths, acq['_id'])
+                    total_size, file_cnt = self._append_targets(targets, 'acquisitions', acq, acq_prefix, total_size, file_cnt, req_spec.get('filters'))
 
             elif item['level'] == 'session':
                 session = config.db.sessions.find_one(base_query, ['project', 'label', 'files', 'uid', 'timestamp', 'timezone', 'subject'])
@@ -378,52 +400,63 @@ class Download(base.RequestHandler):
         res = {}
         req = self.request.json_body
         cont_query = {
-            'projects': {'_id': {'$in':[]}},
-            'sessions': {'_id': {'$in':[]}},
-            'acquisitions': {'_id': {'$in':[]}},
-            'analyses' : {'_id': {'$in':[]}}
+            'projects': {'_id': {'$in': []}},
+            'subjects': {'_id': {'$in': []}},
+            'sessions': {'_id': {'$in': []}},
+            'acquisitions': {'_id': {'$in': []}},
+            'analyses': {'_id': {'$in': []}}
         }
         for node in req:
             node['_id'] = bson.ObjectId(node['_id'])
             level = node['level']
 
-            containers = {'projects':0, 'sessions':0, 'acquisitions':0, 'analyses':0}
+            containers = {'projects': 0, 'subjects': 0, 'sessions': 0, 'acquisitions': 0, 'analyses': 0}
 
             if level == 'project':
-                # Grab sessions and their ids
-                sessions = config.db.sessions.find({'project': node['_id'], 'deleted': {'$exists': False}}, {'_id': 1})
+                subjects = config.db.subjects.find({'project': node['_id'], 'deleted': {'$exists': False}}, {'_id': 1})
+                subject_ids = [s['_id'] for s in subjects]
+                sessions = config.db.sessions.find({'subject': {'$in': subject_ids}, 'deleted': {'$exists': False}}, {'_id': 1})
                 session_ids = [s['_id'] for s in sessions]
                 acquisitions = config.db.acquisitions.find({'session': {'$in': session_ids}, 'deleted': {'$exists': False}}, {'_id': 1})
                 acquisition_ids = [a['_id'] for a in acquisitions]
 
-                containers['projects']=1
-                containers['sessions']=1
-                containers['acquisitions']=1
+                cont_query['projects']['_id']['$in'].append(node['_id'])
+                cont_query['subjects']['_id']['$in'].extend(subject_ids)
+                cont_query['sessions']['_id']['$in'].extend(session_ids)
+                cont_query['acquisitions']['_id']['$in'].extend(acquisition_ids)
 
-                # for each type of container below it will have a slightly modified match query
-                cont_query.get('projects',{}).get('_id',{}).get('$in').append(node['_id'])
-                cont_query['sessions']['_id']['$in'] = cont_query['sessions']['_id']['$in'] + session_ids
-                cont_query['acquisitions']['_id']['$in'] = cont_query['acquisitions']['_id']['$in'] + acquisition_ids
+                for cont_name in ('projects', 'subjects', 'sessions', 'acquisitions'):
+                    containers[cont_name] = 1
+
+            elif level == 'subject':
+                sessions = config.db.sessions.find({'subject': node['_id'], 'deleted': {'$exists': False}}, {'_id': 1})
+                session_ids = [s['_id'] for s in sessions]
+                acquisitions = config.db.acquisitions.find({'session': {'$in': session_ids}, 'deleted': {'$exists': False}}, {'_id': 1})
+                acquisition_ids = [a['_id'] for a in acquisitions]
+
+                cont_query['subjects']['_id']['$in'].append(node['_id'])
+                cont_query['sessions']['_id']['$in'].extend(session_ids)
+                cont_query['acquisitions']['_id']['$in'].extend(acquisition_ids)
+
+                for cont_name in ('subjects', 'sessions', 'acquisitions'):
+                    containers[cont_name] = 1
 
             elif level == 'session':
                 acquisitions = config.db.acquisitions.find({'session': node['_id'], 'deleted': {'$exists': False}}, {'_id': 1})
                 acquisition_ids = [a['_id'] for a in acquisitions]
 
+                cont_query['sessions']['_id']['$in'].append(node['_id'])
+                cont_query['acquisitions']['_id']['$in'].extend(acquisition_ids)
 
-                # for each type of container below it will have a slightly modified match query
-                cont_query.get('sessions',{}).get('_id',{}).get('$in').append(node['_id'])
-                cont_query['acquisitions']['_id']['$in'] = cont_query['acquisitions']['_id']['$in'] + acquisition_ids
-
-                containers['sessions']=1
-                containers['acquisitions']=1
+                for cont_name in ('sessions', 'acquisitions'):
+                    containers[cont_name] = 1
 
             elif level == 'acquisition':
-
-                cont_query.get('acquisitions',{}).get('_id',{}).get('$in').append(node['_id'])
-                containers['acquisitions']=1
+                cont_query['acquisitions']['_id']['$in'].append(node['_id'])
+                containers['acquisitions'] = 1
 
             elif level == 'analysis':
-                cont_query.get('analyses',{}).get('_id',{}).get('$in').append(node['_id'])
+                cont_query['analyses']['_id']['$in'].append(node['_id'])
                 containers['analyses'] = 1
 
             else:

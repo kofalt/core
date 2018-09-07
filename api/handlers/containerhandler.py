@@ -204,7 +204,7 @@ class ContainerHandler(base.RequestHandler):
                 if not bson.ObjectId.is_valid(par_id):
                     self.abort(400, 'not a valid object id')
                 par_id = bson.ObjectId(par_id)
-            query = {par_cont_name[:-1]: par_id}
+            query = {containerutil.singularize(par_cont_name): par_id}
         else:
             query = {}
         # this request executes the actual reqeust filtering containers based on the user permissions

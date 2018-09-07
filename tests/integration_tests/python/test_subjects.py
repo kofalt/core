@@ -84,6 +84,19 @@ def test_subject_endpoints(data_builder, as_admin, file_form):
     r = as_admin.get('/subjects/' + subject)
     assert r.status_code == 404
 
+    session_1 = data_builder.create_session(subject={'code': 'test-subj'})
+    session_2 = data_builder.create_session(subject={'code': 'test-subj'})
+    subject = as_admin.get('/sessions/' + session_1).json()['subject']['_id']
+    assert subject == as_admin.get('/sessions/' + session_2).json()['subject']['_id']
+
+    r = as_admin.get('/projects/' + project + '/subjects')
+    assert r.ok
+    assert subject in [s['_id'] for s in r.json()]
+
+    r = as_admin.get('/subjects/' + subject + '/sessions')
+    assert r.ok
+    assert set([s['_id'] for s in r.json()]) == set([session_1, session_2])
+
 
 def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
     # Create gear, project and subject with one input file

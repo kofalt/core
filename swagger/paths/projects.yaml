@@ -31,7 +31,24 @@ $template_arguments:
         schema:
           $ref: schemas/output/groups-list.json
 
-'/projects/{ProjectId}/sessions':
+/projects/{ProjectId}/subjects:
+  parameters:
+    - in: path
+      type: string
+      name: ProjectId
+      required: true
+  get:
+    summary: List all subjects for the given project.
+    operationId: get_project_subjects
+    tags:
+    - projects
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/subject-list.json
+
+/projects/{ProjectId}/sessions:
   parameters:
     - in: path
       type: string
@@ -48,7 +65,7 @@ $template_arguments:
         schema:
           $ref: schemas/output/session-list.json
 
-'/projects/{ProjectId}/acquisitions':
+/projects/{ProjectId}/acquisitions:
   parameters:
     - in: path
       type: string

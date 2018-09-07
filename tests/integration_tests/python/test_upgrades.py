@@ -598,10 +598,13 @@ def test_55(api_db, data_builder, database):
         session = api_db.sessions.find_one({'_id': session_id})
         return api_db.subjects.find_one({'_id': session['subject']})
 
-    # verify that migrated subjects have project and permissions
+    # verify that migrated subjects have, project, permissions, created, modified & parents
     subject = get_subject(missing_subject)
     assert subject['project'] == project
     assert subject['permissions'] == [{'_id': 'admin@user.com', 'access': 'admin'}]
+    assert subject['created'] == min(s['created'] for s in api_db.sessions.find({'subject': subject['_id']}))
+    assert subject['modified'] == max(s['modified'] for s in api_db.sessions.find({'subject': subject['_id']}))
+    assert subject['parents'] == {'group': group, 'project': project}
 
     # verify separate subjects were created for those w/o code (no 2 [i,j] have the same id)
     separate_subjects = [missing_subject, missing_subject_code_1, missing_subject_code_2, missing_subject_code_3, missing_subject_code_4]

@@ -69,6 +69,7 @@
               "species":          {"type": ["string", "null"]},
               "strain":           {"type": ["string", "null"]},
 
+              "label":            {"$ref":"#/definitions/code"},
               "code":             {"$ref":"#/definitions/code"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},
               "info":             {"$ref":"common.json#/definitions/info"},
@@ -83,6 +84,7 @@
         "subject-metadata-input": {
             "type": "object",
             "properties": {
+                "label": {"$ref":"#/definitions/code"},
                 "code":  {"type": ["string", "null"]},
                 "info":  {"type": ["object", "null"]},
                 "files": {
@@ -98,6 +100,7 @@
               "_id":              {"$ref":"#/definitions/_id"},
               "project":          {"$ref":"#/definitions/_id"},
               "parents":          {"$ref":"container.json#/definitions/parents"},
+              "label":            {"$ref":"#/definitions/code"},
               "code":             {"$ref":"#/definitions/code"},
 
               "created":          {"$ref":"created-modified.json#/definitions/created"},

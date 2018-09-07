@@ -19,6 +19,23 @@ $template_arguments:
 /subjects/{SubjectId}/info:
   $template: templates/container-item-info.yaml
 
+/subjects/{SubjectId}/sessions:
+  parameters:
+    - in: path
+      type: string
+      name: SubjectId
+      required: true
+  get:
+    summary: List sessions of a subject
+    operationId: get_subject_sessions
+    tags:
+    - subjects
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/session-list.json
+
 # ===== Tags =====
 /subjects/{SubjectId}/tags:
   $template: templates/tags.yaml
@@ -40,23 +57,6 @@ $template_arguments:
   $template: templates/notes.yaml
 /subjects/{SubjectId}/notes/{NoteId}:
   $template: templates/notes-note.yaml
-
-/subjects/{SubjectId}/sessions:
-  parameters:
-    - in: path
-      type: string
-      name: SubjectId
-      required: true
-  get:
-    summary: List sessions of a subject
-    operationId: get_subject_sessions
-    tags:
-    - sessions
-    responses:
-      '200':
-        description: ''
-        schema:
-          $ref: schemas/output/session-list.json
 
 # ===== Analyses =====
 /subjects/{SubjectId}/analyses:

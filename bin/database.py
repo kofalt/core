@@ -1835,11 +1835,11 @@ def upgrade_to_55(dry_run=False):
             'project': session['project'],
             'permissions': session['permissions']
         })
-        session['subject'] = subject['_id']
         if subject.get('race') or subject.get('ethnicity'):
             subject['type'] = 'human'
         if subject.get('age'):
             session['age'] = subject.pop('age')
+        session['subject'] = subject['_id']
         return subject
 
     def merge_dict(a, b):
@@ -1892,7 +1892,7 @@ def upgrade_to_55(dry_run=False):
         # pick a subject id from the group that hasn't been inserted yet (ie. used for another group), else generate it
         subject_ids = [session['subject']['_id'] for session in sessions]
         subject_id = next((_id for _id in subject_ids if _id not in inserted_subject_ids), bson.ObjectId())
-        merged_subject = {}  # TBD created/modified
+        merged_subject = {}
         for session in sessions:
             logging.debug('merging subject data from session %s', session['_id'])
             session['subject']['_id'] = subject_id
