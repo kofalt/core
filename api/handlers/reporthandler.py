@@ -114,31 +114,34 @@ class Report(object):
 
 
     @staticmethod
-    def _get_result_list(output):
+    def _get_result_list(cont_name, pipeline):
         """
         Helper function for extracting mongo aggregation results
 
-        Given the output of a mongo aggregation call, checks 'ok' field
-        If not 1.0, 'result' field does not exist or 'result' array is empty,
-        throws APIReportException
+        Runs a given mongo aggregation, throws APIReportException if
+        there was a mongo error or if there are no results.
         """
 
-        if output.get('ok') == 1.0:
-            result = output.get('result')
-            if result is not None and len(result) > 0:
-                return result
+        try:
+            result = list(config.db[cont_name].aggregate(pipeline))
+        except Exception as e:  # pylint: disable=broad-except
+            raise APIReportException(str(e))
 
-        raise APIReportException
+        if not result:
+            raise APIReportException('no results')
+
+        return result
+
 
     @staticmethod
-    def _get_result(output):
+    def _get_result(cont_name, pipeline):
         """
         Helper function for extracting a singular mongo aggregation result
 
         If more than one item is in the results array, throws APIReportException
         """
 
-        results = Report._get_result_list(output)
+        results = Report._get_result_list(cont_name, pipeline)
         if len(results) == 1:
             return results[0]
 
@@ -389,7 +392,7 @@ class ProjectReport(Report):
                 {'$group': {'_id': 1, 'count': { '$sum': 1 }}}
             ]
 
-            result = self._get_result(config.db.command('aggregate', 'sessions', pipeline=pipeline))
+            result = self._get_result('sessions', pipeline)
             project['subjects_count'] = result.get('count', 0)
 
             # Count subjects by sex
@@ -408,7 +411,7 @@ class ProjectReport(Report):
                                       'other':  {'$sum': '$other'}}}
             ]
             try:
-                result = self._get_result(config.db.command('aggregate', 'sessions', pipeline=pipeline))
+                result = self._get_result('sessions', pipeline)
             except APIReportException:
                 # Edge case when none of the subjects have a sex field
                 result = {}
@@ -429,7 +432,7 @@ class ProjectReport(Report):
                                                    'ethnicity': {'$last': '$subject.ethnicity'}}},
                 {'$group': {'_id': { 'sex': '$sex', 'race': '$race', 'ethnicity': '$ethnicity'}, 'count': {'$sum': 1}}}
             ]
-            results = self._get_result_list(config.db.command('aggregate', 'sessions', pipeline=pipeline))
+            results = self._get_result_list('sessions', pipeline)
 
             grid, total = self._process_demo_results(results, project['demographics_grid'])
             project['demographics_grid'] = grid
@@ -448,7 +451,7 @@ class ProjectReport(Report):
                 {'$group': {'_id': 1, 'over_18': {'$sum': '$over_18'}, 'under_18': {'$sum': '$under_18'}}}
             ]
             try:
-                result = self._get_result(config.db.command('aggregate', 'sessions', pipeline=pipeline))
+                result = self._get_result('sessions', pipeline)
             except APIReportException:
                 # Edge case when none of the subjects have an age field
                 result = {}
@@ -710,7 +713,7 @@ class UsageReport(Report):
         ]
 
         try:
-            results = self._get_result_list(config.db.command('aggregate', 'jobs', pipeline=pipeline))
+            results = self._get_result_list('jobs', pipeline)
         except APIReportException:
             results = []
 
@@ -733,7 +736,7 @@ class UsageReport(Report):
         ]
 
         try:
-            results = self._get_result_list(config.db.command('aggregate', 'sessions', pipeline=pipeline))
+            results = self._get_result_list('sessions', pipeline)
         except APIReportException:
             results = []
 
@@ -767,7 +770,7 @@ class UsageReport(Report):
             ]
 
             try:
-                results = self._get_result_list(config.db.command('aggregate', cont_name, pipeline=pipeline))
+                results = self._get_result_list(cont_name, pipeline)
             except APIReportException:
                 results = []
 
@@ -792,7 +795,7 @@ class UsageReport(Report):
             ]
 
             try:
-                results = self._get_result_list(config.db.command('aggregate', cont_name, pipeline=pipeline))
+                results = self._get_result_list(cont_name, pipeline)
             except APIReportException:
                 results = []
 
@@ -907,7 +910,7 @@ class UsageReport(Report):
                 ]
 
                 try:
-                    result = self._get_result(config.db.command('aggregate', cont_name, pipeline=pipeline))
+                    result = self._get_result(cont_name, pipeline)
                 except APIReportException:
                     result = None
 

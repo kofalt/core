@@ -451,17 +451,16 @@ class Download(base.RequestHandler):
             ]
 
             try:
-                result = config.db.command('aggregate', cont_name, pipeline=pipeline)
+                result = config.db[cont_name].aggregate(pipeline)
             except Exception as e: # pylint: disable=broad-except
                 self.log.warning(e)
                 self.abort(500, "Failure to load summary")
 
-            if result.get("ok"):
-                for doc in result.get("result"):
-                    type_ = doc['_id']
-                    if res.get(type_):
-                        res[type_]['count'] += doc.get('count',0)
-                        res[type_]['mb_total'] += doc.get('mb_total',0)
-                    else:
-                        res[type_] = doc
+            for doc in result:
+                type_ = doc['_id']
+                if res.get(type_):
+                    res[type_]['count'] += doc.get('count',0)
+                    res[type_]['mb_total'] += doc.get('mb_total',0)
+                else:
+                    res[type_] = doc
         return res

@@ -51,7 +51,7 @@ def shift_timezone(find, replace):
             {'$group': {'_id': '$session', 'min_timestamp': { '$min': '$timestamp' }}}
         ]
 
-        result = config.db.command('aggregate', 'acquisitions', pipeline=pipeline)['result'][0]
+        result = next(config.db.acquisition.aggregate(pipeline))
         min_timestamp = result.get('min_timestamp')
 
         # Update session to use earliest acquisition timestamp
