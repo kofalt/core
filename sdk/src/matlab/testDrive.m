@@ -86,7 +86,7 @@ disp('Testing Subjects')
 subjectId = fw.addSubject(struct('code', testString, 'project', projectId));
 
 fw.addSubjectTag(subjectId, 'blue');
-fw.modifySubject(subjectId, struct('label', 'testdrive'));
+fw.modifySubject(subjectId, struct('code', 'testdrive'));
 fw.addSubjectNote(subjectId, 'This is a note');
 
 subjects = fw.getProjectSubjects(projectId);
@@ -110,7 +110,7 @@ assert(subject.files{1}.size == s.bytes, errMsg)
 subjectDownloadUrl = fw.getSubjectDownloadUrl(subjectId, filename);
 assert(~strcmp(subjectDownloadUrl, ''), errMsg)
 
-downloadNodes = { struct('level', 'session', 'id', subjectId) };
+downloadNodes = { struct('level', 'subject', 'id', subjectId) };
 summary = fw.createDownloadTicket(struct('optional', false, 'nodes', downloadNodes));
 assert(~isempty(summary.ticket), errMsg)
 subjectDownloadTar = fullfile(tempdir, 'subject-download.tar');
