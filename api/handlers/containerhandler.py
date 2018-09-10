@@ -12,7 +12,7 @@ from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..web import base
-from ..web.errors import APIPermissionException, InputValidationException
+from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
 
 PROJECT_BLACKLIST = ['Unknown', 'Unsorted']
@@ -357,33 +357,25 @@ class ContainerHandler(base.RequestHandler):
             current_parent_container, _ = self._get_parent_container(container)
             parent_container = target_parent_container or current_parent_container
             target_subject_code = payload.get('subject', {}).get('code')
+            subject_code = target_subject_code or container['subject'].get('code')
 
-            # Handle changing project and/or subject.code, which alters the implicit id for subjects.
-            if target_parent_container or target_subject_code:
-                # If the target subject (proj/code) does not exist then pre-create one, based on a copy
-                # of the current subject - expected and backwards-compatible behavior.
-                # (Otherwise - if the target subject exists - simply move this session there.)
-                # Example scenario: PUT /sessions/sess1 {project: proj2}, where
-                #       proj1 > subj1 > sess1
-                #                     > sess2
-                #       proj2
-                # Instead of A) moving the whole subj1 subtree (with sess1, sess2) under proj2 (uprooting tree is likely unexpected)
-                #         or B) moving sess1 into a newly created empty(!) subj2 under proj2 (empty subject data is likely unexpected)
-                #         DO C) move sess1 to new subj2 under proj2, but copied from subj1
-                subject_code = target_subject_code or container['subject'].get('code')
-                subject_query = {'project': parent_container['_id'], 'code': subject_code}
-                if subject_code and not config.db.subjects.find_one(subject_query):
-                    subject_copy = copy.deepcopy(container['subject'])
-                    subject_copy.update({'_id': bson.ObjectId(),
-                                         'project': parent_container['_id'],
-                                         'code': subject_code})
-                    containerstorage.SubjectStorage().create_el(subject_copy)
-                    payload.setdefault('subject', {})['_id'] = subject_copy['_id']
+            # Check for subject code collision 1st when updating project and/or subject code
+            if subject_code and (target_parent_container or target_subject_code):
+                if config.db.subjects.find_one({'project': parent_container['_id'], 'code': subject_code}):
+                    raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, parent_container['_id']))
 
-            # Enable subject matching on session updates
-            if not payload.get('subject', {}).get('_id') and not payload.get('subject', {}).get('code'):
-                match_key = 'code' if container['subject'].get('code') else '_id'
-                payload.setdefault('subject', {})[match_key] = container['subject'][match_key]
+            # Handle changing project: copy subject into target project if there are other sessions on it (otherwise move)
+            if target_parent_container and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
+                subject_copy = copy.deepcopy(container['subject'])
+                subject_copy.update({'_id': bson.ObjectId(),
+                                     'project': parent_container['_id'],
+                                     'code': subject_code})
+                containerstorage.SubjectStorage().create_el(subject_copy)
+                payload.setdefault('subject', {})['_id'] = subject_copy['_id']
+
+            # Enable embedded subject updates via session updates: match on subject._id
+            else:
+                payload.setdefault('subject', {})['_id'] = container['subject']['_id']
 
             self._handle_embedded_subject(payload, parent_container)
 

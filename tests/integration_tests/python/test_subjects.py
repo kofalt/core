@@ -171,6 +171,36 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
     assert 'result.txt' in [f['name'] for f in r.json()['files']]
 
 
+def test_subject_move_via_session(data_builder, as_admin):
+    project_1 = data_builder.create_project()
+    project_2 = data_builder.create_project()
+    session_1 = data_builder.create_session(project=project_1, subject={'code': 'move', 'type': 'human'})
+    subject_1 = as_admin.get('/sessions/' + session_1).json()['subject']['_id']
+
+    # Move session_1 into project_2 - there's no other session on it (move)
+    assert as_admin.put('/sessions/' + session_1, json={'project': project_2})
+    assert subject_1 == as_admin.get('/sessions/' + session_1).json()['subject']['_id']
+    assert (project_2
+            == as_admin.get('/sessions/' + session_1).json()['subject']['project']
+            == as_admin.get('/subjects/' + subject_1).json()['project'])
+    assert as_admin.get('/projects/' + project_1 + '/subjects').json() == []
+    assert subject_1 in [s['_id'] for s in as_admin.get('/projects/' + project_2 + '/subjects').json()]
+
+    # Create another session on the same subject (now in project_2)
+    session_2 = data_builder.create_session(project=project_2, subject={'code': 'move'})
+    assert subject_1 == as_admin.get('/sessions/' + session_2).json()['subject']['_id']
+
+    # Move session_1 back into project_1 - there's another session on it (copy)
+    assert as_admin.put('/sessions/' + session_1, json={'project': project_1})
+    subject_2 = as_admin.get('/sessions/' + session_1).json()['subject']['_id']
+    assert subject_2 != subject_1
+    assert (project_1
+            == as_admin.get('/sessions/' + session_1).json()['subject']['project']
+            == as_admin.get('/subjects/' + subject_2).json()['project'])
+    assert subject_1 in [s['_id'] for s in as_admin.get('/projects/' + project_2 + '/subjects').json()]
+    assert subject_2 in [s['_id'] for s in as_admin.get('/projects/' + project_1 + '/subjects').json()]
+
+
 def test_subject_fields(data_builder, as_admin):
     subject_fields = dict(
         code='test', cohort='subject',

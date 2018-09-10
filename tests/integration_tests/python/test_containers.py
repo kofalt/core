@@ -75,7 +75,7 @@ def test_project_template(data_builder, file_form, as_admin):
     assert r.ok
     assert 'project_has_template' not in r.json()
 
-    # create template for the project
+    # create template for project 1
     r = as_admin.post('/projects/' + project + '/template', json={
         'session': {'subject': {'code': '^compliant$'}},
         'acquisitions': [{
@@ -92,7 +92,7 @@ def test_project_template(data_builder, file_form, as_admin):
     assert r.ok
     assert r.json()['modified'] == 1
 
-    # create template for the project2
+    # create template for project2
     r = as_admin.post('/projects/' + project2 + '/template', json={
         'session': {'subject': {'code': '^compliant$'}},
         'acquisitions': [{
@@ -519,7 +519,7 @@ def test_put_container(data_builder, as_admin):
     assert r.ok
 
     # test that an update to subject.code
-    # will create a new subject._id
+    # will *NOT* create a new subject._id
     r = as_admin.get('/sessions/'+session)
     assert r.ok
     old_subject_id = r.json().get('subject',{}).get('_id')
@@ -530,8 +530,9 @@ def test_put_container(data_builder, as_admin):
     })
     assert r.ok
     r = as_admin.get('/sessions/' + session)
-    new_subject_id = r.json().get('subject',{}).get('_id')
-    assert new_subject_id != old_subject_id
+    new_subject = r.json()['subject']
+    assert new_subject['code'] == 'newCode'
+    assert new_subject['_id'] == old_subject_id
 
     # check that an update to subject.First Name
     # will not create a new subject._id
@@ -554,26 +555,13 @@ def test_put_container(data_builder, as_admin):
     })
     assert r.ok
 
-    # update session.subject.code to that of session_2
-    # first set session_2.subject.code to something
+    # try to update session2.subject.code to that of session 1
     r = as_admin.put('/sessions/' + session_2, json={
         'subject': {
-            'code': 'subject2'
+            'code': 'newCode'
         }
     })
-    assert r.ok
-    r = as_admin.get('/sessions/'+session_2)
-    assert r.ok
-    subject2Id = r.json().get('subject').get('_id')
-    r = as_admin.put('/sessions/' + session, json={
-        'subject': {
-            'code': 'subject2'
-        }
-    })
-    assert r.ok
-    r = as_admin.get('/sessions/'+session)
-    assert r.ok
-    assert r.json().get('subject').get('_id') == subject2Id
+    assert r.status_code == 422
 
     # update subject w/ oid
     r = as_admin.put('/sessions/' + session, json={
