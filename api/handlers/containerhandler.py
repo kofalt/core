@@ -359,10 +359,11 @@ class ContainerHandler(base.RequestHandler):
             target_subject_id = payload.get('subject', {}).get('_id')
             target_subject_code = payload.get('subject', {}).get('code')
             subject_code = target_subject_code or container['subject'].get('code')
+            subject_storage = containerstorage.SubjectStorage()
 
             # Check for subject code collision 1st when updating project and/or subject code
             if subject_code and (target_parent_container or target_subject_code):
-                if config.db.subjects.find_one({'project': parent_container['_id'], 'code': subject_code}):
+                if subject_storage.get_all_el({'project': parent_container['_id'], 'code': subject_code}, None, {'_id': 1}):
                     raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, parent_container['_id']))
 
             # Handle changing subject
@@ -372,6 +373,8 @@ class ContainerHandler(base.RequestHandler):
                 target_subject = config.db.subjects.find_one({'_id': bson.ObjectId(target_subject_id)})
                 if not target_subject:
                     raise APINotFoundException('cannot find subject {}'.format(target_subject_id))
+                if target_subject.get('deleted'):
+                    raise APINotFoundException('subject {} is marked for deletion'.format(target_subject_id))
                 if target_subject['project'] != parent_container['_id']:
                     raise APINotFoundException('subject {} is not in project {}'.format(target_subject_id, parent_container['_id']))
 
@@ -383,7 +386,7 @@ class ContainerHandler(base.RequestHandler):
                                      'permissions': parent_container['permissions'],
                                      'parents': {'group': parent_container['group'], 'project': parent_container['_id']},
                                      'code': subject_code})
-                containerstorage.SubjectStorage().create_el(subject_copy)
+                subject_storage.create_el(subject_copy)
                 payload.setdefault('subject', {})['_id'] = subject_copy['_id']
 
             # Enable embedded subject updates via session updates: match on subject._id

@@ -56,6 +56,8 @@
             "properties": {
               "_id":              {"$ref":"#/definitions/_id"},
               "project":          {"$ref":"#/definitions/_id"},
+              "public":           {"$ref":"container.json#/definitions/public"},
+
               "firstname":        {"$ref":"#/definitions/firstname"},
               "lastname":         {"$ref":"#/definitions/lastname"},
 

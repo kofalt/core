@@ -186,6 +186,76 @@ def test_subject_endpoints(data_builder, as_admin, as_public, file_form):
     assert set([s['_id'] for s in r.json()]) == set([session_1, session_2])
 
 
+def test_subject_notes(data_builder, as_admin, as_public, file_form):
+    # prep
+    def create_user_accessor(email):
+        user = data_builder.create_user(_id=email, api_key=email)
+        as_user = copy.deepcopy(as_public)
+        as_user.headers.update({'Authorization': 'scitran-user ' + email})
+        return as_user
+
+    project = data_builder.create_project()
+    subject = as_admin.post('/subjects', json={'project': project, 'code': 'test-sublist', 'public': False}).json()['_id']
+    as_rw = create_user_accessor('rw-user@test.com')
+    as_ro = create_user_accessor('ro-user@test.com')
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': 'rw-user@test.com', 'access': 'rw'}).ok
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': 'ro-user@test.com', 'access': 'ro'}).ok
+
+    # Add a note
+    r = as_admin.post('/subjects/' + subject + '/notes', json={'text': 'note'})
+    assert r.ok
+
+    # Add note perms
+    # TODO Fix as_public POST sublist response (should be 403)
+    assert as_public.post('/subjects/' + subject + '/notes', json={'text': 'note2'}).status_code == 500
+    assert as_ro.post('/subjects/' + subject + '/notes', json={'text': 'note2'}).status_code == 403
+    assert as_rw.post('/subjects/' + subject + '/notes', json={'text': 'note2'}).ok
+
+    # Verify note is present in subject
+    r = as_admin.get('/subjects/' + subject)
+    assert r.ok
+    note, note2 = [note['_id'] for note in r.json()['notes']]
+
+    # Get note
+    r = as_admin.get('/subjects/' + subject + '/notes/' + note)
+    assert r.ok
+    assert r.json()['text'] == 'note'
+
+    # Get note perms
+    assert as_public.get('/subjects/' + subject + '/notes/' + note).status_code == 403
+    assert as_ro.get('/subjects/' + subject + '/notes/' + note).ok
+    assert as_rw.get('/subjects/' + subject + '/notes/' + note).ok
+
+    # Modify note
+    r = as_admin.put('/subjects/' + subject + '/notes/' + note, json={'text': 'modified'})
+    assert r.ok
+
+    # Modify note perms
+    assert as_public.put('/subjects/' + subject + '/notes/' + note, json={'text': 'modified'}).status_code == 403
+    assert as_ro.put('/subjects/' + subject + '/notes/' + note, json={'text': 'modified'}).status_code == 403
+    # TODO shouldn't rw PUT succeed instead of 403?
+    assert as_rw.put('/subjects/' + subject + '/notes/' + note, json={'text': 'modified'}).status_code == 403
+
+    # Verify modified note
+    r = as_admin.get('/subjects/' + subject + '/notes/' + note)
+    assert r.ok
+    assert r.json()['text'] == 'modified'
+
+    # Delete note
+    r = as_admin.delete('/subjects/' + subject + '/notes/' + note)
+    assert r.ok
+
+    # Delete note perms
+    assert as_public.delete('/subjects/' + subject + '/notes/' + note2).status_code == 403
+    assert as_public.delete('/subjects/' + subject + '/notes/' + note2).status_code == 403
+    assert as_ro.delete('/subjects/' + subject + '/notes/' + note2).status_code == 403
+    assert as_rw.delete('/subjects/' + subject + '/notes/' + note2).ok
+
+    # Verify deleted note
+    r = as_admin.get('/subjects/' + subject + '/notes/' + note)
+    assert r.status_code == 404
+
+
 def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
     # Create gear, project and subject with one input file
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
@@ -302,8 +372,9 @@ def test_session_move(data_builder, as_admin):
 
 def test_subject_fields(data_builder, as_admin):
     subject_fields = dict(
-        code='test', cohort='subject',
-        type='animal', species='dog', strain='free-string')
+        code='test', label='test', cohort='subject',
+        type='animal', species='dog', strain='free-string',
+        public=True)
     session_fields = dict(age=123, weight=74.8, subject=subject_fields)
 
     # create new-style session/subject
@@ -321,3 +392,4 @@ def test_subject_fields(data_builder, as_admin):
     assert doc['subject'].get('type') == 'animal'
     assert doc['subject'].get('species') == 'dog'
     assert doc['subject'].get('strain') == 'free-string'
+    assert doc['subject'].get('public') == True

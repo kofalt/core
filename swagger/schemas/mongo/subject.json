@@ -10,6 +10,7 @@
     "created":          {},
     "modified":         {},
     "permissions":      {},
+    "public":           {},
 
     "sex":              { "enum": ["male", "female", "other", "unknown", null] },
     "cohort":           { "enum": ["control", "subject", null] },
@@ -20,6 +21,7 @@
     "strain":           { "type": "string" },
 
     "code":             { "type": "string" },
+    "label":            { "type": "string" },
     "tags":             { "type": "array", "items": {"type": "string"} },
     "files":            {
                           "type": ["array", "null"],
