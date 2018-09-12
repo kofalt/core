@@ -12,7 +12,7 @@ from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..web import base
-from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
+from ..web.errors import APINotFoundException, APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
 
 PROJECT_BLACKLIST = ['Unknown', 'Unsorted']
@@ -356,6 +356,7 @@ class ContainerHandler(base.RequestHandler):
         if cont_name == 'sessions':
             current_parent_container, _ = self._get_parent_container(container)
             parent_container = target_parent_container or current_parent_container
+            target_subject_id = payload.get('subject', {}).get('_id')
             target_subject_code = payload.get('subject', {}).get('code')
             subject_code = target_subject_code or container['subject'].get('code')
 
@@ -364,11 +365,23 @@ class ContainerHandler(base.RequestHandler):
                 if config.db.subjects.find_one({'project': parent_container['_id'], 'code': subject_code}):
                     raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, parent_container['_id']))
 
+            # Handle changing subject
+            if target_subject_id:
+                if not bson.ObjectId.is_valid(target_subject_id):
+                    raise APIValidationException('{} is not a valid object id'.format(target_subject_id))
+                target_subject = config.db.subjects.find_one({'_id': bson.ObjectId(target_subject_id)})
+                if not target_subject:
+                    raise APINotFoundException('cannot find subject {}'.format(target_subject_id))
+                if target_subject['project'] != parent_container['_id']:
+                    raise APINotFoundException('subject {} is not in project {}'.format(target_subject_id, parent_container['_id']))
+
             # Handle changing project: copy subject into target project if there are other sessions on it (otherwise move)
-            if target_parent_container and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
+            elif target_parent_container and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
                 subject_copy = copy.deepcopy(container['subject'])
                 subject_copy.update({'_id': bson.ObjectId(),
                                      'project': parent_container['_id'],
+                                     'permissions': parent_container['permissions'],
+                                     'parents': {'group': parent_container['group'], 'project': parent_container['_id']},
                                      'code': subject_code})
                 containerstorage.SubjectStorage().create_el(subject_copy)
                 payload.setdefault('subject', {})['_id'] = subject_copy['_id']

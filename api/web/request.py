@@ -4,6 +4,7 @@ from webob.request import Request
 
 from .. import config
 from .. import util
+from ..dao import containerutil
 from .errors import APIValidationException
 
 AccessType = util.Enum('AccessType', {
@@ -55,11 +56,20 @@ def log_access(access_type, cont_kwarg='cont_name', cont_id_kwarg='cid', filenam
             if access_type not in [AccessType.user_login, AccessType.user_logout]:
 
                 cont_name = kwargs.get(cont_kwarg)
+                if cont_name:
+                    cont_name = containerutil.singularize(cont_name)
                 cont_id = kwargs.get(cont_id_kwarg)
                 filename = kwargs.get(filename_kwarg)
 
-                # Only log view_container events when the container is a project/session/acquisition
-                if access_type is AccessType.view_container and cont_name not in ['project', 'projects', 'sessions', 'session', 'acquisition', 'acquisitions']:
+                # Only log view_container events when the container is a project/subject/session/acquisition
+                if access_type is AccessType.view_container and cont_name not in ['project', 'subject', 'session', 'acquisition']:
+                    return result
+
+                # Make new subject access logs (from /subjects/x) consistent with old logs (from /sessions/x/subject)
+                # TODO transition to AccessType.view_container ASAP
+                if cont_name == 'subject':
+                    # Cannot assign access_type for scoping reasons (and nonlocal is py3-only)
+                    self.log_user_access(AccessType.view_subject, cont_name=cont_name, cont_id=cont_id, filename=filename)
                     return result
 
             self.log_user_access(access_type, cont_name=cont_name, cont_id=cont_id, filename=filename)

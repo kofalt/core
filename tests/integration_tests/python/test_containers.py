@@ -563,11 +563,11 @@ def test_put_container(data_builder, as_admin):
     })
     assert r.status_code == 422
 
-    # update subject w/ oid
+    # try to update subject w/ non-existent oid
     r = as_admin.put('/sessions/' + session, json={
         'subject': {'_id': '000000000000000000000000'}
     })
-    assert r.ok
+    assert r.status_code == 404
 
 
 def test_subject_age_must_be_int(data_builder, as_admin):

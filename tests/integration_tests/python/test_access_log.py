@@ -136,6 +136,7 @@ def test_access_log_succeeds(data_builder, as_admin, log_db):
 
     r = as_admin.get('/sessions/' + session + '/subject')
     assert r.ok
+    subject = r.json()['_id']
 
     log_records_count_after = log_db.access_log.count({})
     assert log_records_count_before+1 == log_records_count_after
@@ -143,6 +144,25 @@ def test_access_log_succeeds(data_builder, as_admin, log_db):
     most_recent_log = log_db.access_log.find({}).sort([('_id', -1)]).limit(1)[0]
 
     assert most_recent_log['context']['session']['id'] == session
+    assert most_recent_log['context']['subject']['label'] == subject_code
+    assert most_recent_log['access_type'] == AccessType.view_subject.value
+    assert most_recent_log['origin']['id'] == 'admin@user.com'
+
+
+    ###
+    # Test subject access is logged on new subject route
+    ###
+
+    log_records_count_before = log_db.access_log.count({})
+
+    r = as_admin.get('/subjects/' + subject)
+    assert r.ok
+
+    log_records_count_after = log_db.access_log.count({})
+    assert log_records_count_before+1 == log_records_count_after
+
+    most_recent_log = log_db.access_log.find({}).sort([('_id', -1)]).limit(1)[0]
+
     assert most_recent_log['context']['subject']['label'] == subject_code
     assert most_recent_log['access_type'] == AccessType.view_subject.value
     assert most_recent_log['origin']['id'] == 'admin@user.com'

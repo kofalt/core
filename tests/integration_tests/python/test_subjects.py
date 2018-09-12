@@ -1,3 +1,5 @@
+import copy
+
 import bson
 
 
@@ -35,65 +37,151 @@ def test_subject_collection(data_builder, api_db, as_admin):
     assert subject_doc_2['sex'] == 'female'
 
 
-def test_subject_endpoints(data_builder, as_admin, file_form):
-    project = data_builder.create_project()
+def test_subject_endpoints(data_builder, as_admin, as_public, file_form):
+    # prep
+    def create_user_accessor(email):
+        user = data_builder.create_user(_id=email, api_key=email)
+        as_user = copy.deepcopy(as_public)
+        as_user.headers.update({'Authorization': 'scitran-user ' + email})
+        return as_user
 
+    project = data_builder.create_project()
+    as_rw = create_user_accessor('rw-user@test.com')
+    as_ro = create_user_accessor('ro-user@test.com')
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': 'rw-user@test.com', 'access': 'rw'}).ok
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': 'ro-user@test.com', 'access': 'ro'}).ok
+
+    # GET /subjects no data
     r = as_admin.get('/subjects')
     assert r.ok
     assert type(r.json()) is list
 
+    # POST /subjects
     r = as_admin.post('/subjects', json={'project': project, 'code': 'test', 'firstname': 'foo', 'sex': 'male'})
     assert r.ok
     subject = r.json()['_id']
 
+    # POST /subjects permissions
+    assert as_public.post('/subjects', json={'project': project, 'code': 'code'}).status_code == 403
+    assert as_ro.post('/subjects', json={'project': project, 'code': 'code'}).status_code == 403
+    r = as_rw.post('/subjects', json={'project': project, 'code': 'code'})
+    assert r.ok
+    subject_2 = r.json()['_id']
+
+    # GET /subjects
     r = as_admin.get('/subjects')
     assert r.ok
     assert subject in [s['_id'] for s in r.json()]
     assert not any('firstname' in s for s in r.json())
     assert not any('sex' in s for s in r.json())
 
+    # GET /subjects permissions
+    r = as_public.get('/subjects')
+    assert r.ok
+    assert r.json() == []
+    r = as_ro.get('/subjects')
+    assert r.ok
+    assert subject in [s['_id'] for s in r.json()]
+    r = as_rw.get('/subjects')
+    assert r.ok
+    assert subject in [s['_id'] for s in r.json()]
+
+    # GET /subjects/x
     r = as_admin.get('/subjects/' + subject)
     assert r.ok
     assert r.json()['firstname'] == 'foo'
     assert r.json()['sex'] == 'male'
 
+    # GET /subjects/x permissions
+    assert as_public.get('/subjects/' + subject).status_code == 403
+    assert as_ro.get('/subjects/' + subject).ok
+    assert as_rw.get('/subjects/' + subject).ok
+
+    # PUT /subjects/x
     r = as_admin.put('/subjects/' + subject, json={'sex': 'female'})
     assert r.ok
 
+    # PUT /subjects/x permissions
+    # TODO fix containerauth to 403 on public put (TypeError: f() got an unexpected keyword argument 'r_payload')
+    assert as_public.put('/subjects/' + subject, json={'sex': 'female'}).status_code == 500  # should be 403
+    assert as_ro.put('/subjects/' + subject, json={'sex': 'female'}).status_code == 403
+    assert as_rw.put('/subjects/' + subject, json={'sex': 'female'}).ok
+
+    # verify PUT /subjects/x
     r = as_admin.get('/subjects/' + subject)
     assert r.ok
     assert r.json()['sex'] == 'female'
 
+    # POST /subjects/x/files
     r = as_admin.post('/subjects/' + subject + '/files', files=file_form('test.txt'))
     assert r.ok
 
+    # POST /subjects/x/files permissions
+    assert as_public.post('/subjects/' + subject + '/files', files=file_form('test.txt')).status_code == 403
+    assert as_ro.post('/subjects/' + subject + '/files', files=file_form('test.txt')).status_code == 403
+    assert as_rw.post('/subjects/' + subject + '/files', files=file_form('test.txt')).ok
+
+    # verify POST /subjects/x/files
     r = as_admin.get('/subjects/' + subject)
     assert r.ok
     assert 'test.txt' in [f['name'] for f in r.json()['files']]
 
+    # GET /subjects/x/files/y
     r = as_admin.get('/subjects/' + subject + '/files/test.txt')
     assert r.ok
     assert r.text == 'test\ndata\n'
 
+    # DELETE /subjects/x
     r = as_admin.delete('/subjects/' + subject)
     assert r.ok
 
+    # DELETE /subjects/x permissions
+    assert as_public.delete('/subjects/' + subject_2).status_code == 403
+    assert as_ro.delete('/subjects/' + subject_2).status_code == 403
+    assert as_rw.delete('/subjects/' + subject_2).ok
+
+    # verify DELETE /subjects/x
     r = as_admin.get('/subjects')
     assert subject not in [s['_id'] for s in r.json()]
 
     r = as_admin.get('/subjects/' + subject)
     assert r.status_code == 404
 
+    # prep
     session_1 = data_builder.create_session(subject={'code': 'test-subj'})
-    session_2 = data_builder.create_session(subject={'code': 'test-subj'})
+    session_2 = data_builder.create_session(subject={'code': 'test-subj'}, public=False)
     subject = as_admin.get('/sessions/' + session_1).json()['subject']['_id']
     assert subject == as_admin.get('/sessions/' + session_2).json()['subject']['_id']
 
+    # GET /projects/x/subjects
     r = as_admin.get('/projects/' + project + '/subjects')
     assert r.ok
     assert subject in [s['_id'] for s in r.json()]
 
+    # GET /projects/x/subjects permissions
+    r = as_public.get('/projects/' + project + '/subjects')
+    assert r.ok
+    assert r.json() == []
+    r = as_ro.get('/projects/' + project + '/subjects')
+    assert r.ok
+    assert subject in [s['_id'] for s in r.json()]
+    r = as_rw.get('/projects/' + project + '/subjects')
+    assert r.ok
+    assert subject in [s['_id'] for s in r.json()]
+
+    # GET /subjects/x/sessions
     r = as_admin.get('/subjects/' + subject + '/sessions')
+    assert r.ok
+    assert set([s['_id'] for s in r.json()]) == set([session_1, session_2])
+
+    # GET /subjects/x/sessions permissions
+    r = as_public.get('/subjects/' + subject + '/sessions')
+    assert r.ok
+    assert set([s['_id'] for s in r.json()]) == set([s['_id'] for s in r.json()]) == set([session_1])
+    r = as_ro.get('/subjects/' + subject + '/sessions')
+    assert r.ok
+    assert set([s['_id'] for s in r.json()]) == set([session_1, session_2])
+    r = as_rw.get('/subjects/' + subject + '/sessions')
     assert r.ok
     assert set([s['_id'] for s in r.json()]) == set([session_1, session_2])
 
@@ -199,6 +287,17 @@ def test_subject_move_via_session(data_builder, as_admin):
             == as_admin.get('/subjects/' + subject_2).json()['project'])
     assert subject_1 in [s['_id'] for s in as_admin.get('/projects/' + project_2 + '/subjects').json()]
     assert subject_2 in [s['_id'] for s in as_admin.get('/projects/' + project_1 + '/subjects').json()]
+
+
+def test_session_move(data_builder, as_admin):
+    project = data_builder.create_project()
+    subject_1 = as_admin.post('/subjects', json={'project': project, 'code': 'move-1'}).json()['_id']
+    subject_2 = as_admin.post('/subjects', json={'project': project, 'code': 'move-2'}).json()['_id']
+    session = data_builder.create_session(subject={'code': 'move-1', 'type': 'animal'})
+
+    # Move session_1 into subject_2
+    assert as_admin.put('/sessions/' + session, json={'subject': {'_id': subject_2}})
+    assert subject_2 == as_admin.get('/sessions/' + session).json()['subject']['_id']
 
 
 def test_subject_fields(data_builder, as_admin):
