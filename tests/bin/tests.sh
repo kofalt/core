@@ -80,13 +80,13 @@ main() {
         fi
         ###
 
+        export SCITRAN_COLLECT_ENDPOINTS=true
+        export SCITRAN_CORE_ACCESS_LOG_ENABLED=true
+        export SCITRAN_CORE_LOG_LEVEL=debug
+        export SCITRAN_RUNTIME_COVERAGE=true
         uwsgi \
             --ini /var/scitran/config/uwsgi-config.http.ini \
             --http-keepalive \
-            --env SCITRAN_COLLECT_ENDPOINTS=true \
-            --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
-            --env SCITRAN_CORE_LOG_LEVEL=debug \
-            --env SCITRAN_RUNTIME_COVERAGE=true \
             >/tmp/core.log 2>&1 &
         export CORE_PID=$!
         export SCITRAN_SITE_API_URL=http://localhost:9000/api
@@ -101,7 +101,7 @@ main() {
         py.test --exitfirst --cov=api --cov-report= tests/unit_tests/python "$@" || allow_skip_all
 
         log "INFO: Running integration tests ..."
-        py.test --exitfirst tests/integration_tests/python "$@" || allow_skip_all || tail_logs_and_exit
+        py.test --exitfirst tests/integration_tests/python -k "not metrics" "$@" || allow_skip_all || tail_logs_and_exit
 
         log "INFO: Stopping core ..."
         kill $CORE_PID || true

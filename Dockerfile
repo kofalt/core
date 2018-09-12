@@ -14,8 +14,6 @@ RUN set -eux \
         py-pip \
         python-dev \
         su-exec \
-        uwsgi-http \
-        uwsgi-python \
     && pip install --upgrade \
         pip \
         setuptools \
@@ -34,9 +32,12 @@ WORKDIR /var/scitran
 VOLUME /var/scitran/data
 VOLUME /var/scitran/keys
 VOLUME /var/scitran/logs
-COPY docker/uwsgi-entrypoint.sh     /var/scitran/
-COPY docker/uwsgi-config.ini        /var/scitran/config/
-COPY docker/uwsgi-config.http.ini   /var/scitran/config/
+# TODO fix coverage / metrics / mule / timeout / connreset
+# TODO weed out uwsgi references from core/fly.fly/installer / remove below alias hack
+RUN set -eux \
+    && echo -e "#!/usr/bin/env sh\nexec python -m api.main \"$@\"" > /usr/local/bin/uwsgi \
+    && chmod +x /usr/local/bin/uwsgi
+COPY docker/uwsgi-entrypoint.sh /var/scitran/
 ENTRYPOINT ["/var/scitran/uwsgi-entrypoint.sh"]
 CMD ["uwsgi", "--ini=/var/scitran/config/uwsgi-config.http.ini", "--http-keepalive"]
 

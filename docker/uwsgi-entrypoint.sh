@@ -18,4 +18,5 @@ RUNAS_USER=$(stat -c '%u' $SCITRAN_PERSISTENT_DATA_PATH)
 [ -n "${PRE_RUNAS_CMD:-}" ] && eval $PRE_RUNAS_CMD
 
 # Use exec to keep PID and use su-exec (gosu equivalent) to step-down from root.
-exec su-exec $RUNAS_USER "$@"
+set -- su-exec $RUNAS_USER "$@"
+exec "$@"
