@@ -72,15 +72,15 @@ main() {
     docker run --rm \
         --volume $(pwd):/pwd \
         flywheel/core:testing \
-        cp -r /var/scitran/code/api/core.egg-info /pwd/
+        cp -r /src/core/core.egg-info /pwd/
 
     docker run -it \
         --name core-test-core \
         --network core-test \
-        --volume $(pwd):/var/scitran/code/api \
+        --volume $(pwd):/src/core \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://core-test-mongo:27017/scitran \
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-mongo:27017/logs \
-        --workdir /var/scitran/code/api \
+        --workdir /src/core \
         flywheel/core:testing \
         tests/bin/tests.sh "$@"
 }

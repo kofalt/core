@@ -1,0 +1,17 @@
+{
+    "listeners": {
+        "*:8080": {
+            "application": "scitran-core"
+        }
+    },
+
+    "applications": {
+        "scitran-core": {
+            "type": "python",
+            "processes": 2,
+            "user": "nobody",
+            "path": "/src/core",
+            "module": "api.app"
+        }
+    }
+}
