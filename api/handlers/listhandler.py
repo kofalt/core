@@ -493,14 +493,13 @@ class FileListHandler(ListHandler):
                             raise util.RangeHeaderParseError('Invalid range')
 
                 except util.RangeHeaderParseError:
-                    self.response.app_iter = file_system.open(file_path, 'rb')
-                    self.response.headers['Content-Length'] = str(fileinfo['size'])  # must be set after setting app_iter
-
                     if self.is_true('view'):
                         self.response.headers['Content-Type'] = str(fileinfo.get('mimetype', 'application/octet-stream'))
                     else:
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
+                    self.response.body_file = file_system.open(file_path, 'rb')
+                    self.response.content_length = fileinfo['size']
                 else:
                     self.response.status = 206
                     if len(ranges) > 1:
