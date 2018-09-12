@@ -168,8 +168,8 @@ class JobsTestCases(SdkTestCase):
         self.assertTimestampAfter(r_job3.modified, r_job2.modified)
 
         logs = fw.get_job_logs(job_id)
-        self.assertEqual(len(logs.logs), 3)
-        self.assertEqual(logs.logs[0], log1[0])
-        self.assertEqual(logs.logs[1], log2[0])
-        self.assertEqual(logs.logs[2], log2[1])
+        self.assertEqual(len(logs.logs), 4)
+        self.assertEqual(logs.logs[1], log1[0])
+        self.assertEqual(logs.logs[2], log2[0])
+        self.assertEqual(logs.logs[3], log2[1])
 
