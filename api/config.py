@@ -12,6 +12,7 @@ from flywheel_common import storage
 from . import util
 from .dao.dbutil import try_replace_one, try_update_one
 
+
 logging.basicConfig(
     format='%(asctime)s %(name)16.16s %(filename)24.24s %(lineno)5d:%(levelname)4.4s %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
@@ -71,6 +72,7 @@ DEFAULT_CONFIG = {
         'data_path': os.path.join(os.path.dirname(__file__), '../persistent/data'),
         'elasticsearch_host': 'localhost:9200',
         'fs_url': None,
+        'phi_fs_url': None,
         'support_legacy_fs': True
     },
 }
@@ -139,6 +141,13 @@ if not __config['persistent']['fs_url']:
         os.makedirs(_path)
     __config['persistent']['fs_url'] = 'osfs://' + _path
 log.debug('Persistent fs url: %s', __config['persistent']['fs_url'])
+
+if not __config['persistent']['phi_fs_url']:
+    _path = os.path.join(__config['persistent']['data_path'], 'v1', 'phi')
+    if not os.path.exists(_path):
+        os.makedirs(_path)
+    __config['persistent']['phi_fs_url'] = 'osfs://' + _path
+log.debug('Persistent fs url for PHI files: %s', __config['persistent']['phi_fs_url'])
 
 db = pymongo.MongoClient(
     __config['persistent']['db_uri'],
@@ -215,6 +224,10 @@ def initialize_db():
     db.batch.create_index('jobs', **kwargs)
     db.project_rules.create_index('project_id', **kwargs)
     db.data_views.create_index('parent', **kwargs)
+
+    master_subject_code_kwargs = kwargs.copy()
+    master_subject_code_kwargs['unique'] = True
+    db.master_subject_codes.create_index('patient_id', **master_subject_code_kwargs)
 
     # Create indexes on container collection
     for coll in ['groups', 'projects', 'subjects', 'sessions', 'acquisitions', 'analyses', 'collections']:
@@ -338,6 +351,7 @@ def get_release_version():
 
 # Storage configuration
 primary_storage = storage.create_flywheel_fs(__config['persistent']['fs_url'])
+phi_storage = storage.create_flywheel_fs(__config['persistent']['phi_fs_url'])
 # local_fs must be PyFS with osfs for using the local get_fs functions for file manipulation
 local_fs = storage.create_flywheel_fs('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']

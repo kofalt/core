@@ -15,6 +15,7 @@ from .handlers.resolvehandler           import ResolveHandler
 from .handlers.roothandler              import RootHandler
 from .handlers.schemahandler            import SchemaHandler
 from .handlers.userhandler              import UserHandler
+from .handlers.mastersubjectcodehandler import MasterSubjectCodeHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
@@ -136,6 +137,15 @@ endpoints = [
             route('/self',                 UserHandler, h='self',            m=['GET']),
             route('/self/avatar',          UserHandler, h='self_avatar',     m=['GET']),
             route('/self/key',             UserHandler, h='generate_api_key',m=['POST']),
+            route('/self/info',            UserHandler, h='get_info',        m=['GET']),
+            route('/self/info',            UserHandler, h='modify_info',     m=['POST']),
+            route('/self/tokens',          UserHandler, h='list_auth_tokens',    m=['GET']),
+            route('/self/tokens',          UserHandler, h='add_auth_token',     m=['POST']),
+            prefix('/self/tokens', [
+                route('/<_id:{oid}>',      UserHandler, h='get_auth_token', m=['GET']),
+                route('/<_id:{oid}>',      UserHandler, h='delete_auth_token', m=['DELETE']),
+            ]),
+            route('/self/jobs',            UserHandler, h='get_jobs',     m=['GET']),
 
             route('/<_id:{uid}>',                       UserHandler),
             route('/<uid:{uid}>/groups',                GroupHandler,                h='get_all',               m=['GET']),
@@ -384,6 +394,7 @@ endpoints = [
         route('/<par_cont_name:groups>/<par_id:{gid}>/<cont_name:projects>', ContainerHandler, h='get_all', m=['GET']),
         route('/<par_cont_name:{cname}>/<par_id:{oid}>/<cont_name:{cname}>', ContainerHandler, h='get_all', m=['GET']),
 
-
+        # Master Subject Code
+        route('/master-subj-code', MasterSubjectCodeHandler, m=['POST']),
     ]),
 ]

@@ -697,7 +697,7 @@ class DataExplorerHandler(base.RequestHandler):
 
         # Create a new file with a new uuid
         _, fileobj = file_processor.create_new_file(None)
-        fileobj.write(json.dumps(formatted_search_results))
+        fileobj.write(json.dumps(formatted_search_results, indent=4, sort_keys=True))
         #This seems to be empty on file create but verify this is correct
         metadata = None
         timestamp = datetime.datetime.utcnow()

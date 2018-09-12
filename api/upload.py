@@ -7,6 +7,7 @@ import fs.errors
 
 
 from flywheel_common import storage
+from .auth import require_admin
 from .web import base
 from .web.errors import FileFormException
 from . import config
@@ -257,6 +258,22 @@ class Upload(base.RequestHandler):
         else:
             # In this case we are going to save the files to direct locations from the reqeust post.
             return process_upload(self.request, strategy, self.log_user_access, origin=self.origin, context=context)
+
+    @require_admin
+    def phi_upload(self):
+        file_processor = files.FileProcessor(config.phi_storage)
+        form = file_processor.process_form(self.request)
+        file_fields = extract_file_fields(form)
+
+        for field in file_fields:
+            updated_doc = config.db.acquisitions.update_one({'files._id': field.filename},
+                                                            {'$set': {'files.$.has_phi': True}})
+            if updated_doc:
+                file_processor.create_new_file(field.filename)
+            else:
+                self.abort(404, 'File not found')
+        # TODO: what return in case of partial success
+        return {}
 
     def engine(self):
         """Handles file uploads from the engine"""
