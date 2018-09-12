@@ -104,6 +104,10 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert r.ok
     assert r.text == '<span class="fd--1">No logs were found for this job.</span>'
 
+    # start job (Adds logs)
+    r = as_root.get('/jobs/next')
+    assert r.ok
+
     # add job log
     r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
     assert r.ok
@@ -115,21 +119,24 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     # get job log (non-empty)
     r = as_admin.get('/jobs/' + job1_id + '/logs')
     assert r.ok
-    assert len(r.json()['logs']) == 2
+    assert len(r.json()['logs']) == 3
 
     # add same logs again (for testing text/html logs)
     r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
     assert r.ok
 
+    expected_job_logs = [{'fd': -1, 'msg': 'Gear Name: {}, Gear Version: {}\n'.format(job['gear_info']['name'], job['gear_info']['version'])}] + \
+                        2 * job_logs
+
     # get job log as text
     r = as_admin.get('/jobs/' + job1_id + '/logs/text')
     assert r.ok
-    assert r.text == 2 * ''.join(log['msg'] for log in job_logs)
+    assert r.text == ''.join(log['msg'] for log in expected_job_logs)
 
     # get job log as html
     r = as_admin.get('/jobs/' + job1_id + '/logs/html')
     assert r.ok
-    assert r.text == 2 * ''.join('<span class="fd-{fd}">{msg}</span>\n'.format(**log) for log in job_logs)
+    assert r.text == ''.join('<span class="fd-{fd}">{msg}</span>\n'.format(fd=log.get('fd'), msg=log.get('msg').replace('\n', '<br/>\n')) for log in expected_job_logs)
 
     # get job config
     r = as_root.get('/jobs/' + job1_id + '/config.json')

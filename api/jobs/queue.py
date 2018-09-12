@@ -362,7 +362,8 @@ class Queue(object):
         # !!!
         # !!! DUPE WITH Queue.mutate
         # !!!
-        request = job.generate_request(get_gear(job.gear_id))
+        gear = get_gear(job.gear_id)
+        request = job.generate_request(gear)
 
         if peek:
             job.request = request
@@ -381,6 +382,8 @@ class Queue(object):
 
         if result is None:
             raise Exception('Marked job as running but could not generate and save formula')
+
+        Logs.add(job.id_, [{'msg': 'Gear Name: {}, Gear Version: {}\n'.format(gear['gear']['name'], gear['gear']['version']), 'fd': -1}])
 
         return Job.load(result)
 
