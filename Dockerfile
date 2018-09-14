@@ -48,7 +48,7 @@ FROM base as testing
 
 EXPOSE 27017
 
-RUN apk add --no-cache mongodb
+RUN apk add --no-cache mongodb su-exec
 RUN mkdir -p /data/db
 
 COPY . /src/core
