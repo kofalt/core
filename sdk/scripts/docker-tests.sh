@@ -39,7 +39,7 @@ main() {
                 exit 0
                 ;;
             -B|--no-build)
-                DOCKER_IMAGE="core:testing"
+                DOCKER_IMAGE="flywheel/core:testing"
                 BUILD_SDK_IMAGE=false
                 ;;
             --python2)
@@ -68,10 +68,10 @@ main() {
 
     # Docker build
     if [ -z "${DOCKER_IMAGE}" ]; then
-        log "Building core:testing ..."
-        docker build -t core:testing ..
+        log "Building flywheel/core:testing ..."
+        docker build -t flywheel/core:testing ..
     else
-        docker tag "$DOCKER_IMAGE" "core:testing"
+        docker tag "$DOCKER_IMAGE" "flywheel/core:testing"
     fi
 
     trap clean_up EXIT
@@ -86,7 +86,7 @@ main() {
         --env PRE_RUNAS_CMD='[ "$1" = uwsgi ] && mongod > /dev/null 2>&1 &' \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
-        core:testing \
+        flywheel/core:testing \
             uwsgi --ini /var/scitran/config/uwsgi-config.http.ini --http-keepalive
 
     # Run core test cmd

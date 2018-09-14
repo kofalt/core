@@ -29,11 +29,11 @@ install: true
 
 script:
   - test -f "$DOCKER_DIR/image.tar" && docker load -i "$DOCKER_DIR/image.tar" || true
-  - docker build -t core:base --target base .
-  - docker build -t core:dist --target dist --build-arg VCS_BRANCH="$TRAVIS_BRANCH" --build-arg VCS_COMMIT="$TRAVIS_COMMIT" --build-arg API_VERSION="$TRAVIS_TAG" .
-  - docker build -t core:testing --target testing .
+  - docker build -t flywheel/core:base --target base .
+  - docker build -t flywheel/core:dist --target dist --build-arg VCS_BRANCH="$TRAVIS_BRANCH" --build-arg VCS_COMMIT="$TRAVIS_COMMIT" --build-arg API_VERSION="$TRAVIS_TAG" .
+  - docker build -t flywheel/core:testing --target testing .
   - if [ "$BUILD_SDK" = "false" ]; then
-        ./tests/bin/docker-tests.sh --image core:testing;
+        ./tests/bin/docker-tests.sh --image flywheel/core:testing;
     else
         if [ -n "$TRAVIS_TAG" ]; then
             DOC_VERSION="$TRAVIS_TAG";
@@ -46,9 +46,9 @@ script:
         ./bin/build-sdk.sh $SDK_VERSION $DOC_VERSION;
     fi
   - docker save -o "$DOCKER_DIR/image.tar"
-        $(docker history -q core:base | grep -v '<missing>')
-        $(docker history -q core:dist | grep -v '<missing>')
-        $(docker history -q core:testing | grep -v '<missing>');
+        $(docker history -q flywheel/core:base | grep -v '<missing>')
+        $(docker history -q flywheel/core:dist | grep -v '<missing>')
+        $(docker history -q flywheel/core:testing | grep -v '<missing>');
 
 after_success:
 # Code coverage report for all master commits and all pull requests
@@ -58,19 +58,18 @@ after_success:
 
 # Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
 - if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "false" ]; then
-      docker tag core:dist flywheel/core:latest;
+      docker tag flywheel/core:dist flywheel/core:latest;
       docker push flywheel/core:latest;
-      docker tag core:testing flywheel/core:testing;
       docker push flywheel/core:testing;
       bin/trigger_coreplus_build.sh latest;
   fi
 - if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "false" ]; then
-      docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
+      docker tag flywheel/core:dist flywheel/core:$TRAVIS_BRANCH.latest;
       docker push flywheel/core:$TRAVIS_BRANCH.latest;
       bin/trigger_coreplus_build.sh $TRAVIS_BRANCH.latest;
   fi
 - if [ -n "$TRAVIS_TAG" ] && [ "$BUILD_SDK" == "false" ]; then
-      docker tag core:dist flywheel/core:$TRAVIS_TAG;
+      docker tag flywheel/core:dist flywheel/core:$TRAVIS_TAG;
       docker push flywheel/core:$TRAVIS_TAG;
       bin/trigger_coreplus_build.sh $TRAVIS_TAG;
   fi
