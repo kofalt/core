@@ -9,7 +9,7 @@
         "scitran-core": {
             "type": "python",
             "processes": 2,
-            "user": "nobody",
+            "user": "root",
             "path": "/src/core",
             "module": "api.app"
         }

@@ -79,12 +79,6 @@ main() {
             export SCITRAN_PERSISTENT_FS_URL=$SCITRAN_PERSISTENT_DATA_PATH/v2
             mkdir -p $SCITRAN_PERSISTENT_FS_URL
         fi
-        chmod ug+s -R $SCITRAN_PERSISTENT_DATA_PATH
-        chown nobody:nobody -R $SCITRAN_PERSISTENT_DATA_PATH
-
-        # Setup coverage folder
-        mkdir -p .coverage
-        chown nobody:nobody -R .coverage
 
         ###
 
@@ -104,10 +98,10 @@ main() {
         fi
 
         log "INFO: Running unit tests ..."
-        su-exec nobody:nobody py.test --exitfirst --cov=api --cov-report= tests/unit_tests/python "$@" || allow_skip_all
+        py.test --exitfirst --cov=api --cov-report= tests/unit_tests/python "$@" || allow_skip_all
 
         log "INFO: Running integration tests ..."
-        su-exec nobody:nobody py.test --exitfirst tests/integration_tests/python "$@" || allow_skip_all || tail_logs_and_exit
+        py.test --exitfirst tests/integration_tests/python "$@" || allow_skip_all || tail_logs_and_exit
 
         log "INFO: Stopping core ..."
         kill $CORE_PID || true
