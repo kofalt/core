@@ -8,10 +8,23 @@
     "applications": {
         "scitran-core": {
             "type": "python",
-            "processes": 2,
+            "processes": {
+                "max": 4,
+                "spare": 2,
+                "idle_timeout": 60
+            },
             "user": "root",
             "path": "/src/core",
             "module": "api.app"
+        }
+    },
+
+    "settings": {
+        "http": {
+            "header_read_timeout": 120,
+            "body_read_timeout": 280,
+            "send_timeout": 280,
+            "max_body_size": 53687091200
         }
     }
 }
