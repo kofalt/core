@@ -384,6 +384,7 @@ class Queue(object):
             raise Exception('Marked job as running but could not generate and save formula')
 
         Logs.add(job.id_, [{'msg': 'Gear Name: {}, Gear Version: {}\n'.format(gear['gear']['name'], gear['gear']['version']), 'fd': -1}])
+        log.info('Starting Job {}. Gear Name: {}, Gear Version: {}'.format(job.id_, gear['gear']['name'], gear['gear']['version']))
 
         return Job.load(result)
 
