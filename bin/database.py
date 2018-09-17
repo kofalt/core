@@ -2057,8 +2057,10 @@ def upgrade_to_59():
     Set files with ext .sh to type source code
     """
     for cont_name in ["projects", "sessions", "acquisitions", "analyses"]:
-        cursor = config.db[cont_name].find({})
+        cursor = config.db[cont_name].find({"files.type": None, "files.name": {"$regex": "\\.sh$"}})
         process_cursor(cursor, upgrade_bash_files_to_59, cont_name)
+
+
 ###
 ### BEGIN RESERVED UPGRADE SECTION
 ###
