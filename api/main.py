@@ -24,7 +24,7 @@ if __name__ == '__main__':
     cherrypy.server.unsubscribe()
 
     # Setup server
-    socket_str = args.http or args.socket or '[::]:9000'
+    socket_str = args.http or args.socket or '[::]:8080'
     server = cherrypy._cpserver.Server()  # pylint: disable=protected-access
     _, _, port = socket_str.rpartition(':')
 

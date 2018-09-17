@@ -89,7 +89,7 @@ main() {
             --http-keepalive \
             >/tmp/core.log 2>&1 &
         export CORE_PID=$!
-        export SCITRAN_SITE_API_URL=http://localhost:9000/api
+        export SCITRAN_SITE_API_URL=http://localhost:8080/api
 
         if [ $RUN_SHELL = true ]; then
             log "INFO: Entering test shell ..."
