@@ -47,6 +47,19 @@ def test_site_rules(randstr, data_builder, as_admin, as_user, as_public):
     assert r.status_code == 422
     assert invalid_pattern in r.json()['patterns']
 
+    # try to add rule with id in the payload
+    r = as_admin.post('/site/rules', json={
+        'gear_id': gear,
+        'name': 'invalid-regex-rule',
+        '_id': 'foo',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.classification', 'value': 'Functional'},
+        ]
+    })
+    assert r.status_code == 400
+
     # add site rule
     r = as_admin.post('/site/rules', json=rule)
     assert r.ok
@@ -308,6 +321,19 @@ def test_project_rules(randstr, data_builder, file_form, as_root, as_admin, with
     assert r.status_code == 422
     assert r.json()['reason'] == 'config did not match manifest'
     del rule_json['config']
+
+    # try to add project rule with rule id in input
+    r = as_admin.post('/site/rules', json={
+        'gear_id': gear,
+        'name': 'invalid-regex-rule',
+        '_id': 'foo',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.classification', 'value': 'Functional'},
+        ]
+    })
+    assert r.status_code == 400
 
     # add project rule w/ proper gear id
     # NOTE this is a legacy rule
