@@ -148,7 +148,10 @@ class SubjectStorage(ContainerStorage):
     def create_or_update_el(self, payload, **kwargs):
         if self.dbc.find_one({'_id': payload['_id']}):
             payload['modified'] = datetime.datetime.utcnow()
-            return super(SubjectStorage, self).update_el(payload['_id'], payload, **kwargs)
+            # Pop _id from mongo payload (immutable - would raise error)
+            payload_copy = copy.deepcopy(payload)
+            _id = payload_copy.pop('_id')
+            return super(SubjectStorage, self).update_el(_id, payload_copy, **kwargs)
         else:
             payload['created'] = payload['modified'] = datetime.datetime.utcnow()
             return super(SubjectStorage, self).create_el(payload)
