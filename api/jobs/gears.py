@@ -62,7 +62,7 @@ def get_gear(_id):
     return gear
 
 def get_latest_gear(name):
-    gears = config.db.gears.find({'gear.name': name}).sort('created', direction=-1).limit(1)
+    gears = config.db.gears.find({'gear.name': name, 'gear.custom.flywheel.invalid': {'$ne': True}}).sort('created', direction=-1).limit(1)
     if gears.count() > 0:
         return gears[0]
 
