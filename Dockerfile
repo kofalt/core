@@ -19,6 +19,7 @@ RUN pip install -r /src/requirements.txt
 FROM python:2.7-alpine3.7 as base
 
 COPY --from=build /usr /usr
+RUN apk --no-cache add bash
 
 EXPOSE 80 8088
 VOLUME /data/db /data/persistent

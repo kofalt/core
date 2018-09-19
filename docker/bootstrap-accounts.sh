@@ -9,12 +9,12 @@ echo "IN BOOTSTRAP ACCOUNTS"
 # Parse input parameters...
 #
 # bootstrap account file
-bootstrap_user_file=${1:-'/var/scitran/code/api/bootstrap.json.sample'}
+bootstrap_user_file=${1:-'/src/core/bootstrap.json.sample'}
 
 
 # Move to API folder for relative path assumptions later on
 #
-cd /var/scitran/code/api
+cd /src/core
 
 # Export PYTHONPATH for python script later on.
 #
