@@ -372,7 +372,7 @@ def test_session_move(data_builder, as_admin):
 
 def test_subject_fields(data_builder, as_admin):
     subject_fields = dict(
-        code='test', label='test', cohort='subject',
+        code='test', label='test', cohort='Study',
         type='animal', species='dog', strain='free-string',
         public=True)
     session_fields = dict(age=123, weight=74.8, subject=subject_fields)
@@ -388,7 +388,7 @@ def test_subject_fields(data_builder, as_admin):
     assert doc.get('weight') == 74.8
 
     assert doc['subject'].get('age') == 123
-    assert doc['subject'].get('cohort') == 'subject'
+    assert doc['subject'].get('cohort') == 'Study'
     assert doc['subject'].get('type') == 'animal'
     assert doc['subject'].get('species') == 'dog'
     assert doc['subject'].get('strain') == 'free-string'

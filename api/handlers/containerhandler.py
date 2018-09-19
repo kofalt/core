@@ -380,14 +380,10 @@ class ContainerHandler(base.RequestHandler):
 
             # Handle changing project: copy subject into target project if there are other sessions on it (otherwise move)
             elif target_parent_container and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
-                subject_copy = copy.deepcopy(container['subject'])
-                subject_copy.update({'_id': bson.ObjectId(),
-                                     'project': parent_container['_id'],
-                                     'permissions': parent_container['permissions'],
-                                     'parents': {'group': parent_container['group'], 'project': parent_container['_id']},
-                                     'code': subject_code})
-                subject_storage.create_el(subject_copy)
-                payload.setdefault('subject', {})['_id'] = subject_copy['_id']
+                subject = payload['subject'] = copy.deepcopy(container['subject'])
+                subject.update(payload.get('subject', {}))
+                subject.pop('parents')
+                subject['_id'] = bson.ObjectId()  # Causes new subject creation via extract_subject
 
             # Enable embedded subject updates via session updates: match on subject._id
             else:

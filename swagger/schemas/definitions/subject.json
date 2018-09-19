@@ -25,7 +25,7 @@
         "cohort": {
             "oneOf": [
               { "type": "null"},
-              { "type": "string", "enum": ["control", "subject"] }
+              { "type": "string", "enum": ["Control", "Study", "Training", "Test", "Validation"] }
             ]
         },
         "type": {
