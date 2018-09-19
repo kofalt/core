@@ -23,6 +23,13 @@ if __name__ == '__main__':
     # Unsubscribe default server
     cherrypy.server.unsubscribe()
 
+    # Set some global config
+    cherrypy.config.update({
+        'server.socket_timeout': 280,
+        'server.max_request_body_size': 0,
+        'response.timeout': 3600
+    })
+
     # Setup server
     socket_str = args.http or args.socket or '[::]:8080'
     server = cherrypy._cpserver.Server()  # pylint: disable=protected-access
@@ -31,6 +38,8 @@ if __name__ == '__main__':
     server.socket_host = '0.0.0.0'
     server.socket_port = int(port)
     server.thread_pool = 30 #TODO: Determine best value here
+    server.max_request_body_size = 0
+    server.socket_timeout = 280
 
     server.subscribe()
     cherrypy.engine.start()
