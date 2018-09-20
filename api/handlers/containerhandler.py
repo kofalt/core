@@ -12,7 +12,7 @@ from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..web import base
-from ..web.errors import APINotFoundException, APIPermissionException, APIValidationException, InputValidationException
+from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
 
 PROJECT_BLACKLIST = ['Unknown', 'Unsorted']
@@ -304,8 +304,11 @@ class ContainerHandler(base.RequestHandler):
         if payload.get('timestamp'):
             payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
         permchecker = self._get_permchecker(parent_container=parent_container)
+
+        # Handle embedded subjects for backwards-compatibility
         if cont_name == 'sessions':
             self._handle_embedded_subject(payload, parent_container)
+
         # This line exec the actual request validating the payload that will create the new container
         # and checking permissions using respectively the two decorators, mongo_validator and permchecker
         result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload)
@@ -353,43 +356,52 @@ class ContainerHandler(base.RequestHandler):
         if payload.get('timestamp'):
             payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
 
+        # Handle embedded subjects for backwards-compatibility
         if cont_name == 'sessions':
-            current_parent_container, _ = self._get_parent_container(container)
-            parent_container = target_parent_container or current_parent_container
-            target_subject_id = payload.get('subject', {}).get('_id')
-            target_subject_code = payload.get('subject', {}).get('code')
+            current_project, _ = self._get_parent_container(container)
+            target_project = target_parent_container
+            project_id = (target_project or current_project)['_id']
+
+            current_subject = container['subject']
+            payload_subject = payload.get('subject', {})
+            target_subject_id = payload_subject.get('_id')
+            target_subject_code = payload_subject.get('code')
             subject_code = target_subject_code or container['subject'].get('code')
             subject_storage = containerstorage.SubjectStorage()
 
-            # Check for subject code collision 1st when updating project and/or subject code
-            if subject_code and (target_parent_container or target_subject_code):
-                if subject_storage.get_all_el({'project': parent_container['_id'], 'code': subject_code}, None, {'_id': 1}):
-                    raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, parent_container['_id']))
+            # Check for subject code collision 1st when changing project and/or subject code
+            if ((target_project and project_id != current_project['_id']) or
+                (target_subject_code and subject_code != current_subject.get('code'))):
 
-            # Handle changing subject
+                if subject_storage.get_all_el({'project': project_id, 'code': subject_code}, None, {'_id': 1}):
+                    raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, project_id))
+
+            # Handle changing subject id (moving session to another subject)
             if target_subject_id:
-                if not bson.ObjectId.is_valid(target_subject_id):
-                    raise APIValidationException('{} is not a valid object id'.format(target_subject_id))
-                target_subject = config.db.subjects.find_one({'_id': bson.ObjectId(target_subject_id)})
-                if not target_subject:
-                    raise APINotFoundException('cannot find subject {}'.format(target_subject_id))
-                if target_subject.get('deleted'):
-                    raise APINotFoundException('subject {} is marked for deletion'.format(target_subject_id))
-                if target_subject['project'] != parent_container['_id']:
-                    raise APINotFoundException('subject {} is not in project {}'.format(target_subject_id, parent_container['_id']))
+                target_subject = subject_storage.get_container(target_subject_id)
 
-            # Handle changing project: copy subject into target project if there are other sessions on it (otherwise move)
-            elif target_parent_container and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
-                subject = payload['subject'] = copy.deepcopy(container['subject'])
-                subject.update(payload.get('subject', {}))
+                # If payload also contains project, verify that the target_subject is in it
+                if target_project and project_id != target_subject['project']:
+                    raise APIValidationException('subject {} is not in project {}'.format(target_subject_id, project_id))
+
+                # Make sure session.project is also updated
+                payload['project'] = target_subject['project']
+
+            # Handle changing project (moving session and subject to another project)
+            # * Copy subject into target project if there are other sessions on it
+            # * Move if this is the only session on it (else branch)
+            elif target_project and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
+                subject = copy.deepcopy(container['subject'])
                 subject.pop('parents')
+                subject.update(payload_subject)   # Still apply any embedded subject changes
                 subject['_id'] = bson.ObjectId()  # Causes new subject creation via extract_subject
+                payload['subject'] = subject
 
             # Enable embedded subject updates via session updates: match on subject._id
             else:
                 payload.setdefault('subject', {})['_id'] = container['subject']['_id']
 
-            self._handle_embedded_subject(payload, parent_container)
+            self._handle_embedded_subject(payload, target_project or current_project)
 
         permchecker = self._get_permchecker(container, target_parent_container)
 
