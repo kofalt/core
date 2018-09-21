@@ -140,11 +140,14 @@ class Queue(object):
         log.info('respawned job %s as %s (attempt %d)', job.id_, new_id, new_job.attempt)
 
         # If job is part of batch job run, update batch jobs list
-        result = config.db.batch.update_one(
-            {'jobs': job.id_},
-            {'$pull': {'jobs': job.id_}, '$push': {'jobs': new_id}}
-        )
-        if result.modified_count == 1:
+        batch = config.db.batch.find_one({'jobs': job.id_})
+        if batch:
+            batch['jobs'].remove(job.id_)
+            batch['jobs'].append(new_id)
+            config.db.batch.update_one(
+                {'jobs': job.id_},
+                {'$set': {'jobs': batch['jobs']}}
+            )
             log.info('updated batch job list, replacing {} with {}'.format(job.id_, new_id))
 
         return new_id

@@ -260,20 +260,6 @@ def get_version():
 def get_item(outer, inner):
     return get_config()[outer][inner]
 
-def mongo_pipeline(table, pipeline):
-    """
-    Temporary philosophical dupe with reporthandler.py.
-    Execute a mongo pipeline, check status, return results.
-    A workaround for wonky pymongo aggregation behavior.
-    """
-
-    output = db.command('aggregate', table, pipeline=pipeline)
-    result = output.get('result')
-
-    if output.get('ok') != 1.0 or result is None:
-        raise Exception()
-
-    return result
 
 def get_auth(auth_type):
     return get_config()['auth'][auth_type]

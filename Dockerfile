@@ -1,5 +1,5 @@
 # base - install common dependencies & create directories
-FROM alpine:3.7 as base
+FROM alpine:3.8 as base
 ENV TERM=xterm
 RUN set -eux \
     && apk add --no-cache \

@@ -83,7 +83,7 @@ main() {
         --network ${TEST_PREFIX} \
         --volume ${ROOT_DIR}/api:/var/scitran/code/api/api \
         --volume ${ROOT_DIR}/tests:/var/scitran/code/api/tests \
-        --env PRE_RUNAS_CMD='[ "$1" = uwsgi ] && mongod > /dev/null 2>&1 &' \
+        --env PRE_RUNAS_CMD='[ "$1" = uwsgi ] && mongod --bind_ip_all > /dev/null 2>&1 &' \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
         core:testing \

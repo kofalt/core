@@ -67,7 +67,7 @@ main() {
         --name core-test-mongo \
         --network core-test \
         flywheel/core:testing \
-        mongod
+        mongod --bind_ip_all
 
     docker run --rm \
         --volume $(pwd):/pwd \

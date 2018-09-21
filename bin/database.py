@@ -200,8 +200,8 @@ def upgrade_to_4():
         {'$group' : { '_id' : {'pid': '$project', 'code': '$subject.code'}, 'sids': {'$push': '$_id' }}}
     ]
 
-    subjects = config.db.command('aggregate', 'sessions', pipeline=pipeline)
-    for subject in subjects['result']:
+    subjects = config.db.sessions.aggregate(pipeline)
+    for subject in subjects:
 
         # Subjects without a code and sessions without a subject
         # will be returned grouped together, but all need unique IDs
@@ -553,8 +553,8 @@ def upgrade_to_17():
         {'$group' : { '_id' : {'pid': '$project', 'code': '$subject.code'}, 'sids': {'$push': '$_id' }}}
     ]
 
-    subjects = config.db.command('aggregate', 'sessions', pipeline=pipeline)
-    for subject in subjects['result']:
+    subjects = config.db.sessions.aggregate(pipeline)
+    for subject in subjects:
 
         # Subjects without a code and sessions without a subject
         # will be returned grouped together, but all need unique IDs
@@ -1396,8 +1396,8 @@ def upgrade_to_44():
         {'$group' : { '_id' : {'pid': '$project', 'code': '$subject.code'}, 'sids': {'$push': '$_id' }}}
     ]
 
-    subjects = config.db.command('aggregate', 'sessions', pipeline=pipeline)
-    for subject in subjects['result']:
+    subjects = config.db.sessions.aggregate(pipeline)
+    for subject in subjects:
 
         # Subjects without a code and sessions without a subject
         # will be returned grouped together, but all need unique IDs
@@ -1767,12 +1767,12 @@ def upgrade_to_53():
     Update rules to reference gears by id (`gear_id`) instead of name (`alg`)
     """
 
-    cursor = config.db.command('aggregate', 'gears', pipeline=[
+    cursor = config.db.gears.aggregate([
         {'$sort': {'gear.name': 1,
                    'created': -1}},
         {'$group': {'_id': '$gear.name',
                     'latest': {'$first': '$_id'}}}])
-    gear_name_to_id = {gear['_id']: str(gear['latest']) for gear in cursor['result']}
+    gear_name_to_id = {gear['_id']: str(gear['latest']) for gear in cursor}
 
     for rule in config.db.project_rules.find({'alg': {'$exists': True}}):
         config.db.project_rules.update_one(

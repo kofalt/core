@@ -44,7 +44,7 @@ def session_length():
         {'$match': {'diff': {'$gt': 10800000}}}
     ]
 
-    results = config.db.command('aggregate', 'acquisitions', pipeline=pipeline)['result']
+    results = config.db.acquisition.aggregate(pipeline)
     if len(results) > 0:
         errors = True
         logging.warning('There are {} sessions that span 3 hours.'.format(len(results)))

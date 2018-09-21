@@ -134,7 +134,7 @@ def get_stats(cont, cont_type):
         {'$group': {'_id': 1, 'noncompliant_count': {'$sum': '$non_compliant'}, 'total': {'$sum': 1}}}
     ]
 
-    result = config.db.command('aggregate', 'sessions', pipeline=pipeline).get('result', [])
+    result = list(config.db.sessions.aggregate(pipeline))
 
     if len(result) > 0:
         cont['session_count'] = result[0].get('total', 0)
@@ -154,7 +154,7 @@ def get_stats(cont, cont_type):
         {'$group': {'_id': 1, 'count': { '$sum': 1 }}}
     ]
 
-    result = config.db.command('aggregate', 'sessions', pipeline=pipeline).get('result', [])
+    result = list(config.db.sessions.aggregate(pipeline))
 
     if len(result) > 0:
         cont['subject_count'] = result[0].get('count', 0)
