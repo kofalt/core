@@ -337,29 +337,10 @@ class ContainerHandler(base.RequestHandler):
             for key in prop_keys:
                 r_payload[key] = payload[key]
 
-        # Check if we are updating the parent container of the element (ie we are moving the container)
-        # In this case, we will check permissions on it.
-        target_parent_container, parent_id_property = self._get_parent_container(payload)
-        if target_parent_container:
-            if cont_name in ['sessions', 'acquisitions']:
-                payload[parent_id_property] = bson.ObjectId(payload[parent_id_property])
-                parent_perms = target_parent_container.get('permissions', [])
-                payload['permissions'] = parent_perms
-
-            if cont_name == 'sessions':
-                payload['group'] = target_parent_container['group']
-                # Propagate permissions down to acquisitions
-                rec = True
-                r_payload['permissions'] = parent_perms
-
-        payload['modified'] = datetime.datetime.utcnow()
-        if payload.get('timestamp'):
-            payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
-
         # Handle embedded subjects for backwards-compatibility
         if cont_name == 'sessions':
             current_project, _ = self._get_parent_container(container)
-            target_project = target_parent_container
+            target_project, _ = self._get_parent_container(payload)
             project_id = (target_project or current_project)['_id']
 
             current_subject = container['subject']
@@ -385,7 +366,9 @@ class ContainerHandler(base.RequestHandler):
                     raise APIValidationException('subject {} is not in project {}'.format(target_subject_id, project_id))
 
                 # Make sure session.project is also updated
-                payload['project'] = target_subject['project']
+                if not target_project:
+                    payload['project'] = target_subject['project']
+                    target_project, _ = self._get_parent_container(payload)
 
             # Handle changing project (moving session and subject to another project)
             # * Copy subject into target project if there are other sessions on it
@@ -402,6 +385,25 @@ class ContainerHandler(base.RequestHandler):
                 payload.setdefault('subject', {})['_id'] = container['subject']['_id']
 
             self._handle_embedded_subject(payload, target_project or current_project)
+
+        # Check if we are updating the parent container of the element (ie we are moving the container)
+        # In this case, we will check permissions on it.
+        target_parent_container, parent_id_property = self._get_parent_container(payload)
+        if target_parent_container:
+            if cont_name in ['sessions', 'acquisitions']:
+                payload[parent_id_property] = bson.ObjectId(payload[parent_id_property])
+                parent_perms = target_parent_container.get('permissions', [])
+                payload['permissions'] = parent_perms
+
+            if cont_name == 'sessions':
+                payload['group'] = target_parent_container['group']
+                # Propagate permissions down to acquisitions
+                rec = True
+                r_payload['permissions'] = parent_perms
+
+        payload['modified'] = datetime.datetime.utcnow()
+        if payload.get('timestamp'):
+            payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
 
         permchecker = self._get_permchecker(container, target_parent_container)
 
