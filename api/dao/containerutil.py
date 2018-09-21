@@ -100,7 +100,7 @@ def extract_subject(session, project):
      * generate new ObjectId otherwise (ie. treat as new subject)
     """
     subject = session.pop('subject', {})
-    subject.update({'project': project['_id'], 'permissions': project['permissions']})
+    subject.update({'project': bson.ObjectId(str(project['_id'])), 'permissions': project['permissions']})
     if subject.get('_id'):
         subject['_id'] = bson.ObjectId(str(subject['_id']))
     elif subject.get('code'):
