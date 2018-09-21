@@ -406,6 +406,7 @@ class FileListHandler(ListHandler):
                 return info
 
     def get(self, cont_name, list_name, **kwargs):
+        result = None
         _id = kwargs.pop('cid')
         permchecker, storage, _, _, keycheck = self._initialize_request(cont_name, list_name, _id)
         list_name = storage.list_name
@@ -492,14 +493,26 @@ class FileListHandler(ListHandler):
                             raise util.RangeHeaderParseError('Invalid range')
 
                 except util.RangeHeaderParseError:
-                    if self.is_true('view'):
-                        self.response.headers['Content-Type'] = str(fileinfo.get('mimetype', 'application/octet-stream'))
-                    else:
-                        self.response.headers['Content-Type'] = 'application/octet-stream'
-                        self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
+                    def write_handler(environ, start_response): # pylint: disable=unused-argument
+                        headers = [('Content-Length', str(fileinfo['size']))]
+                        if self.is_true('view'):
+                            headers.append(('Content-Type', str(fileinfo.get('mimetype', 'application/octet-stream'))))
+                        else:
+                            headers.append(('Content-Type', 'application/octet-stream'))
+                            headers.append(('Content-Disposition', 'attachment; filename="' + str(filename) + '"'))
 
-                    self.response.body_file = file_system.open(file_path, 'rb')
-                    self.response.content_length = fileinfo['size']
+                        write = start_response('200 OK', headers)
+
+                        with file_system.open(file_path, 'rb') as f:
+                            while True:
+                                chunk = f.read(1048576)
+                                if len(chunk) == 0:
+                                    break
+                                write(chunk)
+
+                        return []
+
+                    result = write_handler
                 else:
                     self.response.status = 206
                     if len(ranges) > 1:
@@ -548,6 +561,8 @@ class FileListHandler(ListHandler):
                     config.db.downloads.update_one({'_id': ticket_id}, {'$set': {'logged': True}})
             else:
                 self.log_user_access(AccessType.download_file, cont_name=cont_name, cont_id=_id, filename=fileinfo['name'])
+
+            return result
 
 
     def get_info(self, cont_name, list_name, **kwargs):
