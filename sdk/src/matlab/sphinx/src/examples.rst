@@ -77,6 +77,18 @@ List all of the projects that I have access to:
 	  fprintf('%s: %s\n', projects{i}.id, projects{i}.label);
 	end
 
+List Subjects in Project
+------------------------
+List all subjects belonging to project identified by ``projectId``
+
+.. code-block:: matlab
+
+	subjects = fw.getProjectSubjects(projectId);
+
+	for i = 1:numel(subjects)
+		fprint('%s: %s\n', subjects{i}.id, subjects{1}.label));
+	end
+
 List Sessions in Project
 ------------------------
 List all of the sessions belonging to project identified by ``projectId``.
@@ -89,6 +101,55 @@ List all of the sessions belonging to project identified by ``projectId``.
 	  fprintf('%s: %s\n', sessions{i}.id, sessions{i}.label);
 	end
 
+Subjects
+========
+For managing tags, files, notes or info, see :ref:`data-model-containers`.
+
+Add Subject
+-----------
+Create a new subject that belongs to ``projectId`` with a label of ``Subject 01``
+
+.. code-block:: matlab
+
+	subjectId = fw.addSubject(struct('project', projectId, 'label', 'Subject 01'));
+
+List Subjects
+-------------
+List all of the subjects that I have access to:
+
+.. code-block:: matlab
+
+	subjects = fw.getAllSubjects();
+
+	for i = 1:numel(subjects)
+		fprint('%s: %s\n', subjects{i}.id, subjects{1}.label));
+	end	
+
+List Sessions in Subject
+------------------------
+List all of the sessions belonging to subject identified by ``subjectId``.
+
+.. code-block:: matlab
+
+	sessions = fw.getSubjectSessions(subjectId);
+	
+	for i = 1:numel(sessions) 
+	  fprintf('%s: %s\n', sessions{i}.id, sessions{i}.label);
+	end
+
+Modify Subject
+--------------
+Update the details of a subject identified by ``subjectId``
+
+.. code-block:: matlab
+
+	fw.modifySubject(subjectId, struct( ...
+		'firstname', 'John', ...
+		'lastname', 'Doe', ...
+		'cohort', 'Study', ...
+		'type', 'human', ...
+		'sex', 'male', ...
+		'race', 'Unknown or Not Reported'));
 
 Sessions
 ========
