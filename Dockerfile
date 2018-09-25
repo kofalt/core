@@ -5,7 +5,7 @@ RUN apk --no-cache add git build-base linux-headers curl openssl-dev libffi-dev 
 
 WORKDIR /src/nginx-unit
 
-RUN curl -L https://github.com/nginx/unit/archive/1.3.tar.gz | tar xz --strip-components 1
+RUN curl -L https://github.com/nginx/unit/archive/1.4.tar.gz | tar xz --strip-components 1
 RUN ./configure --prefix=/usr/local --modules=lib --state=/var/local/unit --pid=/var/unit.pid --log=/var/log/unit.log \
 	&& ./configure python \
 	&& make install
