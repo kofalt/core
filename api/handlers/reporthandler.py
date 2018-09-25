@@ -384,11 +384,8 @@ class ProjectReport(Report):
             project['subjects_count'] = config.db.subjects.count(subject_q)
 
             # Count subjects by sex
-            sex_q = copy.deepcopy(subject_q)
-            sex_q['sex'] = {'$ne': None}
-
             pipeline = [
-                {'$match': sex_q},
+                {'$match': subject_q},
                 {'$group': {'_id': '$sex', 'count': {'$sum': 1}}}
             ]
             results = self._get_result_list('subjects', pipeline)
@@ -413,14 +410,11 @@ class ProjectReport(Report):
 
             # Count subjects by age group
             # Age is taken as an average over all subject entries
-            age_q = copy.deepcopy(base_query)
-            age_q['age'] = {'$gt': 0}
-
             pipeline = [
-                {'$match': age_q},
+                {'$match': base_query},
                 {'$group': {'_id': '$subject', 'age': { '$avg': '$age'}}},
                 {'$project': {'_id': 1, 'over_18':  {'$cond': [{'$gte': ['$age', EIGHTEEN_YEARS_IN_SEC]}, 1, 0]},
-                                        'under_18': {'$cond': [{'$lt': ['$age', EIGHTEEN_YEARS_IN_SEC]}, 1, 0]}}},
+                                        'under_18': {'$cond': [{'$and' : [{'$lt': ['$age', EIGHTEEN_YEARS_IN_SEC]}, {'$gte': ['$age', 0]}]}, 1, 0]}}},
                 {'$group': {'_id': 1, 'over_18': {'$sum': '$over_18'}, 'under_18': {'$sum': '$under_18'}}}
             ]
             result = self._get_result('sessions', pipeline)
