@@ -337,6 +337,25 @@ class ContainerHandler(base.RequestHandler):
             for key in prop_keys:
                 r_payload[key] = payload[key]
 
+        if cont_name == 'subjects':
+            # Check for code collision if changing code/label or moving to a new project
+            # TODO: Minor duplication of code below, resolve when ability to edit subject
+            # via session is resolved
+            current_project, _ = self._get_parent_container(container)
+            target_project, _ = self._get_parent_container(payload)
+            project_id = (target_project or current_project)['_id'] # It's current project or the new project it is moving to
+            subject_code = payload.get('code') or payload.get('label') # It's current label or the new label it is moving to
+
+            # Check for subject code collision 1st when changing project and/or subject code
+            if self.storage.get_all_el({
+                'project': project_id,
+                'code': subject_code,
+                '_id': {'$ne': container['_id']} # Make sure that if neither code nor project changed, we allow it
+                }, None, {'_id': 1}):
+                raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, project_id))
+
+
+
         # Handle embedded subjects for backwards-compatibility
         if cont_name == 'sessions':
             current_project, _ = self._get_parent_container(container)
@@ -346,7 +365,7 @@ class ContainerHandler(base.RequestHandler):
             current_subject = container['subject']
             payload_subject = payload.get('subject', {})
             target_subject_id = payload_subject.get('_id')
-            target_subject_code = payload_subject.get('code')
+            target_subject_code = payload_subject.get('code') or payload_subject.get('label')
             subject_code = target_subject_code or container['subject'].get('code')
             subject_storage = containerstorage.SubjectStorage()
 
