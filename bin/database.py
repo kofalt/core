@@ -1830,6 +1830,10 @@ def upgrade_to_55(dry_run=False):
     def extract_subject(session):
         """Extract and return augmented subject document, leave subject reference on session"""
         subject = session.pop('subject')
+        if 'parents' not in session:
+            # TODO find and address code that lets parent-less containers through to mongo
+            logging.warning('adding missing parents key on session %s', session['_id'])
+            session['parents'] = {'group': session['group'], 'project': session['project']}
         subject.update({
             'parents': session['parents'],
             'project': session['project'],
@@ -1880,7 +1884,7 @@ def upgrade_to_55(dry_run=False):
                     session['subject']['_id'] = bson.ObjectId()
                 subject = extract_subject(session)
                 subject.update({'created': session['created'], 'modified': session['modified']})
-                logging.debug('extract codeless subject %s of session %s', subject['_id'], session['_id'])
+                logging.debug('  extract codeless subject %s of session %s', subject['_id'], session['_id'])
                 if not dry_run:
                     config.db.subjects.insert_one(subject)
                     config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
@@ -1894,19 +1898,19 @@ def upgrade_to_55(dry_run=False):
         subject_id = next((_id for _id in subject_ids if _id not in inserted_subject_ids), bson.ObjectId())
         merged_subject = {}
         for session in sessions:
-            logging.debug('merging subject data from session %s', session['_id'])
+            logging.debug('  merging subject data from session %s', session['_id'])
             session['subject']['_id'] = subject_id
             subject = extract_subject(session)
             merge_dict(merged_subject, subject)
         min_created = min(s['created'] for s in sessions)
         max_modified = max(s['modified'] for s in sessions)
         subject.update({'created': min_created, 'modified': max_modified})
-        logging.debug('inserting merged subject %s', subject_id)
+        logging.debug('  inserting merged subject %s', subject_id)
         if not dry_run:
             config.db.subjects.insert_one(merged_subject)
         inserted_subject_ids.append(subject_id)
         for session in sessions:
-            logging.debug('updating session %s to subject reference', session['_id'])
+            logging.debug('  updating session %s to subject reference', session['_id'])
             if not dry_run:
                 config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
         parents_update = {'$set': {'parents.subject': subject_id}}
