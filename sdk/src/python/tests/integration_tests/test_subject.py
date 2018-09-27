@@ -216,7 +216,7 @@ class SubjectsTestCases(SdkTestCase):
             subject_id = fw.add_subject(subject)
             self.fail('Expected ApiException creating invalid subject!')
         except flywheel.ApiException as e:
-            self.assertEqual(e.status, 400)
+            self.assertEqual(e.status, 422)
 
         # Try to get a subject that doesn't exist
         try:
