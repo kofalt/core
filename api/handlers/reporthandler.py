@@ -324,14 +324,11 @@ class ProjectReport(Report):
         total = 0
 
         for r in results:
-            try:
-                count = int(r['count'])
-                cell = r['_id']
-                race = cell['race']
-                ethnicity = cell['ethnicity']
-                sex = cell['sex']
-            except Exception as e:
-                raise APIReportException('Demographics aggregation was malformed: {}'.format(e))
+            count = int(r['count'])
+            cell = r['_id']
+            race = cell.get('race')
+            ethnicity = cell.get('ethnicity')
+            sex = cell.get('sex')
 
             # Null or unrecognized values are listed as UNR default
             if race is None or race not in grid:
@@ -373,7 +370,8 @@ class ProjectReport(Report):
             project['admins'] = [a.get('firstname', '') + ' ' + a.get('lastname', '') for a in admin_objs]
 
             base_query = self._base_query(p['_id'])
-            project['session_count'] = config.db.sessions.count(base_query)
+            sessions = list(config.db.sessions.find(base_query, {'_id': 1, 'subject': 1}))
+            project['session_count'] = len(sessions)
 
             # If there are no sessions in this project for the date range,
             # no need to continue grabbing more stats
@@ -381,58 +379,30 @@ class ProjectReport(Report):
                 report['projects'].append(project)
                 continue
 
-            # Count subjects
-            # Any stats on subjects require an aggregation to group by subject._id
-            subject_q = copy.deepcopy(base_query)
-            subject_q['subject._id'] = {'$ne': None}
-
-            pipeline = [
-                {'$match': subject_q},
-                {'$group': {'_id': '$subject._id'}},
-                {'$group': {'_id': 1, 'count': { '$sum': 1 }}}
-            ]
-
-            result = self._get_result('sessions', pipeline)
-            project['subjects_count'] = result.get('count', 0)
+            # Count subjects (only include those referenced by sessions)
+            subject_q = {'_id': {'$in': list(set(session['subject'] for session in sessions))}}
+            project['subjects_count'] = config.db.subjects.count(subject_q)
 
             # Count subjects by sex
-            # Use last sex reporting for subjects with multiple entries
-            sex_q = copy.deepcopy(subject_q)
-            sex_q['subject.sex'] = {'$ne': None}
-
             pipeline = [
-                {'$match': sex_q},
-                {'$group': {'_id': '$subject._id', 'sex': {'$last': '$subject.sex'}}},
-                {'$project': {'_id': 1, 'female':  {'$cond': [{'$eq': ['$sex', 'female']}, 1, 0]},
-                                        'male':    {'$cond': [{'$eq': ['$sex', 'male']}, 1, 0]},
-                                        'other':   {'$cond': [{'$eq': ['$sex', 'other']}, 1, 0]}}},
-                {'$group': {'_id': 1, 'female': {'$sum': '$female'},
-                                      'male':   {'$sum': '$male'},
-                                      'other':  {'$sum': '$other'}}}
+                {'$match': subject_q},
+                {'$group': {'_id': '$sex', 'count': {'$sum': 1}}}
             ]
-            try:
-                result = self._get_result('sessions', pipeline)
-            except APIReportException:
-                # Edge case when none of the subjects have a sex field
-                result = {}
-
+            results = self._get_result_list('subjects', pipeline)
+            result = {group['_id']: group['count'] for group in results}
             project['female_count'] = result.get('female',0)
             project['male_count'] = result.get('male',0)
             project['other_count'] = result.get('other',0)
 
 
             # Construct grid of subject sex, race and ethnicity
-            # Use last sex/race/ethnicity reporting for subjects with multiple entries
             grid_q = copy.deepcopy(subject_q)
 
             pipeline = [
                 {'$match': grid_q},
-                {'$group': {'_id': '$subject._id', 'sex':       {'$last': '$subject.sex'},
-                                                   'race':      {'$last': '$subject.race'},
-                                                   'ethnicity': {'$last': '$subject.ethnicity'}}},
                 {'$group': {'_id': { 'sex': '$sex', 'race': '$race', 'ethnicity': '$ethnicity'}, 'count': {'$sum': 1}}}
             ]
-            results = self._get_result_list('sessions', pipeline)
+            results = self._get_result_list('subjects', pipeline)
 
             grid, total = self._process_demo_results(results, project['demographics_grid'])
             project['demographics_grid'] = grid
@@ -440,21 +410,14 @@ class ProjectReport(Report):
 
             # Count subjects by age group
             # Age is taken as an average over all subject entries
-            age_q = copy.deepcopy(subject_q)
-            age_q['subject.age'] = {'$gt': 0}
-
             pipeline = [
-                {'$match': age_q},
-                {'$group': {'_id': '$subject._id', 'age': { '$avg': '$subject.age'}}},
+                {'$match': base_query},
+                {'$group': {'_id': '$subject', 'age': { '$avg': '$age'}}},
                 {'$project': {'_id': 1, 'over_18':  {'$cond': [{'$gte': ['$age', EIGHTEEN_YEARS_IN_SEC]}, 1, 0]},
-                                        'under_18': {'$cond': [{'$lt': ['$age', EIGHTEEN_YEARS_IN_SEC]}, 1, 0]}}},
+                                        'under_18': {'$cond': [{'$and' : [{'$lt': ['$age', EIGHTEEN_YEARS_IN_SEC]}, {'$gte': ['$age', 0]}]}, 1, 0]}}},
                 {'$group': {'_id': 1, 'over_18': {'$sum': '$over_18'}, 'under_18': {'$sum': '$under_18'}}}
             ]
-            try:
-                result = self._get_result('sessions', pipeline)
-            except APIReportException:
-                # Edge case when none of the subjects have an age field
-                result = {}
+            result = self._get_result('sessions', pipeline)
 
             project['over_18_count'] = result.get('over_18',0)
             project['under_18_count'] = result.get('under_18',0)

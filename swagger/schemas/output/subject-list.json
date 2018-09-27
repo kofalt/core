@@ -1,0 +1,10 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "array",
+    "items": {
+        "allOf": [{"$ref":"../definitions/subject.json#/definitions/subject-output"}],
+        "required": [
+            "_id", "code", "project", "created", "modified", "permissions", "public"
+        ]
+    }
+}

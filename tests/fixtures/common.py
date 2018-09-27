@@ -299,6 +299,10 @@ class DataBuilder(object):
         """Delete resource from mongodb by _id"""
         if bson.ObjectId.is_valid(_id):
             _id = bson.ObjectId(_id)
+        if resource == 'project':
+            # Subjects are implicitly created via sessions.
+            # Remove them even with recursive=False
+            self.api_db.subjects.delete_many({resource: _id})
         if recursive and resource in self.parent_to_child:
             child_cont = self.parent_to_child[resource]
             for child in self.api_db[child_cont + 's'].find({resource: _id}, {'_id': 1}):

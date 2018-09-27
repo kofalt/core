@@ -70,6 +70,7 @@ paths:
     - paths/modalities.yaml
     - paths/groups.yaml
     - paths/collections.yaml
+    - paths/subjects.yaml
     - paths/sessions.yaml
     - paths/acquisitions.yaml
     - paths/projects.yaml

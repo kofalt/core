@@ -5,6 +5,14 @@
             "type": "string",
             "description": "The name of the operator"
         },
+        "age": {
+          "type": ["integer", "null"],
+          "description": "Subject age at time of session, in seconds"
+        },
+        "weight": {
+          "type": ["number", "null"],
+          "description": "Subject weight at time of session, in kilograms"
+        },
         "project_has_template":{"type":"boolean"},
         "satisfies_template":{"type":"boolean"},
         "session-input":{
@@ -18,7 +26,9 @@
                 "uid":          {"$ref":"container.json#/definitions/uid"},
                 "timestamp":    {"$ref":"container.json#/definitions/timestamp"},
                 "timezone":     {"$ref":"container.json#/definitions/timezone"},
-                "subject":      {"$ref": "subject.json#/definitions/subject-input"}
+                "subject":      {"$ref":"subject.json#/definitions/subject-input"},
+                "age":          {"$ref":"#/definitions/age"},
+                "weight":       {"$ref":"#/definitions/weight"}
             },
             "additionalProperties": false,
             "x-sdk-model": "session"
@@ -34,6 +44,8 @@
                 "timestamp":    {"type": ["string", "null"], "format": "date-time"},
                 "timezone":     {"type": ["string", "null"]},
                 "subject":      {"$ref": "subject.json#/definitions/subject-input"},
+                "age":          {"$ref":"#/definitions/age"},
+                "weight":       {"$ref":"#/definitions/weight"},
                 "files":        {
                     "type": ["array", "null"],
                     "items": {"$ref": "file.json#/definitions/file-input"}
@@ -56,6 +68,8 @@
                 "timestamp":    {"$ref":"container.json#/definitions/timestamp"},
                 "timezone":     {"$ref":"container.json#/definitions/timezone"},
                 "subject":      {"$ref":"subject.json#/definitions/subject-output-default-required"},
+                "age":          {"$ref":"#/definitions/age"},
+                "weight":       {"$ref":"#/definitions/weight"},
                 "created":      {"$ref":"created-modified.json#/definitions/created"},
                 "modified":     {"$ref":"created-modified.json#/definitions/modified"},
                 "permissions":  {"$ref":"permission.json#/definitions/permission-output-list"},

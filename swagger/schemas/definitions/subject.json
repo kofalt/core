@@ -22,6 +22,18 @@
               { "type": "string", "enum": ["male", "female", "other", "unknown"] }
             ]
         },
+        "cohort": {
+            "oneOf": [
+              { "type": "null"},
+              { "type": "string", "enum": ["Control", "Study", "Training", "Test", "Validation"] }
+            ]
+        },
+        "type": {
+            "oneOf": [
+              { "type": "null"},
+              { "type": "string", "enum": ["human", "animal", "phantom"] }
+            ]
+        },
         "race": {
             "oneOf": [
               { "type": "null"},
@@ -43,14 +55,23 @@
             "type": "object",
             "properties": {
               "_id":              {"$ref":"#/definitions/_id"},
+              "project":          {"$ref":"#/definitions/_id"},
+              "public":           {"$ref":"container.json#/definitions/public"},
+
               "firstname":        {"$ref":"#/definitions/firstname"},
               "lastname":         {"$ref":"#/definitions/lastname"},
 
               "age":              {"$ref":"#/definitions/age"},
+
               "sex":              {"$ref":"#/definitions/sex"},
+              "cohort":           {"$ref":"#/definitions/cohort"},
+              "type":             {"$ref":"#/definitions/type"},
               "race":             {"$ref":"#/definitions/race"},
               "ethnicity":        {"$ref":"#/definitions/ethnicity"},
+              "species":          {"type": ["string", "null"]},
+              "strain":           {"type": ["string", "null"]},
 
+              "label":            {"$ref":"#/definitions/code"},
               "code":             {"$ref":"#/definitions/code"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},
               "info":             {"$ref":"common.json#/definitions/info"},
@@ -62,25 +83,57 @@
             "additionalProperties": false,
             "x-sdk-model": "subject"
         },
+        "subject-metadata-input": {
+            "type": "object",
+            "properties": {
+                "label": {"$ref":"#/definitions/code"},
+                "code":  {"type": ["string", "null"]},
+                "info":  {"type": ["object", "null"]},
+                "files": {
+                    "type":  ["array", "null"],
+                    "items": {"$ref": "file.json#/definitions/file-input"}
+                }
+            },
+            "additionalProperties": false
+        },
         "subject-output":{
             "type": "object",
             "properties": {
               "_id":              {"$ref":"#/definitions/_id"},
+              "project":          {"$ref":"#/definitions/_id"},
+              "parents":          {"$ref":"container.json#/definitions/parents"},
+              "label":            {"$ref":"#/definitions/code"},
+              "code":             {"$ref":"#/definitions/code"},
+
+              "created":          {"$ref":"created-modified.json#/definitions/created"},
+              "modified":         {"$ref":"created-modified.json#/definitions/modified"},
+              "permissions":      {"$ref":"permission.json#/definitions/permission-output-list"},
+              "public":           {"$ref":"container.json#/definitions/public"},
+
               "firstname":        {"$ref":"#/definitions/firstname"},
               "lastname":         {"$ref":"#/definitions/lastname"},
 
               "age":              {"$ref":"#/definitions/age"},
+
               "sex":              {"$ref":"#/definitions/sex"},
+              "cohort":           {"$ref":"#/definitions/cohort"},
+              "type":             {"$ref":"#/definitions/type"},
               "race":             {"$ref":"#/definitions/race"},
               "ethnicity":        {"$ref":"#/definitions/ethnicity"},
+              "species":          {"type": ["string", "null"]},
+              "strain":           {"type": ["string", "null"]},
 
-              "code":             {"$ref":"#/definitions/code"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},
+              "notes":            {"$ref":"note.json#/definitions/notes-list-output"},
               "info":             {"$ref":"common.json#/definitions/info"},
               "info_exists":      {"$ref":"container.json#/definitions/info_exists"},
               "files":{
                   "type":"array",
                   "items":{"$ref":"file.json#/definitions/file-output"}
+              },
+              "analyses":{
+                  "type":"array",
+                  "items":{"$ref":"analysis.json#/definitions/analysis-output"}
               }
             },
             "additionalProperties": false,

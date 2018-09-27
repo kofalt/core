@@ -75,7 +75,7 @@ def test_project_template(data_builder, file_form, as_admin):
     assert r.ok
     assert 'project_has_template' not in r.json()
 
-    # create template for the project
+    # create template for project 1
     r = as_admin.post('/projects/' + project + '/template', json={
         'session': {'subject': {'code': '^compliant$'}},
         'acquisitions': [{
@@ -92,7 +92,7 @@ def test_project_template(data_builder, file_form, as_admin):
     assert r.ok
     assert r.json()['modified'] == 1
 
-    # create template for the project2
+    # create template for project2
     r = as_admin.post('/projects/' + project2 + '/template', json={
         'session': {'subject': {'code': '^compliant$'}},
         'acquisitions': [{
@@ -481,6 +481,42 @@ def test_post_container(data_builder, as_admin, as_user):
     })
     assert r.ok
 
+    # try to add subject with no project
+    r = as_admin.post('/subjects', json={
+        'code': 'test_sub'
+        })
+    assert r.status_code == 422
+
+    # try to add subject with no code or label
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        })
+    assert r.status_code == 422
+
+    # Add subject with code and project
+    subject_code = 'test_subject'
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        'code': subject_code
+        })
+    assert r.ok
+
+    # Try to add subject with existing label
+    subject_code = 'test_subject'
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        'label': subject_code
+        })
+    assert r.status_code == 422
+
+    # Also doesn't work with code
+    subject_code = 'test_subject'
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        'code': subject_code
+        })
+    assert r.status_code == 422
+
     # create session w/ timestamp as rw user
     r = as_user.post('/sessions', json={
         'project': project,
@@ -519,7 +555,7 @@ def test_put_container(data_builder, as_admin):
     assert r.ok
 
     # test that an update to subject.code
-    # will create a new subject._id
+    # will *NOT* create a new subject._id
     r = as_admin.get('/sessions/'+session)
     assert r.ok
     old_subject_id = r.json().get('subject',{}).get('_id')
@@ -530,8 +566,9 @@ def test_put_container(data_builder, as_admin):
     })
     assert r.ok
     r = as_admin.get('/sessions/' + session)
-    new_subject_id = r.json().get('subject',{}).get('_id')
-    assert new_subject_id != old_subject_id
+    new_subject = r.json()['subject']
+    assert new_subject['code'] == 'newCode'
+    assert new_subject['_id'] == old_subject_id
 
     # check that an update to subject.First Name
     # will not create a new subject._id
@@ -554,32 +591,19 @@ def test_put_container(data_builder, as_admin):
     })
     assert r.ok
 
-    # update session.subject.code to that of session_2
-    # first set session_2.subject.code to something
+    # try to update session2.subject.code to that of session 1
     r = as_admin.put('/sessions/' + session_2, json={
         'subject': {
-            'code': 'subject2'
+            'code': 'newCode'
         }
     })
-    assert r.ok
-    r = as_admin.get('/sessions/'+session_2)
-    assert r.ok
-    subject2Id = r.json().get('subject').get('_id')
-    r = as_admin.put('/sessions/' + session, json={
-        'subject': {
-            'code': 'subject2'
-        }
-    })
-    assert r.ok
-    r = as_admin.get('/sessions/'+session)
-    assert r.ok
-    assert r.json().get('subject').get('_id') == subject2Id
+    assert r.status_code == 422
 
-    # update subject w/ oid
+    # try to update subject w/ non-existent oid
     r = as_admin.put('/sessions/' + session, json={
         'subject': {'_id': '000000000000000000000000'}
     })
-    assert r.ok
+    assert r.status_code == 404
 
 
 def test_subject_age_must_be_int(data_builder, as_admin):
@@ -1327,12 +1351,13 @@ def test_fields_list_requests(data_builder, file_form, as_admin):
     assert len(s['files']) == 1
 
     # Test for abscence of keys
+    assert not s.get('age')  # new - session.age
     assert not s.get('info')
     assert not s.get('tags')
     assert not s['subject'].get('firstname')
     assert not s['subject'].get('lastname')
     assert not s['subject'].get('sex')
-    assert not s['subject'].get('age')
+    assert not s['subject'].get('age')  # old - session.subject.age
     assert not s['subject'].get('ethnicity')
     assert not s['subject'].get('race')
     assert not s['subject'].get('info')

@@ -273,12 +273,12 @@ def migrate_analysis_file(f, migrated_files):
 
 
 def migrate_containers():
-    log.info('Migrate container (projects, acquisitions, sessions, subject, collections) files...')
+    log.info('Migrate container (project/subject/session/acquisition/collection) files...')
 
     container_files = get_containers_files([('projects', 'files'),
                                             ('acquisitions', 'files'),
                                             ('sessions', 'files'),
-                                            ('sessions', 'subject.files'),
+                                            ('subjects', 'files'),
                                             ('collections', 'files'),
                                             ('analyses', 'files')])
 
@@ -293,7 +293,7 @@ def migrate_containers():
     migrated_files = get_containers_files([('projects', 'files'),
                                            ('acquisitions', 'files'),
                                            ('sessions', 'files'),
-                                           ('sessions', 'subject.files'),
+                                           ('subjects', 'files'),
                                            ('collections', 'files'),
                                            ('analyses', 'files')])
     analysis_files = get_containers_files([('analyses', 'inputs')])

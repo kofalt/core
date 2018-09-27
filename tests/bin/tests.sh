@@ -140,7 +140,7 @@ allow_skip_all() {
 tail_logs_and_exit() {
     local PYTEST_EXIT_CODE=$?
     log "INFO: Tailing core logs ..."
-    tail -n 50 /tmp/core.log
+    tail -n 100 /tmp/core.log
     exit $PYTEST_EXIT_CODE
 }
 

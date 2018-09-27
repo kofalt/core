@@ -87,14 +87,14 @@ class ProjectStorage(ContainerStorage):
 
         if payload and 'template' in payload:
             # We are adding/changing the project template, update session compliance
-            sessions = self.get_children_legacy(_id, projection={'_id':1})
+            sessions = self.get_children(_id, projection={'_id':1}, include_subjects=False)
             session_storage = SessionStorage()
             for s in sessions:
                 session_storage.update_el(s['_id'], {'project_has_template': True})
 
         elif unset_payload and 'template' in unset_payload:
             # We are removing the project template, remove session compliance
-            sessions = self.get_children_legacy(_id, projection={'_id':1})
+            sessions = self.get_children(_id, projection={'_id':1}, include_subjects=False)
             session_storage = SessionStorage()
             for s in sessions:
                 session_storage.update_el(s['_id'], None, unset_payload={'project_has_template': '', 'satisfies_template': ''})
@@ -132,76 +132,43 @@ class ProjectStorage(ContainerStorage):
     def cleanup_ancillary_data(self, _id):
         safe_cleanup_views(_id)
 
+
 class SubjectStorage(ContainerStorage):
 
     def __init__(self):
-        super(SubjectStorage,self).__init__('sessions', use_object_id=True, use_delete_tag=True, parent_cont_name='project', child_cont_name='session')
-        self.cont_name = 'subjects'
+        super(SubjectStorage, self).__init__('subjects', use_object_id=True, use_delete_tag=True, parent_cont_name='project', child_cont_name='session')
 
     def _from_mongo(self, cont):
-        subject = cont['subject']
-        if cont.get('permissions'):
-            subject['permissions'] = cont['permissions']
-        if cont.get('project'):
-            subject['project'] = cont['project']
-        if subject.get('code'):
-            subject['label'] = subject.pop('code')
-        else:
-            subject['label'] = 'unknown'
-        return subject
-
-    def get_el(self, _id, projection=None, fill_defaults=False):
-        _id = bson.ObjectId(_id)
-        cont = self.dbc.find_one({'subject._id': _id, 'deleted': {'$exists': False}}, projection)
-        cont = self._from_mongo(cont)
-        if fill_defaults:
-            self._fill_default_values(cont)
-        return cont
-
-    # pylint: disable=arguments-differ
-    def get_all_el(self, query, user, projection, fill_defaults=False):
-        if query is None:
-            query = {}
-        if user:
-            if query.get('permissions'):
-                query['$and'] = [{'permissions': {'$elemMatch': user}}, {'permissions': query.pop('permissions')}]
+        if cont is not None:
+            if cont.get('code'):
+                cont['label'] = cont['code']
             else:
-                query['permissions'] = {'$elemMatch': user}
-        query['deleted'] = {'$exists': False}
+                cont['label'] = 'unknown'
 
+    def create_or_update_el(self, payload, **kwargs):
+        if self.dbc.find_one({'_id': payload['_id']}):
+            payload['modified'] = datetime.datetime.utcnow()
+            # Pop _id from mongo payload (immutable - would raise error)
+            payload_copy = copy.deepcopy(payload)
+            _id = payload_copy.pop('_id')
+            return super(SubjectStorage, self).update_el(_id, payload_copy, **kwargs)
+        else:
+            payload['created'] = payload['modified'] = datetime.datetime.utcnow()
+            return super(SubjectStorage, self).create_el(payload)
+
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
+        """Allow 'collections' query key"""
         if query and query.get('collections'):
-            # Find acquisition ids in this collection, add to query
+            # Add filter to query to only match subjects that have sessions with acquisitions in this collection
             collection_id = query.pop('collections')
-            a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1})
-            query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
+            # TODO limit subject join / fix projection on session storage
+            sessions = SessionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'subject': 1}, **kwargs)
+            query['_id'] = {'$in': list(set([sess['subject']['_id'] for sess in sessions]))}
 
-        results = list(self.dbc.find(query, projection))
-        if not results:
-            return []
+        return super(SubjectStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination, **kwargs)
 
-        formatted_results = []
-        for cont in results:
-            s = self._from_mongo(cont)
-            if fill_defaults:
-                self._fill_default_values(s)
-            formatted_results.append(s)
-
-
-        # Make sure only one subject is returned per _id
-        id_hash = {}
-        for r in formatted_results:
-            if r['_id'] not in id_hash:
-                id_hash[r['_id']] = r
-
-        return id_hash.values()
-
-    def get_children(self, _id, query=None, projection=None, uid=None):
-        query = {'subject._id': bson.ObjectId(_id)}
-        if uid:
-            query['permissions'] = {'$elemMatch': {'_id': uid}}
-        if not projection:
-            projection = {'info': 0, 'files.info': 0, 'subject': 0, 'tags': 0}
-        return SessionStorage().get_all_el(query, None, projection)
+    def get_list_projection(self):
+        return {'info': 0, 'files.info': 0, 'firstname': 0, 'lastname': 0, 'sex': 0, 'race': 0, 'ethnicity': 0}
 
 
 class SessionStorage(ContainerStorage):
@@ -210,9 +177,9 @@ class SessionStorage(ContainerStorage):
         super(SessionStorage,self).__init__('sessions', use_object_id=True, use_delete_tag=True, parent_cont_name='subject', child_cont_name='acquisition')
 
     def _fill_default_values(self, cont):
-        cont = super(SessionStorage,self)._fill_default_values(cont)
+        cont = super(SessionStorage, self)._fill_default_values(cont)
         if cont:
-            s_defaults = {'analyses': [], 'subject':{}}
+            s_defaults = {'analyses': [], 'subject': {}}
             s_defaults.update(cont)
             cont = s_defaults
         return cont
@@ -229,36 +196,6 @@ class SessionStorage(ContainerStorage):
         if session is None:
             raise APINotFoundException('Could not find session {}'.format(_id))
 
-        # If the subject code is changed, change the subject id to either
-        # the Id of the new subject code if there is another session in the same project
-        # that has that subject code or a new Id
-        if payload and payload.get('subject',{}).get('code') and payload.get('subject', {}).get('code') != session.get('subject', {}).get('code'):
-            sibling_session = self.dbc.find_one({'project': session.get('project'), 'subject.code': payload.get('subject', {}).get('code')})
-            if sibling_session:
-                payload['subject']['_id'] = sibling_session.get('subject').get('_id')
-            else:
-                payload['subject']['_id'] = bson.ObjectId()
-
-        # Similarly, if we are moving the subject to a new project, check to see if a subject with that code exists
-        # on the new project. If so, use that _id, otherwise generate a new _id
-        # NOTE: This if statement might also execute as well as the one above it if both the project and subject code are changing
-        # It should result in the proper state regardless
-        if payload and payload.get('project') and payload.get('project') != session.get('project'):
-            # Either way we're going to be updating the subject._id:
-            if not payload.get('subject'):
-                payload['subject'] = {}
-
-            # Use the new code if they are setting one
-            sub_code = payload.get('subject', {}).get('code') if payload.get('subject', {}).get('code') else session.get('subject', {}).get('code')
-
-            # Look for matching subject in new project
-            sibling_session = self.dbc.find_one({'project': payload.get('project'), 'subject.code': sub_code})
-            if sibling_session:
-                payload['subject']['_id'] = sibling_session.get('subject').get('_id')
-            else:
-                payload['subject']['_id'] = bson.ObjectId()
-
-
         # Determine if we need to calc session compliance
         # First check if project is being changed
         if payload and payload.get('project'):
@@ -274,7 +211,10 @@ class SessionStorage(ContainerStorage):
         unset_payload_has_template = (unset_payload and 'project_has_template'in unset_payload)
 
         if payload_has_template or (session_has_template and not unset_payload_has_template):
-            session = deep_update(session, payload)
+            session_update = copy.deepcopy(payload)
+            if 'subject' in payload:
+                session_update['subject'] = config.db.subjects.find_one({'_id': payload['subject']})
+            session = deep_update(session, session_update)
             if project and project.get('template'):
                 payload['project_has_template'] = True
                 payload['satisfies_template'] = hierarchy.is_session_compliant(session, project.get('template'))
@@ -285,25 +225,13 @@ class SessionStorage(ContainerStorage):
                 unset_payload['project_has_template'] = ""
         return super(SessionStorage, self).update_el(_id, payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata)
 
-    def get_parent(self, _id, cont=None, projection=None):
-        """
-        Override until subject becomes it's own collection
-        """
-        if not cont:
-            cont = self.get_container(_id, projection=projection)
-
-        return SubjectStorage().get_container(cont['subject']['_id'], projection=projection)
-
-
     def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
-        """
-        Override allows 'collections' key in the query, will transform into proper query for the caller and return results
-        """
+        """Allow 'collections' query key"""
         if query and query.get('collections'):
-            # Find acquisition ids in this collection, add to query
+            # Add filter to query to only match sessions that have acquisitions in this collection
             collection_id = query.pop('collections')
-            a_ids = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1}, **kwargs)
-            query['_id'] = {'$in': list(set([a['session'] for a in a_ids]))}
+            acquisitions = AcquisitionStorage().get_all_el({'collections': bson.ObjectId(collection_id)}, None, {'session': 1}, **kwargs)
+            query['_id'] = {'$in': list(set([a['session'] for a in acquisitions]))}
 
         return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination, **kwargs)
 
@@ -372,12 +300,7 @@ class SessionStorage(ContainerStorage):
         return self.get_all_el(query, user, projection)
 
     def get_list_projection(self):
-        # Remove subject first/last from list view to better log access to this information
-        return {'info': 0, 'analyses': 0, 'subject.firstname': 0,
-            'subject.lastname': 0, 'subject.sex': 0, 'subject.age': 0,
-            'subject.race': 0, 'subject.ethnicity': 0, 'subject.info': 0,
-            'files.info': 0, 'tags': 0}
-
+        return {'info': 0, 'files.info': 0, 'analyses': 0, 'tags': 0, 'age': 0}
 
 
 class AcquisitionStorage(ContainerStorage):
@@ -446,7 +369,7 @@ class AcquisitionStorage(ContainerStorage):
         return self.get_all_el(query, user, projection)
 
     def get_list_projection(self):
-        return {'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0}        
+        return {'info': 0, 'collections': 0, 'files.info': 0, 'tags': 0}
 
 
 class CollectionStorage(ContainerStorage):

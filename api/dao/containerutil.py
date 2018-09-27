@@ -12,6 +12,7 @@ from ..web.errors import APINotFoundException, APIPermissionException
 CONT_TYPES = [
     'acquisition',
     'session',
+    'subject',
     'project',
     'group',
     'analysis',
@@ -33,9 +34,6 @@ SINGULAR_TO_PLURAL = {
 PLURAL_TO_SINGULAR = {p: s for s, p in SINGULAR_TO_PLURAL.iteritems()}
 PLURAL_CONT_TYPES = [ SINGULAR_TO_PLURAL[_type] for _type in CONT_TYPES ]
 
-# NOTE: Following structures have subject as a hierarhcy level although
-# it is not yet a formalized level of the hierarchy throughout API
-
 CONTAINER_HIERARCHY = [
     'groups',
     'projects',
@@ -56,7 +54,7 @@ def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
     cont_name and cont_ids refer to top level containers (which will not be modified here)
     """
 
-    containers = ['groups', 'projects', 'sessions', 'acquisitions']
+    containers = ['groups', 'projects', 'subjects', 'sessions', 'acquisitions']
     if not isinstance(cont_ids, list):
         cont_ids = [cont_ids]
     if query is None:
@@ -64,49 +62,59 @@ def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
 
     if include_refs:
         analysis_query = copy.deepcopy(query)
+        analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': {'$in': cont_ids}})
         analysis_update = copy.deepcopy(update)
         analysis_update.get('$set', {}).pop('permissions', None)
-        analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': {'$in': cont_ids}})
         config.db.analyses.update_many(analysis_query, analysis_update)
 
-    if cont_name in ('groups', 'projects', 'sessions'):
+    if cont_name in containers[:-1]:
         child_cont = containers[containers.index(cont_name) + 1]
         child_ids = [c['_id'] for c in config.db[child_cont].find({singularize(cont_name): {'$in': cont_ids}}, [])]
-        child_query = copy.deepcopy(query)
-        child_query['_id'] = {'$in': child_ids}
-        config.db[child_cont].update_many(child_query, update)
 
-        # Recurse to the next hierarchy level
-        propagate_changes(child_cont, child_ids, query, update, include_refs=include_refs)
+        if child_ids:
+            child_query = copy.deepcopy(query)
+            child_query['_id'] = {'$in': child_ids}
+            config.db[child_cont].update_many(child_query, update)
+            # Recurse to the next hierarchy level
+            propagate_changes(child_cont, child_ids, query, update, include_refs=include_refs)
 
 
-def add_id_to_subject(subject, pid):
+def extract_subject(session, project):
     """
-    Add a mongo id field to given subject object (dict)
+    Extract subject from session payload (dict), add _id if needed and leave reference on the session.
+    Enables backwards-compatibilty for all endpoints receiving subject-related input embedded into sessions.
+    Implements similar extraction as the separate-subjects-collection DB upgrade, with the difference being
+     * subject _ids are matched (or generated) if not provided in the input
+     * project and permissions on the subject are populated from the 2nd arg `project` as they might not
+       be populated on the session at the time of the call
 
-    Use the same _id as other subjects in the session's project with the same code
-    If no _id is found, generate a new _id
+    Example:
+        extract_subject(session={'subject': {'_id': SUBJ, code': CODE}},
+                        project={'_id': PROJ, 'permissions': PERM})
+        --> session['subject'] = SUBJ
+        --> return {'_id': SUBJ, 'code': CODE, 'project': PROJ, 'permissions': PERM}
+
+    Subject _id selection:
+     * use original session['subject']['_id'] if provided (cast ObjectId)
+     * assign existing subject's _id with the same code in the same project if any
+     * generate new ObjectId otherwise (ie. treat as new subject)
     """
-    result = None
-    if subject is None:
-        subject = {}
-    if subject.get('_id') is not None:
-        # Ensure _id is bson ObjectId
+    subject = session.pop('subject', {})
+    subject.update({'project': bson.ObjectId(str(project['_id'])), 'permissions': project['permissions']})
+    if subject.get('_id'):
         subject['_id'] = bson.ObjectId(str(subject['_id']))
-        return subject
-
-    # Attempt to match with another session in the project
-    if subject.get('code') is not None and pid is not None:
-        query = {'subject.code': subject['code'],
-                 'project': pid,
-                 'subject._id': {'$exists': True}}
-        result = config.db.sessions.find_one(query)
-
-    if result is not None:
-        subject['_id'] = result['subject']['_id']
-    else:
+    elif subject.get('code'):
+        query = {'code': subject['code'], 'project': project['_id']}
+        result = config.db.subjects.find_one(query)
+        if result:
+            subject['_id'] = result['_id']
+    if not subject.get('_id'):
         subject['_id'] = bson.ObjectId()
+    session['subject'] = subject['_id']
+    if subject.get('age'):
+        session['age'] = subject.pop('age')
     return subject
+
 
 def get_stats(cont, cont_type):
     """
@@ -147,10 +155,10 @@ def get_stats(cont, cont_type):
         return cont
 
     # Get subject count
-    match_q['subject._id'] = {'$ne': None}
+    match_q['subject'] = {'$ne': None}
     pipeline = [
         {'$match': match_q},
-        {'$group': {'_id': '$subject._id'}},
+        {'$group': {'_id': '$subject'}},
         {'$group': {'_id': 1, 'count': { '$sum': 1 }}}
     ]
 

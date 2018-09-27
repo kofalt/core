@@ -523,3 +523,111 @@ def test_54(randstr, api_db, database):
     api_db.acquisitions.delete_one({'_id': acquisition})
     api_db.analyses.delete_one({'_id': analysis})
     api_db.apikeys.delete_one({'_id': apikey})
+
+
+def test_55(api_db, data_builder, database):
+    """Test subject collection pullout upgrade."""
+    group = data_builder.create_group()
+    project = bson.ObjectId(data_builder.create_project())
+    now = datetime.datetime.utcnow()
+    sessions = []
+    def create_session(subject_doc):
+        subject_doc.setdefault('_id', bson.ObjectId())
+        session = bson.ObjectId()
+        sessions.append(session)
+        now_ = now + datetime.timedelta(seconds=len(sessions))
+        api_db.sessions.insert_one({
+            '_id': session,
+            'group': group,
+            'project': project,
+            'parents': {'group': group,
+                        'project': project},
+            'subject': subject_doc,
+            'created': now_,
+            'modified': now_,
+            'permissions': [{'_id': 'admin@user.com', 'access': 'admin'}],
+            'public': True,
+        })
+        return session
+
+    # missing code (expect separate subjects, regardless of id match)
+    missing_subject = create_session({})
+    missing_subject_code_1 = create_session({'code': ''})
+    missing_subject_code_2 = create_session({'code': None})
+    missing_subject_code_id = bson.ObjectId()
+    missing_subject_code_3 = create_session({'_id': missing_subject_code_id})
+    missing_subject_code_4 = create_session({'_id': missing_subject_code_id})
+
+    # same proj/code, different id (expect merge)
+    different_subject_id_1 = create_session({'code': 'id-mismatch', '_id': bson.ObjectId()})
+    different_subject_id_2 = create_session({'code': 'id-mismatch', '_id': bson.ObjectId()})
+
+    # same proj/code, same id (expect merge, keep id)
+    matching_subject_id = bson.ObjectId()
+    matching_subject_id_1 = create_session({'code': 'id-match', '_id': matching_subject_id})
+    matching_subject_id_2 = create_session({'code': 'id-match', '_id': matching_subject_id})
+
+    # test that age is moved to session
+    test_age = create_session({'age': 123})
+
+    # test merge of subject fields
+    create_session({'code': 'merge'})
+    create_session({'code': 'merge', 'key': 'value1'})  # key: value1
+    create_session({'code': 'merge', 'key': 'value1'})  # noop
+    create_session({'code': 'merge', 'key': 'value2'})  # key: value2, key_history: ['value1']
+    create_session({'code': 'merge'})                   # noop
+    create_session({'code': 'merge', 'key': None})      # noop
+    create_session({'code': 'merge', 'key': ''})        # noop
+    # test on the most recently created session
+    test_merge = create_session({'code': 'merge', 'key': 'value3'})  # key: value3, key_history: ['value1', 'value2']
+
+    # test merge of deep subject fields (eg. info, expect same behavior as above)
+    create_session({'code': 'deep-merge'})
+    create_session({'code': 'deep-merge', 'info': {'key': 'value1'}})  # info.key: value1
+    create_session({'code': 'deep-merge', 'info': {'key': 'value1'}})  # noop
+    create_session({'code': 'deep-merge', 'info': {'key': 'value2'}})  # info.key: value2, info.key_history: ['value1']
+    create_session({'code': 'deep-merge'})                             # noop
+    create_session({'code': 'deep-merge', 'info': {'key': None}})      # noop
+    create_session({'code': 'deep-merge', 'info': {'key': ''}})        # noop
+    # test on the most recently created session
+    test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': 'value3'}})  # info.key: value3, info.key_history: ['value1', 'value2']
+
+    database.upgrade_to_55()
+
+    def get_subject(session_id):
+        session = api_db.sessions.find_one({'_id': session_id})
+        return api_db.subjects.find_one({'_id': session['subject']})
+
+    # verify that migrated subjects have, project, permissions, created, modified & parents
+    subject = get_subject(missing_subject)
+    assert subject['project'] == project
+    assert subject['permissions'] == [{'_id': 'admin@user.com', 'access': 'admin'}]
+    assert subject['created'] == min(s['created'] for s in api_db.sessions.find({'subject': subject['_id']}))
+    assert subject['modified'] == max(s['modified'] for s in api_db.sessions.find({'subject': subject['_id']}))
+    assert subject['parents'] == {'group': group, 'project': project}
+
+    # verify separate subjects were created for those w/o code (no 2 [i,j] have the same id)
+    separate_subjects = [missing_subject, missing_subject_code_1, missing_subject_code_2, missing_subject_code_3, missing_subject_code_4]
+    for i, session_i in enumerate(separate_subjects):
+        subject_i = get_subject(session_i)
+        for j, session_j in enumerate(separate_subjects[i + 1:]):
+            assert subject_i['_id'] != get_subject(session_j)['_id']
+
+    # verify subjects were merged on proj/code match
+    assert get_subject(different_subject_id_1)['_id'] == get_subject(different_subject_id_2)['_id']
+    assert get_subject(matching_subject_id_1)['_id'] == get_subject(matching_subject_id_2)['_id'] == matching_subject_id
+
+    # verify subject.age is moved to session.age
+    assert api_db.sessions.find_one({'_id': test_age}).get('age') == 123
+
+    # verify merging works as expected
+    merge_subject = get_subject(test_merge)
+    assert merge_subject['key'] == 'value3'
+    assert merge_subject['key_history'] == ['value1', 'value2']
+
+    # verify merging works in nested docs like info
+    deep_merge_subject = get_subject(test_deep_merge)
+    assert deep_merge_subject['info']['key'] == 'value3'
+    assert deep_merge_subject['info']['key_history'] == ['value1', 'value2']
+
+    data_builder.delete_group(group, recursive=True)

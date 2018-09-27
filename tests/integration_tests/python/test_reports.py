@@ -97,6 +97,7 @@ def test_project_report(data_builder, as_admin, as_user):
     assert r.ok
     projects = r.json()['projects']
     assert len(projects) == 1
+    assert projects[0]['subjects_count'] == 3
     assert projects[0]['session_count'] == 3
     assert projects[0]['male_count'] == projects[0]['female_count'] == 1
     assert projects[0]['under_18_count'] == projects[0]['over_18_count'] == 1

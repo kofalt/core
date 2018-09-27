@@ -22,6 +22,7 @@
             "type": "object",
             "properties": {
                 "project":     {"$ref": "project.json#/definitions/project-metadata-input"},
+                "subject":     {"$ref": "subject.json#/definitions/subject-metadata-input"},
                 "session":     {"$ref": "session.json#/definitions/session-metadata-input"},
                 "acquisition": {"$ref": "acquisition.json#/definitions/acquisition-metadata-input"}
             },

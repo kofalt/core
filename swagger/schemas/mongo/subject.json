@@ -6,17 +6,27 @@
     "firstname":        { "type": "string" },
     "lastname":         { "type": "string" },
 
-    "age":              { "type": ["number", "null"] },
-    "sex":              { "enum": ["male", "female", "other", "unknown", null] },
-    "race":             { "enum": ["American Indian or Alaska Native", "Asian", "Native Hawaiian or Other Pacific Islander", "Black or African American", "White", "More Than One Race", "Unknown or Not Reported", null] },
-    "ethnicity":        { "enum": ["Not Hispanic or Latino", "Hispanic or Latino", "Unknown or Not Reported", null] },
+    "project":          {},
+    "created":          {},
+    "modified":         {},
+    "permissions":      {},
+    "public":           {},
+
+    "sex":              { "$ref": "../definitions/subject.json#/definitions/sex" },
+    "cohort":           { "$ref": "../definitions/subject.json#/definitions/cohort" },
+    "type":             { "$ref": "../definitions/subject.json#/definitions/type" },
+    "race":             { "$ref": "../definitions/subject.json#/definitions/race" },
+    "ethnicity":        { "$ref": "../definitions/subject.json#/definitions/ethnicity" },
+    "species":          { "type": "string" },
+    "strain":           { "type": "string" },
 
     "code":             { "type": "string" },
+    "label":            { "type": "string" },
     "tags":             { "type": "array", "items": {"type": "string"} },
     "files":            {
                           "type": ["array", "null"],
                           "items": {"$ref": "file.json"}
-    },
+                        },
     "info":             { "type": "object" }
   },
   "additionalProperties": false

@@ -68,8 +68,10 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     if id_ is not None and container_type == None:
         raise Exception('Unspecified container type')
 
-    if container_type is not None and container_type not in (
-    'acquisition', 'session', 'project', 'collection', 'analysis', 'gear'):
+    allowed_container_types = ('project', 'subject', 'session', 'acquisition',
+                               'gear', 'analysis',
+                               'collection')
+    if container_type is not None and container_type not in allowed_container_types:
         raise Exception('Unknown container type')
 
     timestamp = datetime.datetime.utcnow()
@@ -254,8 +256,8 @@ class Upload(base.RequestHandler):
         level = self.get_param('level')
         if level is None:
             self.abort(400, 'container level is required')
-        if level not in ['analysis', 'acquisition', 'session', 'project']:
-            self.abort(400, 'container level must be analysis, acquisition, session or project.')
+        if level not in ['analysis', 'acquisition', 'session', 'subject', 'project']:
+            self.abort(400, 'container level must be analysis, acquisition, session, subject or project.')
         cid = self.get_param('id')
         if not cid:
             self.abort(400, 'container id is required')

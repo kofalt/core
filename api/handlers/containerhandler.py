@@ -1,4 +1,5 @@
 import bson
+import copy
 import datetime
 import dateutil
 
@@ -11,7 +12,7 @@ from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
 from ..web import base
-from ..web.errors import APIPermissionException
+from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
 
 PROJECT_BLACKLIST = ['Unknown', 'Unsorted']
@@ -36,6 +37,7 @@ class ContainerHandler(base.RequestHandler):
     use_object_id = {
         'groups': False,
         'projects': True,
+        'subjects': True,
         'sessions': True,
         'acquisitions': True
     }
@@ -54,6 +56,14 @@ class ContainerHandler(base.RequestHandler):
             'storage_schema_file': 'project.json',
             'payload_schema_file': 'project.json',
             'propagated_properties': ['public'],
+            'children_cont': 'sessions'
+        },
+        'subjects': {
+            'storage': containerstorage.SubjectStorage(),
+            'permchecker': containerauth.default_container,
+            'parent_storage': containerstorage.ProjectStorage(),
+            'storage_schema_file': 'subject.json',
+            'payload_schema_file': 'subject.json',
             'children_cont': 'sessions'
         },
         'sessions': {
@@ -113,7 +123,7 @@ class ContainerHandler(base.RequestHandler):
     def get_subject(self, cid):
         self.config = self.container_handler_configurations['sessions']
         self.storage = self.config['storage']
-        container= self._get_container(cid)
+        container = self._get_container(cid)
 
         permchecker = self._get_permchecker(container)
         result = permchecker(self.storage.exec_op)('GET', cid)
@@ -194,7 +204,7 @@ class ContainerHandler(base.RequestHandler):
                 if not bson.ObjectId.is_valid(par_id):
                     self.abort(400, 'not a valid object id')
                 par_id = bson.ObjectId(par_id)
-            query = {par_cont_name[:-1]: par_id}
+            query = {containerutil.singularize(par_cont_name): par_id}
         else:
             query = {}
         # this request executes the actual reqeust filtering containers based on the user permissions
@@ -264,6 +274,22 @@ class ContainerHandler(base.RequestHandler):
         payload = self.request.json_body
         #validate the input payload
         payload_validator(payload, 'POST')
+        if cont_name == 'subjects':
+            if 'project' not in payload:
+                # The new POST /subjects reuses json schema used for "embedded" subject creation,
+                # but requires project in the payload, too
+                raise APIValidationException('project required')
+            subject_code = payload.get('code') or payload.get('label')
+            if not subject_code:
+                raise APIValidationException('label or code required')
+
+            if self.storage.get_all_el({
+                'project': bson.ObjectId(payload['project']),
+                'code': subject_code,
+                }, None, {'_id': 1}):
+                raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, payload['project']))
+
+
         # Load the parent container in which the new container will be created
         # to check permissions.
         parent_container, parent_id_property = self._get_parent_container(payload)
@@ -272,7 +298,6 @@ class ContainerHandler(base.RequestHandler):
         # If the new container is a session add the group of the parent project in the payload
         if cont_name == 'sessions':
             payload['group'] = parent_container['group']
-            payload['subject'] = containerutil.add_id_to_subject(payload.get('subject'), payload.get('project'))
         # Optionally inherit permissions of a project from the parent group. The default behaviour
         # for projects is to give admin permissions to the requestor.
         # The default for other containers is to inherit.
@@ -291,6 +316,11 @@ class ContainerHandler(base.RequestHandler):
         if payload.get('timestamp'):
             payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
         permchecker = self._get_permchecker(parent_container=parent_container)
+
+        # Handle embedded subjects for backwards-compatibility
+        if cont_name == 'sessions':
+            self._handle_embedded_subject(payload, parent_container)
+
         # This line exec the actual request validating the payload that will create the new container
         # and checking permissions using respectively the two decorators, mongo_validator and permchecker
         result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload)
@@ -319,6 +349,74 @@ class ContainerHandler(base.RequestHandler):
             for key in prop_keys:
                 r_payload[key] = payload[key]
 
+        if cont_name == 'subjects':
+            # Check for code collision if changing code/label or moving to a new project
+            # TODO: Minor duplication of code below, resolve when ability to edit subject
+            # via session is resolved
+            current_project, _ = self._get_parent_container(container)
+            target_project, _ = self._get_parent_container(payload)
+            project_id = (target_project or current_project)['_id'] # It's current project or the new project it is moving to
+            subject_code = payload.get('code') or payload.get('label') or container.get('code') or container.get('label') # It's current label or the new label it is moving to
+
+            # Check for subject code collision 1st when changing project and/or subject code
+            if subject_code and self.storage.get_all_el({
+                'project': project_id,
+                'code': subject_code,
+                '_id': {'$ne': container['_id']} # Make sure that if neither code nor project changed, we allow it
+                }, None, {'_id': 1}):
+                raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, project_id))
+
+
+
+        # Handle embedded subjects for backwards-compatibility
+        if cont_name == 'sessions':
+            current_project, _ = self._get_parent_container(container)
+            target_project, _ = self._get_parent_container(payload)
+            project_id = (target_project or current_project)['_id']
+
+            current_subject = container['subject']
+            payload_subject = payload.get('subject', {})
+            target_subject_id = payload_subject.get('_id')
+            target_subject_code = payload_subject.get('code') or payload_subject.get('label')
+            subject_code = target_subject_code or container['subject'].get('code')
+            subject_storage = containerstorage.SubjectStorage()
+
+            # Check for subject code collision 1st when changing project and/or subject code
+            if ((target_project and project_id != current_project['_id']) or
+                (target_subject_code and subject_code != current_subject.get('code'))):
+
+                if subject_storage.get_all_el({'project': project_id, 'code': subject_code}, None, {'_id': 1}):
+                    raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, project_id))
+
+            # Handle changing subject id (moving session to another subject)
+            if target_subject_id:
+                target_subject = subject_storage.get_container(target_subject_id)
+
+                # If payload also contains project, verify that the target_subject is in it
+                if target_project and project_id != target_subject['project']:
+                    raise APIValidationException('subject {} is not in project {}'.format(target_subject_id, project_id))
+
+                # Make sure session.project is also updated
+                if not target_project:
+                    payload['project'] = target_subject['project']
+                    target_project, _ = self._get_parent_container(payload)
+
+            # Handle changing project (moving session and subject to another project)
+            # * Copy subject into target project if there are other sessions on it
+            # * Move if this is the only session on it (else branch)
+            elif target_project and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
+                subject = copy.deepcopy(container['subject'])
+                subject.pop('parents')
+                subject.update(payload_subject)   # Still apply any embedded subject changes
+                subject['_id'] = bson.ObjectId()  # Causes new subject creation via extract_subject
+                payload['subject'] = subject
+
+            # Enable embedded subject updates via session updates: match on subject._id
+            else:
+                payload.setdefault('subject', {})['_id'] = container['subject']['_id']
+
+            self._handle_embedded_subject(payload, target_project or current_project)
+
         # Check if we are updating the parent container of the element (ie we are moving the container)
         # In this case, we will check permissions on it.
         target_parent_container, parent_id_property = self._get_parent_container(payload)
@@ -334,14 +432,10 @@ class ContainerHandler(base.RequestHandler):
                 rec = True
                 r_payload['permissions'] = parent_perms
 
-
         payload['modified'] = datetime.datetime.utcnow()
         if payload.get('timestamp'):
             payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
-        if cont_name == 'sessions':
-            if payload.get('subject') is not None and payload['subject'].get('_id') is not None:
-                # Ensure subject id is a bson object
-                payload['subject']['_id'] = bson.ObjectId(str(payload['subject']['_id']))
+
         permchecker = self._get_permchecker(container, target_parent_container)
 
         # Specifies wether the metadata fields should be replaced or patched with payload value
@@ -349,7 +443,7 @@ class ContainerHandler(base.RequestHandler):
         # This line exec the actual request validating the payload that will update the container
         # and checking permissions using respectively the two decorators, mongo_validator and permchecker
         result = mongo_validator(permchecker(self.storage.exec_op))('PUT',
-                    _id=_id, payload=payload, recursive=rec, r_payload=r_payload, replace_metadata=replace_metadata)
+            _id=_id, payload=payload, recursive=rec, r_payload=r_payload, replace_metadata=replace_metadata)
 
         if result.modified_count == 1:
             return {'modified': result.modified_count}
@@ -358,24 +452,25 @@ class ContainerHandler(base.RequestHandler):
 
     def modify_info(self, cont_name, **kwargs):
         _id = kwargs.pop('cid')
-
-        # Support subject info modification in new style
-        # Will be removed when subject becomes stand-alone container
-        modify_subject = True if 'subject' in kwargs else False
-        if modify_subject and cont_name != 'sessions':
-            self.abort(400, 'Subject info modification only allowed via session.')
-
         self.config = self.container_handler_configurations[cont_name]
         self.storage = self.config['storage']
         container = self._get_container(_id)
+
+        # Support subject info modification via PUT /sessions/<sess>/subject/info
+        # Can be removed after all clients use PUT /subjects/<subj>/info instead
+        if 'subject' in kwargs:
+            if cont_name != 'sessions':
+                raise InputValidationException('Indirect subject info modification only allowed via sessions.')
+            _id = container['subject']['_id']
+            self.config = self.container_handler_configurations['subjects']
+            self.storage = self.config['storage']
+            container = self._get_container(_id)
+
         permchecker = self._get_permchecker(container)
         payload = self.request.json_body
-
         validators.validate_data(payload, 'info_update.json', 'input', 'POST')
-
         permchecker(noop)('PUT', _id=_id)
-        self.storage.modify_info(_id, payload, modify_subject=modify_subject)
-
+        self.storage.modify_info(_id, payload)
         return
 
     @log_access(AccessType.delete_container)
@@ -474,14 +569,15 @@ class ContainerHandler(base.RequestHandler):
         if not self.config.get('parent_storage'):
             return None, None
         parent_storage = self.config['parent_storage']
-        parent_id_property = parent_storage.cont_name[:-1]
+        # NOTE not using storage.parent_id_property (keep using project as session's parent for compatibility)
+        parent_id_property = containerutil.singularize(parent_storage.cont_name)
         parent_id = payload.get(parent_id_property)
         if parent_id:
             parent_storage.dbc = config.db[parent_storage.cont_name]
             parent_container = parent_storage.get_container(parent_id)
             if parent_container is None:
                 self.abort(404, 'Element {} not found in container {}'.format(parent_id, parent_storage.cont_name))
-            parent_container['cont_name'] = parent_storage.cont_name[:-1]
+            parent_container['cont_name'] = containerutil.singularize(parent_storage.cont_name)
         else:
             parent_container = None
         return parent_container, parent_id_property
@@ -504,3 +600,18 @@ class ContainerHandler(base.RequestHandler):
         else:
             permchecker = self.config['permchecker']
             return permchecker(self, container, parent_container)
+
+    def _handle_embedded_subject(self, session, project):
+        """Extract, validate, perm-check and exec subject creation/updates embedded in session payloads."""
+        subject = containerutil.extract_subject(session, project)
+        subject_schema = validators.schema_uri('mongo', 'subject.json')
+        subject_validator = validators.decorator_from_schema_path(subject_schema)
+        # NOTE using the session's permchecker which should be ultimately identical to the subject's
+        permchecker = self._get_permchecker(session, project)
+        # method = 'PUT' if config.db.subjects.find_one({'_id': subject['_id']}) else 'POST'
+        # NOTE checking perms for method 'POST' for backwards-compatibility
+        #  * allows "PUT subject" via "POST session"
+        #  * otherwise PUT would require admin
+        method = 'POST'
+        subject_validator(permchecker(noop))(method, payload=subject)
+        containerstorage.SubjectStorage().create_or_update_el(subject)

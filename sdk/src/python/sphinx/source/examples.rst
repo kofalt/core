@@ -68,6 +68,16 @@ List all of the projects that I have access to:
 	for project in fw.get_all_projects():
 	  print('%s: %s' % (project.id, project.label))
 
+List Subjects in Project
+------------------------
+List all subjects belonging to project identified by ``project_id``
+
+.. code-block:: python
+
+	for subject in fw.get_project_subjects(project_id):
+		print('%s: %s' % (subject.id, subject.label))
+
+
 List Sessions in Project
 ------------------------
 List all of the sessions belonging to project identified by ``project_id``.
@@ -76,6 +86,51 @@ List all of the sessions belonging to project identified by ``project_id``.
 
 	for session in fw.get_project_sessions(project_id):
 		print('%s: %s' % (session.id, session.label))
+
+Subjects
+========
+For managing tags, files, notes or info, see :ref:`data-model-containers`.
+
+Add Subject
+-----------
+Create a new subject that belongs to ``project_id`` with a label of ``Subject 01``
+
+.. code-block:: python
+
+	subject_id = fw.add_subject(flywheel.Subject(project=project_id, label='Subject 01'))
+
+List Subjects
+-------------
+List all of the subjects that I have access to:
+
+.. code-block:: python
+
+	for subject in fw.get_all_subjects():
+		print('%s: %s' % (subject.id, subject.label))
+
+List Sessions in Subject
+------------------------
+List all of the sessions belonging to subject identified by ``subject_id``.
+
+.. code-block:: python
+
+	for session in fw.get_subject_sessions(subject_id):
+		print('%s: %s' % (session.id, session.label))
+
+Modify Subject
+--------------
+Update the details of a subject identified by ``subject_id``
+
+.. code-block:: python
+
+	fw.modify_subject(subject_id, flywheel.Subject(
+		firstname='John',
+		lastname='Doe',
+		cohort='Study',
+		type='human',
+		sex='male',
+		race='Unknown or Not Reported'
+	))
 
 Sessions
 ========

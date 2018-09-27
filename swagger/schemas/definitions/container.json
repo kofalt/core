@@ -22,7 +22,7 @@
         "timezone":     {"type": "string"},
         "container-type": {
           "type": "string",
-          "enum": ["group", "project", "session", "acquisition", "collection", "analysis"],
+          "enum": ["group", "project", "subject", "session", "acquisition", "collection", "analysis"],
           "description": "The type of container (e.g. session)"
         },
 
@@ -40,6 +40,7 @@
             "analysis": {"$ref": "#/definitions/_id"},
             "acquisition": {"$ref": "#/definitions/_id"},
             "session": {"$ref": "#/definitions/_id"},
+            "subject": {"$ref": "#/definitions/_id"},
             "project": {"$ref": "#/definitions/_id"},
             "group": {"$ref": "#/definitions/_id"}
           }

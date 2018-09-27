@@ -897,3 +897,31 @@ def test_summary(data_builder, as_admin, file_form):
     assert r.ok
     assert len(r.json()) == 1
     assert r.json().get("tabular data", {}).get("count",0) == 1
+
+
+def test_subject_download(data_builder, as_admin, file_form):
+    project = data_builder.create_project()
+    session = data_builder.create_session(subject={'code': 'subject-download'})
+    subject = as_admin.get('/sessions/' + session).json()['subject']['_id']
+
+    as_admin.post('/projects/' + project + '/files', files=file_form('test1.txt'))
+    as_admin.post('/subjects/' + subject + '/files', files=file_form('test2.txt'))
+    as_admin.post('/sessions/' + session + '/files', files=file_form('test3.txt'))
+
+    r = as_admin.post('/download/summary', json=[{'level': 'project', '_id': project}])
+    assert r.ok
+    assert len(r.json()) == 1
+    assert r.json()['text']['count'] == 3
+
+    r = as_admin.post('/download', json={'nodes': [{'level': 'project', '_id': project}], 'optional': False})
+    assert r.ok
+    assert r.json()['file_cnt'] == 3
+
+    r = as_admin.post('/download/summary', json=[{'level': 'subject', '_id': subject}])
+    assert r.ok
+    assert len(r.json()) == 1
+    assert r.json()['text']['count'] == 2
+
+    r = as_admin.post('/download', json={'nodes': [{'level': 'subject', '_id': subject}], 'optional': False})
+    assert r.ok
+    assert r.json()['file_cnt'] == 2

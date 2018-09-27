@@ -21,7 +21,9 @@
         "uid":          {"type": "string"},
         "timestamp":    {},
         "timezone":     {"type": "string"},
-        "subject":      {"$ref": "subject.json"}
+        "subject":      {},
+        "age":          {"type": ["number", "null"]},
+        "weight":       {"type": ["number", "null"]}
     },
     "additionalProperties": false
 }

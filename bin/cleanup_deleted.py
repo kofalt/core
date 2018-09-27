@@ -17,7 +17,7 @@ from api import util
 
 
 log = logging.getLogger('cleanup_deleted')
-cont_names = ['projects', 'sessions', 'acquisitions', 'analyses', 'collections']
+cont_names = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses', 'collections']
 
 
 def main(*argv):

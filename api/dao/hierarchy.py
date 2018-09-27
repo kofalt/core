@@ -53,12 +53,13 @@ def get_parent_tree(cont_name, _id):
 
     cont_name = containerutil.singularize(cont_name)
 
-    if cont_name not in ['acquisition', 'session', 'project', 'group', 'analysis']:
-        raise ValueError('Can only construct tree from group, project, session, analysis or acquisition level')
+    if cont_name not in ['acquisition', 'session', 'subject', 'project', 'group', 'analysis']:
+        raise ValueError('Can only construct tree from group, project, subject, session, analysis or acquisition level')
 
     analysis_id     = None
     acquisition_id  = None
     session_id      = None
+    subject_id      = None
     project_id      = None
     group_id        = None
     tree            = {}
@@ -79,10 +80,13 @@ def get_parent_tree(cont_name, _id):
             session_id = bson.ObjectId(_id)
         session = get_container('session', session_id)
         tree['session'] = session
-        subject = session.get('subject')
-        if subject:
-            tree['subject'] = subject
-        project_id = session['project']
+        subject_id = session['subject']
+    if cont_name == 'subject' or subject_id:
+        if not subject_id:
+            subject_id = bson.ObjectId(_id)
+        subject = get_container('subject', subject_id)
+        tree['subject'] = subject
+        project_id = subject['project']
     if cont_name == 'project' or project_id:
         if not project_id:
             project_id = bson.ObjectId(_id)
@@ -376,18 +380,12 @@ def _find_or_create_destination_project(group_id, project_label, timestamp, user
     return project
 
 def _create_query(cont, cont_type, parent_type, parent_id, upload_type):
-    if upload_type == 'label':
-        q = {'deleted': {'$exists': False}}
-        q['label'] = cont['label']
-        q[parent_type] = bson.ObjectId(parent_id)
-        if cont_type == 'session' and cont.get('subject',{}).get('code'):
-            q['subject.code'] = cont['subject']['code']
-        return q
-    elif upload_type == 'uid':
+    if upload_type in ('label', 'uid'):
+        match_key = '_id' if cont_type == 'subject' else upload_type
         return {
-            parent_type : bson.ObjectId(parent_id),
-            'uid': cont['uid'],
-            'deleted': {'$exists': False}
+            parent_type: bson.ObjectId(parent_id),
+            match_key: cont[match_key],
+            'deleted': {'$exists': False},
         }
     else:
         raise NotImplementedError('upload type {} is not handled by _create_query'.format(upload_type))
@@ -404,9 +402,6 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
             if cont.get('timezone'):
                 session_operations['$set'] = {'timezone': cont['timezone']}
             config.db.sessions.update_one({'_id': parent['_id']}, session_operations)
-
-    if cont_type == 'session':
-        cont['subject'] = containerutil.add_id_to_subject(cont.get('subject'), parent['_id'])
 
     query = _create_query(cont, cont_type, parent_type, parent['_id'], upload_type)
 
@@ -434,21 +429,19 @@ def _get_targets(project_obj, session, acquisition, type_, timestamp):
     target_containers = []
     if not session:
         return target_containers
+
+    subject = containerutil.extract_subject(session, project_obj)
+    subject_files = dict_fileinfos(subject.pop('files', []))
+    subject_obj = _upsert_container(subject, 'subject', project_obj, 'project', type_, timestamp)
+    target_containers.append(
+        (TargetContainer(subject_obj, 'subject'), subject_files)
+    )
+
     session_files = dict_fileinfos(session.pop('files', []))
-
-    subject_files = []
-    if session.get('subject'):
-        subject_files = dict_fileinfos(session['subject'].pop('files', []))
-
     session_obj = _upsert_container(session, 'session', project_obj, 'project', type_, timestamp)
     target_containers.append(
         (TargetContainer(session_obj, 'session'), session_files)
     )
-
-    if len(subject_files) > 0:
-        target_containers.append(
-            (TargetContainer(session_obj, 'subject'), subject_files)
-        )
 
     if not acquisition:
         return target_containers
@@ -584,7 +577,7 @@ def _update_hierarchy(container, container_type, metadata):
             session['modified'] = now
             if session.get('timestamp'):
                 session['timestamp'] = dateutil.parser.parse(session['timestamp'])
-            session_obj = _update_container_nulls({'_id': container['session']},  session, 'sessions')
+            session_obj = _update_container_nulls({'_id': container['session']},  session, 'session')
         if session_obj is None:
             session_obj = get_container('session', container['session'])
         project_id = session_obj['project']
@@ -594,13 +587,18 @@ def _update_hierarchy(container, container_type, metadata):
     project = metadata.get('project', {})
     if project.keys():
         project['modified'] = now
-        _update_container_nulls({'_id': project_id}, project, 'projects')
+        _update_container_nulls({'_id': project_id}, project, 'project')
 
 def _update_container_nulls(base_query, update, container_type):
     coll_name = containerutil.pluralize(container_type)
     cont = config.db[coll_name].find_one(base_query)
     if cont is None:
         raise APIStorageException('Failed to find {} object using the query: {}'.format(container_type, base_query))
+
+    if container_type == 'session' and type(update.get('subject')) is dict:
+        subject_update = update.pop('subject')
+        subject_update['modified'] = update['modified']
+        _update_container_nulls({'_id': cont['subject']}, subject_update, 'subject')
 
     bulk = config.db[coll_name].initialize_unordered_bulk_op()
 
@@ -611,9 +609,8 @@ def _update_container_nulls(base_query, update, container_type):
         bulk.find(base_query).update_one({'$set': {'metadata': m_update}})
 
     update_dict = util.mongo_dict(update)
-    for k,v in update_dict.items():
-        q = {}
-        q.update(base_query)
+    for k, v in update_dict.items():
+        q = copy.deepcopy(base_query)
         q['$or'] = [{k: {'$exists': False}}, {k: None}]
         u = {'$set': {k: v}}
         bulk.find(q).update_one(u)

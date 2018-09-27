@@ -1,0 +1,29 @@
+[{
+    "_id": "57e01cccb1dc04000fb83f02",
+    "project": "57e01cccf6b5d5edbcb4e1cf",
+    "code": "ex4784",
+    "type": "human",
+    "race": "More Than One Race",
+    "cohort": "Control",
+    "created": "2016-09-19T17:13:48.164000+00:00",
+    "modified": "2016-09-19T17:13:48.164000+00:00",
+    "public": false,
+    "permissions": [{
+        "access": "admin",
+        "_id": "coltonlw@flywheel.io"
+    }]
+}, {
+    "_id": "57e01cccb1dc04000fb83f56",
+    "project": "57e01cccf6b5d5edbcb4e182",
+    "code": "ex1366",
+    "type": "animal",
+    "species": "rat",
+    "cohort": "Training",
+    "created": "2016-09-20T17:13:48.164000+00:00",
+    "modified": "2016-09-20T17:13:48.164000+00:00",
+    "public": true,
+    "permissions": [{
+        "access": "admin",
+        "_id": "coltonlw@flywheel.io"
+    }]
+}]
