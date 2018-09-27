@@ -481,6 +481,42 @@ def test_post_container(data_builder, as_admin, as_user):
     })
     assert r.ok
 
+    # try to add subject with no project
+    r = as_admin.post('/subjects', json={
+        'code': 'test_sub'
+        })
+    assert r.status_code == 422
+
+    # try to add subject with no code or label
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        })
+    assert r.status_code == 422
+
+    # Add subject with code and project
+    subject_code = 'test_subject'
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        'code': subject_code
+        })
+    assert r.ok
+
+    # Try to add subject with existing label
+    subject_code = 'test_subject'
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        'label': subject_code
+        })
+    assert r.status_code == 422
+
+    # Also doesn't work with code
+    subject_code = 'test_subject'
+    r = as_admin.post('/subjects', json={
+        'project': project,
+        'code': subject_code
+        })
+    assert r.status_code == 422
+
     # create session w/ timestamp as rw user
     r = as_user.post('/sessions', json={
         'project': project,

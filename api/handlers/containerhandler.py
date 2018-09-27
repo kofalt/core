@@ -274,10 +274,22 @@ class ContainerHandler(base.RequestHandler):
         payload = self.request.json_body
         #validate the input payload
         payload_validator(payload, 'POST')
-        if cont_name == 'subjects' and 'project' not in payload:
-            # The new POST /subjects reuses json schema used for "embedded" subject creation,
-            # but requires project in the payload, too
-            raise InputValidationException('project required')
+        if cont_name == 'subjects':
+            if 'project' not in payload:
+                # The new POST /subjects reuses json schema used for "embedded" subject creation,
+                # but requires project in the payload, too
+                raise APIValidationException('project required')
+            subject_code = payload.get('code') or payload.get('label')
+            if not subject_code:
+                raise APIValidationException('label or code required')
+
+            if self.storage.get_all_el({
+                'project': bson.ObjectId(payload['project']),
+                'code': subject_code,
+                }, None, {'_id': 1}):
+                raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, payload['project']))
+
+
         # Load the parent container in which the new container will be created
         # to check permissions.
         parent_container, parent_id_property = self._get_parent_container(payload)
@@ -344,10 +356,10 @@ class ContainerHandler(base.RequestHandler):
             current_project, _ = self._get_parent_container(container)
             target_project, _ = self._get_parent_container(payload)
             project_id = (target_project or current_project)['_id'] # It's current project or the new project it is moving to
-            subject_code = payload.get('code') or payload.get('label') # It's current label or the new label it is moving to
+            subject_code = payload.get('code') or payload.get('label') or container.get('code') or container.get('label') # It's current label or the new label it is moving to
 
             # Check for subject code collision 1st when changing project and/or subject code
-            if self.storage.get_all_el({
+            if subject_code and self.storage.get_all_el({
                 'project': project_id,
                 'code': subject_code,
                 '_id': {'$ne': container['_id']} # Make sure that if neither code nor project changed, we allow it
