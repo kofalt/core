@@ -1856,7 +1856,7 @@ def upgrade_to_55(dry_run=False):
             elif type(a[k]) == type(b[k]) == dict:  # recurse in dict
                 merge_dict(a[k], b[k])
             else:  # handle conflict
-                logging.warning('merge conflict on key %s on subject {}', k, a.get('_id') or b.get('_id'))
+                logging.warning('merge conflict on key %s on subject %s', k, a.get('_id') or b.get('_id'))
                 a.setdefault(k + '_history', []).append(a[k])
                 a[k] = b[k]
 
