@@ -40,6 +40,7 @@
             "analysis": {"$ref": "#/definitions/_id"},
             "acquisition": {"$ref": "#/definitions/_id"},
             "session": {"$ref": "#/definitions/_id"},
+            "subject": {"$ref": "#/definitions/_id"},
             "project": {"$ref": "#/definitions/_id"},
             "group": {"$ref": "#/definitions/_id"}
           }
