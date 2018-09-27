@@ -1839,8 +1839,6 @@ def upgrade_to_55(dry_run=False):
             'project': session['project'],
             'permissions': session['permissions']
         })
-        if subject.get('race') or subject.get('ethnicity'):
-            subject['type'] = 'human'
         if subject.get('age'):
             session['age'] = subject.pop('age')
         session['subject'] = subject['_id']
