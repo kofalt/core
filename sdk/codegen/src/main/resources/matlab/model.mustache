@@ -72,6 +72,19 @@
                 {{/vars}}
             end
         end
+        {{#vars}}
+        function result = get.{{name}}(obj)
+            if ismethod(obj, 'get_{{name}}')
+                result = obj.get_{{name}}();
+            else
+                if isKey(obj.props_, '{{baseName}}')
+                    result = obj.props_('{{baseName}}');
+                else
+                    result = [];
+                end
+            end
+        end
+        {{/vars}}
         function result = toJson(obj)
             {{#hasVars}}
             result = containers.Map;

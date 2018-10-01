@@ -6,18 +6,22 @@ classdef ProjectMixin < {{packageName}}.mixins.ContainerBase ...
         & {{packageName}}.mixins.PermissionMethods
     properties
         containerType_ = 'Project';
+        subjects_ = false;
         sessions_ = false;
         analyses_ = false;
     end
     properties(Dependent)
+        subjects
         sessions
-        analyses
     end
     methods
+        function subjects = get.subjects(obj)
+            subjects = obj.getChildren('Subjects');
+        end
         function sessions = get.sessions(obj)
             sessions = obj.getChildren('Sessions');
         end
-        function analyses = get.analyses(obj)
+        function analyses = get_analyses(obj)
             analyses = obj.getChildren('Analyses');
         end
     end

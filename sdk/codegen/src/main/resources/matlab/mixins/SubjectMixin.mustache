@@ -1,13 +1,20 @@
-classdef AcquisitionMixin < {{packageName}}.mixins.ContainerBase ...
+classdef SubjectMixin < {{packageName}}.mixins.ContainerBase ...
         & {{packageName}}.mixins.TagMethods ...
         & {{packageName}}.mixins.InfoMethods ...
         & {{packageName}}.mixins.NoteMethods ...
         & {{packageName}}.mixins.FileMethods
     properties
-        containerType_ = 'Acquisition';
+        containerType_ = 'Subject';
+        sessions_ = false;
         analyses_ = false;
     end
+    properties(Dependent)
+        sessions
+    end
     methods
+        function sessions = get.sessions(obj)
+            sessions = obj.getChildren('Sessions');
+        end
         function analyses = get_analyses(obj)
             analyses = obj.getChildren('Analyses');
         end

@@ -13,7 +13,6 @@ classdef CollectionMixin < {{packageName}}.mixins.ContainerBase ...
     properties(Dependent)
         sessions
         acquisitions
-        analyses
     end
     methods
         function sessions = get.sessions(obj)
@@ -21,9 +20,6 @@ classdef CollectionMixin < {{packageName}}.mixins.ContainerBase ...
         end
         function acquisitions = get.acquisitions(obj)
             acquisitions = obj.getChildren('Acquisitions');
-        end
-        function analyses = get.analyses(obj)
-            analyses = obj.getChildren('Analyses');
         end
         function [returnData, resp] = addSessions(obj, varargin)
             ids = {};
@@ -48,6 +44,9 @@ classdef CollectionMixin < {{packageName}}.mixins.ContainerBase ...
                 end
             end
             [returnData, resp] = obj.invokeContainerApi('addAcquisitionsTo%s', obj.get('id'), ids);
+        end
+        function analyses = get_analyses(obj)
+            analyses = obj.getChildren('Analyses');
         end
     end
 end

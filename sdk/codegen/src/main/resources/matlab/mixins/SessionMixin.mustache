@@ -10,13 +10,12 @@ classdef SessionMixin < {{packageName}}.mixins.ContainerBase ...
     end
     properties(Dependent)
         acquisitions
-        analyses
     end
     methods
         function acquisitions = get.acquisitions(obj)
             acquisitions = obj.getChildren('Acquisitions');
         end
-        function analyses = get.analyses(obj)
+        function analyses = get_analyses(obj)
             analyses = obj.getChildren('Analyses');
         end
     end

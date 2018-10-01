@@ -3,11 +3,8 @@ classdef FileMethods < handle
         filesUpdated_ = false;
         filesLoaded_ = false;
     end
-    properties(Dependent)
-        files
-    end
     methods
-        function result = get.files(obj)
+        function result = get_files(obj)
             result = obj.get('files');
             if ~obj.filesLoaded_ && isempty(result) && ~isempty(obj.get('id'))
                 tmp = obj.reload();

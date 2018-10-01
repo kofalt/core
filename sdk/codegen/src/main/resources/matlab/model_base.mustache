@@ -148,16 +148,7 @@ classdef ModelBase < handle & matlab.mixin.CustomDisplay
                                 result = builtin('subsref', obj, s);
                             end
                         else
-                            if isKey(obj.propMap_, subs)
-                                propName = obj.propMap_(subs);
-                                if isKey(obj.props_, propName)
-                                    result = {{packageName}}.ModelBase.recursiveRef(obj.props_(propName), s(2:end));
-                                else
-                                    result = [];
-                                end
-                            else
-                                result = builtin('subsref', obj, s);
-                            end
+                            result = builtin('subsref', obj, s);
                         end
                     else
                         result = {{packageName}}.ModelBase.recursiveRef(obj.(subs), s(2:end));
