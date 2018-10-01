@@ -95,7 +95,8 @@
     		"properties": {
                 "code":         {"$ref":"subject.json#/definitions/code"}
             },
-    		"description": "Fields for subject search response"
+    		"description": "Fields for subject search response",
+            "x-sdk-container-mixin": "subject-mixin"
     	},
     	"search-file-response": {
     		"type": "object",

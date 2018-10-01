@@ -61,6 +61,14 @@
     		"x-discriminator-value": "session",
             "x-sdk-container-mixin": "session-mixin"
     	},
+        "subject-node": {
+            "allOf": [
+                {"$ref":"#/definitions/resolver-node"},
+                {"$ref":"subject.json#/definitions/subject-output"}
+            ],
+            "x-discriminator-value": "subject",
+            "x-sdk-container-mixin": "subject-mixin"
+        },
     	"acquisition-node": {
     		"allOf": [
     			{"$ref":"#/definitions/resolver-node"},

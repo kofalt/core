@@ -221,6 +221,11 @@ class GroupMixin(ContainerBase, TagMethods, PermissionMethods):
 
 class ProjectMixin(ContainerBase, TagMethods, NoteMethods, PermissionMethods, FileMethods, InfoMethods):
     container_type = 'project'
+    child_types = ['subjects', 'sessions', 'analyses', 'files']
+
+
+class SubjectMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMethods):
+    container_type = 'subject'
     child_types = ['sessions', 'analyses', 'files']
 
 
