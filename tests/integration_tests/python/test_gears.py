@@ -123,7 +123,7 @@ def test_gear_access(data_builder, as_public, as_admin, as_user):
     # assert r.status_code == 403
 
 
-def test_gear_invocation_and_suggest(data_builder, file_form, as_admin):
+def test_gear_invocation_and_suggest(data_builder, file_form, as_admin, as_user):
     gear = data_builder.create_gear()
     group = data_builder.create_group(label='test-group')
     project = data_builder.create_project(label='test-project')
@@ -135,6 +135,8 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin):
     acquisition2 = data_builder.create_acquisition(label='test-acquisition', session=session2)
     acquisition3 = data_builder.create_acquisition(label='test-acquisition', session=session2)
 
+    user_id = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'})
 
     # Add collection with only the 3rd acquisition
     collection = as_admin.post('/collections', json={'label': 'test-collection'}).json()['_id']
@@ -172,12 +174,12 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin):
         'one.csv', meta={'label': 'test', 'outputs': [{'name': 'one.csv'}]})).json()['_id']
 
     # test invocation
-    r = as_admin.get('/gears/' + gear + '/invocation')
+    r = as_user.get('/gears/' + gear + '/invocation')
     assert r.ok
 
 
     # test suggest project
-    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project)
+    r = as_user.get('/gears/' + gear + '/suggest/projects/' + project)
     assert r.ok
 
     assert len(r.json()['children']['subjects']) == 2
@@ -187,7 +189,7 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin):
 
 
     # test suggest subject
-    r = as_admin.get('/gears/' + gear + '/suggest/subjects/' + subject)
+    r = as_user.get('/gears/' + gear + '/suggest/subjects/' + subject)
     assert r.ok
 
     assert len(r.json()['children']['sessions']) == 1
@@ -197,7 +199,7 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin):
 
 
     # test suggest session
-    r = as_admin.get('/gears/' + gear + '/suggest/sessions/' + session)
+    r = as_user.get('/gears/' + gear + '/suggest/sessions/' + session)
     assert r.ok
 
     assert len(r.json()['children']['acquisitions']) == 1
@@ -207,7 +209,7 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin):
 
 
     # test suggest acquisition
-    r = as_admin.get('/gears/' + gear + '/suggest/acquisitions/' + acquisition)
+    r = as_user.get('/gears/' + gear + '/suggest/acquisitions/' + acquisition)
     assert r.ok
 
     assert len(r.json()['children']['analyses']) == 0
@@ -216,7 +218,7 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin):
 
 
     # test suggest analysis
-    r = as_admin.get('/gears/' + gear + '/suggest/analyses/' + analysis)
+    r = as_user.get('/gears/' + gear + '/suggest/analyses/' + analysis)
     assert r.ok
 
     assert len(r.json()['files']) == 1
