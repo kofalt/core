@@ -52,6 +52,11 @@ class GroupsTestCases(SdkTestCase):
         self.assertEqual(tag, r_group.tags[0])
         self.assertGreater(r_group.modified, changed_group.modified)
 
+        # Add project
+        project_id = r_group.add_project(label='My Project')
+        self.assertIsNotNone(project_id)
+        fw.delete_project(project_id)
+
         # Delete
         fw.delete_group(group_id)
         groups = fw.get_all_groups()

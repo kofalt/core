@@ -42,6 +42,15 @@ class ContainerBase(object):
                 return fn(*args, **kwargs)
         return None
 
+    def _add_child(self, child_type, args, kwargs):
+        """Add a child to this container"""
+        fname = 'add_{}'.format(child_type)
+
+        body = params_to_dict(fname, args, kwargs)
+        body[self.container_type] = self.id
+
+        return self._invoke_container_api(fname, body)
+
     def update(self, *args, **kwargs):
         """Update container using dictionary or kwargs"""
         # Could either pass a dictionary or kwargs values
@@ -218,20 +227,49 @@ class GroupMixin(ContainerBase, TagMethods, PermissionMethods):
     container_type = 'group'
     child_types = ['projects']
 
+    def add_project(self, *args, **kwargs):
+        """Add a project to this group"""
+        return self._add_child('project', args, kwargs)
+
 
 class ProjectMixin(ContainerBase, TagMethods, NoteMethods, PermissionMethods, FileMethods, InfoMethods):
     container_type = 'project'
     child_types = ['subjects', 'sessions', 'analyses', 'files']
+
+    def add_subject(self, *args, **kwargs):
+        """Add a subject to this project"""
+        return self._add_child('subject', args, kwargs)
+
+    def add_session(self, *args, **kwargs):
+        """Add a session to this project"""
+        return self._add_child('session', args, kwargs)
 
 
 class SubjectMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMethods):
     container_type = 'subject'
     child_types = ['sessions', 'analyses', 'files']
 
+    def add_session(self, *args, **kwargs):
+        """Add a session to this subject"""
+        fname = 'add_session'
+
+        body = params_to_dict(fname, args, kwargs)
+
+        # Adding a session requires project and subject id
+        body['project'] = self.project
+        body.setdefault('subject', {})
+        body['subject']['_id'] = self.id
+
+        return self._invoke_container_api(fname, body)
+
 
 class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMethods):
     container_type = 'session'
     child_types = ['acquisitions', 'analyses', 'files']
+
+    def add_acquisition(self, *args, **kwargs):
+        """Add a acquisition to this session"""
+        return self._add_child('acquisition', args, kwargs)
 
 
 class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods):
@@ -242,6 +280,7 @@ class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, Info
 class AnalysisMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods):
     container_type = 'analysis'
     child_types = ['files']
+
 
 class CollectionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods):
     container_type = 'collection'

@@ -92,6 +92,14 @@ class SubjectsTestCases(SdkTestCase):
         self.assertNotIn('bar', r_subject.info)
         self.assertEqual(r_subject.info['hello'], 'world')
 
+        # Add session
+        session_id = r_subject.add_session(label='Session 1')
+        self.assertNotEmpty(session_id)
+
+        r_session = fw.get_session(session_id)
+        self.assertEqual(r_session.project, self.project_id)
+        self.assertEqual(r_session.subject.id, subject_id)
+
         # Delete
         fw.delete_subject(subject_id)
 
