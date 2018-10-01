@@ -182,7 +182,7 @@ class RequestHandler(webapp2.RequestHandler):
 
                     # Token expired and no refresh token, remove and deny request
                     config.db.authtokens.delete_one({'_id': cached_token['_id']})
-                    config.db.refreshtokens.delete_many({'uid': cached_token['uid'], 'auth_type': cached_token['auth_type']})
+                    config.db.refreshtokens.delete_one({'uid': cached_token['uid'], 'auth_type': cached_token['auth_type']})
                     self.abort(401, 'Inactivity timeout')
 
                 # set last_seen to now
