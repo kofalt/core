@@ -43,6 +43,7 @@ classdef Flywheel < handle
         groups
         projects
         sessions
+        subjects
         acquisitions
         jobs
         gears
@@ -78,6 +79,7 @@ classdef Flywheel < handle
             obj.users = {{packageName}}.Finder(obj, 'getAllUsers');
             obj.groups = {{packageName}}.Finder(obj, 'getAllGroups');
             obj.projects = {{packageName}}.Finder(obj, 'getAllProjects');
+            obj.subjects = {{packageName}}.Finder(obj, 'getAllSubjects');
             obj.sessions = {{packageName}}.Finder(obj, 'getAllSessions');
             obj.acquisitions = {{packageName}}.Finder(obj, 'getAllAcquisitions');
             obj.jobs = {{packageName}}.Finder(obj, 'getAllJobs');
