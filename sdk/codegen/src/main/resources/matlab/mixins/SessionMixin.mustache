@@ -12,6 +12,10 @@ classdef SessionMixin < {{packageName}}.mixins.ContainerBase ...
     end
     properties(Dependent)
         acquisitions
+        ageYears
+        ageMonths
+        ageWeeks
+        ageDays
     end
     methods
         function acquisitions = get.acquisitions(obj)
@@ -22,6 +26,30 @@ classdef SessionMixin < {{packageName}}.mixins.ContainerBase ...
         end
         function [returnData, resp] = addAcquisition(obj, varargin)
             [returnData, resp] = obj.addChild('Acquisition', varargin{:});
+        end
+        function result = get.ageYears(obj)
+            result = obj.get('age');
+            if ~isempty(result)
+                result = {{packageName}}.Util.secondsToYears(result);
+            end
+        end
+        function result = get.ageMonths(obj)
+            result = obj.get('age');
+            if ~isempty(result)
+                result = {{packageName}}.Util.secondsToMonths(result);
+            end
+        end
+        function result = get.ageWeeks(obj)
+            result = obj.get('age');
+            if ~isempty(result)
+                result = {{packageName}}.Util.secondsToWeeks(result);
+            end
+        end
+        function result = get.ageDays(obj)
+            result = obj.get('age');
+            if ~isempty(result)
+                result = {{packageName}}.Util.secondsToDays(result);
+            end
         end
     end
 end

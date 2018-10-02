@@ -209,6 +209,8 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         // Finder
         supportingFiles.add(new SupportingFile("Finder.mustache", packageFolder, "Finder.m"));
         supportingFiles.add(new SupportingFile("Cursor.m", packageFolder, "Cursor.m"));
+        // Util
+        supportingFiles.add(new SupportingFile("Util.m", packageFolder, "Util.m"));
 
         // Mixin Files
         final String mixinFolder = packageFolder + "/+mixins";

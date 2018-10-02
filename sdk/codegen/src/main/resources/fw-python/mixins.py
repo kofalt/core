@@ -1,4 +1,5 @@
 import collections
+from .. import util
 from ..finder import Finder
 
 
@@ -328,6 +329,30 @@ class SessionMixin(ContainerBase, TagMethods, NoteMethods, FileMethods, InfoMeth
     def add_acquisition(self, *args, **kwargs):
         """Add a acquisition to this session"""
         return self._add_child('acquisition', args, kwargs)
+
+    @property
+    def age_years(self):
+        if self.age:
+            return util.seconds_to_years(self.age)
+        return self.age
+
+    @property
+    def age_months(self):
+        if self.age:
+            return util.seconds_to_months(self.age)
+        return self.age
+
+    @property
+    def age_weeks(self):
+        if self.age:
+            return util.seconds_to_weeks(self.age)
+        return self.age
+
+    @property
+    def age_days(self):
+        if self.age:
+            return util.seconds_to_days(self.age)
+        return self.age
 
 
 class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods, TimestampMethods, DownloadMethods):

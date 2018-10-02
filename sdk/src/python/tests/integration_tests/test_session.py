@@ -3,6 +3,7 @@ from sdk_test_case import SdkTestCase
 from test_project import create_test_project
 
 import flywheel
+from flywheel import util
 
 class SessionsTestCases(SdkTestCase):
     def setUp(self):
@@ -25,7 +26,7 @@ class SessionsTestCases(SdkTestCase):
                 firstname = self.rand_string(),
                 lastname = self.rand_string(),
                 sex = 'other',
-                age = 56,
+                age = util.years_to_seconds(56),
                 info = { 'some-subject-key': 37 }
             )
         )
@@ -44,6 +45,7 @@ class SessionsTestCases(SdkTestCase):
         self.assertGreaterEqual(r_session.modified, r_session.created)
         self.assertIsNotNone(r_session.subject)
         self.assertEqual(r_session.subject.firstname, session.subject.firstname)
+        self.assertEqual(r_session.age_years, 56)
 
         # Get All
         sessions = fw.get_all_sessions()

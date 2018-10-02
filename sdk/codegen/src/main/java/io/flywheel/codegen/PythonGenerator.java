@@ -61,6 +61,7 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
         // Other API files
         supportingFiles.add(new SupportingFile("view_builder.py", packageName, "view_builder.py"));
         supportingFiles.add(new SupportingFile("finder.py", packageName, "finder.py"));
+        supportingFiles.add(new SupportingFile("util.py", packageName, "util.py"));
         supportingFiles.add(new SupportingFile("mixins.py", modelFolder, "mixins.py"));
 
         // PIP Files

@@ -122,7 +122,8 @@ assert(s.bytes >= summary.size, errMsg)
 %% Sessions
 disp('Testing Sessions')
 
-sessionId = subject.addSession('label', testString);
+subjectAge = flywheel.Util.yearsToSeconds(35);
+sessionId = subject.addSession('label', testString, 'age', subjectAge);
 
 fw.addSessionTag(sessionId, 'blue');
 fw.modifySession(sessionId, struct('label', 'testdrive'));
@@ -145,6 +146,7 @@ assert(strcmp(session.notes{1}.text, 'This is a note'), errMsg)
 assert(strcmp(session.files{1}.name, filename), errMsg)
 s = dir(sessionDownloadFile);
 assert(session.files{1}.size == s.bytes, errMsg)
+assert(session.ageYears == 35, errMsg)
 
 sessionDownloadUrl = fw.getSessionDownloadUrl(sessionId, filename);
 assert(~strcmp(sessionDownloadUrl, ''), errMsg)
