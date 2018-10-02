@@ -18,5 +18,8 @@ classdef SessionMixin < {{packageName}}.mixins.ContainerBase ...
         function analyses = get_analyses(obj)
             analyses = obj.getChildren('Analyses');
         end
+        function [returnData, resp] = addAcquisition(obj, varargin)
+            [returnData, resp] = obj.addChild('Acquisition', varargin{:});
+        end
     end
 end

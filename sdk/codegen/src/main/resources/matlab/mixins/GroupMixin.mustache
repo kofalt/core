@@ -12,5 +12,8 @@ classdef GroupMixin < {{packageName}}.mixins.ContainerBase ...
         function projects = get.projects(obj)
             projects = obj.getChildren('Projects');
         end
+        function [returnData, resp] = addProject(obj, varargin)
+            [returnData, resp] = obj.addChild('Project', varargin{:});
+        end
     end
 end

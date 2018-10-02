@@ -33,6 +33,12 @@ classdef ContainerBase < handle
             end
             result = obj.(varName);
         end
+        function [returnData, resp] = addChild(obj, childName, varargin)
+            body = {{packageName}}.mixins.ContainerBase.structFromArgs(varargin);
+            body.(obj.containerType) = obj.id;
+            fn = str2func(sprintf('add%s', childName));
+            [returnData, resp] = fn(obj.context_, body);
+        end
     end
     methods(Static, Hidden)
         function body = structFromArgs(varargs)

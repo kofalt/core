@@ -24,5 +24,11 @@ classdef ProjectMixin < {{packageName}}.mixins.ContainerBase ...
         function analyses = get_analyses(obj)
             analyses = obj.getChildren('Analyses');
         end
+        function [returnData, resp] = addSubject(obj, varargin)
+            [returnData, resp] = obj.addChild('Subject', varargin{:});
+        end
+        function [returnData, resp] = addSession(obj, varargin)
+            [returnData, resp] = obj.addChild('Session', varargin{:});
+        end
     end
 end

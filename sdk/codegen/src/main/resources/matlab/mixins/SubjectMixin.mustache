@@ -18,5 +18,14 @@ classdef SubjectMixin < {{packageName}}.mixins.ContainerBase ...
         function analyses = get_analyses(obj)
             analyses = obj.getChildren('Analyses');
         end
+        function [returnData, resp] = addSession(obj, varargin)
+            body = {{packageName}}.mixins.ContainerBase.structFromArgs(varargin);
+            body.project = obj.project;
+            if ~isfield(body, 'subject')
+                body.subject = struct();
+            end
+            body.subject.id = obj.id;
+            [returnData, resp] = addSession(obj.context_, body);
+        end
     end
 end

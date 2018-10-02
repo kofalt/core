@@ -56,7 +56,7 @@ assert(strcmp(group.label,'testdrive'), errMsg)
 %% Projects
 disp('Testing Projects')
 
-projectId = fw.addProject(struct('label',testString,'group',groupId));
+projectId = group.addProject('label', testString);
 project = fw.getProject(projectId);
 
 project.addTag('blue');
@@ -84,7 +84,7 @@ assert(~strcmp(projectDownloadUrl, ''), errMsg)
 %% Subjects
 disp('Testing Subjects')
 
-subjectId = fw.addSubject(struct('code', testString, 'project', projectId));
+subjectId = project.addSubject('code', testString);
 
 fw.addSubjectTag(subjectId, 'blue');
 fw.modifySubject(subjectId, struct('code', 'testdrive'));
@@ -122,7 +122,7 @@ assert(s.bytes >= summary.size, errMsg)
 %% Sessions
 disp('Testing Sessions')
 
-sessionId = fw.addSession(struct('label', testString, 'project', projectId));
+sessionId = subject.addSession('label', testString);
 
 fw.addSessionTag(sessionId, 'blue');
 fw.modifySession(sessionId, struct('label', 'testdrive'));
@@ -160,7 +160,7 @@ assert(s.bytes >= summary.size, errMsg)
 %% Acquisitions
 disp('Testing Acquisitions')
 
-acqId = fw.addAcquisition(struct('label', testString,'session', sessionId));
+acqId = session.addAcquisition(struct('label', testString));
 
 fw.addAcquisitionTag(acqId, 'blue');
 fw.modifyAcquisition(acqId, struct('label', 'testdrive'));
