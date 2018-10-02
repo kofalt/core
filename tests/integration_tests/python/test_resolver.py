@@ -406,10 +406,12 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     r = as_public.post('/resolve', json={'path': ['gears']})
     assert r.status_code == 403
 
+    # Generate a gear name
+    gear_name = data_builder.randstr()
+
     # resolve root (1 gear)
-    gear_id = data_builder.create_gear()
+    gear_id = data_builder.create_gear(gear={'name':gear_name, 'version': '0.0.1'})
     gear = as_admin.get('/gears/' + gear_id).json()
-    gear_name = gear['gear']['name']
 
     r = as_admin.post('/resolve', json={'path': ['gears']})
     result = r.json()
@@ -460,6 +462,46 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     r = as_admin.post('/lookup', json={'path': ['gears', idz('ffffffffffffffffffffffff')]})
     assert r.status_code == 404
 
+    # Child gears
+    new_gear_id = data_builder.create_gear(gear={'name':gear_name, 'version': '0.0.2'})
+    new_gear = as_admin.get('/gears/' + new_gear_id).json()
+
+    # Resolve gear children
+    r = as_admin.post('/resolve', json={'path': ['gears', gear_name]})
+    result = r.json()
+    assert r.ok
+
+    # The latest gear should be the parent
+    assert gear_in_path(gear_name, new_gear_id, result)
+    # The older gear should be in children
+    assert len(result['children']) == 1
+    assert child_in_result({'_id': gear_id, 'container_type': 'gear'}, result)
+
+    # Resolve gear version
+    r = as_admin.post('/resolve', json={'path': ['gears', gear_name, '0.0.2']})
+    result = r.json()
+    assert r.ok
+    assert gear_in_path(gear_name, new_gear_id, result)
+    assert result['children'] == []
+
+    # Resolve gear (older) version
+    r = as_admin.post('/resolve', json={'path': ['gears', gear_name, '0.0.1']})
+    result = r.json()
+    assert r.ok
+    assert gear_in_path(gear_name, gear_id, result)
+    assert result['children'] == []
+
+    # Lookup gear version
+    r = as_admin.post('/lookup', json={'path': ['gears', gear_name, '0.0.1']})
+    result = r.json()
+    assert r.ok
+    assert result['container_type'] == 'gear'
+    assert result['_id'] == gear_id
+    assert result['gear']['name'] == gear_name
+
+    # Lookup gear version (not found)
+    r = as_admin.post('/lookup', json={'path': ['gears', gear_name, '0.0.3']})
+    assert r.status_code == 404
 
 def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form):
     analysis_file = 'one.csv'
