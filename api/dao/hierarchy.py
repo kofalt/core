@@ -250,7 +250,7 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace
                 saved_state = 'ignored'
 
             # The file object is the same as an existing file and the caller has chosen to ignore in this situation
-            elif f.get('hash') == fileinfo['hash'] and ignore_hash_replace:
+            elif ignore_hash_replace and hashes_equal_or_empty(f.get('hash'), fileinfo['hash']):
                 saved_state = 'ignored'
 
             # No special circumstances, proceed with a replace
@@ -269,6 +269,9 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace
 
     return container_before, container_after, saved_state
 
+def hashes_equal_or_empty(hash1, hash2):
+    """Compare two hashes. They are equal if they both EXIST and are identical"""
+    return hash1 and hash2 and hash1 == hash2
 
 def add_file(cont_name, _id, fileinfo):
     fileinfo['created'] = datetime.datetime.utcnow()
