@@ -1,3 +1,6 @@
+import bson
+
+
 def test_site_rules(randstr, data_builder, as_admin, as_user, as_public):
     gear = data_builder.create_gear(gear={'version': '0.0.1'})
     gear_2 = data_builder.create_gear(gear={'version': '0.0.1'})
@@ -769,6 +772,15 @@ def test_auto_update_rules(data_builder, api_db, as_admin):
         'gear_id': gearv1
     })
     assert r.status_code == 400
+
+    # Set gear to invalid
+    api_db.gears.update_one({'_id':  bson.ObjectId(gearv3)}, {'$set': {'gear.custom.flywheel.invalid': True}})
+
+    # Bump down auto_update gear to latest valid gear
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'gear_id': gearv2
+    })
+    assert r.ok
 
 
 def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_root, as_admin, with_user, api_db):
