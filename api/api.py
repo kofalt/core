@@ -191,6 +191,8 @@ endpoints = [
             route('/status',            DeviceHandler, h='get_status', m=['GET']),
             route('/self',              DeviceHandler, h='put_self',   m=['PUT']),
             route('/<device_id:{oid}>', DeviceHandler,                 m=['GET', 'DELETE']),
+            route('/logging/config',    DeviceHandler, h='serve_logging_configuration', m=['GET']),
+            route('/logging/<filename:{fname}>', DeviceHandler, h='serve_logging_credentials', m=['GET']),
         ]),
 
 
