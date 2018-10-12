@@ -44,8 +44,8 @@ def default_container(handler, container=None, target_parent_container=None):
 
             elif method == 'PUT' and target_parent_container is not None:
                 has_access = (
-                    _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin'] and
-                    _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin']
+                    _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['rw'] and
+                    _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS['rw']
                 )
             elif method == 'PUT' and target_parent_container is None:
                 required_perm = 'rw'
