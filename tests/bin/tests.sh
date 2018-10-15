@@ -103,7 +103,7 @@ main() {
         py.test --exitfirst --cov=api --cov-report= tests/unit_tests/python "$@" || allow_skip_all
 
         log "INFO: Running integration tests ..."
-        py.test --exitfirst tests/integration_tests/python -k "not abstract_containers and not resolver" "$@" || allow_skip_all || tail_logs_and_exit
+        py.test --exitfirst tests/integration_tests/python "$@" || allow_skip_all || tail_logs_and_exit
 
         log "INFO: Stopping core ..."
         kill $CORE_PID || true

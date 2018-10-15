@@ -2,24 +2,22 @@
 from prometheus_client import multiprocess
 from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST
 
+from .collect import collect_metrics
 from ..web import base
 
 class MetricsHandler(base.RequestHandler):
-    # TODO: Needs authentication!!!
+    # NOTE: Unauthenticated due to internal exposure only
     def get(self):
         """ Generate the latest metrics for the Prometheus Scraper """
         def metrics_handler(_, start_response):
+            # Run metrics collection
+            collect_metrics()
+
+            # Fulfill the request
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)
 
             data = generate_latest(registry)
-
-            # Notify mule that metrics have been collected
-            try:
-                import uwsgi
-                uwsgi.farm_msg('metrics', 'collect-metrics')
-            except ImportError:
-                self.log.exception('Could not notify mule to collect metrics')
 
             write = start_response('200 OK', [
                 ('Content-Type', CONTENT_TYPE_LATEST),

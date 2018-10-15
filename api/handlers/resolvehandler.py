@@ -37,7 +37,8 @@ class ResolveHandler(base.RequestHandler):
         # Create new request instance using destination URI (eg. replace containers with cont_name)
         destination_environ = self.request.environ
         for key in 'PATH_INFO', 'REQUEST_URI':
-            destination_environ[key] = destination_environ[key].replace('lookup', path, 1)
+            if key in destination_environ:
+                destination_environ[key] = destination_environ[key].replace('lookup', path, 1)
         # We also must update the method, and indicate that we want the container_type included
         # The client will depend on container_type being set so that it can map to the correct type
         destination_environ['REQUEST_METHOD'] = 'GET'

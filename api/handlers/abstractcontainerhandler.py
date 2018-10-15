@@ -30,7 +30,8 @@ class AbstractContainerHandler(base.RequestHandler):
         cont_name, _ = results[0]
         destination_environ = self.request.environ
         for key in 'PATH_INFO', 'REQUEST_URI':
-            destination_environ[key] = destination_environ[key].replace('containers', cont_name, 1)
+            if key in destination_environ:
+                destination_environ[key] = destination_environ[key].replace('containers', cont_name, 1)
 
         destination_environ['fw_container_type'] = singularize(cont_name)
         destination_request = Request(destination_environ)
