@@ -329,11 +329,13 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
     assert 'result.txt' in [f['name'] for f in r.json()['files']]
 
 
-def test_subject_move_via_session(data_builder, as_admin):
+def test_subject_move_via_session(data_builder, as_admin, as_user):
     project_1 = data_builder.create_project()
     project_2 = data_builder.create_project()
     session_1 = data_builder.create_session(project=project_1, subject={'code': 'move', 'type': 'human'})
+    session_2 = data_builder.create_session(project=project_2, subject={'code': 'ex123', 'type': 'phantom'})
     subject_1 = as_admin.get('/sessions/' + session_1).json()['subject']['_id']
+    subject_2 = as_admin.get('/sessions/' + session_2).json()['subject']['_id']
 
     # Move session_1 into project_2 - there's no other session on it (move)
     assert as_admin.put('/sessions/' + session_1, json={'project': project_2})
@@ -358,8 +360,17 @@ def test_subject_move_via_session(data_builder, as_admin):
     assert subject_1 in [s['_id'] for s in as_admin.get('/projects/' + project_2 + '/subjects').json()]
     assert subject_2 in [s['_id'] for s in as_admin.get('/projects/' + project_1 + '/subjects').json()]
 
+    # Change user permissions to read-write on both projects
+    ser_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project_1 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+    assert as_admin.post('/projects/' + project_2 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
 
-def test_session_move(data_builder, as_admin):
+    # Change session subject_1 to subject_2
+    assert as_user.put('/sessions/' + session_2, json={'subject': {'_id': subject_1}})
+    assert subject_1 == as_user.get('/sessions/' + session_2).json()['subject']['_id']
+
+
+def test_session_move(data_builder, as_admin, as_user):
     project = data_builder.create_project()
     subject_1 = as_admin.post('/subjects', json={'project': project, 'code': 'move-1'}).json()['_id']
     subject_2 = as_admin.post('/subjects', json={'project': project, 'code': 'move-2'}).json()['_id']
@@ -368,6 +379,14 @@ def test_session_move(data_builder, as_admin):
     # Move session_1 into subject_2
     assert as_admin.put('/sessions/' + session, json={'subject': {'_id': subject_2}})
     assert subject_2 == as_admin.get('/sessions/' + session).json()['subject']['_id']
+
+    # Change user to read-write
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+
+    # Move session to subject_1 as a read-write user
+    assert as_user.put('/sessions/' + session, json={'subject': {'_id': subject_1}})
+    assert subject_1 == as_user.get('/sessions/' + session).json()['subject']['_id']
 
 
 def test_subject_fields(data_builder, as_admin):
