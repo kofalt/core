@@ -5,6 +5,8 @@ pythonpath = '/src/core'
 
 bind = '0.0.0.0:8080'
 workers = multiprocessing.cpu_count() * 2 + 1
+timeout = 600 
+worker_class = 'gevent'
 
 if 'RUNAS_USER' in os.environ:
     print('[config] RUNAS_USER={}'.format(os.environ['RUNAS_USER']))
