@@ -72,7 +72,6 @@ main() {
 
         ### Temp fix for 3-way split storages, see api.config.local_fs2 for details (section not required for anything else)
         # Pre-creating data_path/v1 folder to enable testing the fix
-        echo "USING: SCITRAN_PERSISTENT_DATA_PATH: $SCITRAN_PERSISTENT_DATA_PATH"
         mkdir -p $SCITRAN_PERSISTENT_DATA_PATH/v1
         # Setting and pre-creating fs_url
         if [ -z "${SCITRAN_PERSISTENT_FS_URL:-}" ]; then

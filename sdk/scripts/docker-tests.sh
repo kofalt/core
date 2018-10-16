@@ -83,11 +83,11 @@ main() {
         --network ${TEST_PREFIX} \
         --volume ${ROOT_DIR}/api:/var/scitran/code/api/api \
         --volume ${ROOT_DIR}/tests:/var/scitran/code/api/tests \
-        --env PRE_RUNAS_CMD='[ "$1" = uwsgi ] && mongod --bind_ip_all > /dev/null 2>&1 &' \
+        --env PRE_RUNAS_CMD='[ "$1" = gunicorn ] && mongod --bind_ip_all > /dev/null 2>&1 &' \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env SCITRAN_CORE_ACCESS_LOG_ENABLED=true \
-        core:testing \
-            uwsgi --ini /var/scitran/config/uwsgi-config.http.ini --http-keepalive
+        core:testing gunicorn --reload --workers=1 --log-file=/tmp/core.log \
+                -c /src/core/gunicorn_config.py api.app
 
     # Run core test cmd
     local SDK_TEST_CMD
@@ -97,7 +97,7 @@ main() {
         --name ${TEST_PREFIX}-runner \
         --network ${TEST_PREFIX} \
         --volume $(pwd):/var/scitran/code/sdk \
-        --env SCITRAN_SITE_API_URL=http://${TEST_PREFIX}-service:9000/api \
+        --env SCITRAN_SITE_API_URL=http://${TEST_PREFIX}-service:8080/api \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://${TEST_PREFIX}-service:27017/scitran \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env FLYWHEEL_SDK_SKIP_VERSION_CHECK=1 \

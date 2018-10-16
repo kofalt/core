@@ -17,17 +17,27 @@ RUN apk add --no-cache \
         pip \
         setuptools \
         wheel \
-		gunicorn[gevent]
+		gunicorn[gevent] \
+	&& mkdir -p \
+		# TODO simplify/unify structure:
+		/var/scitran/data \
+		/var/scitran/keys \
+		/var/scitran/logs
 
 COPY requirements.txt /src/requirements.txt
 RUN pip install -r /src/requirements.txt
 
 EXPOSE 80 8088
-VOLUME /data/db /data/persistent
+VOLUME /var/scitran/data
+VOLUME /var/scitran/keys
+VOLUME /var/scitran/logs
 
 WORKDIR /src/core
-ENV SCITRAN_PERSISTENT_DATA_PATH=/data/persistent
+ENV SCITRAN_PERSISTENT_DATA_PATH=/var/scitran/data
 
+COPY docker/entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "--reload", "-c" "/src/core/gunicorn_config.py", "api.app"]
 
 # dist - install requirements & core
@@ -47,6 +57,7 @@ RUN echo $API_VERSION > /src/core/api/api_version.txt \
 FROM base as testing
 
 EXPOSE 27017
+VOLUME /data/db
 
 RUN apk add --no-cache mongodb
 RUN mkdir -p /data/db
