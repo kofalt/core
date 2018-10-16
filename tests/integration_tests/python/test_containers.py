@@ -17,6 +17,9 @@ def test_switching_project_between_groups(data_builder, as_admin, as_user):
     # Change permissions to read-write
     user_id = as_user.get('/users/self').json()['_id']
     assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+    assert as_admin.post('/groups/' + group_1 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+    assert as_admin.post('/groups/' + group_2 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+
 
     # Read-write users shouldn't be able to switch projects to a diff group
     r = as_user.put('/projects/' + project, json={'group': group_2})
