@@ -1,7 +1,7 @@
 import bson
 
 
-def test_switching_project_between_groups(data_builder, as_admin):
+def test_switching_project_between_groups(data_builder, as_admin, as_user):
     group_1 = data_builder.create_group()
     group_2 = data_builder.create_group()
     project = data_builder.create_project(group=group_1)
@@ -14,12 +14,20 @@ def test_switching_project_between_groups(data_builder, as_admin):
     assert r.json()['group'] == group_2
     assert r.json()['parents']['group'] == group_2
 
+    # Change permissions to read-write
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+
+    # Read-write users shouldn't be able to switch projects to a diff group
+    r = as_user.put('/projects/' + project, json={'group': group_2})
+    assert r.status_code == 403
+
     # Test switching to nonexisting project
     r = as_admin.put('/projects/' + project, json={'group': "doesnotexist"})
     assert r.status_code == 404
 
 
-def test_switching_session_between_projects(data_builder, as_admin):
+def test_switching_session_between_projects(data_builder, as_admin, as_user):
     project_1 = data_builder.create_project()
     project_2 = data_builder.create_project()
     session = data_builder.create_session(project=project_1)
@@ -32,6 +40,15 @@ def test_switching_session_between_projects(data_builder, as_admin):
     assert r.ok
     assert r.json()['project'] == project_2
     assert r.json()['parents']['project'] == project_2
+
+    # Change permissions to read-write
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project_1 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+    assert as_admin.post('/projects/' + project_2 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
+
+    # Move session from project_2 to project_1
+    r = as_user.put('/sessions/' + session, json={'project': project_1})
+    assert r.ok
 
     # Test switching to nonexisting project
     r = as_admin.put('/sessions/' + session, json={'project': "000000000000000000000000"})

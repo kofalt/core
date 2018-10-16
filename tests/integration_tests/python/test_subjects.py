@@ -361,7 +361,7 @@ def test_subject_move_via_session(data_builder, as_admin, as_user):
     assert subject_2 in [s['_id'] for s in as_admin.get('/projects/' + project_1 + '/subjects').json()]
 
     # Change user permissions to read-write on both projects
-    ser_id = as_user.get('/users/self').json()['_id']
+    user_id = as_user.get('/users/self').json()['_id']
     assert as_admin.post('/projects/' + project_1 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
     assert as_admin.post('/projects/' + project_2 + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
 
