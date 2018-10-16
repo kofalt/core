@@ -408,6 +408,9 @@ class JobsHandler(base.RequestHandler):
         """Add a job to the queue."""
         payload = self.request.json
 
+        if payload.get('destination') and payload['destination']['type'] == 'analysis':
+            raise InputValidationException('Cannot use analysis as destination for a job')
+
         uid = None
         if not self.superuser_request:
             uid = self.uid
