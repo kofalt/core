@@ -39,6 +39,20 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
 
+    # Create ad-hoc analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'offline',
+        'inputs': [{'type': 'acquisition', 'id': acquisition, 'name': 'test.zip'}]
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+    # Manually upload outputs
+    r = as_admin.post('/analyses/' + analysis + '/files', files=file_form('output1.csv', 'output2.csv', meta=[
+        {'name': 'output1.csv', 'info': {'foo': 'foo'}},
+        {'name': 'output2.csv', 'info': {'bar': 'bar'}},
+    ]))
+    assert r.ok
+
     job_data = {
         'gear_id': gear,
         'inputs': {
@@ -54,6 +68,20 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
             'id': acquisition
         },
         'tags': [ 'test-tag' ]
+    }
+
+    # try to add job with analysis as explicit destination
+    job_data['destination'] = {
+        'type': 'analysis',
+        'id': analysis
+    }
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 400
+
+
+    job_data['destination'] = {
+        'type': 'acquisition',
+        'id': acquisition
     }
 
     # try to add job w/ non-existent gear
@@ -150,6 +178,22 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     api_db.jobs.update_one({'_id': bson.ObjectId(job1_id)}, {'$set': {'origin.id': 'user@user.com'}})
     r = as_user.put('/jobs/' + job1_id, json={'test': 'invalid'})
     assert r.status_code == 403
+
+    # try to add job whos implicit destination is an analysis
+    analyis_input_job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'analysis',
+                'id': analysis,
+                'name': 'output1.csv'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'tags': [ 'test-tag' ]
+    }
+    r = as_admin.post('/jobs/add', json=analyis_input_job_data)
+    assert r.status_code == 400
 
     # add job with implicit destination
     job2 = copy.deepcopy(job_data)

@@ -221,6 +221,8 @@ class Queue(object):
 
             if not destination:
                 raise InputValidationException('Must specify destination if gear has no inputs.')
+            elif destination.type == 'analysis':
+                raise InputValidationException('Cannot use analysis for destination of a job, container was inferred.')
 
         # Permission check
         if perm_check_uid:
