@@ -43,7 +43,7 @@ def default_container(handler, container=None, target_parent_container=None):
                     errors = {'reason': 'permission_denied'}
 
             elif method == 'PUT' and target_parent_container is not None:
-                if target_parent_container.get('cont_name') == 'project' or target_parent_container.get('cont_name') == 'subject':
+                if target_parent_container.get('cont_name') in ['project', 'session', 'subject']:
                     required_perm = 'rw'
                 else:
                     required_perm = 'admin'
