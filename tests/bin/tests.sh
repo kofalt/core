@@ -81,6 +81,8 @@ main() {
 
         ###
 
+        chown -R ${RUNAS_USER} ${SCITRAN_PERSISTENT_DATA_PATH}
+
         export SCITRAN_COLLECT_ENDPOINTS=true
         export SCITRAN_CORE_ACCESS_LOG_ENABLED=true
         export SCITRAN_CORE_LOG_LEVEL=debug
