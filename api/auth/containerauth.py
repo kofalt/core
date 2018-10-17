@@ -43,9 +43,13 @@ def default_container(handler, container=None, target_parent_container=None):
                     errors = {'reason': 'permission_denied'}
 
             elif method == 'PUT' and target_parent_container is not None:
+                if target_parent_container.get('cont_name') in ['project', 'session', 'subject']:
+                    required_perm = 'rw'
+                else:
+                    required_perm = 'admin'
                 has_access = (
-                    _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin'] and
-                    _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS['admin']
+                    _get_access(handler.uid, container, scope=handler.scope) >= INTEGER_PERMISSIONS[required_perm] and
+                    _get_access(handler.uid, target_parent_container, scope=handler.scope) >= INTEGER_PERMISSIONS[required_perm]
                 )
             elif method == 'PUT' and target_parent_container is None:
                 required_perm = 'rw'
