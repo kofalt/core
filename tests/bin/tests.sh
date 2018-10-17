@@ -81,17 +81,15 @@ main() {
 
         ###
 
-        chown -R ${RUNAS_USER} ${SCITRAN_PERSISTENT_DATA_PATH}
-
         export SCITRAN_COLLECT_ENDPOINTS=true
         export SCITRAN_CORE_ACCESS_LOG_ENABLED=true
         export SCITRAN_CORE_LOG_LEVEL=debug
         export SCITRAN_RUNTIME_COVERAGE=true
 
-        gunicorn --daemon --reload --workers=1 --pid=/var/gunicorn.pid --log-file=/tmp/core.log \
+        gunicorn --daemon --reload --workers=1 --pid=/tmp/gunicorn.pid --log-file=/tmp/core.log \
             -c /src/core/gunicorn_config.py api.app
         sleep 1
-        export CORE_PID=$(cat /var/gunicorn.pid)
+        export CORE_PID=$(cat /tmp/gunicorn.pid)
         export SCITRAN_SITE_API_URL=http://localhost:8080/api
 
         if [ $RUN_SHELL = true ]; then

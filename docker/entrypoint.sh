@@ -19,4 +19,4 @@ chown -R ${RUNAS_USER} ${prometheus_multiproc_dir}
 # Run $PRE_RUNAS_CMD as root if provided. Useful for things like JIT pip installs.
 [ -n "${PRE_RUNAS_CMD:-}" ] && eval $PRE_RUNAS_CMD
 
-exec "$@"
+su-exec ${RUNAS_USER} "$@"

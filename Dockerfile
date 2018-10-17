@@ -12,6 +12,7 @@ RUN set -eux \
         openssl-dev \
         py-pip \
         python-dev \
+        su-exec \
     && pip install --upgrade \
         pip \
         setuptools \
