@@ -14,12 +14,9 @@ warnings.filterwarnings('ignore', message=r'Implicitly cleaning up <TemporaryDir
 # Enable code coverage for testing when API is started
 # Start coverage before local module loading so their def and imports are counted
 #   http://coverage.readthedocs.io/en/coverage-4.2/faq.html
-# Assuming running via uwsgi and within 1 process, 1 thread
+# Assuming running a single worker process
 if os.environ.get("SCITRAN_RUNTIME_COVERAGE") == "true": # pragma: no cover - oh, the irony
     def save_coverage(cov):
-        if os.getpid() != uwsgi.workers()[0]['pid']:
-            # Mule shutdown - do not write empty coverage
-            return
         print("Saving coverage")
         cov.stop()
         cov.save()
@@ -67,23 +64,13 @@ from . import encoder
 from .. import util
 from .request import SciTranRequest
 from ..metrics.request_wrapper import RequestWrapper
-from ..metrics import register_signal_handlers
-
-try:
-    import uwsgi
-except ImportError:
-    uwsgi = None
 
 log = config.log
-register_signal_handlers() # Register signal handlers to capture connection errors
 
 def dispatcher(router, request, response):
     with RequestWrapper(request, response) as metrics:
-        try:
-            if uwsgi is not None:
-                uwsgi.set_logvar('request_id', request.id)
-        except: # pylint: disable=bare-except
-            request.logger.error("Error setting request_id log var", exc_info=True)
+        # Set request_id value
+        request.logger.extra['request_id'] = request.id
 
         collect_endpoint(request)
 
