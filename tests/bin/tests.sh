@@ -86,10 +86,8 @@ main() {
         export SCITRAN_CORE_LOG_LEVEL=debug
         export SCITRAN_RUNTIME_COVERAGE=true
 
-        gunicorn --daemon --reload --workers=1 --pid=/tmp/gunicorn.pid --log-file=/tmp/core.log \
-            -c /src/core/gunicorn_config.py api.app
-        sleep 1
-        export CORE_PID=$(cat /tmp/gunicorn.pid)
+        gunicorn --reload --workers=1 --log-file=/tmp/core.log -c /src/core/gunicorn_config.py api.app &
+        export CORE_PID=$!
         export SCITRAN_SITE_API_URL=http://localhost:8080/api
 
         if [ $RUN_SHELL = true ]; then

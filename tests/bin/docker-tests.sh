@@ -92,9 +92,9 @@ clean_up() {
 
     if [ $TEST_RESULT_CODE = 0 ] && [ -f tests/artifacts ]; then
         log "INFO: Saving test artifacts ..."
-        docker cp core-test-core:/var/scitran/code/api/htmlcov .
-        docker cp core-test-core:/var/scitran/code/api/coverage.xml .
-        docker cp core-test-core:/var/scitran/code/api/endpoints.json .
+        docker cp core-test-core:/src/core/htmlcov .
+        docker cp core-test-core:/src/core/coverage.xml .
+        docker cp core-test-core:/src/core/endpoints.json .
     fi
 
     log "INFO: Spinning down dependencies ..."
