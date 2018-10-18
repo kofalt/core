@@ -483,9 +483,14 @@ class Queue(object):
 
         orphaned = 0
         ticketed_jobs = []
+
+
+        # When the backend is busy / crashing / being upgraded, heartbeats can take a very long time or fail.
+        # The default engine heartbeats every 30 seconds. Be careful when lowering this interval.
+
         query = {
             'state': 'running',
-            'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(seconds=100)},
+            'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(seconds=300)},
             '_id': { '$nin': ticketed_jobs },
         }
 
