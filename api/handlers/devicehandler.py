@@ -114,7 +114,7 @@ class DeviceHandler(base.RequestHandler):
         self.response.headers['Content-Type'] = 'application/x-x509-ca-cert'
         if filename not in ['client_cert.pem', 'client_key.pem', 'ca.pem']:
             self.abort(400)
-        with open('/var/scitran/keys/logging/rsyslog_{}'.format(filename)) as data:
+        with open('/var/scitran/keys/log_clients/{}'.format(filename)) as data:
             self.response.write(data.read())
 
     @require_login
@@ -125,7 +125,15 @@ class DeviceHandler(base.RequestHandler):
 
         self.response.headers['Content-Type'] = 'text/plain'
 
-        self.response.write('''# certificate files - just CA for a client
+        if self.get_param('insecure'):
+            self.response.write('''*.* action(type="omfwd" target="logger" port="514" protocol="udp")
+
+# Log anything (except mail) of level info or higher.
+# Don&#39;t log private authentication messages!
+*.info;mail.none;authpriv.none;cron.none      /var/log/messages
+''')
+        else:
+            self.response.write('''# certificate files - just CA for a client
 $DefaultNetstreamDriverCAFile /etc/certs/ca.pem
 $DefaultNetstreamDriverCertFile /etc/certs/cert.pem
 $DefaultNetstreamDriverKeyFile /etc/certs/key.pem
