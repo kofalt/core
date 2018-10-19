@@ -69,9 +69,6 @@ log = config.log
 
 def dispatcher(router, request, response):
     with RequestWrapper(request, response) as metrics:
-        # Set request_id value
-        request.logger.extra['request_id'] = request.id
-
         collect_endpoint(request)
 
         try:
