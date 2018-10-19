@@ -77,6 +77,10 @@ class FileProcessor(object):
 
         Keep tempdir in scope until you don't need it anymore; it will be deleted on GC.
         """
+        # If chunked encoding, indicate that the input will be terminated via EOF
+        # before getting the request body
+        if request.headers.get('Transfer-Encoding', None) == 'chunked':
+            request.environ['wsgi.input_terminated'] = True
 
         # Copied from WebOb source:
         # https://github.com/Pylons/webob/blob/cb9c0b4f51542a7d0ed5cc5bf0a73f528afbe03e/webob/request.py#L790
