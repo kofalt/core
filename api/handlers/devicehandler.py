@@ -111,40 +111,19 @@ class DeviceHandler(base.RequestHandler):
 
     @require_drone
     def serve_logging_credentials(self, filename):
-        self.response.headers['Content-Type'] = 'application/x-x509-ca-cert'
-        if filename not in ['client_cert.pem', 'client_key.pem', 'ca.pem']:
-            self.abort(400)
-        with open('/var/scitran/keys/log_clients/{}'.format(filename)) as data:
-            self.response.write(data.read())
-
-    @require_login
-    def serve_logging_configuration(self):
-        url = self.get_param('hostname', 'logger')
-        if self.get_param('protocol'):
-            url = 'https://' + url
-
-        self.response.headers['Content-Type'] = 'text/plain'
-
-        if self.get_param('insecure'):
-            self.response.write('''*.* action(type="omfwd" target="logger" port="514" protocol="udp")
-
-# Log anything (except mail) of level info or higher.
-# Don&#39;t log private authentication messages!
-*.info;mail.none;authpriv.none;cron.none      /var/log/messages
-''')
+        if filename in ['client_cert.pem', 'client_key.pem', 'ca.pem']:
+            self.response.headers['Content-Type'] = 'application/x-x509-ca-cert'
+            try:
+                with open('/var/scitran/keys/log_clients/{}'.format(filename)) as data:
+                    self.response.write(data.read())
+            except IOError:
+                raise Exception('File {} not found! Make sure centralized logging is set up')
+        elif filename in ['secure_config', 'insecure_config']:
+            self.response.headers['Content-Type'] = 'text/plain'
+            try:
+                with open('/var/scitran/keys/log_clients/{}'.format(filename)) as data:
+                    self.response.write(data.read())
+            except IOError:
+                raise Exception('File {} not found! Make sure centralized logging is set up')
         else:
-            self.response.write('''# certificate files - just CA for a client
-$DefaultNetstreamDriverCAFile /etc/certs/ca.pem
-$DefaultNetstreamDriverCertFile /etc/certs/cert.pem
-$DefaultNetstreamDriverKeyFile /etc/certs/key.pem
-
-# set up the action
-$DefaultNetstreamDriver gtls # use gtls netstream driver
-$ActionSendStreamDriverMode 1 # require TLS for the connection
-$ActionSendStreamDriverAuthMode x509/certvalid # server is authenticated
-*.* @@{}:10514
-
-# Log anything (except mail) of level info or higher.
-# Don&#39;t log private authentication messages!
-*.info;mail.none;authpriv.none;cron.none      /var/log/messages
-'''.format(url))
+            raise APINotFoundException('File {} is not a valid logging credential'.format(filename))
