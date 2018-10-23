@@ -317,7 +317,7 @@ class FileReference(ContainerReference):
         container = super(FileReference, self).get()
 
         for file in container.get('files', []):
-            if file['name'] == self.name:
+            if file['name'] == self.name and not file.get('deleted'):
                 return file
 
         raise APINotFoundException('No such file {} on {} {} in database'.format(self.name, self.type, self.id))
