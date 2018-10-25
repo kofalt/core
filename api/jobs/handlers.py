@@ -622,7 +622,7 @@ class JobHandler(base.RequestHandler):
         j = Job.get(_id)
 
         # Permission check
-        if not self.superuser_request:
+        if not self.user_is_admin:
 
             if j.inputs is not None:
                 for x in j.inputs:

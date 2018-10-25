@@ -109,9 +109,9 @@ class Queue(object):
 
         if job.state in ['cancelled', 'complete']:
             if only_failed:
-                raise Exception('Can only retry a job that is failed, please use only_failed parameter')
+                raise InputValidationException('Can only retry a job that is failed, please use only_failed parameter')
         elif job.state != 'failed':
-            raise Exception('Can not retry running or pending job')
+            raise InputValidationException('Can not retry running or pending job')
 
 
         if job.request is None:

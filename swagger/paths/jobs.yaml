@@ -169,6 +169,11 @@
     operationId: retry_job
     tags:
     - jobs
+    parameters:
+      - name: ignoreState
+        in: query
+        required: false
+        type: boolean
     responses:
       '200':
         description: ''
