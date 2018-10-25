@@ -217,9 +217,22 @@ def test_filter(data_builder, as_admin):
     r = as_admin.get('/acquisitions?filter=_id=' + b)
     assert {aq['_id'] for aq in r.json()} == {b}
 
+    # Filter for unset/null
+    r = as_admin.get('/acquisitions?filter=uid=null')
+    assert {aq['_id'] for aq in r.json()} == {a, b, c}
+
     b_created = as_admin.get('/acquisitions/' + b).json()['created'][:-6]
     r = as_admin.get('/acquisitions?filter=created=' + b_created)
     assert {aq['_id'] for aq in r.json()} == {b}
+
+    # Force string match
+    dec = data_builder.create_acquisition(label='1001')
+
+    r = as_admin.get('/acquisitions?filter=label=1001')
+    assert len(r.json()) == 0
+
+    r = as_admin.get('/acquisitions?filter=label="1001"')
+    assert {aq['_id'] for aq in r.json()} == {dec}
 
     r = as_admin.get('/gears?filter=single_input')
     assert r.ok
