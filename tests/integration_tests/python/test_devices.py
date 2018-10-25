@@ -117,3 +117,19 @@ def test_devices(as_public, as_user, as_admin, as_root, as_drone, api_db):
 
     r = as_user.get('/devices/' + device_id)
     assert r.status_code == 404
+
+
+def test_device_logging(as_drone, as_root):
+
+    r = as_root.get('/devices/logging/ca.pem')
+    assert r.status_code == 403
+
+    r = as_drone.get('/devices/logging/logger_key.pem')
+    assert r.status_code == 404
+
+    r = as_drone.get('/devices/logging/ca.pem')
+    assert r.status_code == 500
+
+    r = as_drone.get('/devices/logging/remote_config')
+    assert r.status_code == 500
+    # Logging isn't set up correctly
