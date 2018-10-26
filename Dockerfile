@@ -42,18 +42,21 @@ RUN pip install --no-deps -e /src/core
 ARG API_VERSION=''
 ARG VCS_BRANCH=NULL
 ARG VCS_COMMIT=NULL
-RUN echo $API_VERSION > /src/core/api/api_version.txt \
+RUN set -eux \
+    && echo $API_VERSION > /src/core/api/api_version.txt \
     && /src/core/bin/build_info.sh $VCS_BRANCH $VCS_COMMIT > /src/core/version.json \
     && cat /src/core/version.json
 
 # testing - install mongodb & test deps for standalone running/testing
 FROM base as testing
-EXPOSE 27017
+RUN set -eux \
+    && apk add --no-cache mongodb \
+    && mkdir -p /data/db
 VOLUME /data/db
-RUN apk add --no-cache mongodb
-RUN mkdir -p /data/db
-COPY . /src/core
+EXPOSE 27017
+COPY tests/requirements.txt /src/core/tests/requirements.txt
 RUN pip install -r /src/core/tests/requirements.txt
+COPY . /src/core
 RUN pip install --no-deps -e /src/core
 
 # TODO uncomment once compatible with fly/fly
