@@ -9,8 +9,6 @@ subjects are excluded by default, and can be enabled with the feature-toggle
 Quoted strings represent literal nodes in the graph. For example, to find the gear
 called dicom-mr-classifier, you would use the path: ["gears", "dicom-mr-classifier"]
 
-NOTE: Currently gear versions are not supported!
-
 +----+   +-------+   +-----+   +-------+
 |Root+---+"gears"+---+Gears+---+Version|
 +-+--+   +-------+   +-----+   +-------+
@@ -317,19 +315,44 @@ class GearsNode(Node):
         set_container_type(gear, 'gear')
         path_out.append(gear)
 
-        return None
+        return GearVersionNode()
 
     def get_children(self, path_out):
-        # No children for gears yet
-        if path_out:
-            return []
-
         results = gears.get_gears()
 
         for gear in results:
             set_container_type(gear, 'gear')
 
-        return list(results)
+        return results
+
+
+class GearVersionNode(Node):
+    def next(self, path_in, path_out, id_only):
+        version = path_in.popleft()
+
+        parent = self.get_parent(path_out)
+        # Raises if not found
+        gear = gears.get_gear_version(parent['gear']['name'], version)
+
+        set_container_type(gear, 'gear')
+        path_out.append(gear)
+
+        return None
+
+    def get_children(self, path_out):
+        # Children are all gear versions with the same name, minus the parent
+        # Only return children for the first gear in path_out
+        if len(path_out) == 1:
+            # Since results are sorted, just exclude the latest (parent) gear
+            parent = path_out[-1]
+            results = gears.get_all_gear_versions(parent['gear']['name'])[1:]
+        else:
+            results = []
+
+        for gear in results:
+            set_container_type(gear, 'gear')
+
+        return results
 
 
 class AnalysesNode(ContainerNode):

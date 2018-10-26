@@ -66,6 +66,15 @@ def get_latest_gear(name):
     if gears.count() > 0:
         return gears[0]
 
+def get_gear_version(name, version):
+    gear = config.db.gears.find_one({'gear.name': name, 'gear.version': version})
+    if gear is None:
+        raise APINotFoundException('Cannot find version {} for gear {}'.format(version, name))
+    return gear
+
+def get_all_gear_versions(name):
+    return list(config.db.gears.find({'gear.name': name}).sort('created', direction=-1))
+
 def requires_read_write_key(gear):
     for x in gear['gear'].get('inputs', {}).keys():
         input_ = gear['gear']['inputs'][x]
