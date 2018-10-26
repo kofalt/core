@@ -407,10 +407,14 @@ class PaginationParseError(ValueError):
 
 def parse_pagination_value(value):
     """Return casted value (ObjectId|datetime|float) from user input (str) for use in mongo queries."""
-    if bson.ObjectId.is_valid(value):
+    if len(value) > 1 and value[0] == '"' and value[-1] == '"':
+        return value[1:-1]
+    elif bson.ObjectId.is_valid(value):
         return bson.ObjectId(value)
     elif datetime_from_str(value):
         return datetime_from_str(value)
+    elif value == 'null':
+        return None
     else:
         try:
             # Note: querying for floats also yields ints (=> no need for int casting here)
