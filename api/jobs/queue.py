@@ -140,7 +140,11 @@ class Queue(object):
         if new_job.destination.type == 'analysis':
             config.db.analyses.update_one({'_id': bson.ObjectId(new_job.destination.id)},
                                           {'$set': {'job': str(new_job.id_),
-                                                    'modified': datetime.datetime.utcnow()}})
+                                                    'modified': new_job.created}})
+
+        result = config.db.jobs.update_one({"_id": bson.ObjectId(job.id_)}, {'$set': {"retried": new_job.created}})
+        if result.modified_count != 1:
+            raise Exception('Could not set retried time for job {}'.format(job.id_))
 
         new_id = new_job.insert(ignore_insertion_block=True)
         log.info('respawned job %s as %s (attempt %d)', job.id_, new_id, new_job.attempt)

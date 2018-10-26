@@ -15,6 +15,11 @@
       "type": "string",
       "format": "date-time",
       "description": "Last replaced time (automatically updated)"
+    },
+    "retried": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Retried time (automatically set)"
     }
   }
 }

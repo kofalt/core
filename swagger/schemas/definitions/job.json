@@ -142,6 +142,7 @@
         "attempt":{"$ref":"#/definitions/attempt"},
         "created":{"$ref":"created-modified.json#/definitions/created"},
         "modified":{"$ref":"created-modified.json#/definitions/modified"},
+        "retried": {"$ref": "created-modified.json#/definitions/retried"},
         "config":{"$ref":"#/definitions/config"},
         "request":{"$ref":"#/definitions/request"},
         "saved_files":{"$ref":"#/definitions/saved_files"}
@@ -164,6 +165,7 @@
         "attempt":{"$ref":"#/definitions/attempt"},
         "created":{"$ref":"created-modified.json#/definitions/created"},
         "modified":{"$ref":"created-modified.json#/definitions/modified"},
+        "retried": {"$ref": "created-modified.json#/definitions/retried"},
         "config":{"$ref":"#/definitions/config"},
         "request":{"$ref":"#/definitions/request"},
         "saved_files":{"$ref":"#/definitions/saved_files"}

@@ -1390,7 +1390,13 @@ def test_retry_jobs(data_builder, default_payload, as_admin, as_user, as_root, a
     r = as_root.post('/jobs/' + job0_id + '/retry')
     assert r.status_code == 500
 
-    # get job0
+    # get job0 retried time
+    r = as_root.get('/jobs/' + job0_id)
+    assert r.ok
+    job0_retried_time = r.json().get('retried')
+    assert job0_retried_time
+
+    # get job1
     r = as_root.get('/jobs/' + job1_id)
     assert r.ok
     job1 = r.json()
@@ -1399,6 +1405,7 @@ def test_retry_jobs(data_builder, default_payload, as_admin, as_user, as_root, a
     assert job0['inputs'] == job1['inputs']
     assert job0['destination'] == job1['destination']
     assert job0['config'] == job1['config']
+    assert job0_retried_time == job1['created']
 
     # start job1 as admin
     r = as_admin.get('/jobs/next', params={'tags': 'test-tag'})
@@ -1423,11 +1430,11 @@ def test_retry_jobs(data_builder, default_payload, as_admin, as_user, as_root, a
 
     # try retry runnning job2 as job3
     r = as_root.post('/jobs/' + job2_id + '/retry')
-    assert r.status_code == 500
+    assert r.status_code == 400
 
     # try retry runnning job2 as job3 ignoring state
     r = as_root.post('/jobs/' + job2_id + '/retry', params={'ignoreState': True})
-    assert r.status_code == 500
+    assert r.status_code == 400
 
     # set job2 to complete
     r = as_root.put('/jobs/' + job2_id, json={'state': 'complete'})
@@ -1435,7 +1442,7 @@ def test_retry_jobs(data_builder, default_payload, as_admin, as_user, as_root, a
 
     # try retry complete job2 as job3
     r = as_root.post('/jobs/' + job2_id + '/retry')
-    assert r.status_code == 500
+    assert r.status_code == 400
 
     # retry complete job2 as job3
     r = as_root.post('/jobs/' + job2_id + '/retry', params={'ignoreState': True})
