@@ -53,3 +53,4 @@ mkdir -p $DIST_DIR
 
 cp $PROJECT_DIR/src/python/gen/dist/*.whl $DIST_DIR
 cp $PROJECT_DIR/src/matlab/build/distributions/*.mltbx $DIST_DIR
+cp $PROJECT_DIR/src/matlab/build/distributions/*.zip $DIST_DIR

@@ -121,7 +121,13 @@ task copyJSONio(type: Copy) {
 	into { fsrootDir + '/+jsonio' }
 }
 
-task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi, copyJSONio]) {
+task copyReadme(type: Copy) {
+	from 'ZIP-README.txt'
+	into { fsrootDir }
+	rename '.*', 'README'
+}
+
+task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi, copyJSONio, copyReadme]) {
 	doLast {
 		def isoDate = dateToIso(new Date())
 
@@ -162,11 +168,20 @@ task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi,
 task buildToolbox(type: Zip, dependsOn: configureToolbox) {
 	baseName = 'flywheel-sdk'
 	extension = 'mltbx'
+	exclude 'fsroot/README'
 	from intDir
+}
+
+task buildZip(type: Zip, dependsOn: configureToolbox) {
+	baseName = 'flywheel-matlab-sdk'
+	from fsrootDir
+	into 'flywheel-sdk'
+	rename 'rest-client-.+\\.jar', 'rest-client.jar'
 }
 
 artifacts {
 	archives buildToolbox
+	archives buildZip
 }
 
 clean.doFirst {
