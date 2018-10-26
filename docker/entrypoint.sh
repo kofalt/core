@@ -8,14 +8,16 @@ if grep $'^\t' /etc/hosts; then
     exit 1
 fi
 
-export SCITRAN_PERSISTENT_PATH=/var/scitran/data
-export SCITRAN_PERSISTENT_DATA_PATH=/var/scitran/data
-
 # Set RUNAS_USER based on the owner of the persistent data path.
-RUNAS_USER=$(stat -c '%u' $SCITRAN_PERSISTENT_DATA_PATH)
+export RUNAS_USER=$(stat -c '%u' $SCITRAN_PERSISTENT_DATA_PATH)
+
+# Create prometheus multiproc dir at startup
+export prometheus_multiproc_dir=/var/prometheus
+mkdir -p ${prometheus_multiproc_dir}
+chown -R ${RUNAS_USER} ${prometheus_multiproc_dir}
 
 # Run $PRE_RUNAS_CMD as root if provided. Useful for things like JIT pip installs.
 [ -n "${PRE_RUNAS_CMD:-}" ] && eval $PRE_RUNAS_CMD
 
 # Use exec to keep PID and use su-exec (gosu equivalent) to step-down from root.
-exec su-exec $RUNAS_USER "$@"
+exec su-exec ${RUNAS_USER} "$@"

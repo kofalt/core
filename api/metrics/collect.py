@@ -1,19 +1,8 @@
-""" Metrics Mule Script
-
-This script runs as a separate process in uwsgi, collecting metrics from each worker.
-The metrics captured include response codes and timing, as well as various system counters and
-database statistics.
-
-References:
-    * UWSGI Mules: https://uwsgi-docs.readthedocs.io/en/latest/Mules.html
-    * Multiprocess Metrics: https://github.com/prometheus/client_python#multiprocess-mode-gunicorn
-"""
+"""Metrics collection"""
 import logging
 import psutil
-import time
 
 from datetime import datetime
-from prometheus_client import multiprocess
 
 from api import config
 from api.dao import containerstorage
@@ -81,56 +70,6 @@ def collect_system_metrics():
             values.SYSTEM_DISK_BYTES_USED.labels(path).set(disk_usage.used)
     except: # pylint: disable=bare-except
         log.exception('Error collecting system metrics')
-
-def collect_worker_metrics(workers):
-    """Collect process-level metrics for each worker, and cleanup dead workers.
-
-    Arguments:
-        workers (dict): The current set of workers, as a map of pid -> Process
-    """
-    try:
-        # pylint: disable=import-error
-        import uwsgi
-
-        # For now, just cleanup dead workers
-        dead_workers = set(workers.keys())
-        for worker in uwsgi.workers():
-            pid = worker['pid']
-
-            if pid in dead_workers:
-                dead_workers.remove(pid)
-
-            if pid not in workers:
-                log.info('Discovered worker process: {}'.format(pid))
-                workers[pid] = psutil.Process(pid)
-
-        # Cleanup after dead workers
-        for pid in dead_workers:
-            log.info('Cleaning up metrics from dead worker {}'.format(pid))
-            workers.remove(pid)
-            multiprocess.mark_process_dead(pid)
-
-            # Remove any labels for those pids
-            values.remove_worker_label(pid)
-
-            # Increment dead worker count
-            values.DEAD_WORKERS.inc()
-
-        # Collect metrics for mule processes
-        for pid, proc in workers.items():
-            with proc.oneshot():
-                cpu_pct = proc.cpu_percent()
-                mem_info = proc.memory_info()
-
-            values.WORKER_CPU_USAGE.labels(pid).set(cpu_pct)
-
-            for typename in WORKER_MEMORY_TYPES:
-                value = getattr(mem_info, typename, None)
-                if value is not None:
-                    values.WORKER_MEMORY_USAGE.labels(pid, typename).set(value)
-
-    except: # pylint: disable=bare-except
-        log.exception('Error collecting worker metrics')
 
 def collect_db_metrics():
     """Collect metrics from mongodb, including version and job states"""
@@ -203,28 +142,8 @@ def collect_db_metrics():
     except: # pylint: disable=bare-except
         log.exception('Error collecting db metrics')
 
-def run_mule():
-    try:
-        import uwsgi
-    except ImportError:
-        log.warn('Unable to import uwsgi, falling back to poll interval')
-        uwsgi = None
-
-    # Find workers
-    workers = {}
-
-    while True:
-        with values.COLLECT_METRICS_TIME.time():
-            collect_system_metrics()
-            collect_worker_metrics(workers)
-            collect_db_metrics()
-
-        # Wait for next message before polling
-        if uwsgi:
-            uwsgi.farm_get_msg()
-        else:
-            time.sleep(POLL_INTERVAL)
-
-if __name__ == '__main__':
-    run_mule()
+def collect_metrics():
+    with values.COLLECT_METRICS_TIME.time():
+        collect_system_metrics()
+        collect_db_metrics()
 

@@ -8,3 +8,4 @@
 !swagger/examples
 !swagger/schemas
 !tests/requirements.txt
+!gunicorn_config.py

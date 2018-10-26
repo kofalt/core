@@ -72,15 +72,15 @@ main() {
     docker run --rm \
         --volume $(pwd):/pwd \
         flywheel/core:testing \
-        cp -r /var/scitran/code/api/core.egg-info /pwd/
+        cp -r /src/core/core.egg-info /pwd/
 
     docker run -it \
         --name core-test-core \
         --network core-test \
-        --volume $(pwd):/var/scitran/code/api \
+        --volume $(pwd):/src/core \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://core-test-mongo:27017/scitran \
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-mongo:27017/logs \
-        --workdir /var/scitran/code/api \
+        --workdir /src/core \
         flywheel/core:testing \
         tests/bin/tests.sh "$@"
 }
@@ -92,9 +92,9 @@ clean_up() {
 
     if [ $TEST_RESULT_CODE = 0 ] && [ -f tests/artifacts ]; then
         log "INFO: Saving test artifacts ..."
-        docker cp core-test-core:/var/scitran/code/api/htmlcov .
-        docker cp core-test-core:/var/scitran/code/api/coverage.xml .
-        docker cp core-test-core:/var/scitran/code/api/endpoints.json .
+        docker cp core-test-core:/src/core/htmlcov .
+        docker cp core-test-core:/src/core/coverage.xml .
+        docker cp core-test-core:/src/core/endpoints.json .
     fi
 
     log "INFO: Spinning down dependencies ..."

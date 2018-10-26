@@ -13,26 +13,6 @@ RESPONSE_COUNT = Counter('fw_core_response_count', 'Observed response counts', [
 # Log Counter
 LOG_MESSAGE_COUNT = Counter('fw_core_log_message_count', 'Observed log statement counts', ['name', 'level'])
 
-# ===== UWSGI Workers ======
-# Labels: PID
-
-# CPU Usage
-WORKER_CPU_USAGE = Gauge('uwsgi_worker_cpu_usage_percent', 'Observed cpu usage as a percentage', ['worker_pid'], multiprocess_mode='livesum')
-# Memory Usage
-WORKER_MEMORY_USAGE = Gauge('uwsgi_worker_memory_usage_bytes', 'Observed memory usage in bytes by type', ['worker_pid', 'type'], multiprocess_mode='livesum')
-# Total worker deaths
-DEAD_WORKERS = Counter('uwsgi_worker_deaths', 'Number of workers that died unexpectedly', [])
-
-def remove_worker_label(pid):
-    """Cleanup worker stats by PID
-
-    Arguments:
-        pid (string): The worker process id
-    """
-    # pylint: disable=no-member
-    WORKER_CPU_USAGE.remove(pid)
-    WORKER_MEMORY_USAGE.remove(pid)
-
 # ===== System =====
 # Global cpu time by mode
 SYSTEM_CPU_TIMES_PCT = Gauge('uwsgi_system_cpu_times_percent', 'Observed cpu times as percent time spent in mode', ['mode'], multiprocess_mode='livesum')
