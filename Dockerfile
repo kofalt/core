@@ -25,7 +25,7 @@ RUN set -eux \
         /var/scitran/logs
 COPY requirements.txt /src/requirements.txt
 RUN pip install -r /src/requirements.txt
-EXPOSE 80 8088
+EXPOSE 8080
 VOLUME /var/scitran/data
 VOLUME /var/scitran/keys
 VOLUME /var/scitran/logs
