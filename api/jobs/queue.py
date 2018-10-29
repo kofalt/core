@@ -144,7 +144,7 @@ class Queue(object):
 
         result = config.db.jobs.update_one({"_id": bson.ObjectId(job.id_)}, {'$set': {"retried": new_job.created}})
         if result.modified_count != 1:
-            raise Exception('Could not set retried time for job {}'.format(job.id_))
+            log.error('Could not set retried time for job {}'.format(job.id_))
 
         new_id = new_job.insert(ignore_insertion_block=True)
         log.info('respawned job %s as %s (attempt %d)', job.id_, new_id, new_job.attempt)
