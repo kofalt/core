@@ -278,7 +278,7 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin, as_user)
     as_admin.delete('/collections/' + collection)
 
 
-def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr):
+def test_gear_context(data_builder, default_payload, as_admin, as_root, as_user, randstr):
     project_label = randstr()
     project_info = {
         'test_context_value': 3,
@@ -287,6 +287,9 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr)
         }
     }
     project = data_builder.create_project(label=project_label, info=project_info)
+
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'}).ok
 
     session_label = randstr()
     session = data_builder.create_session(project=project, label=session_label)
@@ -298,6 +301,9 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr)
         }
     }
     acquisition = data_builder.create_acquisition(session=session, label=acquisition_label, info=acquisition_info)
+
+    # Add analysis
+    analysis = as_admin.post('/sessions/' + session + '/analyses', json={'label': 'test'}).json()['_id']
 
     gear_name = randstr()
     gear_doc = default_payload['gear']
@@ -319,11 +325,11 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr)
     }
 
     r = as_root.post('/gears/' + gear_name, json=gear_doc)
-    assert r.ok 
+    assert r.ok
     gear = r.json()['_id']
 
     # Get session level
-    r = as_admin.get('/gears/' + gear + '/context/sessions/' + session)
+    r = as_user.get('/gears/' + gear + '/context/sessions/' + session)
     assert r.ok
     result = r.json()
 
@@ -355,8 +361,12 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr)
     })
     assert r.ok
 
+    # Get analysis level
+    r = as_user.get('/gears/' + gear + '/context/analyses/' + analysis)
+    assert r.ok
+
     # Get acquisition level
-    r = as_admin.get('/gears/' + gear + '/context/acquisitions/' + acquisition)
+    r = as_user.get('/gears/' + gear + '/context/acquisitions/' + acquisition)
     assert r.ok
     result = r.json()
 
@@ -385,7 +395,7 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, randstr)
     }
 
     # Get session level
-    r = as_admin.get('/gears/' + gear + '/context/projects/' + project)
+    r = as_user.get('/gears/' + gear + '/context/projects/' + project)
     assert r.ok
     result = r.json()
 

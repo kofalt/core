@@ -113,7 +113,7 @@ class GearHandler(base.RequestHandler):
         storage = cs_factory(cont_name)
         container = storage.get_container(cid)
         if cont_name == 'analyses':
-            container['permissions'] = storage.get_parent(cid).get('permissions', [])
+            container['permissions'] = storage.get_parent(cid, cont=container).get('permissions', [])
         if not self.user_is_admin and not has_access(self.uid, container, 'ro'):
             raise APIPermissionException('User does not have access to container {}.'.format(cid))
 
@@ -184,6 +184,8 @@ class GearHandler(base.RequestHandler):
 
         storage = cs_factory(cont_name)
         container = storage.get_container(cid)
+        if cont_name == 'analyses':
+            container['permissions'] = storage.get_parent(cid, cont=container).get('permissions', [])
         if not self.user_is_admin and not has_access(self.uid, container, 'ro'):
             raise APIPermissionException('User does not have access to container {}.'.format(cid))
 
