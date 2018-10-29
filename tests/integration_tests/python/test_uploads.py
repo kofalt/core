@@ -1298,6 +1298,16 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
         params={'token': token}, files=file_form('one.csv'))
     assert r.ok
 
+    # upload another one to packfile
+    r = as_admin.post('/projects/' + project + '/packfile',
+        params={'token': token}, files=file_form('two.csv'))
+    assert r.ok
+
+    # Upload another one to packfile
+    r = as_admin.post('/projects/' + project + '/packfile',
+        params={'token': token}, files=file_form('three.csv'))
+    assert r.ok
+
     metadata_json = json.dumps({
         'project': {'_id': project},
         'session': {'label': 'test-packfile-label'},
@@ -1329,6 +1339,7 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
     packfile = as_admin.get('/acquisitions').json()[0]['files'][0]
     assert packfile['mimetype'] == 'application/zip'
     assert packfile['type'] == 'test'
+    assert packfile['zip_member_count'] == 3
 
     # Test that acquisition timestamp was parsed into date type
     r = as_admin.post('/projects/' + project + '/packfile-start')

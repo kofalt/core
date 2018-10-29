@@ -574,7 +574,8 @@ class PackfilePlacer(Placer):
             'hash': self.file_processor.hash_file_formatted(self.path, self.file_processor.temp_fs),
             'uuid': str(uuid.uuid4()),
             'mimetype': util.guess_mimetype('lol.zip'),
-            'modified': self.timestamp
+            'modified': self.timestamp,
+            'zip_member_count': complete
         })
 
         # Similarly, create the attributes map that is consumed by helper funcs. Clear duplication :(
@@ -585,6 +586,7 @@ class PackfilePlacer(Placer):
             'name': cgi_field.filename,
             'modified': cgi_field.modified,
             'size': cgi_field.size,
+            'zip_member_count': complete,
             'hash': cgi_field.hash,
             'mimetype': cgi_field.mimetype,
 

@@ -60,24 +60,29 @@
           "type":"integer",
           "description": "Size of the file, in bytes"
         },
+        "zip-member-count": {
+          "type": "integer",
+          "description": "Number of entries in the zip archive"
+        },
         "file-entry": {
           "type": "object",
           "properties": {
-            "_id":           {"$ref":"#/definitions/_id"},
-            "name":           {"$ref":"#/definitions/name"},
-            "type":           {"$ref":"#/definitions/file-type"},
-            "mimetype":       {"$ref":"#/definitions/mimetype"},
-            "modality":       {"$ref":"#/definitions/modality"},
-            "classification": {"$ref":"common.json#/definitions/classification"},
-            "tags":           {"$ref":"tag.json#/definitions/tag-list"},
-            "info":           {"$ref":"common.json#/definitions/info"},
-            "origin":         {"$ref":"#/definitions/file-origin"},
-            "hash":           {"$ref":"#/definitions/hash"},
-            "created":        {"$ref":"created-modified.json#/definitions/created"},
-            "modified":       {"$ref":"created-modified.json#/definitions/modified"},
-            "replaced":       {"$ref":"created-modified.json#/definitions/replaced"},
-            "size":           {"$ref":"#/definitions/size"},
-            "info_exists":    {"type": "boolean"}
+            "_id":              {"$ref":"#/definitions/_id"},
+            "name":             {"$ref":"#/definitions/name"},
+            "type":             {"$ref":"#/definitions/file-type"},
+            "mimetype":         {"$ref":"#/definitions/mimetype"},
+            "modality":         {"$ref":"#/definitions/modality"},
+            "classification":   {"$ref":"common.json#/definitions/classification"},
+            "tags":             {"$ref":"tag.json#/definitions/tag-list"},
+            "info":             {"$ref":"common.json#/definitions/info"},
+            "origin":           {"$ref":"#/definitions/file-origin"},
+            "hash":             {"$ref":"#/definitions/hash"},
+            "created":          {"$ref":"created-modified.json#/definitions/created"},
+            "modified":         {"$ref":"created-modified.json#/definitions/modified"},
+            "replaced":         {"$ref":"created-modified.json#/definitions/replaced"},
+            "size":             {"$ref":"#/definitions/size"},
+            "info_exists":      {"type": "boolean"},
+            "zip_member_count": {"$ref": "#/definitions/zip-member-count"}
           },
           "additionalProperties": false,
           "x-sdk-model": "file-entry",
@@ -92,7 +97,8 @@
               "modality":         {"$ref":"#/definitions/modality"},
               "classification":   {"$ref":"common.json#/definitions/classification"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},
-              "info":             {"$ref":"common.json#/definitions/info"}
+              "info":             {"$ref":"common.json#/definitions/info"},
+              "zip_member_count": {"$ref": "#/definitions/zip-member-count"}
           },
           "additionalProperties": false,
           "x-sdk-model": "file-entry"
