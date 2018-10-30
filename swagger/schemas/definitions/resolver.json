@@ -51,6 +51,13 @@
     		],
     		"x-discriminator-value": "project"
     	},
+    	"subject-node": {
+    		"allOf": [
+    			{"$ref":"#/definitions/resolver-node"},
+    			{"$ref":"subject.json#/definitions/subject-output"}
+    		],
+    		"x-discriminator-value": "subject"
+    	},
     	"session-node": {
     		"allOf": [
     			{"$ref":"#/definitions/resolver-node"},
