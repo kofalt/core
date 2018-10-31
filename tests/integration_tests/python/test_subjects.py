@@ -18,6 +18,7 @@ def test_subject_collection(data_builder, api_db, as_admin):
     assert 'created' in subject_doc
     assert 'modified' in subject_doc
     assert 'age' not in subject_doc
+    subject_id = str(subject_doc['_id'])
 
     # verify it's joined by the api
     r = as_admin.get('/sessions/' + session)
@@ -35,6 +36,13 @@ def test_subject_collection(data_builder, api_db, as_admin):
     # verify updates were applied
     subject_doc_2 = api_db.subjects.find_one({'_id': session_doc['subject']})
     assert subject_doc_2['sex'] == 'female'
+
+    # modify subject on the session
+    r = as_admin.put('/sessions/' + session, json={'project': str(session_doc['project'])})
+    assert r.ok
+    r = as_admin.get('/sessions/' + session)
+    assert r.ok
+    assert r.json()['subject']['_id'] == subject_id
 
 
 def test_subject_endpoints(data_builder, as_admin, as_public, file_form):
