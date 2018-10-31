@@ -24,7 +24,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 55 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 56 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -1914,6 +1914,13 @@ def upgrade_to_55(dry_run=False):
         config.db.acquisitions.update_many({'_id': {'$in': acquisition_ids}}, parents_update)
         config.db.analyses.update_many({'parent.id': {'$in': session_ids + acquisition_ids}}, parents_update)
 
+def set_job_retried(job):
+    config.db.jobs.update_one({'_id': bson.ObjectId(job['previous_job_id'])}, {'$set': {'retried': job['created']}})
+    return True
+
+def upgrade_to_56():
+    jobs = config.db.jobs.find({'previous_job_id': {'$exists': True}}, {'previous_job_id': 1, 'created': 1})
+    process_cursor(jobs, set_job_retried)
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION
