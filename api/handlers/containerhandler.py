@@ -404,7 +404,7 @@ class ContainerHandler(base.RequestHandler):
             # Handle changing project (moving session and subject to another project)
             # * Copy subject into target project if there are other sessions on it
             # * Move if this is the only session on it (else branch)
-            elif target_project and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
+            elif (target_project and project_id != current_project['_id']) and config.db.sessions.count({'subject': container['subject']['_id']}) > 1:
                 subject = copy.deepcopy(container['subject'])
                 subject.pop('parents')
                 subject.update(payload_subject)   # Still apply any embedded subject changes
