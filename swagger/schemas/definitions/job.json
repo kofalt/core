@@ -127,6 +127,85 @@
         }
       }
     },
+    "version-info": {
+      "type": "object",
+      "additionalProperties": {
+          "type": "string"
+      },
+      "description": "An object that contains known version info for components involved in the job"
+    },
+    "instance-info": {
+      "type": "object",
+      "properties": {
+          "name": {
+            "type": "string",
+            "description": "A machine or instance name, possibly a FQDN"
+          },
+          "instance_type": {
+            "type": "string",
+            "description": "A free form string describing the instance type"
+          },
+          "cpu_cores": {
+            "type": "integer",
+            "description": "The number of CPU cores"
+          },
+          "gpu": {
+            "type": "boolean",
+            "description": "Whether or not a GPU is available"
+          },
+          "memory_bytes": {
+            "type": "integer",
+            "description": "The amount of memory on the system, in bytes"
+          },
+          "disk_bytes": {
+            "type": "integer",
+            "description": "The size of the hard disk on the system, in bytes"
+          },
+          "swap_bytes": {
+            "type": "integer",
+            "description": "The available swap space, in bytes"
+          }
+        }
+    },
+    "job-stats": {
+      "type": "object",
+      "properties": {
+          "total_input_files": {
+            "type": "integer",
+            "description": "The number of input files"
+          },
+          "total_input_size_bytes": {
+            "type": "integer",
+            "description": "The combined size of all input files, in bytes"
+          },
+          "total_output_files": {
+            "type":"integer",
+            "description": "The number of output files"
+          },
+          "total_output_size_bytes": {
+            "type": "integer",
+            "description": "The combined size of all output files, in bytes"
+          },
+          "preparation_time_sec": {
+            "type": "integer",
+            "description": "The length of time taken to download gear container and inputs, in seconds"
+          },
+          "execution_time_sec": {
+            "type": "integer",
+            "description": "The length of time that the job took to execute, in seconds"
+          },
+          "upload_time_sec": {
+            "type": "integer",
+            "description": "The length of time taken to upload the job's outputs, in seconds"
+          },
+          "total_time_sec": {
+            "type": "integer",
+            "description": "The total length of time from start to finish, in seconds"
+          },
+          "version_info": {"$ref":"#/definitions/version-info"},
+          "instance_info": {"$ref":"#/definitions/instance-info"}
+      }
+    },
     "job": {
       "type":"object",
       "properties":{
@@ -137,14 +216,31 @@
         "previous_job_id":{"type":"string"},
         "inputs":{"$ref":"#/definitions/inputs-object"},
         "destination":{"$ref":"#/definitions/destination"},
+        "group": {"$ref":"common.json#/definitions/lowercase-string-id"},
+        "project": {"$ref":"common.json#/definitions/objectid"},
         "tags":{"$ref":"#/definitions/tags"},
         "state":{"$ref":"#/definitions/state"},
+        "failure_reason": {
+          "type": "string",
+          "description": "An optional suspected reason for job failure"
+        },
         "attempt":{"$ref":"#/definitions/attempt"},
         "created":{"$ref":"created-modified.json#/definitions/created"},
         "modified":{"$ref":"created-modified.json#/definitions/modified"},
+        "started": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the running state"
+        },
+        "completed": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned to a terminal state"
+        },
         "config":{"$ref":"#/definitions/config"},
         "request":{"$ref":"#/definitions/request"},
-        "saved_files":{"$ref":"#/definitions/saved_files"}
+        "saved_files":{"$ref":"#/definitions/saved_files"},
+        "stats": {"$ref": "#/definitions/job-stats"}
       },
       "additionalProperties":false,
       "x-sdk-model":"job"
