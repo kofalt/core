@@ -141,6 +141,10 @@
             "type": "string",
             "description": "A machine or instance name, possibly a FQDN"
           },
+          "host": {
+            "type": "string",
+            "description": "The hostname or (more likely) IP address of the engine instance"
+          },
           "instance_type": {
             "type": "string",
             "description": "A free form string describing the instance type"
