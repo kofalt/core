@@ -624,7 +624,7 @@ class JobHandler(base.RequestHandler):
         j = Job.get(_id)
 
         # Permission check
-        if not self.superuser_request:
+        if not self.user_is_admin:
 
             if j.inputs is not None:
                 for x in j.inputs:
@@ -632,8 +632,19 @@ class JobHandler(base.RequestHandler):
                         j.inputs[x].check_access(self.uid, 'ro')
 
             j.destination.check_access(self.uid, 'rw')
+            if j.destination.type == 'analysis':
+                if len(j.destination.get().get('files', [])):
+                    raise APIPermissionException('Requires superuser to retry job if analysis has outputs')
 
-        new_id = Queue.retry(j, force=True)
+        # API key gear permission check
+        gear = get_gear(j.gear_id)
+        for x in gear['gear'].get('inputs', {}).keys():
+            input_ = gear['gear']['inputs'][x]
+            if input_.get('base') == 'api-key':
+                if not self.user_is_admin and self.uid != j.origin['id']:
+                    raise APIPermissionException('Only original scheduler or root user can retry a gear requiring an api key input')
+
+        new_id = Queue.retry(j, force=True, only_failed=not self.is_true('ignoreState'))
         return { "_id": new_id }
 
     @require_drone

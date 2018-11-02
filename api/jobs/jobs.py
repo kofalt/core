@@ -19,8 +19,8 @@ from ..web.errors import APINotFoundException
 class Job(object):
     def __init__(self, gear, inputs, destination=None, tags=None,
                  attempt=1, previous_job_id=None, created=None,
-                 modified=None, state='pending', request=None,
-                 id_=None, config_=None, origin=None,
+                 modified=None, retried=None, state='pending',
+                 request=None, id_=None, config_=None, origin=None,
                  saved_files=None, produced_metadata=None, batch=None,
                  failed_output_accepted=False, profile=None):
         """
@@ -106,6 +106,7 @@ class Job(object):
         self.previous_job_id    = previous_job_id
         self.created            = created
         self.modified           = modified
+        self.retried            = retried
         self.state              = state
         self.request            = request
         self.id_                = id_
@@ -179,6 +180,7 @@ class Job(object):
             previous_job_id=d.get('previous_job_id'),
             created=d['created'],
             modified=d['modified'],
+            retried=d.get('retried'),
             state=d['state'],
             request=d.get('request'),
             id_=d['_id'],
@@ -229,6 +231,8 @@ class Job(object):
             d.pop('request')
         if d['failed_output_accepted'] is False:
             d.pop('failed_output_accepted')
+        if d['retried'] is None:
+            d.pop('retried')
 
         return d
 

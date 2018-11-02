@@ -97,7 +97,7 @@ class Queue(object):
             Queue.retry(job)
 
     @staticmethod
-    def retry(job, force=False):
+    def retry(job, force=False, only_failed=True):
         """
         Given a failed job, either retry the job or fail it permanently, based on the attempt number.
         Can override the attempt limit by passing force=True.
@@ -107,8 +107,12 @@ class Queue(object):
             log.info('Permanently failed job %s (after %d attempts)', job.id_, job.attempt)
             return
 
-        if job.state != 'failed':
-            raise Exception('Can only retry a job that is failed')
+        if job.state in ['cancelled', 'complete']:
+            if only_failed:
+                raise InputValidationException('Can only retry a job that is failed, please use only_failed parameter')
+        elif job.state != 'failed':
+            raise InputValidationException('Can not retry running or pending job')
+
 
         if job.request is None:
             raise Exception('Cannot retry a job without a request')
@@ -121,20 +125,26 @@ class Queue(object):
             found = Job.load(check)
             raise Exception('Job ' + job.id_ + ' has already been retried as ' + str(found.id_))
 
-        new_job = copy.deepcopy(job)
-        new_job.id_ = bson.ObjectId()
+        new_job_map = job.map()
+        new_job_map['config'] = new_job_map['config']['config']
+        new_job = Queue.enqueue_job(new_job_map, dict(job.origin))
         new_job.previous_job_id = job.id_
-
-        new_job.state = 'pending'
         new_job.attempt += 1
-
-        now = datetime.datetime.utcnow()
-        new_job.created = now
-        new_job.modified = now
+        new_job.request = copy.deepcopy(job.request)
+        new_job.id_ = bson.ObjectId()
 
         # update input uris that reference the old job id
-        for i in new_job.request['inputs']:
+        for i in new_job.request['inputs']+new_job.request['outputs']:
             i['uri'] = i['uri'].replace(str(job.id_), str(new_job.id_))
+
+        if new_job.destination.type == 'analysis':
+            config.db.analyses.update_one({'_id': bson.ObjectId(new_job.destination.id)},
+                                          {'$set': {'job': str(new_job.id_),
+                                                    'modified': new_job.created}})
+
+        result = config.db.jobs.update_one({"_id": bson.ObjectId(job.id_)}, {'$set': {"retried": new_job.created}})
+        if result.modified_count != 1:
+            log.error('Could not set retried time for job {}'.format(job.id_))
 
         new_id = new_job.insert(ignore_insertion_block=True)
         log.info('respawned job %s as %s (attempt %d)', job.id_, new_id, new_job.attempt)
@@ -212,6 +222,8 @@ class Queue(object):
         destination = None
         if job_map.get('destination', None) is not None:
             destination = create_containerreference_from_dictionary(job_map['destination'])
+            # Check that it exists
+            destination.get()
         else:
             destination = None
             for key in inputs.keys():

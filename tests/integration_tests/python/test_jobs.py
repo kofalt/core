@@ -235,23 +235,6 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed'})
     assert r.ok
 
-    # retry failed job
-    r = as_root.post('/jobs/' + next_job_id + '/retry')
-    assert r.ok
-
-    # get next job as admin
-    r = as_admin.get('/jobs/next', params={'tags': 'test-tag'})
-    assert r.ok
-    next_job_id = r.json()['id']
-
-    # set next job to failed
-    r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed'})
-    assert r.ok
-
-    # retry failed job w/o root
-    r = as_admin.post('/jobs/' + next_job_id + '/retry')
-    assert r.ok
-
     # set as_user perms to ro
     r = as_user.get('/users/self')
     assert r.ok
@@ -727,8 +710,8 @@ def test_job_context(data_builder, default_payload, as_admin, as_root, file_form
     assert r_inputs['test_context_value']['value'] == { 'session_value': 3 }
 
 
-def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root, api_db, file_form):
-
+def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_user, as_root, api_db, file_form):
+    project = data_builder.create_project()
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
 
@@ -856,7 +839,7 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
     assert found_config_uri
 
     # get config
-    r = as_root.get('/jobs/'+ retried_job_id +'/config.json')
+    r = as_root.get('/jobs/' + retried_job_id + '/config.json')
     assert r.ok
     config = r.json()
 
@@ -877,6 +860,40 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_root
 
     r = as_job_key.get('/users/self')
     assert r.status_code == 401
+
+    # Test that user can retry their own jobs, otherwise only admins can
+    # Test rw user can't retry another's job
+    user_id = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'})
+    assert r.ok
+
+    r = as_user.post('/jobs/' + retried_job_id + '/retry', params={'ignoreState': True})
+    assert r.status_code == 403
+
+    # Start job as rw user
+    r = as_user.post('/jobs/add', json=job1)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    # fail job and ensure API key no longer works
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    r = as_root.put('/jobs/' + job_id, json={'state': 'failed'})
+    assert r.ok
+
+    # Retry it as the user
+    r = as_user.post('/jobs/' + job_id + '/retry')
+    assert r.ok
+    retried_job_id = r.json()['_id']
+
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    r = as_root.put('/jobs/' + retried_job_id, json={'state': 'failed'})
+    assert r.ok
+
+    # Make sure admins can retry any job
+    r = as_admin.post('/jobs/' + retried_job_id + '/retry')
+    assert r.ok
 
 
 def test_job_tagging(data_builder, default_payload, as_admin, as_root, api_db, file_form):
@@ -1276,9 +1293,204 @@ def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, a
     })
     assert r.status_code == 403
 
-    # complete job and ensure API key no longer works
-    r = as_root.put('/jobs/' + job_id, json={'state': 'complete'})
+    # fail job and ensure API key no longer works
+    r = as_root.put('/jobs/' + job_id, json={'state': 'failed'})
     assert r.ok
 
     r = as_job_key.get('/projects/' + project)
     assert r.status_code == 401
+
+    # Retry job
+    r = as_admin.post('/jobs/' + job_id + '/retry')
+    assert r.ok
+
+    # get next job as admin
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    retried_job_id = r.json()['id']
+
+    # Make sure a new api key was created and the old one didn't magically start working again
+    r = as_job_key.get('/projects/' + project)
+    assert r.status_code == 401
+
+    # get config
+    r = as_root.get('/jobs/' + retried_job_id + '/config.json')
+    assert r.ok
+    config = r.json()
+
+    assert config['destination']['id'] == acquisition
+    assert type(config['config']) is dict
+    retried_api_key = config['inputs']['api_key']['key']
+    # ensure api_key works
+    as_job_key.headers.update({'Authorization': 'scitran-user ' + retried_api_key.split(':')[-1]})
+
+    r = as_job_key.get('/projects/' + project)
+    assert r.ok
+
+def test_retry_jobs(data_builder, default_payload, as_admin, as_user, as_root, as_drone, file_form):
+    # Not testing sdk jobs here, those are tested in the test_api_jobs
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    invalid_gear = data_builder.create_gear(gear={'custom': {'flywheel': {'invalid': True}}})
+    project = data_builder.create_project()
+
+    # Add user with r/w permission
+    user_id = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'rw'})
+    assert r.ok
+
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+    # add job with explicit destination
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job0_id = r.json()['_id']
+
+    # get job0
+    r = as_root.get('/jobs/' + job0_id)
+    assert r.ok
+    job0 = r.json()
+
+    # start job0 (Adds logs)
+    r = as_root.get('/jobs/next')
+    assert r.ok
+
+    # set job0 to failed
+    r = as_root.put('/jobs/' + job0_id, json={'state': 'failed'})
+    assert r.ok
+
+    # retry failed job0 w/o admin as job1
+    r = as_user.post('/jobs/' + job0_id + '/retry')
+    assert r.ok
+    job1_id = r.json()['_id']
+
+    # try retry failed job0 as job1 again
+    r = as_root.post('/jobs/' + job0_id + '/retry')
+    assert r.status_code == 500
+
+    # get job0 retried time
+    r = as_root.get('/jobs/' + job0_id)
+    assert r.ok
+    job0_retried_time = r.json().get('retried')
+    assert job0_retried_time
+
+    # get job1
+    r = as_root.get('/jobs/' + job1_id)
+    assert r.ok
+    job1 = r.json()
+
+    # Make sure config, inputs, and destination are the same
+    assert job0['inputs'] == job1['inputs']
+    assert job0['destination'] == job1['destination']
+    assert job0['config'] == job1['config']
+    assert job0_retried_time == job1['created']
+
+    # start job1 as admin
+    r = as_admin.get('/jobs/next', params={'tags': 'test-tag'})
+    assert r.ok
+
+    # set job1 to failed
+    r = as_root.put('/jobs/' + job1_id, json={'state': 'failed'})
+    assert r.ok
+
+    # retry failed job1 w/o root as job2
+    r = as_admin.post('/jobs/' + job1_id + '/retry')
+    assert r.ok
+
+    # get job2 as admin
+    r = as_admin.get('/jobs/next', params={'tags': 'test-tag'})
+    assert r.ok
+    job2_id = r.json()['id']
+
+    # set job2 to running
+    r = as_drone.put('/jobs/' + job2_id, json={'state': 'running'})
+    assert r.ok
+
+    # try retry runnning job2 as job3
+    r = as_root.post('/jobs/' + job2_id + '/retry')
+    assert r.status_code == 400
+
+    # try retry runnning job2 as job3 ignoring state
+    r = as_root.post('/jobs/' + job2_id + '/retry', params={'ignoreState': True})
+    assert r.status_code == 400
+
+    # set job2 to complete
+    r = as_root.put('/jobs/' + job2_id, json={'state': 'complete'})
+    assert r.ok
+
+    # try retry complete job2 as job3
+    r = as_root.post('/jobs/' + job2_id + '/retry')
+    assert r.status_code == 400
+
+    # retry complete job2 as job3
+    r = as_root.post('/jobs/' + job2_id + '/retry', params={'ignoreState': True})
+    assert r.ok
+
+    # get job3 as admin
+    r = as_admin.get('/jobs/next', params={'tags': 'test-tag'})
+    assert r.ok
+    job3_id = r.json()['id']
+
+    # set job3 to failed
+    r = as_root.put('/jobs/' + job3_id, json={'state': 'failed'})
+    assert r.ok
+
+    # Delete input file
+    r = as_admin.delete('/acquisitions/' + acquisition + '/files/test.zip')
+    assert r.ok
+
+    # try retry failed job3
+    r = as_root.post('/jobs/' + job3_id + '/retry')
+    assert r.status_code == 404
+
+    # Use session input file, but delete destination acquisition
+    assert as_admin.post('/sessions/' + session + '/files', files=file_form('session_test.zip')).ok
+
+    job_data['inputs']['dicom'] = {
+        'type': 'session',
+        'id': session,
+        'name': 'session_test.zip'
+    }
+
+    # add job with explicit destination
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job4_id = r.json()['_id']
+
+    # start job3 (Adds logs)
+    r = as_root.get('/jobs/next')
+    assert r.ok
+
+    # set job4 to failed
+    r = as_root.put('/jobs/' + job4_id, json={'state': 'failed'})
+    assert r.ok
+
+    # Delete input file
+    r = as_admin.delete('/acquisitions/' + acquisition)
+    assert r.ok
+
+    # try retry failed job4 as job5
+    r = as_root.post('/jobs/' + job4_id + '/retry')
+    assert r.status_code == 404

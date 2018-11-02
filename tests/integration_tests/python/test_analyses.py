@@ -126,6 +126,52 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     assert r.ok
 
     check_files(as_admin, analysis, 'files', 'output.csv')
+
+    # Force retry the job
+    r = as_drone.get('/jobs/next')
+    assert r.ok
+    r = as_drone.get('/jobs/next')
+    assert r.ok
+    r = as_drone.get('/jobs/next')
+    assert r.ok
+
+    # set job to failed
+    r = as_drone.put('/jobs/' + job, json={'state': 'failed'})
+    assert r.ok
+
+    r = as_admin.post('/jobs/' + job + '/retry', params={'ignoreState': True, 'root': True})
+    assert r.ok
+    retried_job_id = r.json()['_id']
+
+    r = as_drone.get('/jobs/next')
+    assert r.ok
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    print job
+    assert r.json().get('job') == retried_job_id
+
+    # Engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis, 'job': retried_job_id},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+    check_files(as_admin, analysis, 'files', 'output.csv')
+
+    # Verify job was created with it
+    r = as_admin.get('/analyses/' + analysis)
+    assert r.ok
+    print job
+    assert r.json().get('job') == retried_job_id
+
+    r = as_admin.get('/jobs/' + retried_job_id)
+    assert r.ok
+    print r.json()['saved_files']
+    assert r.json()['saved_files'] != []
+
+    check_files(as_admin, analysis, 'files', 'output.csv')
+
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
 
