@@ -22,7 +22,9 @@ class Job(object):
                  modified=None, retried=None, state='pending',
                  request=None, id_=None, config_=None, origin=None,
                  saved_files=None, produced_metadata=None, batch=None,
-                 failed_output_accepted=False, profile=None):
+                 failed_output_accepted=False, profile=None,
+                 group=None, project=None, failure_reason=None,
+                 started=None, completed=None):
         """
         Creates a job.
 
@@ -53,6 +55,18 @@ class Job(object):
             The gear configuration for this job.
         failed_output_accepted: bool (optional)
             Flag indicating whether output was accepted for a failed job.
+        profile: map (optional)
+            The optional detailed job statistics object
+        group: string (optional)
+            The id of the group that the destination belonged to at time of creation
+        project: string (optional)
+            The id of the project that the destination belonged to at the time of creation
+        failure_reason:  string (optional)
+            If the job was marked as failed, the reason for the failure
+        started: datetime (optional)
+            The timestamp of when the job first transitioned into the 'running' state
+        completed: datetime (optional)
+            The timestamp of when the job transitioned into the 'complete' or 'failed' state
         """
 
         # TODO: validate inputs against the manifest
@@ -116,8 +130,12 @@ class Job(object):
         self.produced_metadata  = produced_metadata
         self.batch              = batch
         self.failed_output_accepted = failed_output_accepted
-        self.profile = profile
-
+        self.profile            = profile
+        self.group              = group
+        self.project            = project
+        self.failure_reason     = failure_reason
+        self.started            = started
+        self.completed          = completed
 
     def intention_equals(self, other_job):
         """
@@ -190,7 +208,12 @@ class Job(object):
             produced_metadata=d.get('produced_metadata'),
             batch=d.get('batch'),
             failed_output_accepted=d.get('failed_output_accepted', False),
-            profile=d.get('profile', {})
+            profile=d.get('profile', {}),
+            group=d.get('group'),
+            project=d.get('project'),
+            failure_reason=d.get('failure_reason'),
+            started=d.get('started'),
+            completed=d.get('completed')
         )
 
     @classmethod
@@ -233,6 +256,16 @@ class Job(object):
             d.pop('failed_output_accepted')
         if d['retried'] is None:
             d.pop('retried')
+        if d['group'] is None:
+            d.pop('group')
+        if d['project'] is None:
+            d.pop('project')
+        if d['failure_reason'] is None:
+            d.pop('failure_reason')
+        if d['started'] is None:
+            d.pop('started')
+        if d['completed'] is None:
+            d.pop('completed')
 
         return d
 
@@ -240,6 +273,8 @@ class Job(object):
         d = self.map()
         if d.get('id'):
             d['_id'] = bson.ObjectId(d.pop('id'))
+        if d['project']:
+            d['project'] = bson.ObjectId(d['project'])
         if d.get('inputs'):
             input_array = []
             for k, inp in d['inputs'].iteritems():

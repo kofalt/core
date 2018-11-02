@@ -68,18 +68,25 @@ class Queue(object):
         if 'state' in mutation and not valid_transition(job.state, mutation['state']):
             raise Exception('Mutating job from ' + job.state + ' to ' + mutation['state'] + ' not allowed.')
 
+        now = datetime.datetime.utcnow()
 
         # Special case: when starting a job, actually start it. Should not be called this way.
-        if 'state' in mutation and mutation['state'] == 'running':
+        if 'state' in mutation:
+            if mutation['state'] == 'running':
 
-            # !!!
-            # !!! DUPE WITH Queue.start_job
-            # !!!
+                # !!!
+                # !!! DUPE WITH Queue.start_job
+                # !!!
 
-            mutation['request'] = job.generate_request(get_gear(job.gear_id))
+                mutation['request'] = job.generate_request(get_gear(job.gear_id))
+                mutation['started'] = now
+            elif mutation['state'] in ('complete', 'failed'):
+                mutation['completed'] = now
+                if job.started:
+                    mutation['profile.total_time_ms'] = int((now - job.started).total_seconds() * 1000)
 
         # Any modification must be a timestamp update
-        mutation['modified'] = datetime.datetime.utcnow()
+        mutation['modified'] = now
 
         # Create an object with all the fields that must not have changed concurrently.
         job_query =  {
@@ -236,12 +243,15 @@ class Queue(object):
             elif destination.type == 'analysis':
                 raise InputValidationException('Cannot use analysis for destination of a job, container was inferred.')
 
+        # Get group and project from destination
+        destination_container = destination.get()
+
         # Permission check
         if perm_check_uid:
             for x in inputs:
                 if hasattr(inputs[x], 'check_access'):
                     inputs[x].check_access(perm_check_uid, 'ro')
-            destination.check_access(perm_check_uid, 'rw')
+            destination.check_access(perm_check_uid, 'rw', cont=destination_container)
 
         # Config options are stored on the job object under the "config" key
         config_ = {
@@ -266,6 +276,9 @@ class Queue(object):
         # You can count on neither occurring before a job starts, because the queue is not globally FIFO.
         # So option #2 is potentially more convenient, but unintuitive and prone to user confusion.
 
+        input_file_count = 0
+        input_file_size_bytes = 0
+
         for x in inputs:
             input_type = gear['gear']['inputs'][x]['base']
             if input_type == 'file':
@@ -276,6 +289,9 @@ class Queue(object):
                 # Whitelist file fields passed to gear to those that are scientific-relevant
                 whitelisted_keys = ['info', 'tags', 'measurements', 'classification', 'mimetype', 'type', 'modality', 'size']
                 obj_projection = { key: obj.get(key) for key in whitelisted_keys }
+
+                input_file_count += 1
+                input_file_size_bytes += obj.get('size', 0)
 
                 ###
                 # recreate `measurements` list on object
@@ -307,12 +323,24 @@ class Queue(object):
         # Populate any context inputs for the gear
         resolve_context_inputs(config_, gear, destination.type, destination.id, perm_check_uid)
 
+        # Populate parents (group / project)
+        destination_parents = destination_container.get('parents', {})
+        group = destination_parents.get('group')
+        project = destination_parents.get('project')
+
+        # Initialize profile
+        profile = {
+            'total_input_files': input_file_count,
+            'total_input_size_bytes': input_file_size_bytes
+        }
+
         gear_name = gear['gear']['name']
 
         if gear_name not in tags:
             tags.append(gear_name)
 
-        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch)
+        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, 
+            previous_job_id=previous_job_id, origin=origin, batch=batch, group=group, project=project, profile=profile)
 
         return job
 
@@ -341,9 +369,11 @@ class Queue(object):
         if len(exclusive_tags) > 0:
             query['tags']['$nin'] = exclusive_tags
 
+        now = datetime.datetime.utcnow()
         modification = { '$set': {
             'state': 'running',
-            'modified': datetime.datetime.utcnow()
+            'started': now,
+            'modified': now
         }}
 
         if peek:

@@ -371,8 +371,19 @@ class EnginePlacer(Placer):
                 hierarchy.update_container_hierarchy(self.metadata, bid, self.container_type)
 
         if job_ticket is not None:
-            Queue.mutate(job, {'state': 'complete' if success else 'failed',
-                               'profile': {'elapsed': job_ticket['elapsed']}})
+            output_file_count = 0
+            output_file_size_bytes = 0
+
+            for f in self.saved:
+                output_file_count += 1
+                output_file_size_bytes += f['size']
+
+            Queue.mutate(job, {
+                'state': 'complete' if success else 'failed',
+                'profile.elapsed_time_ms': job_ticket['elapsed'],
+                'profile.total_output_files': output_file_count,
+                'profile.total_output_size_bytes': output_file_size_bytes
+            })
             job = Job.get(job.id_)
 
         if job is not None:
@@ -790,8 +801,19 @@ class AnalysisJobPlacer(Placer):
         config.db.analyses.update_one(query, update)
 
         if job_ticket is not None:
-            Queue.mutate(job, {'state': 'complete' if success else 'failed',
-                               'profile': {'elapsed': job_ticket['elapsed']}})
+            output_file_count = 0
+            output_file_size_bytes = 0
+
+            for f in self.saved:
+                output_file_count += 1
+                output_file_size_bytes += f['size']
+
+            Queue.mutate(job, {
+                'state': 'complete' if success else 'failed',
+                'profile.elapsed_time_ms': job_ticket['elapsed'],
+                'profile.total_output_files': output_file_count,
+                'profile.total_output_size_bytes': output_file_size_bytes
+            })
             job = Job.get(job.id_)
 
         if job is not None:

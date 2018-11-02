@@ -14,8 +14,7 @@ def test_jobs_access(as_user):
     assert r.status_code == 403
 
     r = as_user.post('/jobs/reap')
-    assert r.status_code == 403
-
+    assert r.status_code == 403 
     r = as_user.get('/jobs/test-job')
     assert r.status_code == 403
 
@@ -34,9 +33,10 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     }
     gear = data_builder.create_gear(gear=gear_doc)
     invalid_gear = data_builder.create_gear(gear={'custom': {'flywheel': {'invalid': True}}})
-    project = data_builder.create_project()
-    session = data_builder.create_session()
-    acquisition = data_builder.create_acquisition()
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
 
     # Create ad-hoc analysis
@@ -135,6 +135,13 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     # start job (Adds logs)
     r = as_root.get('/jobs/next')
     assert r.ok
+    started_job = r.json()
+    assert started_job['started'] == started_job['modified']
+    assert started_job['group'] == group
+    assert started_job['project'] == project
+    assert started_job['profile']
+    assert started_job['profile']['total_input_files'] == 1
+    assert started_job['profile']['total_input_size_bytes'] > 1
 
     # add job log
     r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
@@ -232,8 +239,17 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert next_job_id == next_job_id_peek
 
     # set next job to failed
-    r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed'})
+    r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed', 'failure_reason': 'gear_failure'})
     assert r.ok
+
+    # Get job and verify the 'completed' timestamp
+    r = as_root.get('/jobs/' + next_job_id)
+    assert r.ok
+    failed_job = r.json()
+    assert failed_job['completed'] == failed_job['modified']
+    assert failed_job['failure_reason'] == 'gear_failure'
+    assert failed_job['profile']
+    assert 'total_time_ms' in failed_job['profile']
 
     # set as_user perms to ro
     r = as_user.get('/users/self')
@@ -518,6 +534,12 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     # verify job was transitioned to complete state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'complete'
+    assert job_doc['completed'] 
+    assert job_doc['completed'] >= job_doc['created']
+    assert job_doc['profile']
+    assert job_doc['profile']['elapsed_time_ms'] == 3
+    assert job_doc['profile']['total_output_files'] == 1
+    assert job_doc['profile']['total_output_size_bytes'] > 0
 
     # test with success: False
     api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'state': 'running'}})
@@ -560,6 +582,9 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     # verify job was transitioned to complete state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'complete'
+    assert job_doc['profile']['elapsed_time_ms'] == 3
+    assert job_doc['profile']['total_output_files'] == 1
+    assert job_doc['profile']['total_output_size_bytes'] > 0
 
     # test with success: False
     api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'state': 'running'}})
