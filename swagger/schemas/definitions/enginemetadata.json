@@ -13,7 +13,8 @@
                 "files":        {
                     "type": ["array", "null"],
                     "items": {"$ref": "file.json#/definitions/file-input"}
-                }
+                },
+                "tags":        {"$ref": "tag.json#/definitions/tag-list"}
             },
             "additionalProperties": false
         },
@@ -24,7 +25,6 @@
                 "project":     {"$ref": "project.json#/definitions/project-metadata-input"},
                 "subject":     {"$ref": "subject.json#/definitions/subject-metadata-input"},
                 "session":     {"$ref": "session.json#/definitions/session-metadata-input"},
-                "tags":        {"$ref":"tag.json#/definitions/tag-list"},
                 "acquisition": {"$ref": "acquisition.json#/definitions/acquisition-metadata-input"}
             },
             "additionalProperties": false           
