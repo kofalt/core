@@ -48,7 +48,7 @@ DEFAULT_CONFIG = {
         'registered': False,
         'ssl_cert': None,
         'inactivity_timeout': None,
-        'upload_limit': 10
+        'upload_maximum_bytes': '10737418240'
     },
     'queue': {
         'max_retries': 3,
