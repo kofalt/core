@@ -623,7 +623,7 @@ def test_55(api_db, data_builder, database):
     # verify merging works as expected
     merge_subject = get_subject(test_merge)
     assert merge_subject['key'] == 'value3'
-    assert merge_subject['key_history'] == ['value1', 'value2']
+    assert merge_subject['info']['key_history'] == ['value1', 'value2']
 
     # verify merging works in nested docs like info
     deep_merge_subject = get_subject(test_deep_merge)

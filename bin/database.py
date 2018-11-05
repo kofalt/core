@@ -1853,6 +1853,8 @@ def upgrade_to_55(dry_run=False):
                 pass
             elif b[k] in ('', None):  # skip setting empty
                 pass
+            elif a[k] in ('', None):  # replace null without storing history, alerting
+                a[k] = b[k]
             elif type(a[k]) == type(b[k]) == dict:  # recurse in dict
                 merge_dict(a[k], b[k])
             else:  # handle conflict
@@ -1898,6 +1900,13 @@ def upgrade_to_55(dry_run=False):
             session['subject']['_id'] = subject_id
             subject = extract_subject(session)
             merge_dict(merged_subject, subject)
+
+        # Move top-level history keys to info block to not clutter new subject object
+        for k, v in merged_subject.iteritems():
+            if k.endswith('_history'):
+                merged_subject.setdefault('info', {}) # only set it if we have to
+                merged_subject['info'][k] = merged_subject.pop(k)
+
         min_created = min(s['created'] for s in sessions)
         max_modified = max(s['modified'] for s in sessions)
         subject.update({'created': min_created, 'modified': max_modified})
