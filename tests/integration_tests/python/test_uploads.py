@@ -1524,3 +1524,52 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
 
     # clean up added session/acquisition
     data_builder.delete_project(project, recursive=True)
+
+def test_engine_tags(data_builder, file_form, as_root):
+    project = data_builder.create_project()
+    metadata = {
+        'project':{
+            'label': 'engine project',
+            'info': {'test': 'p'},
+            'files': [
+                {
+                    'name': 'one.csv',
+                    'type': 'engine type 0',
+                    'info': {'test': 'f0'}
+                },
+                {
+                    'name': 'two.csv',
+                    'type': 'engine type 1',
+                    'info': {'test': 'f1'}
+                },
+                {
+                    'name': 'folder/three.csv',
+                    'type': 'engine type 2',
+                    'info': {'test': 'f2'}
+                }
+            ],
+            'tags': ['one', 'two']
+        }
+    }
+
+    r = as_root.post('/engine',
+        params={'level': 'project', 'id': project, 'filename_path':True},
+        files=file_form('one.csv', 'two.csv', 'folder/three.csv', meta=metadata)
+    )
+    assert r.ok
+    
+    # add another tag and verify that it does not overwrite 
+    tags_path = '/projects/' + project + '/tags'
+    r = as_root.post(tags_path, json={'value': 'two'})
+    assert r.ok
+
+    r = as_root.get('/projects/' + project)
+    assert r.ok
+    p = r.json()
+    # Engine metadata should not replace existing fields
+    assert p['label'] != metadata['project']['label']
+    assert p['info'] == metadata['project']['info']
+    assert p['tags'] != metadata['project']['tags']
+
+    print p['tags'][0]
+    print metadata['project']['tags']
