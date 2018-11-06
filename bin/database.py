@@ -24,7 +24,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 56 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 57 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -1930,6 +1930,41 @@ def set_job_retried(job):
 def upgrade_to_56():
     jobs = config.db.jobs.find({'previous_job_id': {'$exists': True}}, {'previous_job_id': 1, 'created': 1})
     process_cursor(jobs, set_job_retried)
+
+def upgrade_children_to_57(cont, cont_name):
+    CHILD_MAP ={
+        "subjects": "sessions",
+        "sessions": "acquisitions"
+    }
+
+    cont_type = containerutil.singularize(cont_name)
+
+    # Handle subject without parents
+    if cont_type == 'subject':
+        subject_group = config.db.projects.find_one({'_id': cont['project']})
+        if subject_group:
+            group_id = subject_group['group']
+        parents = {'project': cont['project'], 'group': group_id}
+        config.db.subjects.update({'_id': cont['_id']}, {'$set': {'parents': parents}})
+    else:
+        parents = cont.get('parents', {})
+
+    parents[cont_type] = cont['_id']
+    config.db['analyses'].update_many({'parent.id': cont['_id']}, {'$set': {'parents': parents}})
+
+    if cont_name != 'acquisitions':
+        child_name = CHILD_MAP[cont_name]
+        config.db[child_name].update_many({cont_type: cont['_id']}, {'$set': {'parents': parents}})
+
+        cursor = config.db[child_name].find({cont_type: cont['_id']})
+        process_cursor(cursor, upgrade_children_to_57, child_name)
+
+    return True
+
+def upgrade_to_57():
+    cursor = config.db.subjects.find({'parents': {'$exists': False}})
+    process_cursor(cursor, upgrade_children_to_57, 'subjects')
+
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

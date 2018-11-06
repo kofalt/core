@@ -631,3 +631,43 @@ def test_55(api_db, data_builder, database):
     assert deep_merge_subject['info']['key_history'] == ['value1', 'value2']
 
     data_builder.delete_group(group, recursive=True)
+
+
+def test_57(randstr, api_db, database, data_builder):
+    # Create hierarchy
+    group_id = data_builder.create_group()
+    project_id = data_builder.create_project()
+    subject_id = bson.ObjectId()
+    subject = {'_id': subject_id, 'project': bson.ObjectId(project_id), 'code': 'Subject_1'}
+    api_db.subjects.insert_one(subject)
+    session_id = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_id, 'subject': subject_id, 'project': bson.ObjectId(project_id),
+                                'parents': {}})
+    acquisition_id = bson.ObjectId()
+    api_db.acquisitions.insert_one({'session': session_id, '_id': acquisition_id,
+                                    'parents': {'session': session_id}})
+
+    assert api_db.sessions.find_one({'_id': session_id})
+
+    assert api_db.sessions.find_one({'_id': session_id})['parents'] == {}
+    assert api_db.acquisitions.find_one({'_id': acquisition_id})['parents'] == {'session': session_id}
+
+    database.upgrade_to_57()
+
+    subject_parents = api_db.subjects.find_one({'_id': subject_id})['parents']
+    session_parents = api_db.sessions.find_one({'_id': session_id})['parents']
+    acquisition_parents = api_db.acquisitions.find_one({'_id': acquisition_id})['parents']
+
+    assert subject_parents['group'] == group_id
+    assert session_parents['group'] == group_id
+    assert acquisition_parents['group'] == group_id
+
+    assert subject_parents['project'] == bson.ObjectId(project_id)
+    assert session_parents['project'] == bson.ObjectId(project_id)
+    assert acquisition_parents['project'] == bson.ObjectId(project_id)
+
+    assert acquisition_parents['session'] == session_id
+
+    api_db.subjects.delete_one({'_id': subject_id})
+    api_db.sessions.delete_one({'_id': session_id})
+    api_db.acquisitions.delete_one({'_id': acquisition_id})
