@@ -324,9 +324,16 @@ class Queue(object):
         resolve_context_inputs(config_, gear, destination.type, destination.id, perm_check_uid)
 
         # Populate parents (group / project)
-        destination_parents = destination_container.get('parents', {})
-        group = destination_parents.get('group')
-        project = destination_parents.get('project')
+        if destination.type == 'project':
+            group = destination_container.get('group')
+            project = destination.id
+        else:
+            destination_parents = destination_container.get('parents', {})
+            group = destination_parents.get('group')
+            project = destination_parents.get('project')
+
+        if not group or not project:
+            log.warn('Job destination %s=%s does not have a group and/or project!', destination.type, destination.id)
 
         # Initialize profile
         profile = {

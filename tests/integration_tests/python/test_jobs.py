@@ -143,6 +143,62 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert started_job['profile']['total_input_files'] == 1
     assert started_job['profile']['total_input_size_bytes'] > 1
 
+    assert started_job['id'] == job1_id
+
+    # Must be admin to update job profile
+    r = as_user.put('/jobs/' + job1_id + '/profile', json={
+        'versions': {
+            'engine': '1'
+        }
+    })
+    assert r.status_code == 403
+
+    # Test job exists
+    r = as_admin.put('/jobs/5be1bcf6df0b1e3424a3b7ee/profile', json={
+        'versions': {
+            'engine': '9a12c5921a1d9206c2d82c0d1a60ebed3d55a338'
+        }
+    })
+    assert r.status_code == 404
+
+    # Test validation
+    r = as_admin.put('/jobs/' + job1_id + '/profile', json={
+        'widgets_consumed': 100
+    })
+    assert r.status_code == 400
+
+    # Update job profile info
+    r = as_admin.put('/jobs/' + job1_id + '/profile', json={
+        'versions': {
+            'engine': '9a12c5921a1d9206c2d82c0d1a60ebed3d55a338'
+        },
+        'executor': {
+            'name': 'engine-625490',
+            'host': '127.0.0.1',
+            'instance_type': 'n1-standard-4',
+            'cpu_cores': 4,
+            'gpu': False,
+            'memory_bytes': 15728640,
+            'disk_bytes': 104857600,
+            'swap_bytes': 31457280
+        }
+    })
+    assert r.ok
+
+    r = as_root.get('/jobs/' + job1_id)
+    assert r.ok
+    updated_job = r.json()
+    assert updated_job['profile']['versions']['engine'] == '9a12c5921a1d9206c2d82c0d1a60ebed3d55a338'
+
+    assert updated_job['profile']['executor']['name'] == 'engine-625490'
+    assert updated_job['profile']['executor']['host'] == '127.0.0.1'
+    assert updated_job['profile']['executor']['instance_type'] == 'n1-standard-4'
+    assert updated_job['profile']['executor']['cpu_cores'] == 4
+    assert updated_job['profile']['executor']['gpu'] == False
+    assert updated_job['profile']['executor']['memory_bytes'] == 15728640
+    assert updated_job['profile']['executor']['disk_bytes'] == 104857600
+    assert updated_job['profile']['executor']['swap_bytes'] == 31457280
+
     # add job log
     r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
     assert r.ok
@@ -452,9 +508,15 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     )
     assert r.ok
 
+    # Update profile
+    r = as_admin.put('/jobs/' + job + '/profile', json={
+        'upload_time_ms': 1017
+    })
+
     # verify job was transitioned to failed state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'failed'
+    assert job_doc['profile']['upload_time_ms'] == 1017
 
     # verify metadata wasn't applied
     acq = as_admin.get('/acquisitions/' + acquisition).json()

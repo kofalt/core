@@ -73,7 +73,10 @@ def hrsize(size):
 def mongo_sanitize(field):
     return field.replace('.', '_')
 
-def mongo_dict(d):
+def mongo_dict(d, prefix=''):
+    """
+    Return a flattened dictionary of sanitized keys for a mongo update.
+    """
     def _mongo_list(d, pk=''):
         pk = pk and pk + '.'
         return sum(
@@ -82,7 +85,7 @@ def mongo_dict(d):
             for k, v in d.iteritems()
             ], []
         )
-    return dict(_mongo_list(d))
+    return dict(_mongo_list(d, pk=prefix))
 
 def mongo_sanitize_fields(d):
     """

@@ -1,0 +1,21 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf": [{"$ref": "../definitions/job.json#/definitions/job-profile-input"}],
+    "example": {
+        "preparation_time_ms": 3507,
+        "versions": {
+            "engine": "9a12c5921a1d9206c2d82c0d1a60ebed3d55a338"
+        },
+        "executor": {
+            "name": "engine-625490",
+            "host": "127.0.0.1",
+            "instance_type": "n1-standard-4",
+            "cpu_cores": 4,
+            "gpu": false,
+            "memory_bytes": 15728640,
+            "disk_bytes": 104857600,
+            "swap_bytes": 31457280
+        }
+    }
+}

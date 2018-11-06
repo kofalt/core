@@ -331,6 +331,26 @@
         "additionalProperties":false,
         "required":["ticket"],
         "description": "A ticket for uploading files and completing a job"
+    },
+    "job-profile-input": {
+      "type": "object",
+      "properties": {
+          "preparation_time_ms": {
+            "type": "integer",
+            "description": "The length of time taken to download gear container and inputs, in milliseconds"
+          },
+          "elapsed_time_ms": {
+            "type": "integer",
+            "description": "The runtime of the job, in milliseconds"
+          },
+          "upload_time_ms": {
+            "type": "integer",
+            "description": "The length of time taken to upload the job's outputs, in milliseconds"
+          },
+          "versions": {"$ref":"#/definitions/version-info"},
+          "executor": {"$ref":"#/definitions/executor-info"}
+      },
+      "additionalProperties": false
     }
   }
 }

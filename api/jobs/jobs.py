@@ -256,9 +256,9 @@ class Job(object):
             d.pop('failed_output_accepted')
         if d['retried'] is None:
             d.pop('retried')
-        if d['group'] is None:
+        if d.get('group') is None:
             d.pop('group')
-        if d['project'] is None:
+        if d.get('project') is None:
             d.pop('project')
         if d['failure_reason'] is None:
             d.pop('failure_reason')
@@ -273,7 +273,7 @@ class Job(object):
         d = self.map()
         if d.get('id'):
             d['_id'] = bson.ObjectId(d.pop('id'))
-        if d['project']:
+        if d.get('project'):
             d['project'] = bson.ObjectId(d['project'])
         if d.get('inputs'):
             input_array = []
