@@ -341,6 +341,10 @@ class Queue(object):
             'total_input_size_bytes': input_file_size_bytes
         }
 
+        release_version = config.get_release_version()
+        if release_version:
+            profile['versions'] = { 'core': release_version }
+
         gear_name = gear['gear']['name']
 
         if gear_name not in tags:
