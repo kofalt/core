@@ -592,6 +592,17 @@ def test_55(api_db, data_builder, database):
     # test on the most recently created session
     test_deep_merge = create_session({'code': 'deep-merge', 'info': {'key': 'value3'}})  # info.key: value3, info.key_history: ['value1', 'value2']
 
+    # test both at the same time
+    create_session({'code': 'multi-merge'})
+    create_session({'code': 'multi-merge', 'info': {'key': 'value1'}})                  # info.key: value1
+    create_session({'code': 'multi-merge', 'top_key': 'value1'})                        # top_key: value1, info.key: value1
+    create_session({'code': 'multi-merge', 'info': {'key': 'value2'}, 'top_key': 'value2'}) # top_key: value2, info.top_key: [value1], info.key: value2, info.key_history: ['value1']
+    create_session({'code': 'multi-merge'})                                             # noop
+    create_session({'code': 'multi-merge', 'top_key': None })                           # noop
+    create_session({'code': 'multi-merge', 'top_key': 'value3'})                        # top_key: value3, info.top_key: [value1, value2], info.key: value2, info.key_history: ['value1']
+    # test on the most recently created session
+    test_multi_merge = create_session({'code': 'multi-merge', 'info': {'key': 'value3'}})  # top_key: value3, info.top_key: [value1, value2], info.key: value3, info.key_history: ['value1', 'value2']
+
     database.upgrade_to_55()
 
     def get_subject(session_id):
@@ -629,5 +640,12 @@ def test_55(api_db, data_builder, database):
     deep_merge_subject = get_subject(test_deep_merge)
     assert deep_merge_subject['info']['key'] == 'value3'
     assert deep_merge_subject['info']['key_history'] == ['value1', 'value2']
+
+    # verify merging works in both nested and unnested
+    multi_merge_subject = get_subject(test_multi_merge)
+    assert multi_merge_subject['top_key'] == 'value3'
+    assert multi_merge_subject['info']['top_key_history'] == ['value1', 'value2']
+    assert multi_merge_subject['info']['key'] == 'value3'
+    assert multi_merge_subject['info']['key_history'] == ['value1', 'value2']
 
     data_builder.delete_group(group, recursive=True)
