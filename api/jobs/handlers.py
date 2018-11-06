@@ -664,8 +664,9 @@ class JobHandler(base.RequestHandler):
         payload = self.request.json
         success = payload['success']
         elapsed = payload['elapsed']
+        failure_reason = payload.get('failure_reason') if not success else None
 
-        ticket = JobTicket.create(_id, success, elapsed)
+        ticket = JobTicket.create(_id, success, elapsed, failure_reason=failure_reason)
         return { 'ticket': ticket }
 
     @require_login

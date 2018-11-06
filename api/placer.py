@@ -349,6 +349,7 @@ class EnginePlacer(Placer):
             job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
             job = Job.get(job_ticket['job'])
             success = job_ticket['success']
+            failure_reason = job_ticket.get('failure_reason')
         elif self.context.get('job_id'):
             job = Job.get(self.context.get('job_id'))
 
@@ -378,12 +379,17 @@ class EnginePlacer(Placer):
                 output_file_count += 1
                 output_file_size_bytes += f['size']
 
-            Queue.mutate(job, {
+            update_doc ={
                 'state': 'complete' if success else 'failed',
                 'profile.elapsed_time_ms': job_ticket['elapsed'],
                 'profile.total_output_files': output_file_count,
                 'profile.total_output_size_bytes': output_file_size_bytes
-            })
+            }
+
+            if failure_reason:
+                update_doc['failure_reason'] = failure_reason
+
+            Queue.mutate(job, update_doc)
             job = Job.get(job.id_)
 
         if job is not None:
@@ -790,6 +796,7 @@ class AnalysisJobPlacer(Placer):
             job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
             job = Job.get(job_ticket['job'])
             success = job_ticket['success']
+            failure_reason = job_ticket.get('failure_reason')
         elif self.context.get('job_id'):
             job = Job.get(self.context.get('job_id'))
 
@@ -808,12 +815,17 @@ class AnalysisJobPlacer(Placer):
                 output_file_count += 1
                 output_file_size_bytes += f['size']
 
-            Queue.mutate(job, {
+            update_doc = {
                 'state': 'complete' if success else 'failed',
                 'profile.elapsed_time_ms': job_ticket['elapsed'],
                 'profile.total_output_files': output_file_count,
                 'profile.total_output_size_bytes': output_file_size_bytes
-            })
+            }
+
+            if failure_reason:
+                update_doc['failure_reason'] = failure_reason
+
+            Queue.mutate(job, update_doc)
             job = Job.get(job.id_)
 
         if job is not None:

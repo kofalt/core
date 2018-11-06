@@ -474,7 +474,11 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'state': 'running'}})
 
     # prepare completion (send success status before engine upload)
-    r = as_drone.post('/jobs/' + job + '/prepare-complete', json={'success': False, 'elapsed': -1})
+    r = as_drone.post('/jobs/' + job + '/prepare-complete', json={
+        'success': False,
+        'elapsed': -1,
+        'failure_reason': 'gear_failure'
+    })
     assert r.ok
 
     # verify that job ticket has been created
@@ -516,6 +520,7 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     # verify job was transitioned to failed state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'failed'
+    assert job_doc['failure_reason'] == 'gear_failure'
     assert job_doc['profile']['upload_time_ms'] == 1017
 
     # verify metadata wasn't applied
