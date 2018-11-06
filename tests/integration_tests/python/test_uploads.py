@@ -69,9 +69,21 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
 
     # get session created by the upload
     project_1 = as_admin.get('/groups/' + group_1 + '/projects').json()[0]['_id']
-    session = as_admin.get('/projects/' + project_1 + '/sessions').json()[0]['_id']
-    assert len(as_admin.get('/projects/' + project_1 + '/sessions').json()) == 1
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions').json()) == 1
+
+    sessions = as_admin.get('/projects/' + project_1 + '/sessions').json()
+    assert len(sessions) == 1
+    created_session = sessions[0]
+    assert created_session['parents']['group'] == group_1
+    assert created_session['parents']['project'] == project_1
+    session = created_session['_id']
+
+    acquisitions = as_admin.get('/sessions/' + session + '/acquisitions').json()
+    assert len(acquisitions) == 1
+    created_acq = acquisitions[0]
+    assert created_acq['parents']['group'] == group_1
+    assert created_acq['parents']['project'] == project_1
+    assert created_acq['parents']['session'] == session
+
     assert len(as_admin.get('/sessions/' + session).json()['files']) == 1
 
     # move session to group_2/project_2
@@ -691,6 +703,20 @@ def test_label_upload(data_builder, file_form, as_admin):
         })
     )
     assert r.ok
+
+    # get newly created project/session/acquisition
+    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
+
+    session = as_admin.get('/projects/' + project + '/sessions').json()[0]
+    session_id = session['_id']
+
+    assert session['parents']['group'] == group
+    assert session['parents']['project'] == project
+
+    acquisition = as_admin.get('/sessions/' + session_id + '/acquisitions').json()[0]
+    assert acquisition['parents']['group'] == group
+    assert acquisition['parents']['project'] == project
+    assert acquisition['parents']['session'] == session_id
 
     # delete group and children recursively (created by upload)
     data_builder.delete_group(group, recursive=True)
