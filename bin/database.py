@@ -1902,7 +1902,7 @@ def upgrade_to_55(dry_run=False):
             merge_dict(merged_subject, subject)
 
         # Move top-level history keys to info block to not clutter new subject object
-        for k, v in merged_subject.iteritems():
+        for k in merged_subject.keys():
             if k.endswith('_history'):
                 merged_subject.setdefault('info', {}) # only set it if we have to
                 merged_subject['info'][k] = merged_subject.pop(k)
