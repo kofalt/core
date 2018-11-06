@@ -421,7 +421,7 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
         if cont_type == 'session':
             insert_vals['group'] = parent['group']
         cont.update(insert_vals)
-        if cont_name in ['acquisitions', 'sessions', 'projects', 'analyses']:
+        if cont_name in ['acquisitions', 'sessions', 'subjects', 'projects', 'analyses']:
             cont['parents'] = ContainerStorage.factory(cont_name).get_parents(cont)
         insert_id = config.db[cont_name].insert(cont)
         cont['_id'] = insert_id
