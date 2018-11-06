@@ -229,8 +229,6 @@ class Queue(object):
         destination = None
         if job_map.get('destination', None) is not None:
             destination = create_containerreference_from_dictionary(job_map['destination'])
-            # Check that it exists
-            destination.get()
         else:
             destination = None
             for key in inputs.keys():
@@ -243,7 +241,7 @@ class Queue(object):
             elif destination.type == 'analysis':
                 raise InputValidationException('Cannot use analysis for destination of a job, container was inferred.')
 
-        # Get group and project from destination
+        # Get group and project from destination, also checks that destination exists
         destination_container = destination.get()
 
         # Permission check
