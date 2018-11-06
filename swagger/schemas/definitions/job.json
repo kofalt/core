@@ -316,6 +316,10 @@
         "elapsed": {
           "type": "integer",
           "description": "The elapsed time of the job, in seconds"
+        },
+        "failure_reason": {
+          "type": "string",
+          "description": "An optional suspected reason for job failure"
         }
       },
       "required": ["success", "elapsed"]
