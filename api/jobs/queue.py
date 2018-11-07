@@ -79,11 +79,12 @@ class Queue(object):
                 # !!!
 
                 mutation['request'] = job.generate_request(get_gear(job.gear_id))
-                mutation['started'] = now
-            elif mutation['state'] in ('complete', 'failed'):
-                mutation['completed'] = now
-                if job.started:
-                    mutation['profile.total_time_ms'] = int((now - job.started).total_seconds() * 1000)
+            elif mutation['state'] in ('complete', 'failed') and job.state == 'running':
+                if job.transitions and 'running' in job.transitions:
+                    mutation['profile.total_time_ms'] = int((now - job.transitions['running']).total_seconds() * 1000)
+
+            # Set transition timestamp
+            mutation['transitions.{}'.format(mutation['state'])] = now
 
         # Any modification must be a timestamp update
         mutation['modified'] = now
@@ -381,7 +382,7 @@ class Queue(object):
         now = datetime.datetime.utcnow()
         modification = { '$set': {
             'state': 'running',
-            'started': now,
+            'transitions.running': now,
             'modified': now
         }}
 

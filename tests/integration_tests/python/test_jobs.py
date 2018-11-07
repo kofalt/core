@@ -136,7 +136,7 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     r = as_root.get('/jobs/next')
     assert r.ok
     started_job = r.json()
-    assert started_job['started'] == started_job['modified']
+    assert started_job['transitions']['running'] == started_job['modified']
     assert started_job['group'] == group
     assert started_job['project'] == project
     assert started_job['profile']
@@ -298,11 +298,11 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed', 'failure_reason': 'gear_failure'})
     assert r.ok
 
-    # Get job and verify the 'completed' timestamp
+    # Get job and verify the 'failure' timestamp
     r = as_root.get('/jobs/' + next_job_id)
     assert r.ok
     failed_job = r.json()
-    assert failed_job['completed'] == failed_job['modified']
+    assert failed_job['transitions']['failed'] == failed_job['modified']
     assert failed_job['failure_reason'] == 'gear_failure'
     assert failed_job['profile']
     assert 'total_time_ms' in failed_job['profile']
@@ -601,8 +601,8 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     # verify job was transitioned to complete state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'complete'
-    assert job_doc['completed'] 
-    assert job_doc['completed'] >= job_doc['created']
+    assert job_doc['transitions']['complete'] 
+    assert job_doc['transitions']['complete'] >= job_doc['created']
     assert job_doc['profile']
     assert job_doc['profile']['elapsed_time_ms'] == 3
     assert job_doc['profile']['total_output_files'] == 1
@@ -641,7 +641,7 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     next_job = r.json()
     assert next_job['id'] == job
     assert next_job['state'] == 'running'
-    assert next_job['started']
+    assert next_job['transitions']['running']
     assert next_job['group']
     assert next_job['project']
     assert next_job['profile']['total_input_files'] == 1
@@ -660,7 +660,7 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     # verify job was transitioned to complete state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'complete'
-    assert job_doc['completed']
+    assert job_doc['transitions']['complete']
     assert job_doc['profile']['total_time_ms'] >= 0
     assert job_doc['profile']['elapsed_time_ms'] == 3
     assert job_doc['profile']['total_output_files'] == 1

@@ -24,7 +24,7 @@ class Job(object):
                  saved_files=None, produced_metadata=None, batch=None,
                  failed_output_accepted=False, profile=None,
                  group=None, project=None, failure_reason=None,
-                 started=None, completed=None):
+                 transitions=None):
         """
         Creates a job.
 
@@ -63,10 +63,8 @@ class Job(object):
             The id of the project that the destination belonged to at the time of creation
         failure_reason:  string (optional)
             If the job was marked as failed, the reason for the failure
-        started: datetime (optional)
-            The timestamp of when the job first transitioned into the 'running' state
-        completed: datetime (optional)
-            The timestamp of when the job transitioned into the 'complete' or 'failed' state
+        transitions: dict (optional)
+            The set of timestamps associated with state changes
         """
 
         # TODO: validate inputs against the manifest
@@ -134,8 +132,7 @@ class Job(object):
         self.group              = group
         self.project            = project
         self.failure_reason     = failure_reason
-        self.started            = started
-        self.completed          = completed
+        self.transitions        = transitions
 
     def intention_equals(self, other_job):
         """
@@ -212,8 +209,7 @@ class Job(object):
             group=d.get('group'),
             project=d.get('project'),
             failure_reason=d.get('failure_reason'),
-            started=d.get('started'),
-            completed=d.get('completed')
+            transitions=d.get('transitions', {})
         )
 
     @classmethod
@@ -262,10 +258,8 @@ class Job(object):
             d.pop('project')
         if d['failure_reason'] is None:
             d.pop('failure_reason')
-        if d['started'] is None:
-            d.pop('started')
-        if d['completed'] is None:
-            d.pop('completed')
+        if d.get('transitions') is None:
+            d.pop('transitions')
 
         return d
 

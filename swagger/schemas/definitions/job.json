@@ -137,39 +137,64 @@
     "executor-info": {
       "type": "object",
       "properties": {
-          "name": {
-            "type": "string",
-            "description": "A machine or instance name, possibly a FQDN"
-          },
-          "host": {
-            "type": "string",
-            "description": "The hostname or (more likely) IP address of the engine instance"
-          },
-          "instance_type": {
-            "type": "string",
-            "description": "A free form string describing the instance type"
-          },
-          "cpu_cores": {
-            "type": "integer",
-            "description": "The number of CPU cores"
-          },
-          "gpu": {
-            "type": "boolean",
-            "description": "Whether or not a GPU is available"
-          },
-          "memory_bytes": {
-            "type": "integer",
-            "description": "The amount of memory on the system, in bytes"
-          },
-          "disk_bytes": {
-            "type": "integer",
-            "description": "The size of the hard disk on the system, in bytes"
-          },
-          "swap_bytes": {
-            "type": "integer",
-            "description": "The available swap space, in bytes"
-          }
+        "name": {
+          "type": "string",
+          "description": "A machine or instance name, possibly a FQDN"
+        },
+        "host": {
+          "type": "string",
+          "description": "The hostname or (more likely) IP address of the engine instance"
+        },
+        "instance_type": {
+          "type": "string",
+          "description": "A free form string describing the instance type"
+        },
+        "cpu_cores": {
+          "type": "integer",
+          "description": "The number of CPU cores"
+        },
+        "gpu": {
+          "type": "boolean",
+          "description": "Whether or not a GPU is available"
+        },
+        "memory_bytes": {
+          "type": "integer",
+          "description": "The amount of memory on the system, in bytes"
+        },
+        "disk_bytes": {
+          "type": "integer",
+          "description": "The size of the hard disk on the system, in bytes"
+        },
+        "swap_bytes": {
+          "type": "integer",
+          "description": "The available swap space, in bytes"
         }
+      }
+    },
+    "transition-times": {
+      "type": "object",
+      "properties": {
+        "running": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the running state"
+        },
+        "failed": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the failed state"
+        },
+        "complete": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the complete state"
+        },
+        "cancelled": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the cancelled state"
+        }
+      }
     },
     "job-profile": {
       "type": "object",
@@ -231,18 +256,9 @@
         "attempt":{"$ref":"#/definitions/attempt"},
         "created":{"$ref":"created-modified.json#/definitions/created"},
         "modified":{"$ref":"created-modified.json#/definitions/modified"},
-        "started": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the job transitioned into the running state"
-        },
-        "completed": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the job transitioned to a terminal state"
-        },
         "retried": {"$ref": "created-modified.json#/definitions/retried"},
         "config":{"$ref":"#/definitions/config"},
+        "transitions":{"$ref":"#/definitions/transition-times"},
         "request":{"$ref":"#/definitions/request"},
         "saved_files":{"$ref":"#/definitions/saved_files"},
         "profile": {"$ref": "#/definitions/job-profile"}
