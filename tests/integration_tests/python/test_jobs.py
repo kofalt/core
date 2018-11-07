@@ -634,7 +634,18 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     r = as_admin.get('/analyses/' + analysis)
     assert r.ok
     job = r.json().get('job')
-    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'state': 'running'}})
+
+    # Start the job
+    r = as_drone.get('/jobs/next')
+    assert r.ok
+    next_job = r.json()
+    assert next_job['id'] == job
+    assert next_job['state'] == 'running'
+    assert next_job['started']
+    assert next_job['group']
+    assert next_job['project']
+    assert next_job['profile']['total_input_files'] == 1
+    assert next_job['profile']['total_input_size_bytes'] > 1
 
     # prepare completion (send success status before engine upload)
     r = as_drone.post('/jobs/' + job + '/prepare-complete', json={'success': True, 'elapsed': 3})
@@ -649,6 +660,8 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     # verify job was transitioned to complete state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'complete'
+    assert job_doc['completed']
+    assert job_doc['profile']['total_time_ms'] >= 0
     assert job_doc['profile']['elapsed_time_ms'] == 3
     assert job_doc['profile']['total_output_files'] == 1
     assert job_doc['profile']['total_output_size_bytes'] > 0
