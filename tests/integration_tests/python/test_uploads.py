@@ -1535,7 +1535,8 @@ def test_engine_tags(data_builder, file_form, as_root):
                 {
                     'name': 'one.csv',
                     'type': 'engine type 0',
-                    'info': {'test': 'f0'}
+                    'info': {'test': 'f0'},
+                    'tags': ['ein', 'zwei']
                 },
                 {
                     'name': 'two.csv',
@@ -1557,19 +1558,21 @@ def test_engine_tags(data_builder, file_form, as_root):
         files=file_form('one.csv', 'two.csv', 'folder/three.csv', meta=metadata)
     )
     assert r.ok
-    
-    # add another tag and verify that it does not overwrite 
-    tags_path = '/projects/' + project + '/tags'
-    r = as_root.post(tags_path, json={'value': 'two'})
-    assert r.ok
 
+    # verify that tags are not overwritten or duplicated
+    # verify that any other fields are not overwritten
+    # with another engine upload
+    metadata_two = {
+        'project':{
+            'label': 'override test',
+            'tags': ['two', 'three']
+        }
+    }
+    r = as_root.post('/engine',
+        params={'level': 'project', 'id': project},
+        files=file_form(meta=metadata_two)
+    )
+    assert r.ok
     r = as_root.get('/projects/' + project)
-    assert r.ok
-    p = r.json()
-    # Engine metadata should not replace existing fields
-    assert p['label'] != metadata['project']['label']
-    assert p['info'] == metadata['project']['info']
-    assert p['tags'] != metadata['project']['tags']
-
-    print p['tags'][0]
-    print metadata['project']['tags']
+    assert r.json()['tags'] == ['one', 'two', 'three']
+    assert r.json()['label'] != 'override test'
