@@ -689,3 +689,53 @@ def test_57(randstr, api_db, database, data_builder):
     api_db.subjects.delete_one({'_id': subject_id})
     api_db.sessions.delete_one({'_id': session_id})
     api_db.acquisitions.delete_one({'_id': acquisition_id})
+
+
+def test_58(api_db, database, data_builder, as_admin, file_form):
+    acquisition = data_builder.create_acquisition()
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test_file1.csv'))
+    assert r.ok
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test_file2.csv'))
+    assert r.ok
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test_file3.csv'))
+    assert r.ok
+
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/test_file1.csv/classification', json={
+        'modality': '',
+        'replace': {
+            'Custom': ['Random']
+        }
+    })
+    assert r.ok
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/test_file2.csv/classification', json={
+        'modality': 'MR',
+        'replace': {
+            'Custom': ['PET']
+        }
+    })
+    assert r.ok
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/test_file3.csv/classification', json={
+        'modality': '',
+        'replace': {
+            'Custom': ['PET']
+        }
+    })
+    assert r.ok
+
+    database.upgrade_to_58()
+
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    files = r.json()['files']
+
+    assert files[0]['name'] == 'test_file1.csv'
+    assert files[0]['modality'] == ''
+    assert files[0]['classification'] == {'Custom': ['Random']}
+
+    assert files[1]['name'] == 'test_file2.csv'
+    assert files[1]['modality'] == 'MR'
+    assert files[1]['classification'] == {'Custom': ['PET']}
+
+    assert files[2]['name'] == 'test_file3.csv'
+    assert files[2]['modality'] == 'PET'
+    assert files[2]['classification'] == {'Custom': ['PET']}
