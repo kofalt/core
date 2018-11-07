@@ -261,7 +261,14 @@
         "transitions":{"$ref":"#/definitions/transition-times"},
         "request":{"$ref":"#/definitions/request"},
         "saved_files":{"$ref":"#/definitions/saved_files"},
-        "profile": {"$ref": "#/definitions/job-profile"}
+        "profile": {"$ref": "#/definitions/job-profile"},
+        "related_container_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The set of all related container ids"
+        }
       },
       "additionalProperties":false,
       "x-sdk-model":"job"

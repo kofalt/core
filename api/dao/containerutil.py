@@ -327,8 +327,9 @@ class FileReference(ContainerReference):
             name = d['name']
         )
 
-    def get_file(self):
-        container = super(FileReference, self).get()
+    def get_file(self, container=None):
+        if not container:
+            container = super(FileReference, self).get()
 
         for file in container.get('files', []):
             if file['name'] == self.name and not file.get('deleted'):

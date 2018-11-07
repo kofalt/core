@@ -143,6 +143,11 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert started_job['profile']['total_input_files'] == 1
     assert started_job['profile']['total_input_size_bytes'] > 1
 
+    assert group in started_job['related_container_ids']
+    assert project in started_job['related_container_ids']
+    assert session in started_job['related_container_ids']
+    assert acquisition in started_job['related_container_ids']
+
     assert started_job['id'] == job1_id
 
     # Must be admin to update job profile

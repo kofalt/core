@@ -53,6 +53,12 @@ def retry_on_explicit_fail():
 def valid_transition(from_state, to_state):
     return (from_state + ' --> ' + to_state) in JOB_TRANSITIONS or from_state == to_state
 
+def add_related_containers(dest, container):
+    """Add container and parents to dest set"""
+    dest.add(str(container['_id']))
+    for _, v in  container.get('parents', {}).iteritems():
+        dest.add(str(v))
+
 class Queue(object):
 
     @staticmethod
@@ -278,11 +284,16 @@ class Queue(object):
         input_file_count = 0
         input_file_size_bytes = 0
 
+        related_containers = set()
+        add_related_containers(related_containers, destination_container)
+
         for x in inputs:
             input_type = gear['gear']['inputs'][x]['base']
             if input_type == 'file':
 
-                obj = inputs[x].get_file()
+                input_container = inputs[x].get()
+                add_related_containers(related_containers, input_container)
+                obj = inputs[x].get_file(container=input_container)
                 cr = create_containerreference_from_filereference(inputs[x])
 
                 # Whitelist file fields passed to gear to those that are scientific-relevant
@@ -350,7 +361,8 @@ class Queue(object):
             tags.append(gear_name)
 
         job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, 
-            previous_job_id=previous_job_id, origin=origin, batch=batch, group=group, project=project, profile=profile)
+            previous_job_id=previous_job_id, origin=origin, batch=batch, group=group, project=project, profile=profile,
+            related_container_ids=list(related_containers))
 
         return job
 

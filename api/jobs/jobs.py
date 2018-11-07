@@ -24,7 +24,7 @@ class Job(object):
                  saved_files=None, produced_metadata=None, batch=None,
                  failed_output_accepted=False, profile=None,
                  group=None, project=None, failure_reason=None,
-                 transitions=None):
+                 transitions=None, related_container_ids=None):
         """
         Creates a job.
 
@@ -65,6 +65,8 @@ class Job(object):
             If the job was marked as failed, the reason for the failure
         transitions: dict (optional)
             The set of timestamps associated with state changes
+        related_container_ids: list (optional)
+            The set of all container ids related to inputs and destination of this job
         """
 
         # TODO: validate inputs against the manifest
@@ -133,6 +135,7 @@ class Job(object):
         self.project            = project
         self.failure_reason     = failure_reason
         self.transitions        = transitions
+        self.related_container_ids = related_container_ids
 
     def intention_equals(self, other_job):
         """
@@ -209,7 +212,8 @@ class Job(object):
             group=d.get('group'),
             project=d.get('project'),
             failure_reason=d.get('failure_reason'),
-            transitions=d.get('transitions', {})
+            transitions=d.get('transitions', {}),
+            related_container_ids=d.get('related_container_ids', [])
         )
 
     @classmethod
@@ -260,6 +264,8 @@ class Job(object):
             d.pop('failure_reason')
         if d.get('transitions') is None:
             d.pop('transitions')
+        if d.get('related_container_ids') is None:
+            d.pop('related_container_ids')
 
         return d
 
