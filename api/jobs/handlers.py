@@ -666,7 +666,17 @@ class JobHandler(base.RequestHandler):
         elapsed = payload['elapsed']
         failure_reason = payload.get('failure_reason') if not success else None
 
+        # Create the ticket
         ticket = JobTicket.create(_id, success, elapsed, failure_reason=failure_reason)
+
+        # Allow profile updates on prepare-complete
+        profile = payload.get('profile')
+        if profile:
+            validate_data(profile, 'job-profile-update.json', 'input', 'POST')
+
+            profile_update_doc = mongo_dict(profile, prefix='profile')
+            config.db.jobs.update_one({'_id': bson.ObjectId(_id)}, {'$set': profile_update_doc})
+
         return { 'ticket': ticket }
 
     @require_login

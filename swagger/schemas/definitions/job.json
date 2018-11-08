@@ -343,7 +343,8 @@
         "failure_reason": {
           "type": "string",
           "description": "An optional suspected reason for job failure"
-        }
+        },
+        "profile": {"$ref": "#/definitions/job-profile-input"}
       },
       "required": ["success", "elapsed"]
     },

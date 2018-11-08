@@ -482,7 +482,10 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     r = as_drone.post('/jobs/' + job + '/prepare-complete', json={
         'success': False,
         'elapsed': -1,
-        'failure_reason': 'gear_failure'
+        'failure_reason': 'gear_failure',
+        'profile': {
+            'preparation_time_ms': 2515
+        }
     })
     assert r.ok
 
@@ -527,6 +530,7 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     assert job_doc['state'] == 'failed'
     assert job_doc['failure_reason'] == 'gear_failure'
     assert job_doc['profile']['upload_time_ms'] == 1017
+    assert job_doc['profile']['preparation_time_ms'] == 2515
 
     # verify metadata wasn't applied
     acq = as_admin.get('/acquisitions/' + acquisition).json()
