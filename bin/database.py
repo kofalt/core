@@ -1972,7 +1972,7 @@ def modality_maker():
         files = cont.get('files', [])
         file_updated = False
         for file_ in files:
-            if file_['classification'].get('Custom') and not file_.get('modality'):
+            if file_.get('classification', {}).get('Custom') and not file_.get('modality'):
                 try:
                     modality_index = lower_modalities.index(file_['classification'].get('Custom')[0].lower())
                     file_updated = True
