@@ -17,7 +17,8 @@ def upload_file_form(file_form, merge_dict, randstr):
         meta = {
             'project': {
                 'label': prefix + '-project-label',
-                'files': [{'name': files['project']}]
+                'files': [{'name': files['project']}],
+                'tags': ['one', 'two']
             },
             'session': {
                 'uid': prefix + '-session-uid',
@@ -25,12 +26,14 @@ def upload_file_form(file_form, merge_dict, randstr):
                 'subject': {
                     'code': prefix + '-subject-code'
                 },
-                'files': [{'name': files['session']}]
+                'files': [{'name': files['session']}],
+                'tags': ['one', 'two']
             },
             'acquisition': {
                 'uid': prefix + '-acquisition-uid',
                 'label': prefix + '-acquisition-label',
-                'files': [{'name': files['acquisition']}]
+                'files': [{'name': files['acquisition']}],
+                'tags': ['one', 'two']
             }
         }
         if meta_override:
@@ -859,12 +862,14 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     metadata = {
         'project':{
             'label': 'engine project',
-            'info': {'test': 'p'}
+            'info': {'test': 'p'},
+            'tags': ['one', 'two']
         },
         'session':{
             'label': 'engine session',
             'subject': {'code': 'engine subject'},
-            'info': {'test': 's'}
+            'info': {'test': 's'},
+            'tags': ['one', 'two']
         },
         'acquisition':{
             'label': 'engine acquisition',
@@ -881,7 +886,8 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
                     'type': 'engine type 1',
                     'info': {'test': 'f1'}
                 }
-            ]
+            ],
+            'tags': ['one', 'two']
         }
     }
 
@@ -994,7 +1000,8 @@ def test_session_engine_upload(data_builder, file_form, as_root):
     metadata = {
         'project':{
             'label': 'engine project',
-            'info': {'test': 'p'}
+            'info': {'test': 'p'},
+            'tags': ['one', 'two']
         },
         'session':{
             'label': 'engine session',
@@ -1017,7 +1024,8 @@ def test_session_engine_upload(data_builder, file_form, as_root):
                     'type': 'engine type 2',
                     'info': {'test': 'f2'}
                 }
-            ]
+            ],
+            'tags': ['one', 'two']
         }
     }
 
@@ -1074,7 +1082,8 @@ def test_project_engine_upload(data_builder, file_form, as_root):
                     'type': 'engine type 2',
                     'info': {'test': 'f2'}
                 }
-            ]
+            ],
+            'tags': ['one', 'two']
         }
     }
 
@@ -1163,17 +1172,20 @@ def test_acquisition_metadata_only_engine_upload(data_builder, file_form, as_roo
     metadata = {
         'project': {
             'label': 'engine project',
-            'info': {'test': 'p'}
+            'info': {'test': 'p'},
+            'tags': ['one', 'two']
         },
         'session':{
             'label': 'engine session',
             'subject': {'code': 'engine subject'},
-            'info': {'test': 's'}
+            'info': {'test': 's'},
+            'tags': ['one', 'two']
         },
         'acquisition':{
             'label': 'engine acquisition',
             'timestamp': '2016-06-20T21:57:36+00:00',
-            'info': {'test': 'a'}
+            'info': {'test': 'a'},
+            'tags': ['one', 'two']
         }
     }
 
@@ -1512,3 +1524,55 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
 
     # clean up added session/acquisition
     data_builder.delete_project(project, recursive=True)
+
+def test_engine_tags(data_builder, file_form, as_root):
+    project = data_builder.create_project()
+    metadata = {
+        'project':{
+            'label': 'engine project',
+            'info': {'test': 'p'},
+            'files': [
+                {
+                    'name': 'one.csv',
+                    'type': 'engine type 0',
+                    'info': {'test': 'f0'},
+                    'tags': ['ein', 'zwei']
+                },
+                {
+                    'name': 'two.csv',
+                    'type': 'engine type 1',
+                    'info': {'test': 'f1'}
+                },
+                {
+                    'name': 'folder/three.csv',
+                    'type': 'engine type 2',
+                    'info': {'test': 'f2'}
+                }
+            ],
+            'tags': ['one', 'two']
+        }
+    }
+
+    r = as_root.post('/engine',
+        params={'level': 'project', 'id': project, 'filename_path':True},
+        files=file_form('one.csv', 'two.csv', 'folder/three.csv', meta=metadata)
+    )
+    assert r.ok
+
+    # verify that tags are not overwritten or duplicated
+    # verify that any other fields are not overwritten
+    # with another engine upload
+    metadata_two = {
+        'project':{
+            'label': 'override test',
+            'tags': ['two', 'three']
+        }
+    }
+    r = as_root.post('/engine',
+        params={'level': 'project', 'id': project},
+        files=file_form(meta=metadata_two)
+    )
+    assert r.ok
+    r = as_root.get('/projects/' + project)
+    assert r.json()['tags'] == ['one', 'two', 'three']
+    assert r.json()['label'] != 'override test'

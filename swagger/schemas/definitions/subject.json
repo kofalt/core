@@ -89,6 +89,7 @@
                 "label": {"$ref":"#/definitions/code"},
                 "code":  {"type": ["string", "null"]},
                 "info":  {"type": ["object", "null"]},
+                "tags":  {"$ref": "tag.json#/definitions/tag-list"},
                 "files": {
                     "type":  ["array", "null"],
                     "items": {"$ref": "file.json#/definitions/file-input"}

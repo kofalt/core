@@ -43,7 +43,8 @@
                 "uid":          {"type": ["string", "null"]},
                 "timestamp":    {"type": ["string", "null"], "format": "date-time"},
                 "timezone":     {"type": ["string", "null"]},
-                "subject":      {"$ref": "subject.json#/definitions/subject-input"},
+                "subject":      {"$ref": "subject.json#/definitions/subject-input"},      
+                "tags":         {"$ref": "tag.json#/definitions/tag-list"},
                 "age":          {"$ref":"#/definitions/age"},
                 "weight":       {"$ref":"#/definitions/weight"},
                 "files":        {

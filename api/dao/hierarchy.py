@@ -614,8 +614,11 @@ def _update_container_nulls(base_query, update, container_type):
     update_dict = util.mongo_dict(update)
     for k, v in update_dict.items():
         q = copy.deepcopy(base_query)
-        q['$or'] = [{k: {'$exists': False}}, {k: None}]
-        u = {'$set': {k: v}}
+        if k == 'tags':
+            u = {'$addToSet': {k: {'$each': v}}}
+        else:
+            q['$or'] = [{k: {'$exists': False}}, {k: None}]
+            u = {'$set': {k: v}}
         bulk.find(q).update_one(u)
     bulk.execute()
     return config.db[coll_name].find_one(base_query)

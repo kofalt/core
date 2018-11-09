@@ -26,6 +26,7 @@
                 "measurement":  {"type": ["string", "null"]},
                 "instrument":   {"type": ["string", "null"]},
                 "uid":          {"type": ["string", "null"]},
+                "tags":         {"$ref": "tag.json#/definitions/tag-list"},
                 "timestamp":    {"$ref":"container.json#/definitions/timestamp"},
                 "timezone":     {"type": ["string", "null"]},
                 "files":        {

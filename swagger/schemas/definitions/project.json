@@ -22,7 +22,8 @@
                 "files":        {
                     "type": ["array", "null"],
                     "items": {"$ref": "file.json#/definitions/file-input"}
-                }
+                },
+                "tags":         {"$ref": "tag.json#/definitions/tag-list"}
             },
             "additionalProperties": false
         },
