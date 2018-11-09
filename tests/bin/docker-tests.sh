@@ -69,6 +69,10 @@ main() {
         flywheel/core:testing \
         mongod --bind_ip_all
 
+    mkdir -p keys/log_clients
+    echo Config >> keys/log_clients/remote_config
+    echo Config >> keys/log_clients/ca.pem
+
     docker run --rm \
         --volume $(pwd):/pwd \
         flywheel/core:testing \
@@ -78,6 +82,7 @@ main() {
         --name core-test-core \
         --network core-test \
         --volume $(pwd):/src/core \
+        --volume $(pwd)/keys:/var/scitran/keys \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://core-test-mongo:27017/scitran \
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-mongo:27017/logs \
         --workdir /src/core \
@@ -105,6 +110,7 @@ clean_up() {
     [ "$TEST_RESULT_CODE" = "0" ] && log "INFO: Test return code = $TEST_RESULT_CODE" \
                                   || log "ERROR: Test return code = $TEST_RESULT_CODE"
 
+    rm -rf keys
     exit $TEST_RESULT_CODE
 }
 

@@ -128,8 +128,7 @@ def test_device_logging(as_drone, as_root):
     assert r.status_code == 404
 
     r = as_drone.get('/devices/logging/ca.pem')
-    assert r.status_code == 500
+    assert r.status_code == 200
 
     r = as_drone.get('/devices/logging/remote_config')
-    assert r.status_code == 500
-    # Logging isn't set up correctly
+    assert r.status_code == 200

@@ -117,7 +117,7 @@ class DeviceHandler(base.RequestHandler):
                 with open('/var/scitran/keys/log_clients/{}'.format(filename)) as data:
                     self.response.write(data.read())
             except IOError:
-                raise APIException('File {} not found! Make sure centralized logging is set up')
+                raise APIException('File {} not found! Make sure centralized logging is set up'.format(filename))
         elif filename in ['remote_config', 'local_config']:
             self.response.headers['Content-Type'] = 'text/plain'
             try:
