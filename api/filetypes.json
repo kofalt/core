@@ -25,7 +25,7 @@
     "log":          [ ".log" ],
     "pdf":          [ ".pdf" ],
     "presentation": [ ".ppt", ".pptx" ],
-    "source code":  [ ".c", ".py", ".cpp", ".js", ".m", ".json", ".java", ".php", ".css", ".toml", ".yaml", ".yml" ],
+    "source code":  [ ".c", ".py", ".cpp", ".js", ".m", ".json", ".java", ".php", ".css", ".toml", ".yaml", ".yml", ".sh" ],
     "spreadsheet":  [ ".xls", ".xlsx" ],
     "tabular data": [ ".csv.gz", ".csv", ".tsv.gz", ".tsv" ],
     "text":         [ ".txt" ],

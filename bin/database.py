@@ -24,7 +24,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 58 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 59 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2037,6 +2037,29 @@ def upgrade_to_58():
                                                                      '$and': [{'classification.Custom': {'$ne': []}},
                                                                               {'classification.Custom': {'$exists': True}}]}}})
         process_cursor(cursor, closure, cont_name)
+
+
+def upgrade_bash_files_to_59(cont, cont_name):
+    """"""
+    files = cont.get('files', [])
+    dirty = False
+    for file_ in files:
+        _, extension = os.path.splitext(file_['name'])
+        if extension == '.sh':
+            dirty = True
+            file_['type'] = 'source code'
+    if dirty:
+        config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'files': files}})
+    return True
+
+def upgrade_to_59():
+    """
+    Set files with ext .sh to type source code
+    """
+    for cont_name in ["projects", "sessions", "acquisitions", "analyses"]:
+        cursor = config.db[cont_name].find({"files.type": None, "files.name": {"$regex": "\\.sh$"}})
+        process_cursor(cursor, upgrade_bash_files_to_59, cont_name)
+
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION
