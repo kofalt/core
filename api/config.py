@@ -47,7 +47,8 @@ DEFAULT_CONFIG = {
         'central_url': 'https://sdmc.scitran.io/api',
         'registered': False,
         'ssl_cert': None,
-        'inactivity_timeout': None
+        'inactivity_timeout': None,
+        'upload_maximum_bytes': '10737418240'
     },
     'queue': {
         'max_retries': 3,
