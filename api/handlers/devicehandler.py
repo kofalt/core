@@ -6,7 +6,7 @@ from .. import util
 from ..auth import require_drone, require_login, require_superuser
 from ..auth.apikeys import DeviceApiKey
 from ..dao import containerstorage
-from ..web.errors import APINotFoundException, APIValidationException
+from ..web.errors import APINotFoundException, APIValidationException, APIException
 from ..validators import validate_data
 
 log = config.log
@@ -108,3 +108,22 @@ class DeviceHandler(base.RequestHandler):
 
         result = self.storage.update_el(device_id, payload)
         return {'modified': result.modified_count}
+
+    @require_drone
+    def serve_logging_credentials(self, filename):
+        if filename in ['client_cert.pem', 'client_key.pem', 'ca.pem']:
+            self.response.headers['Content-Type'] = 'application/x-x509-ca-cert'
+            try:
+                with open('/var/scitran/keys/log_clients/{}'.format(filename)) as data:
+                    self.response.write(data.read())
+            except IOError:
+                raise APIException('File {} not found! Make sure centralized logging is set up')
+        elif filename in ['remote_config', 'local_config']:
+            self.response.headers['Content-Type'] = 'text/plain'
+            try:
+                with open('/var/scitran/keys/log_clients/{}'.format(filename)) as data:
+                    self.response.write(data.read())
+            except IOError:
+                raise APIException('File {} not found! Make sure centralized logging is set up'.format(filename))
+        else:
+            raise APINotFoundException('File {} is not a valid logging credential'.format(filename))
