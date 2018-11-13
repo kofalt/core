@@ -148,7 +148,7 @@ task configureToolbox(dependsOn: [copyToolboxFiles, copyRestApi, copySwaggerApi,
 		configureXml(intDir + '/metadata/filesystemManifest.xml', { root ->
 			FileTree tree = fileTree(fsrootDir)
 			tree.visit{ element ->
-				if( !element.isDirectory() ) {
+				if( !element.isDirectory() && element.name != 'README' ) {
 					def f = element.getFile();
 					// Hardcoded permissions - would these ever change?
 					def modified = dateToIso(new Date(f.lastModified()))
