@@ -24,7 +24,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 59 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 60 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2059,6 +2059,126 @@ def upgrade_to_59():
     for cont_name in ["projects", "sessions", "acquisitions", "analyses"]:
         cursor = config.db[cont_name].find({"files.type": None, "files.name": {"$regex": "\\.sh$"}})
         process_cursor(cursor, upgrade_bash_files_to_59, cont_name)
+
+
+def add_subject_created_timestamps(cont):
+    sessions = list(config.db.sessions.find({'subject': cont['_id']}))
+    min_created = min([s['created'] for s in sessions])
+    update = {'created': min_created}
+    if not cont.get('modified'):
+        update['modified'] = max([s['modified'] for s in sessions])
+    config.db.subjects.update_one({'_id': cont['_id']}, {'$set': update})
+    return True
+
+def upgrade_to_60(dry_run=False):
+    def extract_subject(session):
+        """Extract and return augmented subject document, leave subject reference on session"""
+        subject = session.pop('subject')
+        if 'parents' not in session:
+            # TODO find and address code that lets parent-less containers through to mongo
+            logging.warning('adding missing parents key on session %s', session['_id'])
+            session['parents'] = {'group': session['group'], 'project': session['project']}
+        subject.update({
+            'parents': session['parents'],
+            'project': session['project'],
+            'permissions': session['permissions']
+        })
+        if subject.get('age'):
+            session['age'] = subject.pop('age')
+        session['subject'] = subject['_id']
+        return subject
+
+    def merge_dict(a, b):
+        """Merge dict a and b in place, into a"""
+        for k in b:
+            if k not in a:  # add new key
+                a[k] = b[k]
+            elif a[k] == b[k]:  # skip unchanged
+                pass
+            elif b[k] in ('', None):  # skip setting empty
+                pass
+            elif a[k] in ('', None):  # replace null without storing history, alerting
+                a[k] = b[k]
+            elif type(a[k]) == type(b[k]) == dict:  # recurse in dict
+                merge_dict(a[k], b[k])
+            else:  # handle conflict
+                logging.warning('merge conflict on key %s on subject %s', k, a.get('_id') or b.get('_id'))
+                a.setdefault(k + '_history', []).append(a[k])
+                a[k] = b[k]
+
+    session_groups = config.db.sessions.aggregate([
+        {'$match': {'deleted': {'$exists': True}, 'subject': {'$type': 'object'}}},
+        {'$group': {'_id': {'project': '$project', 'code': '$subject.code'},
+                    'sessions': {'$push': '$$ROOT'}}},
+        {'$sort': collections.OrderedDict([('_id.project', 1), ('_id.code', 1)])},
+    ])
+
+    inserted_subject_ids = []
+    for session_group in session_groups:
+        logging.info('project: {} / subject: {!r} ({} session{})'.format(
+            session_group['_id'].get('project'),
+            session_group['_id'].get('code'),
+            len(session_group['sessions']), 's' if len(session_group['sessions']) != 1 else ''))
+        # sort sessions by 'created' to merge subjects in chronological order (TBD modified instead)
+        sessions = list(sorted(session_group['sessions'], key=lambda s: s['created']))
+        # make sure subjects w/ missing/empty code are assigned different ids (see also updates 17 and 44)
+        if session_group['_id'].get('code') in ('', None):
+            for session in sessions:
+                if session['subject']['_id'] in inserted_subject_ids:
+                    session['subject']['_id'] = bson.ObjectId()
+                subject = extract_subject(session)
+                subject.update({'created': session['created'], 'modified': session['modified']})
+                if not dry_run:
+                    config.db.subjects.insert_one(subject)
+                    config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
+                inserted_subject_ids.append(subject['_id'])
+            continue
+        # (subjects collection requires, but) project/code based session groups aren't guaranteed to:
+        # - have the same subject id on all sessions in any group
+        # - have a unique subject id across all groups
+        # pick a subject id from the group that hasn't been inserted yet (ie. used for another group), else generate it
+        subject_ids = [session['subject']['_id'] for session in sessions]
+        subject_id = next((_id for _id in subject_ids if _id not in inserted_subject_ids), bson.ObjectId())
+        merged_subject = {}
+        for session in sessions:
+            session['subject']['_id'] = subject_id
+            subject = extract_subject(session)
+            merge_dict(merged_subject, subject)
+
+        # Move top-level history keys to info block to not clutter new subject object
+        for k in merged_subject.keys():
+            if k.endswith('_history'):
+                merged_subject.setdefault('info', {}) # only set it if we have to
+                merged_subject['info'][k] = merged_subject.pop(k)
+
+        min_created = min(s['created'] for s in sessions)
+        max_modified = max(s['modified'] for s in sessions)
+        min_deleted = min(s['deleted'] for s in sessions)
+        merged_subject.update({'created': min_created, 'modified': max_modified, 'deleted': min_deleted})
+        if not dry_run:
+            if config.db.subjects.find_one({'project': session_group['_id']['project'], 'code': subject['code']}):
+                # If the subject already exists, create a new one with a new id, suffixed with -deleted
+                merged_subject['code'] = '{}-deleted'.format(subject['code'])
+                merged_subject['_id'] = bson.ObjectId()
+                for session in sessions:
+                    session['subject'] = merged_subject['_id']
+            config.db.subjects.insert_one(merged_subject)
+
+        inserted_subject_ids.append(subject_id)
+        for session in sessions:
+            if not dry_run:
+                config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
+        parents_update = {'$set': {'parents.subject': subject_id}}
+        session_ids = [s['_id'] for s in sessions]
+        acquisition_ids = [a['_id'] for a in config.db.acquisitions.find({'session': {'$in': session_ids}})]
+        config.db.sessions.update_many({'_id': {'$in': session_ids}}, parents_update)
+        config.db.acquisitions.update_many({'_id': {'$in': acquisition_ids}}, parents_update)
+        config.db.analyses.update_many({'parent.id': {'$in': session_ids + acquisition_ids}}, parents_update)
+
+        upgrade_to_57()
+        cursor = config.db.subjects.find({'created': {'$exists': False}})
+        process_cursor(cursor, add_subject_created_timestamps)
+
 
 
 ###

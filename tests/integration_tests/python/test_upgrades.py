@@ -739,3 +739,88 @@ def test_58(api_db, database, data_builder, as_admin, file_form):
     assert files[2]['name'] == 'test_file3.csv'
     assert files[2]['modality'] == 'PET'
     assert files[2]['classification'] == {'Custom': ['PET']}
+
+
+def test_60(api_db, data_builder, database):
+    """Test subject collection pullout upgrade."""
+    group = data_builder.create_group()
+    project = bson.ObjectId(data_builder.create_project())
+    now = datetime.datetime.utcnow()
+    sessions = []
+    def create_session(subject_doc, deleted=False):
+        subject_doc.setdefault('_id', bson.ObjectId())
+        session = bson.ObjectId()
+        sessions.append(session)
+        now_ = now + datetime.timedelta(seconds=len(sessions))
+        session_obj = {
+            '_id': session,
+            'group': group,
+            'project': project,
+            'parents': {'group': group,
+                        'project': project},
+            'subject': subject_doc,
+            'created': now_,
+            'modified': now_,
+            'permissions': [{'_id': 'admin@user.com', 'access': 'admin'}],
+            'public': True,
+        }
+        if deleted:
+            session_obj['deleted'] = now_
+        api_db.sessions.insert_one(session_obj)
+        return session
+
+    # Create the sessions
+    not_deleted = create_session({'code': 'not deleted', 'firstname': 'Person 1'})
+    half_deleted_id = bson.ObjectId()
+    not_half_deleted = create_session({'code': 'half deleted', '_id': half_deleted_id, 'firstname': 'Person 2'})
+    half_deleted = create_session({'code': 'half deleted', '_id': half_deleted_id, 'firstname': 'Person 3'}, deleted=True)
+    full_deleted = create_session({'code': 'deleted', 'firstname': 'Person 4'}, deleted=True)
+
+    database.upgrade_to_55()
+
+    def get_subject(session_id):
+        session = api_db.sessions.find_one({'_id': session_id})
+        return api_db.subjects.find_one({'_id': session['subject']})
+
+    # verify that upgrade 55 did what is expected
+    not_deleted_subject = get_subject(not_deleted)
+    print not_deleted_subject
+    assert not_deleted_subject['project'] == project
+    assert not_deleted_subject['permissions'] == [{'_id': 'admin@user.com', 'access': 'admin'}]
+    assert not not_deleted_subject.get('created')
+    assert not not_deleted_subject.get('modified')
+    assert not_deleted_subject['firstname'] == 'Person 1'
+
+    not_half_deleted_subject = get_subject(not_half_deleted)
+    assert not_half_deleted_subject['firstname'] == 'Person 2'
+
+    session = api_db.sessions.find_one({'_id': half_deleted})
+    half_deleted_subject = api_db.subjects.find_one({'_id': session['subject']['_id']})
+    assert half_deleted_subject['firstname'] == 'Person 2' # Not Person 3
+
+    session = api_db.sessions.find_one({'_id': full_deleted})
+    full_deleted_subject = api_db.subjects.find_one({'_id': session['subject']['_id']})
+    assert not full_deleted_subject
+
+    database.upgrade_to_60()
+
+    not_deleted_subject = get_subject(not_deleted)
+    assert not_deleted_subject['project'] == project
+    assert not_deleted_subject['permissions'] == [{'_id': 'admin@user.com', 'access': 'admin'}]
+    assert not_deleted_subject['created'] == min(s['created'] for s in api_db.sessions.find({'subject': not_deleted_subject['_id']}))
+    assert not_deleted_subject['modified'] == max(s['modified'] for s in api_db.sessions.find({'subject': not_deleted_subject['_id']}))
+    assert not_deleted_subject['firstname'] == 'Person 1'
+
+    not_half_deleted_subject = get_subject(not_half_deleted)
+    assert not_half_deleted_subject['firstname'] == 'Person 2'
+    assert half_deleted_subject['code'] == 'half deleted'
+
+    half_deleted_subject = get_subject(half_deleted)
+    assert half_deleted_subject['firstname'] == 'Person 3'
+    assert half_deleted_subject['code'] == 'half deleted-deleted'
+
+    full_deleted_subject = get_subject(full_deleted)
+    assert full_deleted_subject['firstname'] == 'Person 4'
+
+
+    data_builder.delete_group(group, recursive=True)
