@@ -28,6 +28,10 @@ template: |
         type: file
         required: true
         description: The file to upload
+      - name: metadata
+        in: formData
+        type: string
+        description: File metadata
     responses:
       '200':
         description: ''

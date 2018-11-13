@@ -89,7 +89,7 @@ fw.add_project_note(projectId, 'This is a note')
 projects = fw.get_all_projects()
 assert len(projects) > 0
 
-fw.upload_file_to_project(projectId, filepath)
+fw.upload_file_to_project(projectId, filepath, metadata={'zip_member_count': 15})
 fw.download_file_from_project(projectId, filename, '/tmp/download.py')
 
 project = fw.get_project(projectId)
@@ -98,6 +98,7 @@ assert project['label'] == 'testdrive'
 assert project['notes'][0]['text'] == 'This is a note'
 assert project['files'][0]['name'] == filename
 assert project['files'][0]['size'] == os.path.getsize('/tmp/download.py')
+assert project['files'][0]['zip_member_count'] == 15
 
 projectDownloadUrl = fw.get_project_download_url(projectId, filename)
 assert projectDownloadUrl != ''
@@ -125,7 +126,7 @@ assert len(sessions) > 0
 sessions = fw.get_all_sessions()
 assert len(sessions) > 0
 
-fw.upload_file_to_session(sessionId, filepath)
+fw.upload_file_to_session(sessionId, filepath, metadata={'zip_member_count': 15})
 fw.download_file_from_session(sessionId, filename, '/tmp/download2.py')
 
 session = fw.get_session(sessionId)
@@ -134,6 +135,7 @@ assert session['label'] == 'testdrive'
 assert session['notes'][0]['text'] == 'This is a note'
 assert session['files'][0]['name'] == filename
 assert session['files'][0]['size'] == os.path.getsize('/tmp/download2.py')
+assert session['files'][0]['zip_member_count'] == 15
 
 sessionDownloadUrl = fw.get_session_download_url(sessionId, filename)
 assert sessionDownloadUrl != ''
@@ -178,7 +180,7 @@ assert len(acqs) > 0
 acqs = fw.get_all_acquisitions()
 assert len(acqs) > 0
 
-fw.upload_file_to_acquisition(acqId, filepath)
+fw.upload_file_to_acquisition(acqId, filepath, metadata={'zip_member_count': 15})
 fw.download_file_from_acquisition(acqId, filename, '/tmp/download3.py')
 
 acq = fw.get_acquisition(acqId)
@@ -187,6 +189,7 @@ assert acq['label'] == 'testdrive'
 assert acq['notes'][0]['text'] == 'This is a note'
 assert acq['files'][0]['name'] == filename
 assert acq['files'][0]['size'] == os.path.getsize('/tmp/download3.py')
+assert acq['files'][0]['zip_member_count'] == 15
 
 acqDownloadUrl = fw.get_acquisition_download_url(acqId, filename)
 assert acqDownloadUrl != ''
@@ -211,13 +214,14 @@ assert len(collAqs) == 1
 
 fw.add_collection_note(colId, 'This is a note')
 
-fw.upload_file_to_collection(colId, filepath)
+fw.upload_file_to_collection(colId, filepath, metadata={'zip_member_count': 15})
 fw.download_file_from_collection(colId, filename, '/tmp/download4.py')
 
 collection = fw.get_collection(colId)
 assert collection['notes'][0]['text'] == 'This is a note'
 assert collection['files'][0]['name'] == filename
 assert collection['files'][0]['size'] == os.path.getsize('/tmp/download4.py')
+assert collection['files'][0]['zip_member_count'] == 15
 
 colDownloadUrl = fw.get_collection_download_url(colId, filename)
 assert colDownloadUrl != ''
