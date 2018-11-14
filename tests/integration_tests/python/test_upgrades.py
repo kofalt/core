@@ -807,8 +807,10 @@ def test_60(api_db, data_builder, database):
     not_deleted_subject = get_subject(not_deleted)
     assert not_deleted_subject['project'] == project
     assert not_deleted_subject['permissions'] == [{'_id': 'admin@user.com', 'access': 'admin'}]
-    assert not_deleted_subject['created'] == min(s['created'] for s in api_db.sessions.find({'subject': not_deleted_subject['_id']}))
-    assert not_deleted_subject['modified'] == max(s['modified'] for s in api_db.sessions.find({'subject': not_deleted_subject['_id']}))
+    assert not_deleted_subject['created'] == min([s['created'] for s in api_db.sessions.find({'subject': not_deleted_subject['_id']})] +
+                                                 [not_deleted_subject['_id'].generation_time.replace(tzinfo=None)])
+    assert not_deleted_subject['modified'] == max([s['modified'] for s in api_db.sessions.find({'subject': not_deleted_subject['_id']})] +
+                                                  [not_deleted_subject['_id'].generation_time.replace(tzinfo=None)])
     assert not_deleted_subject['firstname'] == 'Person 1'
 
     not_half_deleted_subject = get_subject(not_half_deleted)

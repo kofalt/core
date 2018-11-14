@@ -64,6 +64,11 @@ def getMonotonicTime():
     # http://stackoverflow.com/a/7424304
     return os.times()[4]
 
+
+def get_bson_timestamp(bson_id):
+    return bson_id.generation_time.replace(tzinfo=None)
+
+
 def process_cursor(cursor, closure, context = None):
     """
     Given an iterable (say, a mongo cursor) and a closure, call that closure in parallel over the iterable.
@@ -2063,14 +2068,41 @@ def upgrade_to_59():
 
 def add_subject_created_timestamps(cont):
     sessions = list(config.db.sessions.find({'subject': cont['_id']}))
-    min_created = min([s['created'] for s in sessions])
+    min_created = min([s['created'] for s in sessions] + [get_bson_timestamp(cont['_id'])])
     update = {'created': min_created}
     if not cont.get('modified'):
-        update['modified'] = max([s['modified'] for s in sessions])
+        update['modified'] = max([s['modified'] for s in sessions] + [datetime.datetime.now(None)])
     config.db.subjects.update_one({'_id': cont['_id']}, {'$set': update})
     return True
 
+
+def give_session_parents(cont):
+    parents = {
+        'group': cont['group'],
+        'project': cont['project'],
+        'subject': cont['subject']
+    }
+
+    config.db.sessions.update_one({'_id': cont['_id']}, {'$set': {'parents': parents}})
+
+
+    parents['session'] = cont['_id']
+    config.db.analyses.update_many({'parent.id': cont['_id']}, {'$set': {'parents': parents}})
+
+
+    config.db.acquisitions.update_many({'session': cont['_id']}, {'$set': {'parents': parents}})
+    return True
+
 def upgrade_to_60(dry_run=False):
+    """
+    This upgrade formalizes subjects on deleted sessions that were skipped in 55
+    If the subject already was formalized, a new one tagged with a '-deleted' sufffix
+    to the subject code is created.
+
+    The upgrade also adds in teh created timestamp for subjects that didn't get one.
+
+    It also adds in the parent keys for sessions that didn't have one
+    """
     def extract_subject(session):
         """Extract and return augmented subject document, leave subject reference on session"""
         subject = session.pop('subject')
@@ -2165,19 +2197,26 @@ def upgrade_to_60(dry_run=False):
             config.db.subjects.insert_one(merged_subject)
 
         inserted_subject_ids.append(subject_id)
-        for session in sessions:
-            if not dry_run:
+        if not dry_run:
+            for session in sessions:
                 config.db.sessions.update_one({'_id': session['_id']}, {'$set': session})
-        parents_update = {'$set': {'parents.subject': subject_id}}
-        session_ids = [s['_id'] for s in sessions]
-        acquisition_ids = [a['_id'] for a in config.db.acquisitions.find({'session': {'$in': session_ids}})]
-        config.db.sessions.update_many({'_id': {'$in': session_ids}}, parents_update)
-        config.db.acquisitions.update_many({'_id': {'$in': acquisition_ids}}, parents_update)
-        config.db.analyses.update_many({'parent.id': {'$in': session_ids + acquisition_ids}}, parents_update)
+            parents_update = {'$set': {'parents.subject': subject_id}}
+            session_ids = [s['_id'] for s in sessions]
+            acquisition_ids = [a['_id'] for a in config.db.acquisitions.find({'session': {'$in': session_ids}})]
+            config.db.sessions.update_many({'_id': {'$in': session_ids}}, parents_update)
+            config.db.acquisitions.update_many({'_id': {'$in': acquisition_ids}}, parents_update)
+            config.db.analyses.update_many({'parent.id': {'$in': session_ids + acquisition_ids}}, parents_update)
 
-        upgrade_to_57()
-        cursor = config.db.subjects.find({'created': {'$exists': False}})
+
+
+        cursor = config.db.subjects.find({'created': None})
+        logging.info("Adding in created timestamps for subjects")
         process_cursor(cursor, add_subject_created_timestamps)
+
+        cursor = config.db.sessions.find({'$or': [{'parents': None}, {'parents.subject': None}]})
+        logging.info("Adding in parents key for sessions")
+        process_cursor(cursor, give_session_parents)
+
 
 
 
