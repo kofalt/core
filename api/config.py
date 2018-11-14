@@ -192,6 +192,8 @@ def initialize_db():
         log_db.access_log.create_index('context.ticket_id')
         log_db.access_log.create_index([('timestamp', pymongo.DESCENDING)])
 
+    # NOTE: make sure that the index name is being used,
+    #       if not mongodb will let the documents persist
     create_or_recreate_ttl_index('authtokens', 'timestamp', 2592000)
     create_or_recreate_ttl_index('uploads', 'timestamp', 3600)
     create_or_recreate_ttl_index('downloads', 'timestamp', 60)

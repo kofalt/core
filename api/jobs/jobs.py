@@ -433,6 +433,7 @@ class JobTicket(object):
             'job': j.id_,
             'success': success,
             'elapsed': elapsed,
+            'timestamp': datetime.datetime.utcnow()
         })
 
         return result.inserted_id
