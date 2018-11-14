@@ -1311,7 +1311,8 @@ def test_analysis_engine_upload(data_builder, file_form, as_root):
 
 
 def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
-    project = data_builder.create_project()
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
     session = data_builder.create_session()
 
     # try to start packfile-upload to non-project target
@@ -1348,9 +1349,12 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
 
     metadata_json = json.dumps({
         'project': {'_id': project},
-        'session': {'label': 'test-packfile-label'},
+        'session': {
+            'label': 'test-packfile-label (session)',
+            'subject': { 'code': 'subj-01' }
+        },
         'acquisition': {
-            'label': 'test-packfile-label',
+            'label': 'test-packfile-label (acquisition)',
             'timestamp': '1979-01-01T00:00:00+00:00'
         },
         'packfile': {'type': 'test'}
@@ -1374,7 +1378,25 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
     assert r.ok
 
     # make sure file was uploaded and mimetype and type are properly set
-    packfile = as_admin.get('/acquisitions').json()[0]['files'][0]
+    created_subject = as_admin.get('/projects/' + project + '/subjects').json()[-1]
+    assert created_subject['label'] == 'subj-01'
+    assert created_subject['parents']['group'] == group
+    assert created_subject['parents']['project'] == project
+
+    created_session = as_admin.get('/subjects/' + created_subject['_id'] + '/sessions').json()[0]
+    assert created_session['label'] == 'test-packfile-label (session)'
+    assert created_session['parents']['group'] == group
+    assert created_session['parents']['project'] == project
+    assert created_session['parents']['subject'] == created_subject['_id']
+
+    created_acq = as_admin.get('/sessions/' + created_session['_id'] + '/acquisitions').json()[0]
+    assert created_acq['label'] == 'test-packfile-label (acquisition)'
+    assert created_acq['parents']['group'] == group
+    assert created_acq['parents']['project'] == project
+    assert created_acq['parents']['subject'] == created_subject['_id']
+    assert created_acq['parents']['session'] == created_session['_id']
+
+    packfile = created_acq['files'][0]
     assert packfile['mimetype'] == 'application/zip'
     assert packfile['type'] == 'test'
     assert packfile['zip_member_count'] == 3

@@ -635,6 +635,12 @@ class PackfilePlacer(Placer):
             SubjectStorage().create_or_update_el(subject)
             query['subject'] = subject['_id']
 
+            insert_map['parents'] = {
+                'group': self.g_id,
+                'project': bson.ObjectId(self.p_id),
+                'subject': subject['_id']
+            }
+
         session = config.db.sessions.find_one_and_update(
             query, {
                 '$set': updates,
@@ -664,6 +670,8 @@ class PackfilePlacer(Placer):
 
         # Extra properties on insert
         insert_map = copy.deepcopy(query)
+        insert_map['parents'] = copy.deepcopy(session['parents'])
+        insert_map['parents']['session'] = session['_id']
 
         # Remove query term that should not become part of the payload
         insert_map.pop('deleted')
