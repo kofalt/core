@@ -600,6 +600,13 @@ def _update_container_nulls(base_query, update, container_type):
 
     if container_type == 'session' and type(update.get('subject')) is dict:
         subject_update = update.pop('subject')
+        raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity']
+        subject_raw = {k:v for k,v in subject_update.iteritems() if v is not None and k in raw_subject_fields}
+        if subject_raw:
+            if update.get('info'):
+                update['info']['subject_raw'] = subject_raw
+            else:
+                update['info'] = {'subject_raw': subject_raw}
         subject_update['modified'] = update['modified']
         _update_container_nulls({'_id': cont['subject']}, subject_update, 'subject')
 

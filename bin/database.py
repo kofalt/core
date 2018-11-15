@@ -1847,6 +1847,12 @@ def upgrade_to_55(dry_run=False):
         if subject.get('age'):
             session['age'] = subject.pop('age')
         session['subject'] = subject['_id']
+        raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity', 'info']
+        subject_raw = {k: copy.deepcopy(v) for k, v in subject.iteritems() if v is not None and k in raw_subject_fields}
+        if session.get('info'):
+            session['info']['subject_raw'] = subject_raw
+        else:
+            session['info'] = {'subject_raw': subject_raw}
         return subject
 
     def merge_dict(a, b):
@@ -1864,7 +1870,6 @@ def upgrade_to_55(dry_run=False):
                 merge_dict(a[k], b[k])
             else:  # handle conflict
                 logging.warning('merge conflict on key %s on subject %s', k, a.get('_id') or b.get('_id'))
-                a.setdefault(k + '_history', []).append(a[k])
                 a[k] = b[k]
 
     session_groups = config.db.sessions.aggregate([
@@ -2118,6 +2123,12 @@ def upgrade_to_60(dry_run=False):
         if subject.get('age'):
             session['age'] = subject.pop('age')
         session['subject'] = subject['_id']
+        raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity', 'info']
+        subject_raw = {k:v for k,v in subject.iteritems() if v is not None and k in raw_subject_fields}
+        if session.get('info'):
+            session['info']['subject_raw'] = subject_raw
+        else:
+            session['info'] = {'subject_raw': subject_raw}
         return subject
 
     def merge_dict(a, b):
@@ -2135,7 +2146,6 @@ def upgrade_to_60(dry_run=False):
                 merge_dict(a[k], b[k])
             else:  # handle conflict
                 logging.warning('merge conflict on key %s on subject %s', k, a.get('_id') or b.get('_id'))
-                a.setdefault(k + '_history', []).append(a[k])
                 a[k] = b[k]
 
     session_groups = config.db.sessions.aggregate([
@@ -2209,13 +2219,13 @@ def upgrade_to_60(dry_run=False):
 
 
 
-        cursor = config.db.subjects.find({'created': None})
-        logging.info("Adding in created timestamps for subjects")
-        process_cursor(cursor, add_subject_created_timestamps)
+    cursor = config.db.subjects.find({'created': None})
+    logging.info("Adding in created timestamps for subjects")
+    process_cursor(cursor, add_subject_created_timestamps)
 
-        cursor = config.db.sessions.find({'$or': [{'parents': None}, {'parents.subject': None}]})
-        logging.info("Adding in parents key for sessions")
-        process_cursor(cursor, give_session_parents)
+    cursor = config.db.sessions.find({'$or': [{'parents': None}, {'parents.subject': None}]})
+    logging.info("Adding in parents key for sessions")
+    process_cursor(cursor, give_session_parents)
 
 
 

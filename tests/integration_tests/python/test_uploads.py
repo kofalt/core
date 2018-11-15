@@ -6,6 +6,15 @@ import dateutil.parser
 import pytest
 
 
+def get_full_container(user, url, index):
+    _, _, _, cont_type = url.split('/')
+    cont = user.get(url).json()[index]
+    r = user.get('/' + cont_type + '/' + cont['_id'])
+    assert r.ok
+    return r.json()
+
+
+
 # TODO switch to upload_file_form in all uid(-match)/label/reaper upload tests
 # after #772 (coverage-low-hanging 3) gets merged to avoid conflict hell
 @pytest.fixture(scope='function')
@@ -75,7 +84,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
 
     sessions = as_admin.get('/projects/' + project_1 + '/sessions').json()
     assert len(sessions) == 1
-    created_session = sessions[0]
+    created_session = as_admin.get('/sessions/' + sessions[0]['_id']).json()
     assert created_session['parents']['group'] == group_1
     assert created_session['parents']['project'] == project_1
     session = created_session['_id']
@@ -210,6 +219,30 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
         session={'uid': session_uid+'4'},
     ))
     assert r.status_code == 403
+
+    # Test reaper uploads for embedded subject metadata
+    r = as_admin.post('/upload/reaper', files=upload_file_form(
+        group={'_id': group_1},
+        project={'label': project_label_1},
+        session={
+            'uid': session_uid + '5',
+            'subject': {
+                'code': 'embedded',
+                'lastname': 'Lastname'
+            }
+        }
+    ))
+    assert r.ok
+
+
+    # Test saving raw EM4 subject at session info
+    sessions = as_admin.get('/projects/' + project_1 + '/sessions').json()
+    session_raw_subject_id = [s for s in sessions if s['uid'] == session_uid + '5'][0]['_id']
+    session_raw_subject = as_admin.get('/sessions/' + session_raw_subject_id).json()
+    expected_raw_subject = {
+        'lastname': 'Lastname'
+    }
+    assert session_raw_subject['info']['subject_raw'] == expected_raw_subject
 
     # clean up
     data_builder.delete_group(group_1, recursive=True)
@@ -478,7 +511,7 @@ def test_label_project_search(data_builder, file_form, as_root):
                 'label': '',
             },
             'session': {
-                'label': 'test_session_label_2',
+                'label': 'test_session_label_2'
             },
             'acquisition': {
                 'label': 'test_acquisition_label_2',
@@ -695,7 +728,9 @@ def test_label_upload(data_builder, file_form, as_admin):
             'session': {
                 'label': 'test_session_label',
                 'subject': {
-                    'code': 'test_subject_code'
+                    'code': 'test_subject_code',
+                    'firstname': 'Name1',
+                    'files': [{'name': 'subject.csv'}]
                 },
                 'files': [{'name': 'session.csv'}]
             },
@@ -709,18 +744,115 @@ def test_label_upload(data_builder, file_form, as_admin):
 
     # get newly created project/session/acquisition
     project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
+    subject = get_full_container(as_admin, '/projects/' + project + '/subjects', 0)
+    assert subject['firstname'] == 'Name1'
 
-    session = as_admin.get('/projects/' + project + '/sessions').json()[0]
-    session_id = session['_id']
+    session_id = as_admin.get('/projects/' + project + '/sessions').json()[0]['_id']
+    r = as_admin.get('/sessions/' + session_id)
+    assert r.ok
+    session = r.json()
 
     assert session['parents']['group'] == group
     assert session['parents']['project'] == project
+    assert session['info']['subject_raw'] == {'firstname': 'Name1'}
 
     acquisition = as_admin.get('/sessions/' + session_id + '/acquisitions').json()[0]
     assert acquisition['parents']['group'] == group
     assert acquisition['parents']['project'] == project
     assert acquisition['parents']['session'] == session_id
 
+    # label-upload files to a second session under the same subjects
+    r = as_admin.post('/upload/label', files=file_form(
+        'project.csv', 'session.csv', 'acquisition.csv', 'unused.csv',
+        meta={
+            'group': {'_id': group},
+            'project': {
+                'label': 'test_project',
+                'files': [{'name': 'project.csv'}]
+            },
+            'session': {
+                'label': 'test_session2_label',
+                'subject': {
+                    'code': 'test_subject_code',
+                    'firstname': 'Name2'  # Note that we don't upload a file here
+                },
+                'files': [{'name': 'session.csv'}]
+            },
+            'acquisition': {
+                'label': 'test_acquisition_label',
+                'files': [{'name': 'acquisition.csv'}]
+            }
+        })
+    )
+    assert r.ok
+
+    # get sessions
+    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
+    subject = get_full_container(as_admin, '/projects/' + project + '/subjects', 0)
+
+    session = get_full_container(as_admin, '/projects/' + project + '/sessions', 1)
+    session_id = session['_id']
+
+    session2 = get_full_container(as_admin, '/projects/' + project + '/sessions', 0)
+    session2_id = session2['_id']
+
+    assert subject['firstname'] == 'Name1'  # Because a file wasn't uploaded to a subject,
+                                            # the name isn't overwritten
+
+    assert session['parents']['group'] == group
+    assert session['parents']['project'] == project
+    assert session['info']['subject_raw'] == {'firstname': 'Name1'}
+
+    assert session2['parents']['group'] == group
+    assert session2['parents']['project'] == project
+    assert session2['info']['subject_raw'] == {'firstname': 'Name2'}
+
+    # label-upload files to the second session under the same subjects
+    r = as_admin.post('/upload/label', files=file_form(
+        'project.csv', 'session.csv', 'acquisition.csv', 'unused.csv',
+        meta={
+            'group': {'_id': group},
+            'project': {
+                'label': 'test_project',
+                'files': [{'name': 'project.csv'}]
+            },
+            'session': {
+                'label': 'test_session2_label',
+                'subject': {
+                    'code': 'test_subject_code',
+                    'firstname': 'Name3'  # Note that we don't upload a file here
+                },
+                'files': [{'name': 'session.csv'}]
+            },
+            'acquisition': {
+                'label': 'test_acquisition_label2',
+                'files': [{'name': 'acquisition.csv'}]
+            }
+        })
+    )
+    assert r.ok
+
+    # get sessions and metadata shouldn't change for the sessions,
+    # because neither of them were created by this upload
+    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
+    subject = get_full_container(as_admin, '/projects/' + project + '/subjects', 0)
+
+    session = get_full_container(as_admin, '/projects/' + project + '/sessions', 1)
+    session_id = session['_id']
+
+    session2 = get_full_container(as_admin, '/projects/' + project + '/sessions', 0)
+    session2_id = session2['_id']
+
+    assert subject['firstname'] == 'Name1'  # Because a file wasn't uploaded to a subject,
+                                            # the name isn't overwritten
+
+    assert session['parents']['group'] == group
+    assert session['parents']['project'] == project
+    assert session['info']['subject_raw'] == {'firstname': 'Name1'}
+
+    assert session2['parents']['group'] == group
+    assert session2['parents']['project'] == project
+    assert session2['info']['subject_raw'] == {'firstname': 'Name2'}
     # delete group and children recursively (created by upload)
     data_builder.delete_group(group, recursive=True)
 
@@ -867,7 +999,10 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
         },
         'session':{
             'label': 'engine session',
-            'subject': {'code': 'engine subject'},
+            'subject': {
+                'code': 'engine subject',
+                'sex': 'male'
+            },
             'info': {'test': 's'},
             'tags': ['one', 'two']
         },
@@ -935,6 +1070,8 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     s = r.json()
     # Engine metadata should not replace existing fields
     assert s['label'] != metadata['session']['label']
+
+    metadata['session']['info']['subject_raw'] = {'sex': 'male'}
     assert s['info'] == metadata['session']['info']
     assert s['subject']['code'] == metadata['session']['subject']['code']
 
@@ -1005,7 +1142,10 @@ def test_session_engine_upload(data_builder, file_form, as_root):
         },
         'session':{
             'label': 'engine session',
-            'subject': {'code': 'engine subject'},
+            'subject': {
+                'code': 'engine subject',
+                'race': 'Asian'
+            },
             'timestamp': '2016-06-20T21:57:36+00:00',
             'info': {'test': 's'},
             'files': [
@@ -1047,6 +1187,7 @@ def test_session_engine_upload(data_builder, file_form, as_root):
     s = r.json()
     # Engine metadata should not replace existing fields
     assert s['label'] != metadata['session']['label']
+    metadata['session']['info']['subject_raw'] = {'race': 'Asian'}
     assert s['info'] == metadata['session']['info']
     assert s['subject']['code'] == metadata['session']['subject']['code']
     s_timestamp = dateutil.parser.parse(s['timestamp'])
@@ -1177,7 +1318,10 @@ def test_acquisition_metadata_only_engine_upload(data_builder, file_form, as_roo
         },
         'session':{
             'label': 'engine session',
-            'subject': {'code': 'engine subject'},
+            'subject': {
+                'code': 'engine subject',
+                'race': 'Asian'
+            },
             'info': {'test': 's'},
             'tags': ['one', 'two']
         },
@@ -1207,6 +1351,7 @@ def test_acquisition_metadata_only_engine_upload(data_builder, file_form, as_roo
     s = r.json()
     # Engine metadata should not replace existing fields
     assert s['label'] != metadata['session']['label']
+    metadata['session']['info']['subject_raw'] = {'race': 'Asian'}
     assert s['info'] == metadata['session']['info']
     assert s['subject']['code'] == metadata['session']['subject']['code']
 
@@ -1351,7 +1496,10 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
         'project': {'_id': project},
         'session': {
             'label': 'test-packfile-label (session)',
-            'subject': { 'code': 'subj-01' }
+            'subject': {
+                'code': 'subj-01',
+                'ethnicity': 'Hispanic or Latino'
+            }
         },
         'acquisition': {
             'label': 'test-packfile-label (acquisition)',
@@ -1378,16 +1526,18 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
     assert r.ok
 
     # make sure file was uploaded and mimetype and type are properly set
-    created_subject = as_admin.get('/projects/' + project + '/subjects').json()[-1]
+    created_subject = get_full_container(as_admin, '/projects/' + project + '/subjects', -1)
     assert created_subject['label'] == 'subj-01'
     assert created_subject['parents']['group'] == group
     assert created_subject['parents']['project'] == project
+    assert created_subject['ethnicity'] == 'Hispanic or Latino'
 
-    created_session = as_admin.get('/subjects/' + created_subject['_id'] + '/sessions').json()[0]
+    created_session = get_full_container(as_admin, '/subjects/' + created_subject['_id'] + '/sessions', 0)
     assert created_session['label'] == 'test-packfile-label (session)'
     assert created_session['parents']['group'] == group
     assert created_session['parents']['project'] == project
     assert created_session['parents']['subject'] == created_subject['_id']
+    assert created_session['info']['subject_raw'] == {'ethnicity': 'Hispanic or Latino'}
 
     created_acq = as_admin.get('/sessions/' + created_session['_id'] + '/acquisitions').json()[0]
     assert created_acq['label'] == 'test-packfile-label (acquisition)'

@@ -572,14 +572,15 @@ def test_55(api_db, data_builder, database):
 
     # test merge of subject fields
     create_session({'code': 'merge'})
-    create_session({'code': 'merge', 'key': 'value1'})  # key: value1
-    create_session({'code': 'merge', 'key': 'value1'})  # noop
-    create_session({'code': 'merge', 'key': 'value2'})  # key: value2, key_history: ['value1']
+    session_bob_id = create_session({'code': 'merge', 'key': 'value1', 'firstname': 'Bob'})  # session.info.subject_raw.key: value1, firstname: Bob, session.info.subject_raw.firstname: Bob
+    create_session({'code': 'merge', 'key': 'value1', 'firstname': 'Bob'})  # noop
+    create_session({'code': 'merge', 'key': 'value2'})  # key: value2, session.info.subject_raw.key = value2
+    session_mary_id = create_session({'code': 'merge', 'key': 'value2', 'firstname': 'Mary'})  # firstname: Mary, , session.info.subject_raw.firstname: Mary
     create_session({'code': 'merge'})                   # noop
     create_session({'code': 'merge', 'key': None})      # noop
     create_session({'code': 'merge', 'key': ''})        # noop
     # test on the most recently created session
-    test_merge = create_session({'code': 'merge', 'key': 'value3'})  # key: value3, key_history: ['value1', 'value2']
+    test_merge = create_session({'code': 'merge', 'key': 'value3'})  # key: value3, session.info.subject_raw.key: value3
 
     # test merge of deep subject fields (eg. info, expect same behavior as above)
     create_session({'code': 'deep-merge'})
@@ -594,9 +595,9 @@ def test_55(api_db, data_builder, database):
 
     # test both at the same time
     create_session({'code': 'multi-merge'})
-    create_session({'code': 'multi-merge', 'info': {'key': 'value1'}})                  # info.key: value1
+    value1_session_id = create_session({'code': 'multi-merge', 'info': {'key': 'value1'}})                  # info.key: value1
     create_session({'code': 'multi-merge', 'top_key': 'value1'})                        # top_key: value1, info.key: value1
-    create_session({'code': 'multi-merge', 'info': {'key': 'value2'}, 'top_key': 'value2'}) # top_key: value2, info.top_key: [value1], info.key: value2, info.key_history: ['value1']
+    value2_session_id = create_session({'code': 'multi-merge', 'info': {'key': 'value2'}, 'top_key': 'value2'}) # top_key: value2, info.top_key: [value1], info.key: value2, info.key_history: ['value1']
     create_session({'code': 'multi-merge'})                                             # noop
     create_session({'code': 'multi-merge', 'top_key': None })                           # noop
     create_session({'code': 'multi-merge', 'top_key': 'value3'})                        # top_key: value3, info.top_key: [value1, value2], info.key: value2, info.key_history: ['value1']
@@ -633,20 +634,39 @@ def test_55(api_db, data_builder, database):
 
     # verify merging works as expected
     merge_subject = get_subject(test_merge)
+
     assert merge_subject['key'] == 'value3'
-    assert merge_subject['info']['key_history'] == ['value1', 'value2']
+    assert merge_subject['firstname'] == 'Mary'
+
+
+    # Verify important subject info is kept at session level
+    session_bob = api_db.sessions.find_one({'_id': session_bob_id})
+    assert session_bob['info']['subject_raw']['firstname'] == 'Bob'
+    session_mary = api_db.sessions.find_one({'_id': session_mary_id})
+    assert session_mary['info']['subject_raw']['firstname'] == 'Mary'
+
 
     # verify merging works in nested docs like info
     deep_merge_subject = get_subject(test_deep_merge)
-    assert deep_merge_subject['info']['key'] == 'value3'
-    assert deep_merge_subject['info']['key_history'] == ['value1', 'value2']
+    assert deep_merge_subject['info']['key'] == 'value3'  # Not a protected EM4
+                                                          # key so it isn't saved at the session level
+
+    key_values = set(['value1', 'value2', 'value3', ''])
+    deep_merge_sessions = api_db.sessions.find({'subject': bson.ObjectId(deep_merge_subject['_id'])})
+    deep_merge_sessions_with_value = [s for s in deep_merge_sessions if s['info']['subject_raw'].get('info', {}).get('key') is not None]
+    assert set([s['info']['subject_raw'].get('info', {}).get('key') for s in deep_merge_sessions_with_value]) == key_values
 
     # verify merging works in both nested and unnested
     multi_merge_subject = get_subject(test_multi_merge)
+    value1_session = api_db.sessions.find_one({'_id': value1_session_id})
+    value2_session = api_db.sessions.find_one({'_id': value2_session_id})
+    value3_session = api_db.sessions.find_one({'_id': test_multi_merge})
     assert multi_merge_subject['top_key'] == 'value3'
-    assert multi_merge_subject['info']['top_key_history'] == ['value1', 'value2']
+    assert value3_session['info']['subject_raw']['info']['key'] == 'value3'
+    assert value2_session['info']['subject_raw']['info']['key'] == 'value2'
+    print value1_session
+    assert value1_session['info']['subject_raw']['info']['key'] == 'value1'
     assert multi_merge_subject['info']['key'] == 'value3'
-    assert multi_merge_subject['info']['key_history'] == ['value1', 'value2']
 
     data_builder.delete_group(group, recursive=True)
 
