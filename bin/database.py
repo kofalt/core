@@ -24,7 +24,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 60 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 61 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2218,6 +2218,18 @@ def upgrade_to_60(dry_run=False):
         process_cursor(cursor, give_session_parents)
 
 
+
+def add_timestamp(cont, cont_name):
+    config.db[cont_name].update_one({'_id': cont['_id']}, {'$set': {'timestamp': get_bson_timestamp(cont['_id'])}})
+    return True
+
+
+def upgrade_to_61():
+    '''
+    Give all job_tickets a timestamp so that mongo removes old ones
+    '''
+    cursor = config.db.job_tickets.find({'timestamp': None})
+    process_cursor(cursor, add_timestamp, 'job_tickets')
 
 
 ###
