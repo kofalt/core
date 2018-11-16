@@ -196,11 +196,11 @@ def initialize_db():
     # Ref: http://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.create_index
     #
     # IMPORTANT: if the TTL field is missing, documents will not expire.
-    create_or_recreate_ttl_index('authtokens', 'timestamp', 30 * 24 * 60 * 60) # 30 days
-    create_or_recreate_ttl_index('uploads', 'timestamp', 1 * 60 * 60)          #  1 hour
-    create_or_recreate_ttl_index('downloads', 'timestamp', 60)                 #  1 minute
+    create_or_recreate_ttl_index('authtokens',  'timestamp', 30 * 24 * 60 * 60) # 30 days
+    create_or_recreate_ttl_index('uploads',     'timestamp', 1 * 60 * 60      ) #  1 hour
+    create_or_recreate_ttl_index('downloads',   'timestamp', 60               ) #  1 minute
     # IMPORTANT: this controls job orphan logic. Ref queue.py
-    create_or_recreate_ttl_index('job_tickets', 'timestamp', 6 * 60 * 60)      #  6 hours
+    create_or_recreate_ttl_index('job_tickets', 'timestamp', 6 * 60 * 60      ) #  6 hours
 
     now = datetime.datetime.utcnow()
     try_update_one(db,
