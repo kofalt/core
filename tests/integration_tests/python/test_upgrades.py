@@ -653,7 +653,7 @@ def test_55(api_db, data_builder, database):
 
     key_values = set(['value1', 'value2', 'value3', ''])
     deep_merge_sessions = api_db.sessions.find({'subject': bson.ObjectId(deep_merge_subject['_id'])})
-    deep_merge_sessions_with_value = [s for s in deep_merge_sessions if s['info']['subject_raw'].get('info', {}).get('key') is not None]
+    deep_merge_sessions_with_value = [s for s in deep_merge_sessions if s.get('info',{}).get('subject_raw', {}).get('info', {}).get('key') is not None]
     assert set([s['info']['subject_raw'].get('info', {}).get('key') for s in deep_merge_sessions_with_value]) == key_values
 
     # verify merging works in both nested and unnested
@@ -664,7 +664,6 @@ def test_55(api_db, data_builder, database):
     assert multi_merge_subject['top_key'] == 'value3'
     assert value3_session['info']['subject_raw']['info']['key'] == 'value3'
     assert value2_session['info']['subject_raw']['info']['key'] == 'value2'
-    print value1_session
     assert value1_session['info']['subject_raw']['info']['key'] == 'value1'
     assert multi_merge_subject['info']['key'] == 'value3'
 

@@ -7,12 +7,16 @@ import pytest
 
 
 def get_full_container(user, url, index):
-    _, _, _, cont_type = url.split('/')
+    '''
+    Helper function to get the full container when finding it in a list
+    because containers don't return the info block and other fields when returned
+    in a list
+    '''
+    cont_type = url.split('/')[-1]
     cont = user.get(url).json()[index]
     r = user.get('/' + cont_type + '/' + cont['_id'])
     assert r.ok
     return r.json()
-
 
 
 # TODO switch to upload_file_form in all uid(-match)/label/reaper upload tests

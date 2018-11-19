@@ -1847,12 +1847,7 @@ def upgrade_to_55(dry_run=False):
         if subject.get('age'):
             session['age'] = subject.pop('age')
         session['subject'] = subject['_id']
-        raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity', 'info']
-        subject_raw = {k: copy.deepcopy(v) for k, v in subject.iteritems() if v is not None and k in raw_subject_fields}
-        if session.get('info'):
-            session['info']['subject_raw'] = subject_raw
-        else:
-            session['info'] = {'subject_raw': subject_raw}
+        containerutil.attach_raw_subject(session, subject, additional_fields=['info'])
         return subject
 
     def merge_dict(a, b):
@@ -2123,12 +2118,7 @@ def upgrade_to_60(dry_run=False):
         if subject.get('age'):
             session['age'] = subject.pop('age')
         session['subject'] = subject['_id']
-        raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity', 'info']
-        subject_raw = {k:v for k,v in subject.iteritems() if v is not None and k in raw_subject_fields}
-        if session.get('info'):
-            session['info']['subject_raw'] = subject_raw
-        else:
-            session['info'] = {'subject_raw': subject_raw}
+        containerutil.attach_raw_subject(session, subject, additional_fields=['info'])
         return subject
 
     def merge_dict(a, b):
