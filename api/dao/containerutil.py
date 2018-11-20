@@ -79,6 +79,18 @@ def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
             propagate_changes(child_cont, child_ids, query, update, include_refs=include_refs)
 
 
+def attach_raw_subject(session, subject, additional_fields=None):
+    raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity']
+    if additional_fields:
+        raw_subject_fields += additional_fields
+    subject_raw = {k: copy.deepcopy(v) for k, v in subject.iteritems() if v is not None and k in raw_subject_fields}
+    if subject_raw:
+        if session.get('info'):
+            session['info']['subject_raw'] = subject_raw
+        else:
+            session['info'] = {'subject_raw': subject_raw}
+
+
 def extract_subject(session, project):
     """
     Extract subject from session payload (dict), add _id if needed and leave reference on the session.
@@ -113,6 +125,7 @@ def extract_subject(session, project):
     session['subject'] = subject['_id']
     if subject.get('age'):
         session['age'] = subject.pop('age')
+    attach_raw_subject(session, subject)
     return subject
 
 
