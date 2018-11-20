@@ -432,7 +432,7 @@ class ContainerStorage(object):
             if delete_payload:
                 update['$unset'] = {}
                 for k in delete_payload:
-                    update['$unset']['info.' + util.mongo_sanitize_fields(str(k))] = ''
+                    update['$unset']['info.' + str(k).replace('$', '-')] = ''
 
         _id = self.format_id(_id)
         query = {'_id': _id}

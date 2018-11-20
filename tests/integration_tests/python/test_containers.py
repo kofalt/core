@@ -830,6 +830,16 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     assert r.ok
     assert r.json()['info'] == project_info
 
+    # Use 'delete' to unset "map.a" key
+    r = as_admin.post('/projects/' + project + '/info', json={
+        'delete': ['map.a']
+    })
+    assert r.ok
+
+    project_info['map'] = {}
+    r = as_admin.get('/projects/' + project)
+    assert r.ok
+    assert r.json()['info'] == project_info
 
     # Use 'set' to do full replace of "map" key
     r = as_admin.post('/projects/' + project + '/info', json={
