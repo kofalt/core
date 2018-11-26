@@ -821,6 +821,7 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
         assert row['name'] == 'a1' 
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
+        assert '_index' not in row
 
     # Execute data view, match on second label, multiple files
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
@@ -831,7 +832,8 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
             { 'src': 'subject.age' },
             { 'src': 'subject.sex' },
             { 'src': 'analysis.label', 'dst': 'analysis' },
-            { 'src': 'file.name', 'dst': 'filename' }
+            { 'src': 'file.name', 'dst': 'filename' },
+            { 'src': 'file.row_number', 'dst': 'row' }
         ],
         'fileSpec': {
             'container': 'session',
@@ -858,10 +860,12 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
             assert row['subject.age'] == subject1['age']
             assert row['subject.sex'] == subject1['sex']
             assert row['filename'] == filename
+            assert row['row'] == j
             assert row['analysis'] == 'second-analysis' 
             assert row['name'] == name_value
             assert row['value'] == str(j)
             assert row['value2'] == str(2*j)
+            assert '_index' not in row
 
     # Execute data view, match on second label, multiple files, no processing
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
