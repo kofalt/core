@@ -1,3 +1,4 @@
+import bson
 import calendar
 import datetime
 from api.web.request import AccessTypeList
@@ -231,7 +232,7 @@ def test_access_log_report(data_builder, with_user, as_user, as_admin):
     assert r.json() == AccessTypeList
 
 
-def test_usage_report(data_builder, file_form, as_user, as_admin):
+def test_usage_report(data_builder, file_form, as_user, as_admin, api_db):
     # try to get usage report as user
     r = as_user.get('/report/usage', params={'type': 'month'})
     assert r.status_code == 403
@@ -262,7 +263,8 @@ def test_usage_report(data_builder, file_form, as_user, as_admin):
     assert r.ok
     assert len(r.json()) == 0
 
-    project = data_builder.create_project(label='usage')
+    group = data_builder.create_group()
+    project = data_builder.create_project(label='usage', group=group)
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     analysis = as_admin.post('/sessions/' + session + '/analyses', files=file_form(meta={'label': 'test'})).json()['_id']
@@ -274,6 +276,9 @@ def test_usage_report(data_builder, file_form, as_user, as_admin):
         files=file_form('output.csv', meta={'type': 'text', 'value': {'label': 'test'}})
     )
     as_admin.put('/jobs/' + job, params={'root': 'true'}, json={'state': 'complete'})
+
+    # Set execution time for job (30 minutes)
+    result = api_db.jobs.update({'_id': bson.ObjectId(job)}, {'$set': {'profile.total_time_ms': 30 * 60 * 1000}})
 
     # get month-aggregated usage report
     monthrange = calendar.monthrange(today.year, today.month)
@@ -304,18 +309,17 @@ def test_usage_report(data_builder, file_form, as_user, as_admin):
     assert usage[0]['gear_execution_count'] == 1
 
     # Test if empty project breaks Usage report
-    group = data_builder.create_group()
     r = as_admin.post('/projects', params={'inherit': 'false'}, json={'label': 'project2', 'group': group})
     assert r.ok
-    project = r.json()['_id']
+    project2 = r.json()['_id']
 
     # get project-aggregated usage report
     r = as_admin.get('/report/usage', params={'type': 'project'})
     assert r.ok
 
     # Test that deleted files are not counted
-    assert as_admin.post('/projects/' + project + '/files', files=file_form('project.csv')).ok
-    assert as_admin.delete('/projects/' + project + '/files/' + 'project.csv').ok
+    assert as_admin.post('/projects/' + project2 + '/files', files=file_form('project.csv')).ok
+    assert as_admin.delete('/projects/' + project2 + '/files/' + 'project.csv').ok
 
     r = as_admin.get('/report/usage', params={
         'type': 'project', 'start_date': yesterday_ts, 'end_date': tomorrow_ts
@@ -328,6 +332,54 @@ def test_usage_report(data_builder, file_form, as_user, as_admin):
     assert usage[1]['file_mbs'] == 0
     assert usage[1]['gear_execution_count'] == 0
 
+    # Test extended usage report
+    r = as_admin.get('/report/extended-usage')
+    usage = r.json()
+    assert len(usage) == 3
+
+    # Sorted by label, ascending, group should roll-up project totals
+    assert usage[0]['group'] == group
+    assert usage[0]['project_id'] == ''
+    assert usage[0]['project_label'] == ''
+    assert usage[0]['session_count'] == 1
+    assert usage[0]['data_job_count'] == 1
+    assert usage[0]['analysis_job_count'] == 0
+    assert usage[0]['total_job_count'] == 1
+    assert usage[0]['data_compute_hours'] == 0.0
+    assert usage[0]['analysis_compute_hours'] == 0.5
+    assert usage[0]['total_compute_hours'] == 0.5
+    assert usage[0]['data_storage_mb'] > 0
+    assert usage[0]['analysis_storage_mb'] > 0
+    assert abs(usage[0]['total_storage_mb'] - (usage[0]['analysis_storage_mb'] + usage[0]['data_storage_mb'])) < 0.0001
+
+    assert usage[1]['group'] == group
+    assert usage[1]['project_id'] == project2
+    assert usage[1]['project_label'] == 'project2'
+    assert usage[1]['session_count'] == 0
+    assert usage[1]['data_job_count'] == 0
+    assert usage[1]['analysis_job_count'] == 0
+    assert usage[1]['total_job_count'] == 0
+    assert usage[1]['data_compute_hours'] == 0
+    assert usage[1]['analysis_compute_hours'] == 0
+    assert usage[1]['total_compute_hours'] == 0
+    assert usage[1]['data_storage_mb'] == 0
+    assert usage[1]['analysis_storage_mb'] == 0
+    assert usage[1]['total_storage_mb'] == 0
+
+    assert usage[2]['group'] == group
+    assert usage[2]['project_id'] == project
+    assert usage[2]['project_label'] == 'usage'
+    assert usage[2]['session_count'] == 1
+    assert usage[2]['data_job_count'] == 1
+    assert usage[2]['analysis_job_count'] == 0
+    assert usage[2]['total_job_count'] == 1
+    assert usage[2]['data_compute_hours'] == 0.0
+    assert usage[2]['analysis_compute_hours'] == 0.5
+    assert usage[2]['total_compute_hours'] == 0.5
+    assert usage[2]['data_storage_mb'] == usage[0]['data_storage_mb']
+    assert usage[2]['analysis_storage_mb'] == usage[0]['analysis_storage_mb']
+    assert usage[2]['total_storage_mb'] == usage[0]['total_storage_mb']
+
     # delete project
-    r= as_admin.delete('/projects/' + project)
+    r= as_admin.delete('/projects/' + project2)
     assert r.ok
