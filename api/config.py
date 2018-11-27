@@ -192,10 +192,15 @@ def initialize_db():
         log_db.access_log.create_index('context.ticket_id')
         log_db.access_log.create_index([('timestamp', pymongo.DESCENDING)])
 
-    create_or_recreate_ttl_index('authtokens', 'timestamp', 2592000)
-    create_or_recreate_ttl_index('uploads', 'timestamp', 3600)
-    create_or_recreate_ttl_index('downloads', 'timestamp', 60)
-    create_or_recreate_ttl_index('job_tickets', 'timestamp', 3600) # IMPORTANT: this controls job orphan logic. Ref queue.py
+    # Mongo TTL indexes are measured in seconds.
+    # Ref: http://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.create_index
+    #
+    # IMPORTANT: if the TTL field is missing, documents will not expire.
+    create_or_recreate_ttl_index('authtokens',  'timestamp', 30 * 24 * 60 * 60) # 30 days
+    create_or_recreate_ttl_index('uploads',     'timestamp', 1 * 60 * 60      ) #  1 hour
+    create_or_recreate_ttl_index('downloads',   'timestamp', 60               ) #  1 minute
+    # IMPORTANT: this controls job orphan logic. Ref queue.py
+    create_or_recreate_ttl_index('job_tickets', 'timestamp', 6 * 60 * 60      ) #  6 hours
 
     now = datetime.datetime.utcnow()
     try_update_one(db,
