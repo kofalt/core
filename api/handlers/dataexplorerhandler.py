@@ -95,7 +95,7 @@ ANALYSIS = {
     "tokenizer": {
         "my_tokenizer": {
             "type": "ngram",
-            "min_gram": 2,
+            "min_gram": 1,
             "max_gram": 100,
             "token_chars": [
                 "letter",
