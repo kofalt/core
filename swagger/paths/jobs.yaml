@@ -151,6 +151,26 @@
         schema:
           example:
             $ref: examples/input/job-update.json
+/jobs/{JobId}/profile:
+  parameters:
+    - required: true
+      type: string
+      in: path
+      name: JobId
+  put:
+    summary: Update profile information on a job. (e.g. machine type, etc)
+    operationId: update_job_profile
+    tags:
+    - jobs
+    responses:
+      '200':
+        $ref: '#/responses/200:modified-with-count'
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: schemas/input/job-profile-update.json
 /jobs/{JobId}/retry:
   parameters:
     - required: true

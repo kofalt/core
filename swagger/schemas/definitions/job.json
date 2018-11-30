@@ -127,6 +127,114 @@
         }
       }
     },
+    "version-info": {
+      "type": "object",
+      "additionalProperties": {
+          "type": "string"
+      },
+      "description": "An object that contains known version info for components involved in the job"
+    },
+    "executor-info": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A machine or instance name, possibly a FQDN"
+        },
+        "host": {
+          "type": "string",
+          "description": "The hostname or (more likely) IP address of the engine instance"
+        },
+        "instance_type": {
+          "type": "string",
+          "description": "A free form string describing the instance type"
+        },
+        "cpu_cores": {
+          "type": "integer",
+          "description": "The number of CPU cores"
+        },
+        "gpu": {
+          "type": "boolean",
+          "description": "Whether or not a GPU is available"
+        },
+        "memory_bytes": {
+          "type": "integer",
+          "description": "The amount of memory on the system, in bytes"
+        },
+        "disk_bytes": {
+          "type": "integer",
+          "description": "The size of the hard disk on the system, in bytes"
+        },
+        "swap_bytes": {
+          "type": "integer",
+          "description": "The available swap space, in bytes"
+        }
+      }
+    },
+    "transition-times": {
+      "type": "object",
+      "properties": {
+        "running": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the running state"
+        },
+        "failed": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the failed state"
+        },
+        "complete": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the complete state"
+        },
+        "cancelled": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job transitioned into the cancelled state"
+        }
+      }
+    },
+    "job-profile": {
+      "type": "object",
+      "properties": {
+          "total_input_files": {
+            "type": "integer",
+            "description": "The number of input files"
+          },
+          "total_input_size_bytes": {
+            "type": "integer",
+            "description": "The combined size of all input files, in bytes"
+          },
+          "total_output_files": {
+            "type":"integer",
+            "description": "The number of output files"
+          },
+          "total_output_size_bytes": {
+            "type": "integer",
+            "description": "The combined size of all output files, in bytes"
+          },
+          "preparation_time_ms": {
+            "type": "integer",
+            "description": "The length of time taken to download gear container and inputs, in milliseconds"
+          },
+          "elapsed_time_ms": {
+            "type": "integer",
+            "description": "The runtime of the job, in milliseconds"
+          },
+          "upload_time_ms": {
+            "type": "integer",
+            "description": "The length of time taken to upload the job's outputs, in milliseconds"
+          },
+          "total_time_ms": {
+            "type": "integer",
+            "description": "The total length of time from start to finish, in milliseconds"
+          },
+          "versions": {"$ref":"#/definitions/version-info"},
+          "executor": {"$ref":"#/definitions/executor-info"}
+      }
+    },
     "job": {
       "type":"object",
       "properties":{
@@ -137,15 +245,30 @@
         "previous_job_id":{"type":"string"},
         "inputs":{"$ref":"#/definitions/inputs-object"},
         "destination":{"$ref":"#/definitions/destination"},
+        "group": {"$ref":"common.json#/definitions/lowercase-string-id"},
+        "project": {"$ref":"common.json#/definitions/objectid"},
         "tags":{"$ref":"#/definitions/tags"},
         "state":{"$ref":"#/definitions/state"},
+        "failure_reason": {
+          "type": "string",
+          "description": "An optional suspected reason for job failure"
+        },
         "attempt":{"$ref":"#/definitions/attempt"},
         "created":{"$ref":"created-modified.json#/definitions/created"},
         "modified":{"$ref":"created-modified.json#/definitions/modified"},
         "retried": {"$ref": "created-modified.json#/definitions/retried"},
         "config":{"$ref":"#/definitions/config"},
+        "transitions":{"$ref":"#/definitions/transition-times"},
         "request":{"$ref":"#/definitions/request"},
-        "saved_files":{"$ref":"#/definitions/saved_files"}
+        "saved_files":{"$ref":"#/definitions/saved_files"},
+        "profile": {"$ref": "#/definitions/job-profile"},
+        "related_container_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The set of all related container ids"
+        }
       },
       "additionalProperties":false,
       "x-sdk-model":"job"
@@ -216,7 +339,12 @@
         "elapsed": {
           "type": "integer",
           "description": "The elapsed time of the job, in seconds"
-        }
+        },
+        "failure_reason": {
+          "type": "string",
+          "description": "An optional suspected reason for job failure"
+        },
+        "profile": {"$ref": "#/definitions/job-profile-input"}
       },
       "required": ["success", "elapsed"]
     },
@@ -231,6 +359,26 @@
         "additionalProperties":false,
         "required":["ticket"],
         "description": "A ticket for uploading files and completing a job"
+    },
+    "job-profile-input": {
+      "type": "object",
+      "properties": {
+          "preparation_time_ms": {
+            "type": "integer",
+            "description": "The length of time taken to download gear container and inputs, in milliseconds"
+          },
+          "elapsed_time_ms": {
+            "type": "integer",
+            "description": "The runtime of the job, in milliseconds"
+          },
+          "upload_time_ms": {
+            "type": "integer",
+            "description": "The length of time taken to upload the job's outputs, in milliseconds"
+          },
+          "versions": {"$ref":"#/definitions/version-info"},
+          "executor": {"$ref":"#/definitions/executor-info"}
+      },
+      "additionalProperties": false
     }
   }
 }

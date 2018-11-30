@@ -159,6 +159,7 @@ endpoints = [
             route('/<:[^/]+>/logs',        JobHandler,  h='add_logs',      m=['POST']),
             route('/<:[^/]+>/prepare-complete',     JobHandler,  h='prepare_complete',     m=['POST']),
             route('/<:[^/]+>/accept-failed-output', JobHandler,  h='accept_failed_output', m=['POST']),
+            route('/<:[^/]+>/profile',     JobHandler,  h='update_profile', m=['PUT']),
         ]),
         route('/gears',                                  GearsHandler),
         route('/gears/check',                            GearsHandler, h='check', m=['POST']),

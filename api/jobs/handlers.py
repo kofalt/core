@@ -17,7 +17,7 @@ from ..auth.apikeys import JobApiKey
 from ..dao import dbutil, hierarchy
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..types import Origin
-from ..util import set_for_download, add_container_type
+from ..util import set_for_download, add_container_type, mongo_dict
 from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
@@ -565,6 +565,18 @@ class JobHandler(base.RequestHandler):
                 if new_state:
                     update(batch_id, {'state': new_state})
 
+    @require_admin
+    @verify_payload_exists
+    def update_profile(self, _id):
+        # Updates job.profile with the given input doc
+        payload = self.request.json
+        validate_data(payload, 'job-profile-update.json', 'input', 'PUT')
+
+        update_doc = mongo_dict(payload, prefix='profile')
+        result = config.db.jobs.update_one({'_id': bson.ObjectId(_id)}, {'$set': update_doc})
+        if not result.matched_count:
+            raise APINotFoundException('Job {} was not found!'.format(_id))
+        return { 'modified': result.modified_count }
 
     def _log_read_check(self, _id):
         try:
@@ -652,8 +664,19 @@ class JobHandler(base.RequestHandler):
         payload = self.request.json
         success = payload['success']
         elapsed = payload['elapsed']
+        failure_reason = payload.get('failure_reason') if not success else None
 
-        ticket = JobTicket.create(_id, success, elapsed)
+        # Create the ticket
+        ticket = JobTicket.create(_id, success, elapsed, failure_reason=failure_reason)
+
+        # Allow profile updates on prepare-complete
+        profile = payload.get('profile')
+        if profile:
+            validate_data(profile, 'job-profile-update.json', 'input', 'POST')
+
+            profile_update_doc = mongo_dict(profile, prefix='profile')
+            config.db.jobs.update_one({'_id': bson.ObjectId(_id)}, {'$set': profile_update_doc})
+
         return { 'ticket': ticket }
 
     @require_login

@@ -296,8 +296,9 @@ class ContainerReference(object):
             return '/{}/{}/{}/{}/files/{}'.format(par_coll, par_id, collection, self.id, filename)
         return '/{}/{}/files/{}'.format(collection, self.id, filename)
 
-    def check_access(self, uid, perm_name):
-        cont = self.get()
+    def check_access(self, uid, perm_name, cont=None):
+        if cont is None:
+            cont = self.get()
         if has_access(uid, cont, perm_name):
             return
         else:
@@ -326,8 +327,9 @@ class FileReference(ContainerReference):
             name = d['name']
         )
 
-    def get_file(self):
-        container = super(FileReference, self).get()
+    def get_file(self, container=None):
+        if not container:
+            container = super(FileReference, self).get()
 
         for file in container.get('files', []):
             if file['name'] == self.name and not file.get('deleted'):
