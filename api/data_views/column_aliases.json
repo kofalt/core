@@ -237,6 +237,12 @@
 		"type": "int"
 	},
 	{
+		"name": "file.row_number",
+		"src": "file_data._index",
+		"description": "The 0-indexed row number from file",
+		"type": "int"
+	},
+	{
 		"name": "file.info",
 		"src": "file.info",
 		"type": "object",

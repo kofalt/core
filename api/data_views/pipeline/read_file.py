@@ -81,7 +81,8 @@ class ReadFile(PipelineStage):
             # Initialize file_columns
             self.initialize_file_columns(reader)
 
-        for row in reader:
+        for row_number, row in enumerate(reader):
+            row['_index'] = row_number
             new_row = context.copy()
             new_row['file_data'] = row
             self.emit(new_row)
