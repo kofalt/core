@@ -1609,3 +1609,98 @@ def test_retry_jobs(data_builder, default_payload, as_admin, as_user, as_root, a
     # try retry failed job4 as job5
     r = as_root.post('/jobs/' + job4_id + '/retry')
     assert r.status_code == 404
+
+
+def test_config_values(data_builder, default_payload, as_admin, file_form):
+
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear_doc['config'] = {
+        "str": {
+            "type": "string",
+            "optional": True
+        },
+        "int": {
+            "type": "integer",
+            "optional": True
+        },
+        "num": {
+            "type": "number",
+            "optional": True
+        },
+        "bool": {
+            "type": "boolean",
+            "optional": True
+        }
+    }
+    gear_optional = data_builder.create_gear(gear=gear_doc)
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    job_data = {
+        'gear_id': gear_optional,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': {
+            'str': None,
+            'int': None,
+            'num': None,
+            'bool': None
+        },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 422
+
+    job_data['config'] = {}
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+
+    # New gear without optional
+    gear_doc['config'] = {
+        "str": {
+            "type": "string"
+        },
+        "int": {
+            "type": "integer"
+        },
+        "num": {
+            "type": "number"
+        },
+        "bool": {
+            "type": "boolean"
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    job_data['gear_id'] = gear
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 422
+
+    job_data['config'] = {
+        'str': 'None',
+        'int': 1,
+        'num': 0,
+        'bool': True
+    }
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
