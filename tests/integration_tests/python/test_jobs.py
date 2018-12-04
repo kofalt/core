@@ -1637,7 +1637,7 @@ def test_config_values(data_builder, default_payload, as_admin, file_form):
             "optional": True
         }
     }
-    gear = data_builder.create_gear(gear=gear_doc)
+    gear_optional = data_builder.create_gear(gear=gear_doc)
     group = data_builder.create_group()
     project = data_builder.create_project(group=group)
     session = data_builder.create_session(project=project)
@@ -1645,7 +1645,7 @@ def test_config_values(data_builder, default_payload, as_admin, file_form):
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
 
     job_data = {
-        'gear_id': gear,
+        'gear_id': gear_optional,
         'inputs': {
             'dicom': {
                 'type': 'acquisition',
@@ -1670,6 +1670,37 @@ def test_config_values(data_builder, default_payload, as_admin, file_form):
     assert r.status_code == 422
 
     job_data['config'] = {}
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+
+    # New gear without optional
+    gear_doc['config'] = {
+        "str": {
+            "type": "string"
+        },
+        "int": {
+            "type": "integer"
+        },
+        "num": {
+            "type": "number"
+        },
+        "bool": {
+            "type": "boolean"
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    job_data['gear_id'] = gear
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 422
+
+    job_data['config'] = {
+        'str': 'None',
+        'int': 1,
+        'num': 0,
+        'bool': True
+    }
 
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
