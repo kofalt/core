@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "allOf":[{"$ref":"../definitions/auth.json#/definitions/login-status"}],
+  "example": {
+    "origin": {
+        "id": "5c08301bc036d9001ae424ef",
+        "type": "device"
+    },
+    "user_is_admin": true,
+    "is_device": true
+  }
+}

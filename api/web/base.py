@@ -11,6 +11,7 @@ from .. import config
 from ..types import Origin
 from ..auth.authproviders import AuthProvider
 from ..auth.apikeys import APIKey
+from ..auth import require_login
 from ..web import errors
 from elasticsearch import ElasticsearchException
 from ..web.request import log_access, AccessType
@@ -283,6 +284,17 @@ class RequestHandler(webapp2.RequestHandler):
         token_entry = auth_provider.validate_code(session_cookie)
         self._generate_session(token_entry)
         self.redirect('{}/#/login?token={}'.format(config.get_item('site', 'redirect_url'), token_entry['_id']))
+
+    @require_login
+    def auth_status(self):
+        """
+        Validate that the credentials are good, and return some basic details
+        """
+        return {
+            'origin': self.origin,
+            'user_is_admin': self.user_is_admin,
+            'is_device': self.origin['type'] == 'device'
+        }
 
     def _generate_session(self, token_entry):
         timestamp = datetime.datetime.utcnow()

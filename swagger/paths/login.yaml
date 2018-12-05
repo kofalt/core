@@ -18,3 +18,14 @@
         description: ''
         schema:
           $ref: schemas/output/logout-output.json
+
+/auth/status:
+  get:
+    summary: Get Login status
+    description: Get the current login status of the requestor
+    operationId: get_auth_status
+    responses:
+      '200':
+        description: 'The current login status'
+        schema:
+          $ref: schemas/output/login-status.json
