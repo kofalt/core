@@ -1,4 +1,4 @@
-import csv
+import unicodecsv as csv
 import json
 from ..web.encoder import custom_json_serializer
 
@@ -120,8 +120,6 @@ class CsvFormatter(object):
 
     def write_row(self, context, columns):
         if not self._writer:
-            # NOTE: csv writer can take any object with a `write` function, in this case that's us
-            # See: https://docs.python.org/2/library/csv.html#csv.writer
             self._writer = csv.DictWriter(self._file, fieldnames=columns, dialect=self.dialect, extrasaction='ignore')
             self._writer.writeheader()
 

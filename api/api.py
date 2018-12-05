@@ -12,7 +12,6 @@ from .handlers.grouphandler             import GroupHandler
 from .handlers.listhandler              import FileListHandler, NotesListHandler, PermissionsListHandler, TagsListHandler
 from .handlers.modalityhandler          import ModalityHandler
 from .handlers.refererhandler           import AnalysesHandler
-from .handlers.reporthandler            import ReportHandler
 from .handlers.resolvehandler           import ResolveHandler
 from .handlers.roothandler              import RootHandler
 from .handlers.schemahandler            import SchemaHandler
@@ -20,6 +19,7 @@ from .handlers.userhandler              import UserHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
+from .reports.handler                   import ReportHandler
 from .data_views.handlers               import DataViewHandler
 from .web.base                          import RequestHandler
 from . import config
