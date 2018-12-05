@@ -35,21 +35,25 @@ SYSTEM_CONNECTION_RESET_COUNT = Counter('uwsgi_connection_resets', 'Observed Con
 
 # ===== DB Stats =====
 # DB Version
-DB_VERSION = Gauge('fw_db_version', 'The database version', [], multiprocess_mode='livesum')
+DB_VERSION = Gauge('fw_db_version', 'The database version', [], multiprocess_mode='max')
 # App Version
-RELEASE_VERSION = Gauge('fw_release_version', 'The app release version', ['version'], multiprocess_mode='livesum')
+RELEASE_VERSION = Gauge('fw_release_version', 'The app release version', ['version'], multiprocess_mode='max')
 # Job Counts (label=state)
-JOBS_BY_STATE = Gauge('fw_jobs', 'Total number of jobs in each state', ['state'], multiprocess_mode='livesum')
+JOBS_BY_STATE = Gauge('fw_jobs', 'Total number of jobs in each state', ['state'], multiprocess_mode='max')
 # Gear versions
-GEAR_VERSIONS = Gauge('fw_gear', 'Gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='livesum')
+GEAR_VERSIONS = Gauge('fw_gear', 'Number of jobs for a gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='max')
 # Counts: Users, Groups, Projects, Subjects, Sessions, Gears, Devices
-COLLECTION_COUNT = Gauge('fw_collection_count', 'Total number of documents in each collection', ['collection'], multiprocess_mode='livesum')
+COLLECTION_COUNT = Gauge('fw_collection_count', 'Total number of documents in each collection', ['collection'], multiprocess_mode='max')
 # Device last seen
-DEVICE_TIME_SINCE_LAST_SEEN = Gauge('fw_device_since_last_seen_seconds', 'Time since a device was last seen, in seconds', ['type', 'name', 'id'], multiprocess_mode='livesum')
+DEVICE_TIME_SINCE_LAST_SEEN = Gauge('fw_device_since_last_seen_seconds', 'Time since a device was last seen, in seconds', ['type', 'name', 'id'], multiprocess_mode='max')
 # Device interval
-DEVICE_INTERVAL = Gauge('fw_device_interval_seconds', 'The device interval, in seconds', ['type', 'name', 'id'], multiprocess_mode='livesum')
+DEVICE_INTERVAL = Gauge('fw_device_interval_seconds', 'The device interval, in seconds', ['type', 'name', 'id'], multiprocess_mode='max')
 # Total number of active / passive devices
-DEVICE_STATUS_COUNT = Gauge('fw_device_status_counts', 'The number of devices by type and status', ['type', 'status'], multiprocess_mode='livesum')
+DEVICE_STATUS_COUNT = Gauge('fw_device_status_counts', 'The number of devices by type and status', ['type', 'status'], multiprocess_mode='max')
+# Total number of logins
+USER_LOGIN_COUNT = Gauge('fw_user_login_count', 'The number of access logs of type user_login', [], multiprocess_mode='max')
+# Last Event Timestamps: events: session_created, user_login, job_queued[_by_system, by_user]
+LAST_EVENT_TIME = Gauge('fw_last_event_time', 'The seconds since an event as happened', ['event'], multiprocess_mode='max')
 
 # ===== Meta =====
 COLLECT_METRICS_TIME = Summary('uwsgi_collect_metrics_time_seconds', 'Observed time to collect metrics, in seconds', [])

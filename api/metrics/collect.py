@@ -75,6 +75,7 @@ def collect_db_metrics():
     """Collect metrics from mongodb, including version and job states"""
     try:
         # Get version info
+        epoch = datetime(1970, 1, 1)
         version_info = config.get_version()
         if version_info:
             values.DB_VERSION.set(version_info.get('database', 0))
@@ -91,14 +92,53 @@ def collect_db_metrics():
             count = config.db[collection_name].count()
             values.COLLECTION_COUNT.labels(collection_name).set(count)
 
+        # Get access logs of type user login
+        login_count = config.log_db.access_log.find({'access_type': 'user_login', 'origin.id': {'$regex': '@(?!flywheel\\.io)'}}).count()
+        values.USER_LOGIN_COUNT.set(login_count)
+
+        ### Last Event Times Collection
+        # Get the last user_login
+        last_event = config.log_db.access_log.find_one({'access_type': 'user_login', 'origin.id': {'$regex': '@(?!flywheel\\.io)'}},
+                                                       sort=[('timestamp', -1)])
+        if last_event:
+            time_since = last_event['timestamp'] - epoch
+            values.LAST_EVENT_TIME.labels('user_login').set(time_since.total_seconds())
+
+        # Get the last session_creation
+        last_event = config.db.sessions.find_one({}, sort=[('created', -1)])
+        if last_event:
+            time_since = last_event['created'] - epoch
+            values.LAST_EVENT_TIME.labels('session_created').set(time_since.total_seconds())
+
+        # Get the last job_queued by system and user
+        last_event = config.db.jobs.find_one({'origin.type': 'system'}, sort=[('created', -1)])
+        if last_event:
+            time_since = last_event['created'] - epoch
+            values.LAST_EVENT_TIME.labels('job_queued_by_system').set(time_since.total_seconds())
+
+        last_event = config.db.jobs.find_one({'origin.type': 'user'}, sort=[('created', -1)])
+        if last_event:
+            time_since = last_event['created'] - epoch
+            values.LAST_EVENT_TIME.labels('job_queued_by_user').set(time_since.total_seconds())
+
+
         # Get gear versions
         gear_count = 0
+        job_count_by_gear = { d['_id']: d['count'] for d in config.db.jobs.aggregate([
+            {
+                '$group': {
+                    '_id': '$gear_id',
+                    'count': {'$sum':1}
+                }
+            }
+        ])}
         for gear_doc in config.db.gears.find():
             gear = gear_doc.get('gear', {})
             name = gear.get('name', 'UNKNOWN')
             version = gear.get('version', 'UNKNOWN')
             created = str(gear_doc.get('created', 'UNKNOWN'))
-            values.GEAR_VERSIONS.labels(name, version, created).set(1)
+            count = job_count_by_gear.get(str(gear_doc['_id']), 0)
+            values.GEAR_VERSIONS.labels(name, version, created).set(count)
             gear_count = gear_count + 1
         values.COLLECTION_COUNT.labels('gears').set(gear_count)
 
