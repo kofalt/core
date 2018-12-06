@@ -40,7 +40,7 @@
     parameters:
       - name: gear_names_only
         in: path
-        type: bool
+        type: boolean
         required: false
         description: If set, returns a string array of ticket IDs instead of the tickets themselves.
     tags:
@@ -56,7 +56,7 @@
     parameters:
       - name: ticket
         in: body
-        type: bool
+        type: boolean
         required: true
         description: The ticket ID to save
     tags:
