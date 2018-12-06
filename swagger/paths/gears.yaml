@@ -22,6 +22,8 @@
     responses:
       '200':
         description: 'Returns a gear ticket ID'
+        schema:
+            type: object
 
 /gears/ticket/{GearTicketId}:
   get:
@@ -32,6 +34,8 @@
     responses:
       '200':
         description: 'Returns a gear ticket'
+        schema:
+            type: object
 
 /gears/my-tickets:
   get:
@@ -48,6 +52,8 @@
     responses:
       '200':
         description: 'Returns a list of gear tickets'
+        schema:
+            type: object
 
 /gears/save:
   post:
@@ -64,6 +70,8 @@
     responses:
       '200':
         description: 'Returns the new gear ID'
+        schema:
+            type: object
 
 # TODO: Can we make the parameter here consistent, or split
 # this into two separate APIs?
