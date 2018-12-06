@@ -334,7 +334,6 @@ class Job(object):
                 {
                     'type': scheme,
                     'uri': uri,
-                    'vu': 'vu0:x-' + gear['exchange']['rootfs-hash'],
                     'location': '/',
                 }
             ],

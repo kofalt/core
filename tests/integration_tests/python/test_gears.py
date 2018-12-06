@@ -71,6 +71,28 @@ def test_gear_add_versioning(default_payload, randstr, data_builder, as_root):
     r = as_root.delete('/gears/' + gear_id_3)
     assert r.ok
 
+def test_gear_add_with_ticket(default_payload, randstr, data_builder, as_root):
+	gear_name = randstr()
+
+	gear_payload = default_payload['gear']
+	gear_payload['gear']['name'] = gear_name
+
+	r = as_root.post('/gears/prepare-add', json=gear_payload)
+	assert r.ok
+	ticket_id = r.json()['ticket']
+
+	r = as_root.get('/gears/ticket/' + ticket_id)
+	assert r.ok
+	assert r.json() is not None
+
+	r = as_root.get('/gears/my-tickets')
+	assert r.ok
+	assert len(r.json()) == 1
+
+	r = as_root.get('/gears/my-tickets?gear_names_only=1')
+	assert r.ok
+	assert len(r.json()) == 1
+	assert str(r.json()[0]) == r.json()[0]
 
 def test_gear_add_invalid(default_payload, randstr, as_root):
     gear_name = 'test-gear-add-invalid-' + randstr()
@@ -88,7 +110,6 @@ def test_gear_add_invalid(default_payload, randstr, as_root):
     gear_payload['gear']['inputs'] = {'invalid': 'inputs'}
     r = as_root.post('/gears/' + gear_name, json=gear_payload)
     assert r.status_code == 400
-
 
 def test_gear_access(data_builder, as_public, as_admin, as_user):
     gear = data_builder.create_gear()
@@ -121,7 +142,6 @@ def test_gear_access(data_builder, as_public, as_admin, as_user):
     #
     # r = as_admin.delete('/gears/' + gear)
     # assert r.status_code == 403
-
 
 def test_gear_invocation_and_suggest(data_builder, file_form, as_admin, as_user):
     gear = data_builder.create_gear()
@@ -277,7 +297,6 @@ def test_gear_invocation_and_suggest(data_builder, file_form, as_admin, as_user)
     # clean up
     as_admin.delete('/collections/' + collection)
 
-
 def test_gear_context(data_builder, default_payload, as_admin, as_root, as_user, randstr):
     project_label = randstr()
     project_info = {
@@ -383,7 +402,7 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, as_user,
         'value': 'acquisition_context_value',
         'container_type': 'acquisition',
         'id': acquisition,
-        'label': acquisition_label 
+        'label': acquisition_label
     }
 
     assert result['test_context_value3'] == {
@@ -412,7 +431,6 @@ def test_gear_context(data_builder, default_payload, as_admin, as_root, as_user,
     # Cleanup
     r = as_root.delete('/gears/' + gear)
     assert r.ok
-
 
 def test_filter_gears_read_only_key(randstr, data_builder, default_payload, as_admin):
     gear_name = randstr()

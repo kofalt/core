@@ -13,7 +13,7 @@ def test_container_search(data_builder):
 
     session_id = bson.ObjectId(session)
     acquisition_id = bson.ObjectId(acquisition)
-    
+
     # Should get a single match on session, with early return
     results = containerutil.container_search({'_id': session_id}, {'_id':1})
     assert results == [('sessions', [{'_id': session_id}])]

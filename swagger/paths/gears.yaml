@@ -13,6 +13,58 @@
           response:
             $ref: examples/output/gear-list.json
 
+/gears/prepare-add:
+  post:
+    summary: Prepare a gear upload
+    operationId: prepare_add_gear
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns a gear ticket ID'
+
+/gears/ticket/{GearTicketId}:
+  get:
+    summary: Retrieve a specific gear ticket
+    operationId: get_gear_ticket
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns a gear ticket'
+
+/gears/my-tickets:
+  get:
+    summary: Retrieve all gear tickets for the current user
+    operationId: get_my_gear_tickets
+    parameters:
+      - name: gear_names_only
+        in: path
+        type: bool
+        required: false
+        description: If set, returns a string array of ticket IDs instead of the tickets themselves.
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns a list of gear tickets'
+
+/gears/save:
+  post:
+    summary: Report the result of a gear upload and save the ticket
+    operationId: save_gear
+    parameters:
+      - name: ticket
+        in: body
+        type: bool
+        required: true
+        description: The ticket ID to save
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns the new gear ID'
+
 # TODO: Can we make the parameter here consistent, or split
 # this into two separate APIs?
 /gears/{GearIdOrName}:

@@ -163,9 +163,20 @@ endpoints = [
             route('/<:[^/]+>/profile',     JobHandler,  h='update_profile', m=['PUT']),
         ]),
         route('/gears',                                  GearsHandler),
-        route('/gears/check',                            GearsHandler, h='check', m=['POST']),
-        route('/gears/temp',                             GearHandler, h='upload', m=['POST']),
-        route('/gears/temp/<cid:{oid}>',  GearHandler, h='download', m=['GET']),
+
+        # New upload flow
+        route('/gears/prepare-add',                      GearsHandler, h='prepare_add',     m=['POST']),
+        route('/gears/ticket/<_id:[^/]+>',               GearsHandler, h='get_ticket',      m=['GET']),
+        route('/gears/my-tickets',                       GearsHandler, h='get_own_tickets', m=['GET']),
+        route('/gears/save',                             GearsHandler, h='save',            m=['POST']),
+
+        # Old upload flow (deprecated)
+        route('/gears/check',                            GearsHandler, h='check',           m=['POST']),
+        route('/gears/temp',                             GearHandler,  h='upload',          m=['POST']),
+
+        # Old download flow (stays forever)
+        route('/gears/temp/<cid:{oid}>',                 GearHandler,  h='download',        m=['GET']),
+
         prefix('/gears', [
             route('/<:[^/]+>',                           GearHandler),
             route('/<:[^/]+>/invocation',                GearHandler, h='get_invocation'),

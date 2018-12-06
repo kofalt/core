@@ -14,13 +14,12 @@ def test_jobs_access(as_user):
     assert r.status_code == 403
 
     r = as_user.post('/jobs/reap')
-    assert r.status_code == 403 
+    assert r.status_code == 403
     r = as_user.get('/jobs/test-job')
     assert r.status_code == 403
 
     r = as_user.get('/jobs/test-job/config.json')
     assert r.status_code == 403
-
 
 def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_root, api_db, file_form):
 
@@ -431,7 +430,6 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     r = as_admin.get('/jobs/stats', params={'tags': 'auto,unused', 'last': '2'})
     assert r.ok
 
-
 def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form):
     # create gear
     gear_doc = default_payload['gear']['gear']
@@ -571,7 +569,6 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     jobs = [j for j in api_db.jobs.find({'gear_id': gear2})]
     assert len(jobs) == 1
 
-
 def test_job_state_transition_from_ticket(data_builder, default_payload, as_admin, as_drone, api_db, file_form):
     # create gear
     gear_doc = default_payload['gear']['gear']
@@ -611,7 +608,7 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     # verify job was transitioned to complete state
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'complete'
-    assert job_doc['transitions']['complete'] 
+    assert job_doc['transitions']['complete']
     assert job_doc['transitions']['complete'] >= job_doc['created']
     assert job_doc['profile']
     assert job_doc['profile']['elapsed_time_ms'] == 3
@@ -685,7 +682,6 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     assert r.ok
     job_doc = as_admin.get('/jobs/' + job).json()
     assert job_doc['state'] == 'failed'
-
 
 def test_analysis_job_creation_errors(data_builder, default_payload, as_admin, file_form):
     project = data_builder.create_project()
@@ -823,7 +819,6 @@ def test_job_context(data_builder, default_payload, as_admin, as_root, file_form
     assert r_inputs['test_context_value']['base'] == 'context'
     assert r_inputs['test_context_value']['found'] == True
     assert r_inputs['test_context_value']['value'] == { 'session_value': 3 }
-
 
 def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_user, as_root, api_db, file_form):
     project = data_builder.create_project()
@@ -1009,7 +1004,6 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_user
     # Make sure admins can retry any job
     r = as_admin.post('/jobs/' + retried_job_id + '/retry')
     assert r.ok
-
 
 def test_job_tagging(data_builder, default_payload, as_admin, as_root, api_db, file_form):
     # Dupe of test_queue.py
@@ -1242,7 +1236,6 @@ def test_job_requests(randstr, default_payload, data_builder, as_admin, as_drone
     not_url_job_request_inputs = r.json()['request']['inputs']
     for request_input in not_url_job_request_inputs:
         assert request_input.get('type')
-
 
 def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, as_admin, as_root, file_form):
     gear_doc = default_payload['gear']['gear']
@@ -1609,7 +1602,6 @@ def test_retry_jobs(data_builder, default_payload, as_admin, as_user, as_root, a
     # try retry failed job4 as job5
     r = as_root.post('/jobs/' + job4_id + '/retry')
     assert r.status_code == 404
-
 
 def test_config_values(data_builder, default_payload, as_admin, file_form):
 
