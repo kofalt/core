@@ -275,7 +275,10 @@ def confirm_registry_asset(repo, pointer):
     manifest = json.loads(''.join(raw_blob))
 
     # Compatibility checks for the gears platform
-    assert manifest['architecture'] == 'amd64'
-    assert manifest['os'] == 'linux'
+    if manifest['architecture'] != 'amd64':
+        raise Exception("Architecture must be amd64")
+
+    if manifest['os'] != 'linux':
+        raise Exception("Os must be linux")
 
     return manifest, image
