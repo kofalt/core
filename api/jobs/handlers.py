@@ -90,6 +90,7 @@ class GearsHandler(base.RequestHandler):
         ticket = config.db.gear_tickets.insert_one({
             'origin': self.origin,
             'geardoc': geardoc,
+            'timestamp': datetime.datetime.utcnow(),
         })
 
         return {
@@ -124,7 +125,8 @@ class GearsHandler(base.RequestHandler):
             'origin': self.origin
         })
 
-        if gear_names_only:
+        # For now, always send a string array to avoid mutating types. Possibly a new endpoint later.
+        if gear_names_only or True:
             return list(set(map(lambda(x): x['geardoc']['gear']['name'], result)))
         else:
             return result
@@ -152,9 +154,9 @@ class GearsHandler(base.RequestHandler):
         except Exception as err:
             raise InputValidationException(cause=err)
 
-        # import json
-        # self.log.debug(json.dumps(manifest, indent=4, sort_keys=True))
-        # self.log.debug(json.dumps(image, indent=4, sort_keys=True))
+        import json
+        self.log.debug(json.dumps(manifest, indent=4, sort_keys=True))
+        self.log.debug(json.dumps(image, indent=4, sort_keys=True))
 
         geardoc = ticket['geardoc']
         now = datetime.datetime.utcnow()

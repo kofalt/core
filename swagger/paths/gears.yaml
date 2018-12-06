@@ -43,7 +43,7 @@
     operationId: get_my_gear_tickets
     parameters:
       - name: gear_names_only
-        in: path
+        in: query
         type: boolean
         required: false
         description: If set, returns a string array of ticket IDs instead of the tickets themselves.
