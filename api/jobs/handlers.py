@@ -150,7 +150,7 @@ class GearsHandler(base.RequestHandler):
         pointer = submit['pointer']
 
         try:
-            _, image = confirm_registry_asset(repo, pointer)
+            manifest, image = confirm_registry_asset(repo, pointer)
         except Exception as err:
             raise InputValidationException(cause=err)
 
