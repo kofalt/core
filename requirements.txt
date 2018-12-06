@@ -10,12 +10,13 @@ prometheus_client==0.2.0
 psutil==5.4.6
 pymongo==3.7.1
 python-dateutil==2.7.3
+python-dxf==7.4.1
 pytz==2018.4
-requests[security]==2.19.1
+requests[security]==2.20.1
 rfc3987==1.3.7
 strict-rfc3339==0.7
 unicodecsv==0.9.0
+urllib3==1.23
 webapp2==2.5.2
 WebOb==1.8.2
-urllib3==1.23
 git+https://github.com/flywheel-io/gears.git@v0.1.8#egg=gears

@@ -13,6 +13,72 @@
           response:
             $ref: examples/output/gear-list.json
 
+/gears/prepare-add:
+  post:
+    summary: Prepare a gear upload
+    operationId: prepare_add_gear
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns a gear ticket ID'
+        schema:
+            type: object
+
+/gears/ticket/{GearTicketId}:
+  get:
+    summary: Retrieve a specific gear ticket
+    operationId: get_gear_ticket
+    parameters:
+      - name: GearTicketId
+        in: path
+        required: true
+        type: string
+        description: The ID of the the gear ticket to retrieve
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns a gear ticket'
+        schema:
+            type: object
+
+/gears/my-tickets:
+  get:
+    summary: Retrieve all gear tickets for the current user
+    operationId: get_my_gear_tickets
+    parameters:
+      - name: gear_names_only
+        in: query
+        type: boolean
+        required: false
+        description: If set, returns a string array of ticket IDs instead of the tickets themselves.
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns a list of gear tickets'
+        schema:
+            type: object
+
+/gears/save:
+  post:
+    summary: Report the result of a gear upload and save the ticket
+    operationId: save_gear
+    parameters:
+      - name: ticket
+        in: query
+        type: boolean
+        required: true
+        description: The ticket ID to save
+    tags:
+    - gears
+    responses:
+      '200':
+        description: 'Returns the new gear ID'
+        schema:
+            type: object
+
 # TODO: Can we make the parameter here consistent, or split
 # this into two separate APIs?
 /gears/{GearIdOrName}:

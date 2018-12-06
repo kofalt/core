@@ -6,7 +6,7 @@ def child_in_result(child, result):
 
 def gear_in_path(name, id, result):
     for g in result['path']:
-        if g['gear']['name'] == name and g['_id'] == id: 
+        if g['gear']['name'] == name and g['_id'] == id:
             return True
     return False
 
@@ -36,7 +36,7 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
 
     # try resolving invalid (non-list) path
     r = as_admin.post('/resolve', json={'path': 'test'})
-    assert r.status_code == 400 
+    assert r.status_code == 400
 
     # resolve root (empty)
     r = as_admin.post('/resolve', json={'path': []})
@@ -260,7 +260,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
 
     # try resolving invalid (non-list) path
     r = as_admin.post('/lookup', json={'path': 'test'})
-    assert r.status_code == 400 
+    assert r.status_code == 400
 
     # lookup root (empty)
     r = as_admin.post('/lookup', json={'path': []})
@@ -303,7 +303,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'project'
-    assert result['_id'] == project 
+    assert result['_id'] == project
 
     # lookup root/group/project/file
     project_file = 'project_file'
@@ -314,7 +314,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'file'
-    assert result['name'] == project_file 
+    assert result['name'] == project_file
     assert 'mimetype' in result
     assert 'size' in result
 
@@ -343,7 +343,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'file'
-    assert result['name'] == session_file 
+    assert result['name'] == session_file
     assert 'mimetype' in result
     assert 'size' in result
 
@@ -359,7 +359,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'acquisition'
-    assert result['_id'] == acquisition 
+    assert result['_id'] == acquisition
 
     # lookup root/group/project/session/acquisition/file
     acquisition_file = 'acquisition_file'
@@ -379,7 +379,7 @@ def test_lookup(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'acquisition'
-    assert result['_id'] == acquisition 
+    assert result['_id'] == acquisition
 
     # lookup root/group/project/session/acquisition/file with id
     r = as_admin.post('/lookup', json={'path': [idz(group), idz(project), idz(session), idz(acquisition), 'files', acquisition_file]})
@@ -432,7 +432,7 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     assert r.ok
     assert gear_in_path(gear_name, gear_id, result)
     assert result['children'] == []
-    
+
     # Lookup (empty)
     r = as_admin.post('/lookup', json={'path': ['gears']})
     result = r.json()
@@ -443,7 +443,7 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'gear'
-    assert result['_id'] == gear_id 
+    assert result['_id'] == gear_id
     assert result['gear']['name'] == gear_name
 
     # Lookup by id
@@ -451,7 +451,7 @@ def test_resolve_gears(data_builder, as_admin, as_user, as_public, file_form):
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'gear'
-    assert result['_id'] == gear_id 
+    assert result['_id'] == gear_id
     assert result['gear']['name'] == gear_name
 
     # Lookup (not-found)
@@ -518,7 +518,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
 
     project_analysis_name = 'test-project-analysis'
-    project_analysis = create_analysis(as_admin, file_form, 'projects', project, project_analysis_name, project_file) 
+    project_analysis = create_analysis(as_admin, file_form, 'projects', project, project_analysis_name, project_file)
 
     # Create session
     session_label = 'test-resolve-analyses-session-label'
@@ -529,7 +529,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
 
     session_analysis_name = 'test-session-analysis'
-    session_analysis = create_analysis(as_admin, file_form, 'sessions', session, session_analysis_name, session_file) 
+    session_analysis = create_analysis(as_admin, file_form, 'sessions', session, session_analysis_name, session_file)
 
     # Create acquisition
     acquisition_label = 'test-resolve-analyses-acquisition-label'
@@ -540,8 +540,8 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
 
     acq_analysis_name = 'test-acquisition-analysis'
-    acq_analysis = create_analysis(as_admin, file_form, 'acquisitions', acquisition, acq_analysis_name, acquisition_file) 
-    
+    acq_analysis = create_analysis(as_admin, file_form, 'acquisitions', acquisition, acq_analysis_name, acquisition_file)
+
     # GROUP
     r = as_admin.post('/resolve', json={'path': [group, 'analyses']})
     assert r.status_code == 404
@@ -578,7 +578,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'analysis'
-    assert result['_id'] == project_analysis 
+    assert result['_id'] == project_analysis
     assert len(result['files']) == 1
     project_analysis_file_id = result['files'][0]['_id']  # save the file id for later usage
 
@@ -588,9 +588,9 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
     assert path_in_result([group, project, project_analysis, project_analysis_file_id], result)
     assert result['children'] == []
-    
-    # SESSION 
-    # resolve root/group/project/session 
+
+    # SESSION
+    # resolve root/group/project/session
     r = as_admin.post('/resolve', json={'path': [group, project_label, session_label]})
     result = r.json()
     assert r.ok
@@ -613,7 +613,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'analysis'
-    assert result['_id'] == session_analysis 
+    assert result['_id'] == session_analysis
     assert len(result['files']) == 1
     session_analysis_file_id = result['files'][0]['_id']  # save the file id for later usage
 
@@ -623,8 +623,8 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     assert r.ok
     assert path_in_result([group, project, session, session_analysis, session_analysis_file_id], result)
     assert result['children'] == []
-    
-    # ACQUISITION 
+
+    # ACQUISITION
     # resolve root/group/project/session/acquisition
     r = as_admin.post('/resolve', json={'path': [group, project_label, session_label, acquisition_label]})
     result = r.json()
@@ -647,7 +647,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'analysis'
-    assert result['_id'] == acq_analysis 
+    assert result['_id'] == acq_analysis
     assert len(result['files']) == 1
     acq_analysis_file_id = result['files'][0]['_id']  # save the file id for later usage
 
@@ -664,7 +664,7 @@ def test_resolve_analyses(data_builder, as_admin, as_user, as_public, file_form)
     result = r.json()
     assert r.ok
     assert result['container_type'] == 'analysis'
-    assert result['_id'] == acq_analysis 
+    assert result['_id'] == acq_analysis
     assert len(result['files']) == 1
 
     # resolve root/group/project/analysis/files

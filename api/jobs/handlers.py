@@ -3,6 +3,7 @@ API request handlers for the jobs module
 """
 import bson
 import copy
+import datetime
 import StringIO
 from jsonschema import ValidationError
 from urlparse import urlparse
@@ -26,8 +27,8 @@ from ..web.errors import APIPermissionException, APINotFoundException, InputVali
 from ..web.request import AccessType
 
 from .gears import (
-    validate_gear_config, get_gears, get_gear, get_latest_gear,
-    get_invocation_schema, remove_gear,
+    validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,
+    get_invocation_schema, remove_gear, insert_gear,
     upsert_gear, check_for_gear_insertion, filter_optional_inputs,
     add_suggest_info_to_files, count_file_inputs, requires_read_write_key
 )
@@ -73,6 +74,107 @@ class GearsHandler(base.RequestHandler):
         check_for_gear_insertion(self.request.json)
         return None
 
+    @require_admin
+    def prepare_add(self):
+        """
+        Declare a gear that will be uploaded to the Flywheel registry
+        """
+
+        geardoc = self.request.json
+
+        if geardoc.get('category') is None:
+            geardoc['category'] = 'converter'
+
+        check_for_gear_insertion(geardoc)
+
+        ticket = config.db.gear_tickets.insert_one({
+            'origin': self.origin,
+            'geardoc': geardoc,
+            'timestamp': datetime.datetime.utcnow(),
+        })
+
+        return {
+            'ticket': ticket.inserted_id
+        }
+
+    @require_admin
+    def get_ticket(self, _id):
+        """
+        Retrieve a gear-upload ticket.
+        """
+
+        result = config.db.gear_tickets.find_one({
+            '_id': bson.ObjectId(_id)
+        })
+
+        if result is None:
+            raise APINotFoundException('Gear ticket with id {} not found.'.format(_id))
+        else:
+            return result
+
+    @require_admin
+    def get_own_tickets(self):
+        """
+        Retrieve all gear-upload tickets owned by the current origin.
+        """
+
+        # Allow for just a summary of gear names
+        gear_names_only = self.is_true('gear_names_only')
+
+        result = config.db.gear_tickets.find({
+            'origin': self.origin
+        })
+
+        # For now, always send a string array to avoid mutating types. Possibly a new endpoint later.
+        if gear_names_only or True:
+            return list(set(map(lambda(x): x['geardoc']['gear']['name'], result)))
+        else:
+            return result
+
+    @require_admin
+    def save(self): # pragma: no cover
+        """
+        Save a gear described by an upload ticket.
+        """
+
+        submit = self.request.json
+
+        ticket = config.db.gear_tickets.find_one({
+            '_id': bson.ObjectId(submit['ticket'])
+        })
+
+        if ticket is None:
+            raise APINotFoundException('Gear ticket with id {} not found.'.format(submit['ticket']))
+
+        repo    = submit['repo']
+        pointer = submit['pointer']
+
+        try:
+            manifest, image = confirm_registry_asset(repo, pointer)
+        except Exception as err:
+            raise InputValidationException(cause=err)
+
+        import json
+        self.log.debug(json.dumps(manifest, indent=4, sort_keys=True))
+        self.log.debug(json.dumps(image, indent=4, sort_keys=True))
+
+        geardoc = ticket['geardoc']
+        now = datetime.datetime.utcnow()
+        geardoc['created'] = now
+        geardoc['modified'] = now
+        geardoc['exchange'] = {
+            'rootfs-url': 'docker://' + image
+        }
+        result = insert_gear(geardoc)
+
+        config.db.gear_tickets.delete_one({
+            '_id': bson.ObjectId(submit['ticket'])
+        })
+
+        return {
+            'gear': result
+        }
+
 class GearHandler(base.RequestHandler):
     """Provide /gears/x API routes."""
 
@@ -81,7 +183,6 @@ class GearHandler(base.RequestHandler):
         result = get_gear(_id)
         add_container_type(self.request, result)
         return result
-
 
     @require_login
     def get_invocation(self, _id):
@@ -223,12 +324,7 @@ class GearHandler(base.RequestHandler):
             '_id': gear['exchange'].get('rootfs-id', ''),
             'hash': 'v0-' + gear['exchange']['rootfs-hash'].replace(':', '-')
         })
-        signed_url = files.get_signed_url(file_path,
-                                          file_system,
-                                          filename='gear.tar',
-                                          attachment=True,
-                                          response_type='application/octet-stream')
-
+        signed_url = files.get_signed_url(file_path, file_system, filename='gear.tar', attachment=True, response_type='application/octet-stream')
         if signed_url:
             self.redirect(signed_url)
         else:
