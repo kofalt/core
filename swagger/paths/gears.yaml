@@ -29,6 +29,12 @@
   get:
     summary: Retrieve a specific gear ticket
     operationId: get_gear_ticket
+    parameters:
+      - name: GearTicketId
+        in: path
+        required: true
+        type: string
+        description: The ID of the the gear ticket to retrieve
     tags:
     - gears
     responses:
@@ -61,7 +67,7 @@
     operationId: save_gear
     parameters:
       - name: ticket
-        in: body
+        in: query
         type: boolean
         required: true
         description: The ticket ID to save
