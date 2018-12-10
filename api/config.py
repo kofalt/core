@@ -248,7 +248,8 @@ def initialize_db():
     db.batch.create_index('jobs', **kwargs)
     db.project_rules.create_index('project_id', **kwargs)
     db.data_views.create_index('parent', **kwargs)
-    db.file_job_origin.create_index('value.created')
+    db.file_job_origin.create_index('value.created', **kwargs)
+    db.usage_data.create_index([('group', 1), ('project', 1), ('year', 1), ('month', 1)], **kwargs)
     db.master_subject_codes.create_index(
         [('first_name', 1), ('last_name', 1), ('date_of_birth', 1), ('patient_id', 1)],
         unique=True, **kwargs)
