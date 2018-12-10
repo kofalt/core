@@ -10,6 +10,7 @@ class Report(object):
 
     filename = 'report'
     columns = None
+    can_collect = False
 
     def __init__(self, params):
         """
@@ -31,6 +32,13 @@ class Report(object):
         Build and return a json report
         """
         raise NotImplementedError()
+
+    def collect(self):
+        """
+        Periodically collect data for a report.
+        Can/should return a genrator that yields dict progress results.
+        """
+        raise APIReportException("Collect not implemented for this report type")
 
     def get_writer(self, out_format):
         """

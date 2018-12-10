@@ -19,6 +19,7 @@ from .handlers.userhandler              import UserHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
+from .reports                           import ReportTypes
 from .reports.handler                   import ReportHandler
 from .data_views.handlers               import DataViewHandler
 from .web.base                          import RequestHandler
@@ -54,7 +55,10 @@ routing_regexes = {
     'fclass': '.+(?=/classification)',
 
     # Schema path
-    'schema': r'[^/.]{3,60}/[^/.]{3,60}\.json'
+    'schema': r'[^/.]{3,60}/[^/.]{3,60}\.json',
+
+    # Report types
+    'report_type': '|'.join(ReportTypes.keys())
 }
 
 
@@ -106,8 +110,9 @@ endpoints = [
         route('/lookup',                                        ResolveHandler, h='lookup',         m=['POST']),
         route('/resolve',                                       ResolveHandler, h='resolve',        m=['POST']),
         route('/schemas/<schema:{schema}>',                     SchemaHandler,                      m=['GET']),
-        route('/report/<report_type:site|project|accesslog|usage>',   ReportHandler,                m=['GET']),
+        route('/report/<report_type:{report_type}>',            ReportHandler,                      m=['GET']),
         route('/report/accesslog/types',                        ReportHandler,  h='get_types',      m=['GET']),
+        route('/report/<report_type:{report_type}>/collect',    ReportHandler,  h='collect',        m=['GET']),
 
 
         # Search
