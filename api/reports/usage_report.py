@@ -1,3 +1,4 @@
+import bson
 import datetime
 
 from pymongo.operations import UpdateOne
@@ -68,8 +69,7 @@ class UsageReport(Report):
 
         now = datetime.datetime.now()
 
-        # TODO: Use configured gear names
-        self.center_gears = [ 'dicom-mr-classifier', 'dcm2niix', 'mriqc' ]
+        self._center_gears = None
 
         try:
             year = int(params.get('year', str(now.year)))
@@ -80,6 +80,19 @@ class UsageReport(Report):
             self.date = datetime.datetime(year=year, month=month, day=day)
         except ValueError as e:
             raise APIReportParamsException('Invalid date specified: {}'.format(e))
+
+    @property
+    def center_gears(self):
+        # TODO: Use configured gear names
+        if self._center_gears is None:
+            record = config.db.singletons.find_one({'_id': 'site'})
+            if record and record['center_gears']:
+                self._center_gears = record['center_gears']
+
+        if self._center_gears is None:
+            self._center_gears = [ 'dicom-mr-classifier', 'dcm2niix', 'mriqc' ]
+
+        return self._center_gears
 
     def user_can_generate(self, uid):
         """
@@ -165,8 +178,8 @@ class UsageReport(Report):
         record_count = len(report_entries)
         year = self.date.year
         month = self.date.month
-        day = self.date.day
-        day_entry = 'day.{}'.format(day)
+        day = str(self.date.day)
+        day_entry = 'days.{}'.format(day)
         bulk_updates = []
 
         for row in report_entries.itervalues():
@@ -178,12 +191,12 @@ class UsageReport(Report):
                 }
 
             group = row.pop('group')
-            project = row.pop('project')
+            project = row.pop('project_id')
             project_label = row.pop('project_label')
 
             query = {
                 'group': group,
-                'project': project, 
+                'project': bson.ObjectId(project),
                 'year': year,
                 'month': month,
                 day_entry: {'$exists': False}
@@ -195,7 +208,7 @@ class UsageReport(Report):
                 { 
                     '$set': {
                         'project_label': project_label,
-                        day: row,
+                        day_entry: row,
                         'total.sessions': row['session_count']
                     },
                     '$inc': {
@@ -219,10 +232,14 @@ class UsageReport(Report):
 
             if len(bulk_updates) >= BULK_UPDATE_BLOCK_SIZE:
                 # Do bulk update block
-                config.db.bulk_write(bulk_updates, ordered=False)
+                config.db.usage_data.bulk_write(bulk_updates, ordered=False)
                 bulk_updates = []
 
             update_count += 1
+
+        # Send final bulk update
+        if bulk_updates:
+            config.db.usage_data.bulk_write(bulk_updates, ordered=False)
 
         yield {'status': 'Complete'} 
 
@@ -248,7 +265,7 @@ class UsageReport(Report):
                 'created': {'$lt': end_date}
             }},
             {'$group': {
-                '_id': {'project': 'project'},
+                '_id': {'project': '$project'},
                 'count': {'$sum': 1}
             }}
         ]
@@ -269,17 +286,21 @@ class UsageReport(Report):
             group_id = {'project': '$parents.project'}
 
         group_id['origin'] = '$files.origin.type'
-        group_id['gear_name'] = '$job_origin.0.value.gear_info.name'
-        group_id['gear_version'] = '$job_origin.0.value.gear_info.version'
+        group_id['gear_name'] = '$job_origin.value.gear_info.name'
+        group_id['gear_version'] = '$job_origin.value.gear_info.version'
 
         pipeline = [
             {'$unwind': '$files'},
             {'$match': file_q },
             {'$lookup': {
                 'from': 'file_job_origin',
-                'localField': 'origin.id',
+                'localField': 'files.origin.id',
                 'foreignField': '_id',
                 'as': 'job_origin' 
+            }},
+            {'$unwind': {
+                'path': '$job_origin',
+                'preserveNullAndEmptyArrays': True
             }},
             {'$group': {
                 '_id': group_id,
@@ -300,7 +321,7 @@ class UsageReport(Report):
 
         # Query for jobs that completed in the time window
         match = {
-            'parents': {'$exists': True},
+            'parents.project': {'$exists': True},
             'state': {'$in': ['complete', 'failed', 'cancelled']},
             '$or': [
                 {'transitions.complete': date_query},
@@ -312,7 +333,7 @@ class UsageReport(Report):
         pipeline = [
             {'$match': match},
             {'$group': {
-                '_id': {'project': '$project', 'gear_name': '$gear_info.name', 'gear_version': '$gear_info.version'},
+                '_id': {'project': '$parents.project', 'gear_name': '$gear_info.name', 'gear_version': '$gear_info.version'},
                 'count': {'$sum': 1},
                 'total_ms': {'$sum': '$profile.total_time_ms'},
             }}

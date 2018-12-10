@@ -1,5 +1,5 @@
 from .. import config
-from ..web import base
+from ..web import base, encoder
 from ..reports import ReportTypes
 from ..web.request import AccessTypeList
 from ..web.errors import APIPermissionException
@@ -61,7 +61,10 @@ class ReportHandler(base.RequestHandler):
             # - Exceptions add some error json to the response, which is not SSE-sanitized.
             for item in report.collect():
                 try:
-                    write(item)
+                    write(encoder.json_sse_pack({
+                        'event': 'progress',
+                        'data': item
+                    }))
                 except Exception: # pylint: disable=broad-except
                     log.info('SSE upload progress failed to send; continuing')
 

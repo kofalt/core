@@ -31,7 +31,7 @@ def update_file_job_origin():
     query = {}
     last_rec = config.db.file_job_origin.find_one({}, sort=[('created', -1)])
     if last_rec:
-        query['value.created'] = {'$gte': last_rec['value']['created']}
+        query['created'] = {'$gt': last_rec['value']['created']}
 
     log.info('Updating file_job_origin collection')
     config.db.jobs.map_reduce(map_fn, reduce_fn, out, query=query)
