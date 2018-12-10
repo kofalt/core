@@ -129,7 +129,7 @@ def apply_runtime_features(config):
     """Apply any features that must be determined at runtime"""
 
 
-    # TODO: These shold be static constants from the provider class but this creates ciruclar 
+    # TODO: These shold be static constants from the provider class but this creates ciruclar
     # dependencies on the import ordering
     # We short circuit the lookup if there is not the possibility for using signed urls
     # We could do an aggregate but generally simple single queries are faster than aggregates
@@ -248,6 +248,7 @@ def initialize_db():
     db.batch.create_index('jobs', **kwargs)
     db.project_rules.create_index('project_id', **kwargs)
     db.data_views.create_index('parent', **kwargs)
+    db.file_job_origin.create_index('value.created')
     db.master_subject_codes.create_index(
         [('first_name', 1), ('last_name', 1), ('date_of_birth', 1), ('patient_id', 1)],
         unique=True, **kwargs)

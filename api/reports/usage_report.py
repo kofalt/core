@@ -1,64 +1,88 @@
-import copy
 import datetime
-import dateutil
+
+from pymongo.operations import UpdateOne
 
 from .report import Report
-
 from .. import config
 from ..auth import has_privilege, Privilege
-from ..web.errors import APIReportException, APIReportParamsException
 
+from ..web.errors import APIReportParamsException
+from ..jobs import file_job_origin
 
+log = config.log
+
+BULK_UPDATE_BLOCK_SIZE = 100
 BYTES_IN_MEGABYTE = float(1<<20)
+MILLISECONDS_IN_HOUR = float(1000 * 60 * 60)
 
+# Tuple of collection name, file size key
+FILE_COLLECTIONS = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses']
 
 class UsageReport(Report):
     """
-    Creates a usage report, aggregated by month or project.
+    Creates a site usage report, aggregated by group and project.
 
-    Specify a date range to only return stats for that range.
+    Specify a year/month to get a report for that time period.
 
     Report includes:
-      - count of gears executed (jobs completed successfully)
-      - count of sessions
-      - aggregation of file size in megabytes
+        - Count of sessions
+        - Count of complete jobs, grouped by data/analysis
+        - Aggregation of gear execution time in hours, grouped by center/group
+        - Aggregation of total storage size in megabytes, grouped by center/group
+
+    Collection is done nightly, and stored in the usage_data database collection, using the below structure:
+        group: The group id
+        project: The project id
+        project_label: The project label (at last collection)
+        year: The collection year
+        month: The collection month
+        days: A map of day_of_month to collection record for that date, as follows:
+            session_count: The number of sessions that exist at time of collection
+            center_job_count: The number of jobs ran attributed to the center
+            group_job_count: The number of jobs ran attributed to the group
+            center_storage_bytes: The size of storage usage allocated to the center, in bytes
+            group_storage_bytes: The size of storage usage allocated to the group, in bytes
+            center_compute_ms: The amount of compute used attributed to the center, in seconds
+            group_compute_ms: The amount of compute used attributed to the group, in seconds
+        total: A usage total (to-date), same format as the day record, with additional:
+            days: The number of days collated for this month
+
+    NOTE: Storage is reported in byte days (i.e. how many bytes were in use for that day)
     """
     required_role = Privilege.is_admin
+    can_collect = True
+    columns = [
+        'group', 'project_id', 'project_label', 'session_count',
+        'center_job_count', 'group_job_count', 'total_job_count',
+        'center_compute_hours', 'group_compute_hours', 'total_compute_hours',
+        'center_storage_mb', 'group_storage_mb', 'total_storage_mb'
+    ]
 
     def __init__(self, params):
         """
         Initialize a Usage Report
 
         Possible keys in :params:
-        :start_date:    ISO formatted timestamp
-        :end_date:      ISO formatted timestamp
-        :type:          <'project'|'month'>, type of aggregation for results
+        :year:      The 4-digit requested report year
+        :month:     The 1-indexed requested report month
+        :day:       The day of the month (used for collection only)
         """
-
         super(UsageReport, self).__init__(params)
 
-        start_date = params.get('start_date')
-        end_date = params.get('end_date')
-        report_type = params.get('type')
+        now = datetime.datetime.now()
 
-        if not report_type or report_type not in ['month', 'project']:
-            raise APIReportParamsException('Report type must be "month" or "project".')
+        # TODO: Use configured gear names
+        self.center_gears = [ 'dicom-mr-classifier', 'dcm2niix', 'mriqc' ]
 
-        if start_date:
-            start_date = dateutil.parser.parse(start_date)
-        if end_date:
-            end_date = dateutil.parser.parse(end_date)
-        if end_date and start_date and end_date < start_date:
-            raise APIReportParamsException('End date {} is before start date {}'.format(end_date, start_date))
+        try:
+            year = int(params.get('year', str(now.year)))
+            month = int(params.get('month', str(now.month)))
+            day = int(params.get('day', str(now.day)))
 
-        self.start_date  = start_date
-        self.end_date    = end_date
-        self.report_type = report_type
-
-        # Used for month calculation:
-        self.first_month = start_date
-        self.last_month = end_date
-
+            # Does validation
+            self.date = datetime.datetime(year=year, month=month, day=day)
+        except ValueError as e:
+            raise APIReportParamsException('Invalid date specified: {}'.format(e))
 
     def user_can_generate(self, uid, roles):
         """
@@ -67,300 +91,248 @@ class UsageReport(Report):
         has_privilege(roles, self.required_role)
         return True
 
-
     def build(self):
-        query = {}
+        # TODO: Implement
+        return None
 
-        if self.start_date or self.end_date:
-            query['created'] = {}
-        if self.start_date:
-            query['created']['$gte'] = self.start_date
-        if self.end_date:
-            query['created']['$lte'] = self.end_date
+    def collect(self):
+        """Collect daily usage data. NOTE: We deliberately include deleted collections/files"""
+        # Set start and end dates. Jobs that completed between start & end will be included
+        # Files and sessions created before end will be included
+        start_date = self.date
+        end_date = self.date + datetime.timedelta(days=1)
 
-        if self.report_type == 'project':
-            return self._build_project_report(query)
-        else:
-            return self._build_month_report(query)
+        # First update the file_job_origin collection, for joins
+        yield { 'status': 'Updating file_job_origin collection' }
+        file_job_origin.update_file_job_origin()
 
-    def _create_default(self, month=None, year=None, project=None, ignore_minmax=False):
-        """
-        Returns a zerod out usage report for month/project type usage reports
+        # Create empty record for each project
+        report_entries = {}
+        yield { 'status': 'Initializing collection...' }
+        for project in config.db.projects.find({}, {'group': True, 'label': True}):
+            project_id = project['_id']
+            report_entries[project_id] = self._default_record(project['group'], project_id, project['label'])
 
-        If proveded with a month and year, adds info to the report as well as updates first and last seen months
-        If provided with a project, adds id and label to the report
-        """
-        obj = {
-            'gear_execution_count': 0,
-            'file_mbs': 0,
-            'session_count': 0
-        }
-        if month:
-            obj['month'] = month
-        if year:
-            obj['year'] = year
-        if project:
-            obj['project'] = {'_id': project['_id'], 'label': project['label']}
+        # Count sessions created in timeframe, returns cursor
+        yield { 'status': 'Getting session counts...' }
+        for entry in self._get_session_counts(end_date):
+            _id = entry['_id']
+            report_entries[_id['project']]['session_count'] = entry['count']
 
-        if month and year and not ignore_minmax:
-            # update the first or last month if this is outside the known bounds
-            date = dateutil.parser.parse(year+'-'+month+'-01T00:00.000Z')
-            if self.first_month is None or date < self.first_month:
-                self.first_month = date
-            if self.last_month is None or date > self.last_month:
-                self.last_month = date
+        # Count files created in timeframe
+        skipped = 0
+        for coll_name in FILE_COLLECTIONS:
+            yield { 'status': 'Getting {} storage usage...'.format(coll_name) }
+            for entry in self._get_file_size_counts(coll_name, end_date):
+                _id = entry['_id']
+                size = entry['bytes']
 
-        return obj
+                # Safety check
+                if 'project' not in _id:
+                    skipped +=1
+                    continue
 
-    def _build_month_report(self, base_query):
-        """
-        Builds a usage report for file size, session count and gear execution count
-        Aggregates this information by month.
+                project_rec = report_entries.get(_id['project'])
+                if project_rec:
+                    # if origin is device, then bill to center
+                    if _id.get('origin') == 'device' or self._is_center_gear(_id):
+                        key = 'center_storage_bytes'
+                    else:
+                        key = 'group_storage_bytes'
 
-        Will return all months between the first_month and last_month, zero'd out if no
-        data was created or jobs run in that time.
-          - `first_month` is determined by the start_date of the query, if available, otherwise
-            the earliest month with data/jobs
-          - `last_month` is the end_date of the query or the last month with data/jobs
+                    project_rec[key] += size
 
-        Returns an ordered list of each month in the range `first_month` -> `last_month` with stats:
-        {
-            'month':                    <month_int>,
-            'year':                     <year_int>,
-            'gear_execution_count':     0,
-            'session_count':            0,
-            'file_mbs':                 0
-        }
-        """
+        if skipped:
+            log.warn('Skipped %d records because of invalid keys', skipped)
 
-        report = {}
+        # Aggregate jobs counts run with execution time (in milliseconds) in timeframe
+        yield { 'status': 'Getting compute usage...' }
+        for entry in self._get_job_stats(start_date, end_date):
+            _id = entry['_id']
 
-        # Count jobs that completed successfully, by month
-        job_q = copy.deepcopy(base_query)
-        job_q['state'] = 'complete'
+            project_rec = report_entries.get(_id['project'])
+            if project_rec:
+                if self._is_center_gear(_id):
+                    count_key = 'center_job_count'
+                    time_key = 'center_compute_ms'
+                else:
+                    count_key = 'group_job_count'
+                    time_key = 'group_compute_ms'
 
-        pipeline = [
-            {'$match': job_q},
-            {'$project': {'month': {'$month': '$created'}, 'year': {'$year': '$created'}}},
-            {'$group': {'_id': {'month': '$month', 'year': '$year'}, 'jobs_completed': {'$sum':1}}}
-        ]
+                project_rec[count_key] += entry['count']
+                project_rec[time_key] += entry['total_ms']
 
-        try:
-            results = self._get_result_list('jobs', pipeline)
-        except APIReportException:
-            results = []
+        # Bulk updates
+        update_count = 0
+        record_count = len(report_entries)
+        year = self.date.year
+        month = self.date.month
+        day = self.date.day
+        day_entry = 'day.{}'.format(day)
+        bulk_updates = []
 
-        for r in results:
-            month = str(r['_id']['month'])
-            year = str(r['_id']['year'])
-            key = year+month
+        for row in report_entries.itervalues():
+            # Yield progress every time we empty out bulk_updates
+            if not bulk_updates:
+                yield {
+                    'status': 'Updating records',
+                    'progress': '{}/{}'.format(update_count, record_count)
+                }
 
-            # Check to see if we already have a record for this month/year combo, create and update first/last if not
-            if key not in report:
-                report[key] = self._create_default(month=month, year=year)
+            group = row.pop('group')
+            project = row.pop('project')
+            project_label = row.pop('project_label')
 
-            report[key]['gear_execution_count'] = r['jobs_completed']
-
-        # Count sessions by month
-        pipeline = [
-            {'$match': base_query},
-            {'$project': {'month': {'$month': '$created'}, 'year': {'$year': '$created'}}},
-            {'$group': {'_id': {'month': '$month', 'year': '$year'}, 'session_count': {'$sum':1}}}
-        ]
-
-        try:
-            results = self._get_result_list('sessions', pipeline)
-        except APIReportException:
-            results = []
-
-        for r in results:
-            month = str(r['_id']['month'])
-            year = str(r['_id']['year'])
-            key = year+month
-
-            # Check to see if we already have a record for this month/year combo, create and update first/last if not
-            if key not in report:
-                report[key] = self._create_default(month=month, year=year)
-
-            report[key]['session_count'] = r['session_count']
-
-        file_q = {'deleted': {'$exists': False}}
-        analysis_q = {'analyses.files.output': True}
-
-        if 'created' in base_query:
-            file_q['files.created'] = base_query['created']
-            analysis_q['analyses.created'] = base_query['created']
-
-        for cont_name in ['groups', 'projects', 'sessions', 'acquisitions']:
-            # For each type of container that would contain files or analyses:
-
-            # Count file mbs by month
-            pipeline = [
-                {'$unwind': '$files'},
-                {'$match': file_q},
-                {'$project': {'month': {'$month': '$files.created'}, 'year': {'$year': '$files.created'}, 'mbs': {'$divide': ['$files.size', BYTES_IN_MEGABYTE]}}},
-                {'$group': {'_id': {'month': '$month', 'year': '$year'}, 'mb_total': {'$sum':'$mbs'}}}
-            ]
-
-            try:
-                results = self._get_result_list(cont_name, pipeline)
-            except APIReportException:
-                results = []
-
-            for r in results:
-                month = str(r['_id']['month'])
-                year = str(r['_id']['year'])
-                key = year+month
-
-                # Check to see if we already have a record for this month/year combo, create and update first/last if not
-                if key not in report:
-                    report[key] = self._create_default(month=month, year=year)
-
-                report[key]['file_mbs'] += r['mb_total']
-
-            # Count file mbs by month in analyses
-            pipeline = [
-                {'$unwind': '$analyses'},
-                {'$unwind': '$analyses.files'},
-                {'$match': analysis_q},
-                {'$project': {'month': {'$month': '$analyses.created'}, 'year': {'$year': '$analyses.created'}, 'mbs': {'$divide': ['$analyses.files.size', BYTES_IN_MEGABYTE]}}},
-                {'$group': {'_id': {'month': '$month', 'year': '$year'}, 'mb_total': {'$sum':'$mbs'}}}
-            ]
-
-            try:
-                results = self._get_result_list(cont_name, pipeline)
-            except APIReportException:
-                results = []
-
-            for r in results:
-                month = str(r['_id']['month'])
-                year = str(r['_id']['year'])
-                key = year+month
-
-                # Check to see if we already have a record for this month/year combo, create and update first/last if not
-                if key not in report:
-                    report[key] = self._create_default(month=month, year=year)
-
-                report[key]['file_mbs'] += r['mb_total']
-
-
-        # For each month between `first_month` and `last_month`:
-        #  - add the month from the dictionary of report objects if it exists
-        #  - OR create a zero'd out report object for the month
-
-        # Set `first_month` and `last_month` to current month in case they weren't specified
-        # AND there was no data in mongo to get defaults
-        self.first_month = self.first_month or datetime.datetime.utcnow()
-        self.last_month = self.last_month or self.first_month
-
-        curr_month = self.first_month.month
-        curr_year = self.first_month.year
-
-        last_month = self.last_month.month
-        last_year = self.last_month.year
-
-        final_report_list = []
-
-        # While we're not in the year of the last month we want to record OR we are and we haven't hit the last month yet:
-        while curr_year < last_year or (curr_month <= last_month and curr_year == last_year):
-            key = str(curr_year)+str(curr_month)
-            if key in report:
-                # We have a record for this month/year combo, add it to the report
-                final_report_list.append(report[key])
-            else:
-                # We don't have a record for this month/year combo, create a zero'd out version
-                final_report_list.append(self._create_default(month=str(curr_month), year=str(curr_year), ignore_minmax=True))
-            curr_month += 1
-            if curr_month > 12:
-                curr_year += 1
-                curr_month = 1
-
-        # Return ordered list of report objects for each month in range
-        return final_report_list
-
-
-    def _build_project_report(self, base_query):
-        """
-        Builds a usage report for file size, session count and gear execution count
-        Aggregates this information by project.
-
-        Returns an unordered list of each project with stats:
-        {
-            'project': {
-                '_id':      <project_id>,
-                'label':    <project_label>
-            },
-            'gear_execution_count':     0,
-            'session_count':            0,
-            'file_mbs':                 0
-        }
-        """
-        projects = config.db.projects.find({'deleted': {'$exists': False}})
-        final_report_list = []
-
-        for p in projects:
-            report_obj = self._create_default(project=p)
-
-            # Grab sessions and their ids
-            sessions = config.db.sessions.find({'project': p['_id'], 'deleted': {'$exists': False}}, {'_id': 1})
-            session_ids = [s['_id'] for s in sessions]
-
-            # Grab acquisitions and their ids
-            acquisitions = config.db.acquisitions.find({'session': {'$in': session_ids}, 'deleted': {'$exists': False}}, {'_id': 1})
-            acquisition_ids = [a['_id'] for a in acquisitions]
-
-            # For the project and each session and acquisition, create a list of analysis ids
-            parent_ids = session_ids + acquisition_ids + [p['_id']]
-            analysis_ids = [an['_id'] for an in config.db.analyses.find({'parent.id': {'$in': parent_ids}, 'deleted': {'$exists': False}})]
-
-            report_obj['session_count'] = len(session_ids)
-
-            # for each type of container below it will have a slightly modified match query
-            cont_query = {
-                'projects': {'_id': {'project': p['_id']}},
-                'sessions': {'project': p['_id']},
-                'acquisitions': {'session': {'$in': session_ids}},
-                'analyses': {'parent.id' : {'$in':parent_ids}}
+            query = {
+                'group': group,
+                'project': project,
+                'year': year,
+                'month': month,
+                day_entry: {'$exists': False}
             }
 
-            # Create queries for files and analyses based on created date if a range was provided
-            file_q = {'deleted': {'$exists': False}}
-            analysis_q = {'analyses.files.output': True}
+            # Create the bulk update
+            bulk_updates.append(UpdateOne(
+                query,
+                {
+                    '$set': {
+                        'project_label': project_label,
+                        day: row,
+                        'total.sessions': row['session_count']
+                    },
+                    '$inc': {
+                        'total.days': 1,
+                        'total.center_job_count': row['center_job_count'],
+                        'total.group_job_count': row['group_job_count'],
+                        'total.center_storage_bytes': row['center_storage_bytes'],
+                        'total.group_storage_bytes': row['group_storage_bytes'],
+                        'total.center_compute_ms': row['center_compute_ms'],
+                        'total.group_compute_ms': row['group_compute_ms'],
+                    },
+                    '$setOnInsert': {
+                        'group': group,
+                        'project':  project,
+                        'year': year,
+                        'month': month
+                    }
+                },
+                upsert=True
+            ))
 
-            if 'created' in base_query:
-                file_q['files.created'] = base_query['created']
-                analysis_q['analyses.created'] = base_query['created']
+            if len(bulk_updates) >= BULK_UPDATE_BLOCK_SIZE:
+                # Do bulk update block
+                config.db.bulk_write(bulk_updates, ordered=False)
+                bulk_updates = []
 
-            for cont_name in ['projects', 'sessions', 'acquisitions', 'analyses']:
+            update_count += 1
 
-                # Aggregate file size in megabytes
-                pipeline = [
-                    {'$match': cont_query[cont_name]},
-                    {'$unwind': '$files'},
-                    {'$match': file_q},
-                    {'$project': {'mbs': {'$divide': [{'$cond': ['$files.input', 0, '$files.size']}, BYTES_IN_MEGABYTE]}}},
-                    {'$group': {'_id': 1, 'mb_total': {'$sum':'$mbs'}}}
-                ]
+        yield {'status': 'Complete'}
 
-                try:
-                    result = self._get_result(cont_name, pipeline)
-                except APIReportException:
-                    result = None
+        # TODO: Set metric for last successful usage collection date
+        # TODO: Set metric counter for usage collection failure
 
-                if result:
-                    report_obj['file_mbs'] += result['mb_total']
+    def _is_center_gear(self, key): # pylint: disable=unused-argument
+        """Check if the given key is a center gear.
 
-            # Create a list of all possible ids in this project hierarchy
-            id_list = analysis_ids+acquisition_ids+session_ids
-            id_list.append(p['_id'])
+        key is a dict, with 'gear_name' and 'gear_version' properties.
+        """
+        return key.get('gear_name') in self.center_gears
 
-            # Look for all completed jobs that have a destination in the id
-            job_query = copy.deepcopy(base_query)
-            job_query['state'] = 'complete'
-            job_query['destination.id'] = {'$in': [str(id_) for id_ in id_list]}
+    @staticmethod
+    def _get_session_counts(end_date):
+        """
+        Get count of sessions created within date_query.
+        Grouped by project_id
+        """
+        # Aggregation query
+        pipeline = [
+            {'$match': {
+                'created': {'$lt': end_date}
+            }},
+            {'$group': {
+                '_id': {'project': 'project'},
+                'count': {'$sum': 1}
+            }}
+        ]
 
-            report_obj['gear_execution_count'] = config.db.jobs.count(job_query)
+        return config.db.sessions.aggregate(pipeline)
 
-            final_report_list.append(report_obj)
+    @staticmethod
+    def _get_file_size_counts(coll_name, end_date):
+        """
+        Get total file size in bytes, for files created before end_date
+        Grouped by project_id, origin, gear_name and gear_version
+        """
+        file_q = {'files.created': {'$lt': end_date}}
 
-        return final_report_list
+        if coll_name == 'projects':
+            group_id = {'project': '$_id'}
+        else:
+            group_id = {'project': '$parents.project'}
+
+        group_id['origin'] = '$files.origin.type'
+        group_id['gear_name'] = '$job_origin.0.value.gear_info.name'
+        group_id['gear_version'] = '$job_origin.0.value.gear_info.version'
+
+        pipeline = [
+            {'$unwind': '$files'},
+            {'$match': file_q },
+            {'$lookup': {
+                'from': 'file_job_origin',
+                'localField': 'origin.id',
+                'foreignField': '_id',
+                'as': 'job_origin'
+            }},
+            {'$group': {
+                '_id': group_id,
+                'bytes': {'$sum': '$files.size'}
+            }}
+        ]
+
+        return config.db[coll_name].aggregate(pipeline)
+
+    @staticmethod
+    def _get_job_stats(start_date, end_date):
+        """
+        Get count and runtime duration of jobs created within date_query.
+        Grouped by project_id, gear_name and gear_version
+        """
+        # Note: We require the "new" job records in order to aggregate them
+        date_query = { '$gte': start_date, '$lt': end_date }
+
+        # Query for jobs that completed in the time window
+        match = {
+            'parents': {'$exists': True},
+            'state': {'$in': ['complete', 'failed', 'cancelled']},
+            '$or': [
+                {'transitions.complete': date_query},
+                {'transitions.cancelled': date_query},
+                {'transitions.failed': date_query}
+            ]
+        }
+
+        pipeline = [
+            {'$match': match},
+            {'$group': {
+                '_id': {'project': '$project', 'gear_name': '$gear_info.name', 'gear_version': '$gear_info.version'},
+                'count': {'$sum': 1},
+                'total_ms': {'$sum': '$profile.total_time_ms'},
+            }}
+        ]
+
+        return config.db.jobs.aggregate(pipeline)
+
+    @staticmethod
+    def _default_record(group, project_id, project_label):
+        return {
+            'group': group,
+            'project_id': project_id,
+            'project_label': project_label,
+            'session_count': 0,
+            'center_job_count': 0,
+            'group_job_count': 0,
+            'center_storage_bytes': 0,
+            'group_storage_bytes': 0,
+            'center_compute_ms': 0,
+            'group_compute_ms': 0,
+        }

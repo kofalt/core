@@ -249,21 +249,21 @@ def test_access_log_report(data_builder, with_user, as_user, as_admin):
 
 def test_usage_report(data_builder, file_form, as_user, as_admin, api_db, randstr):
     # try to get usage report as user
-    r = as_user.get('/report/usage', params={'type': 'month'})
+    r = as_user.get('/report/legacy-usage', params={'type': 'month'})
     assert r.status_code == 403
 
     # try to get usage report w/o type
-    r = as_admin.get('/report/usage')
+    r = as_admin.get('/report/legacy-usage')
     assert r.status_code == 400
 
     # try to get usage report w/ invalid date filter (end < start)
-    r = as_admin.get('/report/usage', params={
+    r = as_admin.get('/report/legacy-usage', params={
         'type': 'month', 'start_date': tomorrow_ts, 'end_date': yesterday_ts
     })
     assert r.status_code == 400
 
     # get month-aggregated usage report
-    r = as_admin.get('/report/usage', params={'type': 'month'})
+    r = as_admin.get('/report/legacy-usage', params={'type': 'month'})
     assert r.ok
     usage = r.json()
     assert len(usage) == 1
@@ -273,7 +273,7 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, api_db, randst
     start_gear_count = usage[0]['gear_execution_count']
 
     # get project-aggregated usage report
-    r = as_admin.get('/report/usage', params={'type': 'project'})
+    r = as_admin.get('/report/legacy-usage', params={'type': 'project'})
     assert r.ok
     start_length = len(r.json())
 
@@ -298,7 +298,7 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, api_db, randst
     monthrange = calendar.monthrange(today.year, today.month)
     start_ts = ts_format.format(today.replace(day=1))
     end_ts = ts_format.format(today.replace(day=monthrange[1], hour=23, minute=59, second=59))
-    r = as_admin.get('/report/usage', params={
+    r = as_admin.get('/report/legacy-usage', params={
         'type': 'month', 'start_date': start_ts, 'end_date': end_ts
     })
     assert r.ok
@@ -311,7 +311,7 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, api_db, randst
     assert usage[0]['gear_execution_count'] > start_gear_count
 
     # get project-aggregated usage report
-    r = as_admin.get('/report/usage', params={
+    r = as_admin.get('/report/legacy-usage', params={
         'type': 'project', 'start_date': yesterday_ts, 'end_date': tomorrow_ts
     })
     assert r.ok
@@ -332,14 +332,14 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, api_db, randst
     project2 = r.json()['_id']
 
     # get project-aggregated usage report
-    r = as_admin.get('/report/usage', params={'type': 'project'})
+    r = as_admin.get('/report/legacy-usage', params={'type': 'project'})
     assert r.ok
 
     # Test that deleted files are not counted
     assert as_admin.post('/projects/' + project2 + '/files', files=file_form('project.csv')).ok
     assert as_admin.delete('/projects/' + project2 + '/files/' + 'project.csv').ok
 
-    r = as_admin.get('/report/usage', params={
+    r = as_admin.get('/report/legacy-usage', params={
         'type': 'project', 'start_date': yesterday_ts, 'end_date': tomorrow_ts
     })
     assert r.ok
