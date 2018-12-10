@@ -797,8 +797,9 @@ def test_60(api_db, data_builder, database):
 
     # Test subject id mismatch
     subject_same_id = bson.ObjectId()
-    same_id = create_session({'code': 'code A', '_id': subject_bug_id, 'firstname': 'Person 3'}, deleted=False)
-    same_id_deleted = create_session({'code': 'code B', '_id': subject_bug_id, 'firstname': 'Person 3'}, deleted=True)
+    same_id = create_session({'code': 'code A', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=False)
+    same_id_2 = create_session({'code': 'code A2', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=False)
+    same_id_deleted = create_session({'code': 'code B', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=True)
 
     database.upgrade_to_55()
 
