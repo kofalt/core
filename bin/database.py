@@ -14,6 +14,8 @@ import re
 import sys
 import time
 
+from cachetools import cached, LRUCache
+
 from api import config
 from api import util
 from api.dao import containerutil
@@ -24,7 +26,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 61 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 62 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -67,6 +69,21 @@ def getMonotonicTime():
 
 def get_bson_timestamp(bson_id):
     return bson_id.generation_time.replace(tzinfo=None)
+
+
+def drop_index(coll, key):
+    """
+    Drop the given index, if it exists
+    """
+    if isinstance(key, str):
+        key = [(key, 1)]
+    if isinstance(key, tuple):
+        key = [key]
+
+    for name, index in config.db[coll].index_information().items():
+        if index['key'] == key:
+            config.log.info('Dropping %s index named %s, for key %s', coll, name, key)
+            config.db[coll].drop_index(key)
 
 
 def process_cursor(cursor, closure, context = None):
@@ -2235,6 +2252,64 @@ def upgrade_to_61():
     cursor = config.db.job_tickets.find({'timestamp': None})
     process_cursor(cursor, add_timestamp, 'job_tickets')
 
+
+@cached(cache=LRUCache(maxsize=10000))
+def get_ref_62(ctype, cid):
+    ctype = containerutil.pluralize(ctype)
+    return config.db[ctype].find_one({'_id': bson.ObjectId(cid)}, {'parents': True})
+
+def set_job_containers_62(cont, cont_name):
+    # Collect references
+    refs = set()
+    containers = []
+    update = {}
+    dest_ref = cont.get('destination', {})
+
+    # Retrieve each reference once
+    for ref in [dest_ref] + cont.get('inputs', []):
+        if 'id' not in ref:
+            # Invalid reference, ignore
+            containers.append(None)
+            continue
+
+        cid = ref['id']
+        if cid not in refs:
+            containers.append(get_ref_62(ref['type'], cid))
+            refs.add(cid)
+
+    # Destination is first, and sets the group/project (if dest still exists)
+    dest = containers[0]
+    if dest is not None:
+        update['parents'] = dest.get('parents', {})
+        dest_type = dest_ref.get('type')
+        dest_id = dest_ref.get('id')
+        if dest_type and dest_id:
+            update['parents'][dest_type] = bson.ObjectId(dest_id)
+
+    # Now add all parents of all references to the refs set
+    for c in containers:
+        if not c:
+            continue
+
+        for parent_id in c['parents'].itervalues():
+            refs.add(str(parent_id))
+
+    update['related_container_ids'] = list(refs)
+    config.db.jobs.update_one({'_id': cont['_id']}, {
+        '$set': update,
+        '$unset': { 'group': 1, 'project': 1 }
+    })
+    return True
+
+def upgrade_to_62():
+    """Update all jobs to populate group, project and related_container_ids"""
+    # Drop group/project index in favor of parents
+    drop_index('jobs', 'group')
+    drop_index('jobs', 'project')
+
+    # Update all jobs, set parents
+    cursor = config.db.jobs.find({})
+    process_cursor(cursor, set_job_containers_62, 'jobs')
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

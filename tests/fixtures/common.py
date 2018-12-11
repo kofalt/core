@@ -79,6 +79,7 @@ def default_payload():
         'user': {'firstname': 'test', 'lastname': 'user'},
         'group': {},
         'project': {'public': True},
+        'subject': {'public': True},
         'session': {'public': True},
         'acquisition': {'public': True},
         'collection': {},

@@ -248,7 +248,7 @@ class Queue(object):
             elif destination.type == 'analysis':
                 raise InputValidationException('Cannot use analysis for destination of a job, container was inferred.')
 
-        # Get group and project from destination, also checks that destination exists
+        # Get parents from destination, also checks that destination exists
         destination_container = destination.get()
 
         # Permission check
@@ -333,17 +333,9 @@ class Queue(object):
         # Populate any context inputs for the gear
         resolve_context_inputs(config_, gear, destination.type, destination.id, perm_check_uid)
 
-        # Populate parents (group / project)
-        if destination.type == 'project':
-            group = destination_container.get('group')
-            project = destination.id
-        else:
-            destination_parents = destination_container.get('parents', {})
-            group = destination_parents.get('group')
-            project = destination_parents.get('project')
-
-        if not group or not project:
-            log.warn('Job destination %s=%s does not have a group and/or project!', destination.type, destination.id)
+        # Populate parents (including destination)
+        parents = destination_container.get('parents', {})
+        parents[destination.type] = bson.ObjectId(destination.id)
 
         # Initialize profile
         profile = {
@@ -361,7 +353,7 @@ class Queue(object):
             tags.append(gear_name)
 
         job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, 
-            previous_job_id=previous_job_id, origin=origin, batch=batch, group=group, project=project, profile=profile,
+            previous_job_id=previous_job_id, origin=origin, batch=batch, parents=parents, profile=profile,
             related_container_ids=list(related_containers))
 
         return job

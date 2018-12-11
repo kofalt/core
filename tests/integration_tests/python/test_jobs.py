@@ -136,8 +136,10 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert r.ok
     started_job = r.json()
     assert started_job['transitions']['running'] == started_job['modified']
-    assert started_job['group'] == group
-    assert started_job['project'] == project
+    assert started_job['parents']['group'] == group
+    assert started_job['parents']['project'] == project
+    assert started_job['parents']['session'] == session
+    assert started_job['parents']['acquisition'] == acquisition
     assert started_job['profile']
     assert started_job['profile']['total_input_files'] == 1
     assert started_job['profile']['total_input_size_bytes'] > 1
@@ -649,8 +651,8 @@ def test_job_state_transition_from_ticket(data_builder, default_payload, as_admi
     assert next_job['id'] == job
     assert next_job['state'] == 'running'
     assert next_job['transitions']['running']
-    assert next_job['group']
-    assert next_job['project']
+    assert next_job['parents']['group']
+    assert next_job['parents']['project']
     assert next_job['profile']['total_input_files'] == 1
     assert next_job['profile']['total_input_size_bytes'] > 1
 

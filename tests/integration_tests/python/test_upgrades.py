@@ -865,3 +865,121 @@ def test_60(api_db, data_builder, database):
     assert same_id_deleted_subject['code'] == 'code B'
 
     data_builder.delete_group(group, recursive=True)
+
+def test_62(api_db, data_builder, database, default_payload, as_admin, file_form):
+    # Create a valid gear
+    gear_doc = default_payload['gear']
+    gear_doc['gear']['name'] = 'test-62-upgrade-gear'
+    gear_doc['category'] = 'utility'
+    gear_id = api_db.gears.insert_one(gear_doc).inserted_id
+    assert gear_id
+
+    # Create hierarchy
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    subject = data_builder.create_subject(project=project, label='1000')
+    session = data_builder.create_session(project=project, subject={'_id': subject})
+    acquisition = data_builder.create_acquisition(session=session)
+
+    dest_containers = [group, project, subject, session]
+    input_containers = dest_containers + [acquisition]
+
+    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.txt'))
+    assert r.ok
+
+    # Ensure that indexes get deleted
+    api_db.jobs.create_index('group')
+    api_db.jobs.create_index('project')
+
+    # Valid job document
+    job_src = {
+        'gear_id': str(gear_id),
+        'inputs': [{
+            'input': 'text',
+            'type': 'acquisition',
+            'id': acquisition,
+            'name': 'input.txt'
+        }],
+        'destination': {
+            'type': 'session',
+            'id': session
+        }
+    }
+
+    # Job with empty destination
+    job_data = copy.deepcopy(job_src)
+    del job_data['destination']
+    job_empty_dest = api_db.jobs.insert_one(job_data).inserted_id
+
+    # Job with non-existent destination
+    job_data = copy.deepcopy(job_src)
+    job_data['destination']['id'] = 'ffffffffffffffffffffffff'
+    job_invalid_dest = api_db.jobs.insert_one(job_data).inserted_id
+
+    # Job with empty inputs
+    job_data = copy.deepcopy(job_src)
+    job_data['inputs'] = []
+    job_empty_input = api_db.jobs.insert_one(job_data).inserted_id
+
+    # Job with non-existent input
+    job_data = copy.deepcopy(job_src)
+    job_data['inputs'][0]['id'] = 'ffffffffffffffffffffffff'
+    job_invalid_input = api_db.jobs.insert_one(job_data).inserted_id
+
+    # Valid job with inputs & destination
+    job_data = copy.deepcopy(job_src)
+    job_valid = api_db.jobs.insert_one(job_data).inserted_id
+
+    try:
+        database.upgrade_to_62()
+
+        # Validate empty destination
+        job_data = api_db.jobs.find_one({'_id': job_empty_dest})
+        assert 'parents' not in job_data
+        for cid in input_containers:
+            assert cid in job_data['related_container_ids']
+
+        # Job with non-existent destination
+        job_data = api_db.jobs.find_one({'_id': job_invalid_dest})
+        assert 'parents' not in job_data
+        for cid in input_containers:
+            assert cid in job_data['related_container_ids']
+
+        # Job with empty inputs
+        job_data = api_db.jobs.find_one({'_id': job_empty_input})
+        assert job_data['parents']['group'] == group
+        assert job_data['parents']['project'] == bson.ObjectId(project)
+        assert job_data['parents']['subject'] == bson.ObjectId(subject)
+        assert job_data['parents']['session'] == bson.ObjectId(session)
+        for cid in dest_containers:
+            assert cid in job_data['related_container_ids']
+
+        # Job with non-existent input
+        job_data = api_db.jobs.find_one({'_id': job_invalid_input})
+        assert job_data['parents']['group'] == group
+        assert job_data['parents']['project'] == bson.ObjectId(project)
+        assert job_data['parents']['subject'] == bson.ObjectId(subject)
+        assert job_data['parents']['session'] == bson.ObjectId(session)
+        for cid in dest_containers:
+            assert cid in job_data['related_container_ids']
+
+        # Valid job with inputs & destination
+        job_data = api_db.jobs.find_one({'_id': job_valid})
+        assert job_data['parents']['group'] == group
+        assert job_data['parents']['project'] == bson.ObjectId(project)
+        assert job_data['parents']['subject'] == bson.ObjectId(subject)
+        assert job_data['parents']['session'] == bson.ObjectId(session)
+        for cid in input_containers:
+            assert cid in job_data['related_container_ids']
+
+        # Validate that indexes are deleted
+        for _, index in api_db.jobs.index_information().items():
+            assert ('group', 1) not in index['key']
+            assert ('project', 1) not in index['key']
+
+    finally:
+        api_db.jobs.delete_many({'_id': {'$in': [
+            job_empty_dest, job_invalid_dest, job_empty_input, job_invalid_input, job_valid]}})
+
+
+

@@ -23,7 +23,7 @@ class Job(object):
                  request=None, id_=None, config_=None, origin=None,
                  saved_files=None, produced_metadata=None, batch=None,
                  failed_output_accepted=False, profile=None,
-                 group=None, project=None, failure_reason=None,
+                 parents=None, failure_reason=None,
                  transitions=None, related_container_ids=None):
         """
         Creates a job.
@@ -57,16 +57,15 @@ class Job(object):
             Flag indicating whether output was accepted for a failed job.
         profile: map (optional)
             The optional detailed job statistics object
-        group: string (optional)
-            The id of the group that the destination belonged to at time of creation
-        project: string (optional)
-            The id of the project that the destination belonged to at the time of creation
+        parents: map (optional)
+            The optional parents, as a copy of destination parents at time of creation
         failure_reason:  string (optional)
             If the job was marked as failed, the reason for the failure
         transitions: dict (optional)
             The set of timestamps associated with state changes
         related_container_ids: list (optional)
-            The set of all container ids related to inputs and destination of this job
+            The set of all container ids related to inputs and destination of this job, as of
+            job creation time. This field is not updated when containers are moved.
         """
 
         # TODO: validate inputs against the manifest
@@ -131,8 +130,7 @@ class Job(object):
         self.batch              = batch
         self.failed_output_accepted = failed_output_accepted
         self.profile            = profile
-        self.group              = group
-        self.project            = project
+        self.parents            = parents
         self.failure_reason     = failure_reason
         self.transitions        = transitions
         self.related_container_ids = related_container_ids
@@ -209,8 +207,7 @@ class Job(object):
             batch=d.get('batch'),
             failed_output_accepted=d.get('failed_output_accepted', False),
             profile=d.get('profile', {}),
-            group=d.get('group'),
-            project=d.get('project'),
+            parents = d.get('parents', {}),
             failure_reason=d.get('failure_reason'),
             transitions=d.get('transitions', {}),
             related_container_ids=d.get('related_container_ids', [])
@@ -256,10 +253,8 @@ class Job(object):
             d.pop('failed_output_accepted')
         if d['retried'] is None:
             d.pop('retried')
-        if d.get('group') is None:
-            d.pop('group')
-        if d.get('project') is None:
-            d.pop('project')
+        if d.get('parents') is None:
+            d.pop('parents')
         if d['failure_reason'] is None:
             d.pop('failure_reason')
         if d.get('transitions') is None:
@@ -273,8 +268,6 @@ class Job(object):
         d = self.map()
         if d.get('id'):
             d['_id'] = bson.ObjectId(d.pop('id'))
-        if d.get('project'):
-            d['project'] = bson.ObjectId(d['project'])
         if d.get('inputs'):
             input_array = []
             for k, inp in d['inputs'].iteritems():

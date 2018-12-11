@@ -337,13 +337,47 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
     assert 'result.txt' in [f['name'] for f in r.json()['files']]
 
 
-def test_subject_move_via_session(data_builder, as_admin, as_user):
-    project_1 = data_builder.create_project()
-    project_2 = data_builder.create_project()
+def test_subject_move_via_session(data_builder, as_admin, as_user, default_payload, file_form):
+    group_1 = data_builder.create_group()
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+
+    group_2 = data_builder.create_group()
+    project_1 = data_builder.create_project(group=group_1)
+    project_2 = data_builder.create_project(group=group_2)
     session_1 = data_builder.create_session(project=project_1, subject={'code': 'move', 'type': 'human'})
     session_2 = data_builder.create_session(project=project_2, subject={'code': 'ex123', 'type': 'phantom'})
     subject_1 = as_admin.get('/sessions/' + session_1).json()['subject']['_id']
     subject_2 = as_admin.get('/sessions/' + session_2).json()['subject']['_id']
+
+    acquisition = data_builder.create_acquisition(session=session_1)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Create a job
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 40 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
 
     # Move session_1 into project_2 - there's no other session on it (move)
     assert as_admin.put('/sessions/' + session_1, json={'project': project_2})
@@ -353,6 +387,16 @@ def test_subject_move_via_session(data_builder, as_admin, as_user):
             == as_admin.get('/subjects/' + subject_1).json()['project'])
     assert as_admin.get('/projects/' + project_1 + '/subjects').json() == []
     assert subject_1 in [s['_id'] for s in as_admin.get('/projects/' + project_2 + '/subjects').json()]
+
+    r_session = as_admin.get('/sessions/' + session_1).json()
+    assert r_session['parents']['group'] == group_2
+    assert r_session['parents']['project'] == project_2
+    assert r_session['parents']['subject'] == subject_1
+
+    # Verify that the job got updated
+    job = as_admin.get('/jobs/' + job_id).json()
+    assert job['parents']['group'] == group_2
+    assert job['parents']['project'] == project_2
 
     # Create another session on the same subject (now in project_2)
     session_2 = data_builder.create_session(project=project_2, subject={'code': 'move'})

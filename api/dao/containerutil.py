@@ -67,6 +67,10 @@ def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
         analysis_update.get('$set', {}).pop('permissions', None)
         config.db.analyses.update_many(analysis_query, analysis_update)
 
+        # Update job parents by destination
+        job_query = { 'parents.{}'.format(singularize(cont_name)) : {'$in': cont_ids} }
+        config.db.jobs.update_many(job_query, analysis_update)
+
     if cont_name in containers[:-1]:
         child_cont = containers[containers.index(cont_name) + 1]
         child_ids = [c['_id'] for c in config.db[child_cont].find({singularize(cont_name): {'$in': cont_ids}}, [])]
