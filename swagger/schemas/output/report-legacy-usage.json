@@ -1,0 +1,16 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "array",
+    "items": {"$ref":"../definitions/report.json#/definitions/report-legacy-usage-entry"},
+    "example": [{
+        "project": {
+            "_id": "576be50c59b2b6346719ee4d",
+            "label": "Anxiety Study"
+        },
+        "file_mbs": 3722.1714448928833,
+        "session_count": 9,
+        "gear_execution_count": 708
+    }]
+}
+
+

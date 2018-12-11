@@ -1,0 +1,37 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "array",
+    "items": {"$ref":"../definitions/report.json#/definitions/report-daily-usage-entry"},
+    "example": [
+        {
+            "project_label": "usage-test",
+            "group_compute_ms": 0,
+            "group": "group1",
+            "session_count": 0,
+            "center_job_count": 0,
+            "project": "5c102a404026b30019f9fc60",
+            "group_job_count": 0,
+            "center_storage_bytes": 0,
+            "year": 2018,
+            "month": 12,
+            "group_storage_bytes": 0,
+            "center_compute_ms": 0,
+            "day": 10
+        },
+        {
+            "project_label": "usage-test",
+            "group_compute_ms": 1800000,
+            "group": "group1",
+            "session_count": 1,
+            "center_job_count": 0,
+            "project": "5c102a404026b30019f9fc60",
+            "group_job_count": 1,
+            "center_storage_bytes": 0,
+            "year": 2018,
+            "month": 12,
+            "group_storage_bytes": 2048,
+            "center_compute_ms": 0,
+            "day": 11
+        }
+    ]
+}
