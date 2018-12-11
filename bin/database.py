@@ -2194,6 +2194,10 @@ def upgrade_to_60(dry_run=False):
                 merged_subject['_id'] = bson.ObjectId()
                 for session in sessions:
                     session['subject'] = merged_subject['_id']
+            elif config.db.subjects.find_one({'_id': merged_subject['_id']}):
+                merged_subject['_id'] = bson.ObjectId()
+                for session in sessions:
+                    session['subject'] = merged_subject['_id']
             config.db.subjects.insert_one(merged_subject)
 
         inserted_subject_ids.append(subject_id)
