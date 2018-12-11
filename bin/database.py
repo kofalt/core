@@ -2173,8 +2173,7 @@ def upgrade_to_60(dry_run=False):
         # make sure subjects w/ missing/empty code are assigned different ids (see also updates 17 and 44)
         if session_group['_id'].get('code') in ('', None):
             for session in sessions:
-                if session['subject']['_id'] in inserted_subject_ids:
-                    session['subject']['_id'] = bson.ObjectId()
+                session['subject']['_id'] = bson.ObjectId()
                 subject = extract_subject(session)
                 subject.update({'created': session['created'], 'modified': session['modified']})
                 if not dry_run:
