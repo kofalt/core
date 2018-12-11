@@ -177,7 +177,7 @@
             },
             "description": "A single entry in the access log report"
         },
-        "report-usage-project-entry": {
+        "report-legacy-usage-project-entry": {
             "type": "object",
             "properties": {
                 "_id": {"$ref":"container.json#/definitions/_id"},
@@ -186,7 +186,7 @@
             "required": ["_id"],
             "description": "The project that this entry reports on"
         },        
-        "report-usage-entry": {
+        "report-legacy-usage-entry": {
             "type": "object",
             "properties": {
                 "file_mbs": {
@@ -210,11 +210,133 @@
                     "description": "The month portion of the entry date"
                 },
                 "project": {
-                    "$ref": "#/definitions/report-usage-project-entry"
+                    "$ref": "#/definitions/report-legacy-usage-project-entry"
                 }
             },
             "required": ["file_mbs", "gear_execution_count", "session_count"],
             "description": "An entry in the usage report, describing storage and gear usage"
+        },
+        "report-usage-entry": {
+            "type": "object",
+            "properties": {
+                "group": {"$ref": "group.json#/definitions/label"},
+                "project": {
+                    "type": ["string", "null"],
+                    "description": "The project id, or null if this is a group summary row"
+                },
+                "project_label": {
+                    "type": ["string", "null"],
+                    "description": "The project label, or null if this is a group summary row"
+                },
+                "session_count": {
+                    "type": "integer",
+                    "description": "The number of sessions that existed at the last collection time"
+                },
+                "center_job_count": {
+                    "type": "integer",
+                    "description": "The number of jobs that completed during the time frame that are billable to the center"
+                },
+                "group_job_count": {
+                    "type": "integer",
+                    "description": "The number of jobs that completed during the time frame that are billable to the group"
+                },
+                "total_job_count": {
+                    "type": "integer",
+                    "description": "The total number of jobs completed during the time frame"
+                },
+                "center_compute_ms": {
+                    "type": "integer",
+                    "description": "The compute time of jobs completed during the time frame, billable to the center"
+                },
+                "group_compute_ms": {
+                    "type": "integer",
+                    "description": "The compute time of jobs completed during the time frame, billable to the group"
+                },
+                "total_compute_ms": {
+                    "type": "integer",
+                    "description": "The total compute time of jobs completed during the time frame"
+                },
+                "center_storage_byte_day": {
+                    "type": "integer",
+                    "description": "The total storage used, in byte-days, billable to the center"
+                },
+                "group_storage_byte_day": {
+                    "type": "integer",
+                    "description": "The total storage used, in byte-days, billable to the group"
+                },
+                "total_storage_byte_day": {
+                    "type": "integer",
+                    "description": "The total storage used, in byte-days"
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "The number of days collected in this report"
+                }
+            },
+            "required": [
+                "group", "project", "project_label", "session_count",
+                "center_job_count", "group_job_count", "total_job_count",
+                "center_compute_ms", "group_compute_ms", "total_compute_ms",
+                "center_storage_byte_day", "group_storage_byte_day", "total_storage_byte_day",
+                "days"
+            ],
+            "description": "An entry in the usage report, describing storage and gear usage by group and project"
+        },
+        "report-daily-usage-entry": {
+            "type": "object",
+            "properties": {
+                "year": {
+                    "type": "integer",
+                    "description": "The year that this report row represents"
+                },
+                "month": {
+                    "type": "integer",
+                    "description": "The month that this report row represents"
+                },
+                "day": {
+                    "type": "integer",
+                    "description": "The day that this report row represents"
+                },
+                "group": {"$ref": "group.json#/definitions/label"},
+                "project": {"$ref":"container.json#/definitions/_id"},
+                "project_label": {"$ref": "common.json#/definitions/label"},
+                "session_count": {
+                    "type": "integer",
+                    "description": "The number of sessions that existed at the last collection time"
+                },
+                "center_job_count": {
+                    "type": "integer",
+                    "description": "The number of jobs that completed during the time frame that are billable to the center"
+                },
+                "group_job_count": {
+                    "type": "integer",
+                    "description": "The number of jobs that completed during the time frame that are billable to the group"
+                },
+                "center_compute_ms": {
+                    "type": "integer",
+                    "description": "The compute time of jobs completed during the time frame, billable to the center"
+                },
+                "group_compute_ms": {
+                    "type": "integer",
+                    "description": "The compute time of jobs completed during the time frame, billable to the group"
+                },
+                "center_storage_bytes": {
+                    "type": "integer",
+                    "description": "The total storage used on this day, billable to the center"
+                },
+                "group_storage_bytes": {
+                    "type": "integer",
+                    "description": "The total storage used on this day, billable to the group"
+                }
+            },
+            "required": [
+                "year", "month", "day", "group", "project",
+                "project_label", "session_count",
+                "center_job_count", "group_job_count",
+                "center_compute_ms", "group_compute_ms",
+                "center_storage_bytes", "group_storage_bytes"
+            ],
+            "description": "An entry in the usage report, describing storage and gear usage by group"
         }
     }
 }

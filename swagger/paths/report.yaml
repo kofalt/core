@@ -89,10 +89,98 @@
         schema:
           $ref: schemas/output/report-access-type-list.json
 
+/report/usage/collect:
+  get:
+    summary: Collect daily usage statistics.
+    description: Collects usage statistics for the selected day (or yesterday if no day is given)
+    operationId: collect_usage
+    tags:
+    - 'reports'
+    parameters:
+      - in: query
+        type: integer
+        name: year
+        description: The year portion of the date
+      - in: query
+        type: integer
+        name: month
+        description: The month portion of the date
+      - in: query
+        type: integer
+        name: day
+        description: The day portion of the date
+    produces:
+      - text/event-stream
+    responses:
+      '200':
+        description: ''
+
 /report/usage:
   get:
-    summary: Get a usage report for the site grouped by month or project
+    summary: Get a usage report for the given month.
+    description: If no year/month pair is given, the current month will be used.
     operationId: get_usage_report
+    tags:
+    - 'reports'
+    parameters:
+      - in: query
+        type: integer
+        name: year
+        description: The year portion of the date
+      - in: query
+        type: integer
+        name: month
+        description: The month portion of the date
+      - in: query
+        type: boolean
+        name: csv
+        description: Download the report as a CSV file
+    responses:
+      '200':
+        description: Returns the usage report
+        schema:
+          $ref: schemas/output/report-usage.json
+
+/report/daily-usage:
+  get:
+    summary: Get a daily usage report for the given month.
+    description: If no year/month pair is given, the current month will be used.
+    operationId: get_daily_usage_report
+    tags:
+    - 'reports'
+    parameters:
+      - in: query
+        type: integer
+        name: year
+        description: The year portion of the date
+      - in: query
+        type: integer
+        name: month
+        description: The month portion of the date
+      - in: query
+        type: string
+        name: group
+        description: Limit the report to the given group id
+      - in: query
+        type: string
+        name: project
+        description: Limit the report to the given project id
+      - in: query
+        type: boolean
+        name: csv
+        description: Download the report as a CSV file
+    responses:
+      '200':
+        description: Returns the usage report
+        schema:
+          $ref: schemas/output/report-daily-usage.json
+
+
+/report/legacy-usage:
+  get:
+    summary: Get a usage report for the site grouped by month or project
+    description: This report is DEPRECATED and will be removed in a future release
+    operationId: get_legacy_usage_report
     tags:
     - 'reports'
     parameters:
@@ -116,5 +204,5 @@
       '200':
         description: Returns the usage report
         schema:
-          $ref: schemas/output/report-usage.json
+          $ref: schemas/output/report-legacy-usage.json
 

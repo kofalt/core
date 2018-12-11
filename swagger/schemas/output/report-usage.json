@@ -2,15 +2,38 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "array",
     "items": {"$ref":"../definitions/report.json#/definitions/report-usage-entry"},
-    "example": [{
-        "project": {
-            "_id": "576be50c59b2b6346719ee4d",
-            "label": "Anxiety Study"
+    "example": [
+        {
+            "project_label": null,
+            "group_compute_ms": 3600000,
+            "days": 2,
+            "total_storage_byte_day": 46080,
+            "total_job_count": 4,
+            "total_compute_ms": 7200000,
+            "session_count": 5,
+            "center_compute_ms": 3600000,
+            "project": null,
+            "group_job_count": 2,
+            "center_storage_byte_day": 18432,
+            "group": "group1",
+            "center_job_count": 2,
+            "group_storage_byte_day": 27648
         },
-        "file_mbs": 3722.1714448928833,
-        "session_count": 9,
-        "gear_execution_count": 708
-    }]
+        {
+            "project_label": "usage-test",
+            "group_compute_ms": 3600000,
+            "group": "group1",
+            "total_job_count": 4,
+            "center_compute_ms": 3600000,
+            "total_compute_ms": 7200000,
+            "days": 2,
+            "center_job_count": 2,
+            "project": "5c102a424026b30019f9fc67",
+            "group_job_count": 2,
+            "center_storage_byte_day": 18432,
+            "session_count": 5,
+            "total_storage_byte_day": 46080,
+            "group_storage_byte_day": 27648
+        }
+    ]
 }
-
-
