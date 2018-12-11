@@ -87,6 +87,12 @@ USER_LOGIN_COUNT = Gauge(prefix + 'user_login_count', 'The number of access logs
 # Last Event Timestamps: events: session_created, user_login, job_queued[_by_system, by_user]
 LAST_EVENT_TIME = Gauge(prefix + 'last_event_time', 'The seconds since an event as happened', ['event'], multiprocess_mode='livesum')
 
+# ===== Reports =====
+# Last time a report was collected
+LAST_REPORT_COLLECTION = Gauge('fw_last_report_collection', 'Last report collection time, in seconds since epoch', ['name'], multiprocess_mode='max')
+# Number of usage report collection errors
+REPORT_COLLECTION_ERROR_COUNT = Counter('fw_report_collection_errors', 'Observed report collection errors', ['name'])
+
 # ===== Meta =====
 COLLECT_METRICS_TIME = Summary(prefix + 'collect_metrics_time_seconds', 'Observed time to collect metrics, in seconds', [])
 

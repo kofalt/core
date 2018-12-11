@@ -71,6 +71,8 @@ class UsageReport(Report):
         super(UsageReport, self).__init__(params)
 
         self._center_gears = None
+        self.start_date = None
+        self.end_date = None
 
         try:
             # Get date parameters, validating ints

@@ -1,6 +1,10 @@
+import datetime
+
 from .. import config
-from ..web import base, encoder
+
+from ..metrics import values
 from ..reports import ReportTypes
+from ..web import base, encoder
 from ..web.request import AccessTypeList
 from ..web.errors import APIPermissionException
 
@@ -62,14 +66,22 @@ class ReportHandler(base.RequestHandler):
             # Right now, in our environment:
             # - Timeouts may result in nginx-created 500 Bad Gateway HTML being added to the response.
             # - Exceptions add some error json to the response, which is not SSE-sanitized.
-            for item in report.collect():
-                try:
-                    write(encoder.json_sse_pack({
-                        'event': 'progress',
-                        'data': item
-                    }))
-                except Exception: # pylint: disable=broad-except
-                    log.info('SSE upload progress failed to send; continuing')
+            try:
+                for item in report.collect():
+                    try:
+                        write(encoder.json_sse_pack({
+                            'event': 'progress',
+                            'data': item
+                        }))
+                    except Exception: # pylint: disable=broad-except
+                        log.info('SSE upload progress failed to send; continuing')
+
+                # Log last collection time
+                time_since = datetime.datetime.now() - datetime.datetime(1970, 1, 1)
+                values.LAST_REPORT_COLLECTION.labels(report_type).set(time_since.total_seconds())
+            except Exception: # pylint: disable=broad-except
+                log.exception('Error collecting %s report data', report_type)
+                values.REPORT_COLLECTION_ERROR_COUNT.labels(report_type).inc()
 
             return ''
 

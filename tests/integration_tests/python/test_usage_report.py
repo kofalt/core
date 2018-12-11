@@ -91,8 +91,8 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     }
     gear = data_builder.create_gear(gear=gear_doc)
 
-    job = data_builder.create_job(gear_id=gear, inputs={'usage': {'type': 'acquisition', 'id': acquisition, 'name': 'input.txt'}})
-    assert as_drone.get('/jobs/next', params={'root': 'true'}).ok
+    job = data_builder.create_job(gear_id=gear, tags=['usage'], inputs={'usage': {'type': 'acquisition', 'id': acquisition, 'name': 'input.txt'}})
+    assert as_drone.get('/jobs/next', params={'root': 'true', 'tags': 'usage'}).ok
     r = as_drone.post('/engine',
         params={'root': 'true', 'level': 'analysis', 'id': analysis, 'job': job},
         files=file_form(OUTPUT_FILE, meta={'type': 'text', 'value': {'label': 'test'}})
@@ -208,6 +208,8 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert rows[1]['group_storage_bytes'] == 2 * len(FILE_DATA)
     assert rows[1]['session_count'] == 1
 
+    api_db.file_job_origin.remove({})
+    api_db.usage_data.remove({})
 
 def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload):
     # Test multiple days that cross a monthly boundary
@@ -261,8 +263,8 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(EXTRA_FILE))
 
             # Run center-pays job
-            center_job = data_builder.create_job(gear_id=center_gear, inputs={'usage': {'type': 'acquisition', 'id': acquisition, 'name': 'input.txt'}})
-            assert as_drone.get('/jobs/next', params={'root': 'true'}).ok
+            center_job = data_builder.create_job(gear_id=center_gear, tags=['usage'], inputs={'usage': {'type': 'acquisition', 'id': acquisition, 'name': 'input.txt'}})
+            assert as_drone.get('/jobs/next', params={'root': 'true', 'tags': 'usage'}).ok
             r = as_drone.post('/engine',
                 params={'root': 'true', 'level': 'acquisition', 'id': acquisition, 'job': center_job},
                 files=file_form(OUTPUT_FILE, meta={'acquisition': {'files': [{'name': 'output.txt', 'type': 'text'}]}})
@@ -278,8 +280,8 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             # Add analysis via job
             analysis = as_admin.post('/sessions/' + session + '/analyses', files=file_form(meta={'label': 'test'})).json()['_id']
 
-            group_job = data_builder.create_job(gear_id=group_gear, inputs={'usage': {'type': 'acquisition', 'id': acquisition, 'name': 'input.txt'}})
-            assert as_drone.get('/jobs/next', params={'root': 'true'}).ok
+            group_job = data_builder.create_job(gear_id=group_gear, tags=['usage'], inputs={'usage': {'type': 'acquisition', 'id': acquisition, 'name': 'input.txt'}})
+            assert as_drone.get('/jobs/next', params={'root': 'true', 'tags': 'usage'}).ok
             r = as_drone.post('/engine',
                 params={'root': 'true', 'level': 'analysis', 'id': analysis, 'job': group_job},
                 files=file_form(OUTPUT_FILE, meta={'type': 'text', 'value': {'label': 'test'}})
@@ -306,16 +308,12 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
 
         expected = collections.OrderedDict()
 
-        # Ensure file_job_origin and usage_data are empty before starting
-        api_db.file_job_origin.remove({})
-        api_db.usage_data.remove({})
-
         previous_day = None
         previous_month = None
 
         # We're collecting over 5 days and verifying the collection records
         for i in range(5):
-            year = 2018
+            year = 2050
             day = 1 + ((28 + i) % 31)
 
             if day < 25:
@@ -368,13 +366,13 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
 
         # Run the usage report for both months
         for month in [10, 11]:
-            r = as_admin.get('/report/usage?year=2018&month={}'.format(month))
+            r = as_admin.get('/report/usage?year=2050&month={}'.format(month))
             assert r.ok
 
-            report = r.json()
+            report = [row for row in r.json() if row['group'] == group]
             assert len(report) == 2
 
-            expected_rec = expected[(2018, month)]
+            expected_rec = expected[(2050, month)]
 
             assert report[0]['group'] == group
             assert report[0]['project'] == None
@@ -387,18 +385,18 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             consistency_check(report[1], expected_rec)
 
         # Collect daily usage report for october
-        r = as_admin.get('/report/daily-usage?year=2018&month=10&csv=true')
+        r = as_admin.get('/report/daily-usage?year=2050&month=10&csv=true'.format(group))
         assert r.ok
 
         body = StringIO(r.text)
-        rows = list(csv.DictReader(body))
+        rows = [row for row in csv.DictReader(body) if row['group'] == group]
         assert len(rows) == 3
 
         for i, day in enumerate([29, 30, 31]):
             row = rows[i]
-            expected_row = expected[(2018, 10, day)]
+            expected_row = expected[(2050, 10, day)]
 
-            assert row['year'] == '2018'
+            assert row['year'] == '2050'
             assert row['month'] == '10'
             assert row['day'] == str(day)
             assert row['group'] == group
@@ -420,3 +418,5 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
         else:
             api_db.singletons.remove({'_id': 'site'})
 
+        api_db.file_job_origin.remove({})
+        api_db.usage_data.remove({})
