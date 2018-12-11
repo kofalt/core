@@ -46,6 +46,9 @@ class ReportHandler(base.RequestHandler):
         if not report.can_collect:
             raise NotImplementedError('Report type {} does not support collection'.format(report_type))
 
+        # Invoke input validation for report collection
+        report.before_collect()
+
         def sse_handler(environ, start_response): # pylint: disable=unused-argument
             write = start_response('200 OK', [
                 ('Content-Type', 'text/event-stream; charset=utf-8'),

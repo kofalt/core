@@ -35,6 +35,13 @@ class Report(object):
         """
         raise NotImplementedError()
 
+    def before_collect(self):
+        """
+        Called before the collect method, and before the SSE handler is started.
+        This method should perform any last minute validation to raise a status
+        """
+        pass
+
     def collect(self):
         """
         Periodically collect data for a report.

@@ -2,6 +2,7 @@ import bson
 import datetime
 
 from pymongo.operations import UpdateOne
+from pymongo.errors import BulkWriteError
 
 from .report import Report
 from .. import config
@@ -13,8 +14,6 @@ from ..jobs import file_job_origin
 log = config.log
 
 BULK_UPDATE_BLOCK_SIZE = 100
-BYTES_IN_MEGABYTE = float(1<<20)
-MILLISECONDS_IN_HOUR = float(1000 * 60 * 60)
 
 # Tuple of collection name, file size key
 FILE_COLLECTIONS = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses']
@@ -41,8 +40,8 @@ class UsageReport(Report):
             session_count: The number of sessions that exist at time of collection
             center_job_count: The number of jobs ran attributed to the center
             group_job_count: The number of jobs ran attributed to the group
-            center_storage_bytes: The size of storage usage allocated to the center, in bytes
-            group_storage_bytes: The size of storage usage allocated to the group, in bytes
+            center_storage_bytes: The size of storage usage allocated to the center, in byte-days
+            group_storage_bytes: The size of storage usage allocated to the group, in byte-days
             center_compute_ms: The amount of compute used attributed to the center, in seconds
             group_compute_ms: The amount of compute used attributed to the group, in seconds
         total: A usage total (to-date), same format as the day record, with additional:
@@ -53,10 +52,11 @@ class UsageReport(Report):
     required_role = Privilege.is_admin
     can_collect = True
     columns = [
-        'group', 'project_id', 'project_label', 'session_count',
+        'group', 'project', 'project_label', 'session_count',
         'center_job_count', 'group_job_count', 'total_job_count',
-        'center_compute_hours', 'group_compute_hours', 'total_compute_hours',
-        'center_storage_mb', 'group_storage_mb', 'total_storage_mb'
+        'center_compute_ms', 'group_compute_ms', 'total_compute_ms',
+        'center_storage_byte_day', 'group_storage_byte_day', 'total_storage_byte_day',
+        'days'
     ]
 
     def __init__(self, params):
@@ -70,18 +70,25 @@ class UsageReport(Report):
         """
         super(UsageReport, self).__init__(params)
 
-        now = datetime.datetime.now()
-
         self._center_gears = None
 
         try:
-            year = int(params.get('year', str(now.year)))
-            month = int(params.get('month', str(now.month)))
-            day = int(params.get('day', str(now.day)))
+            # Get date parameters, validating ints
+            if 'year' in params:
+                self.year = int(params['year'])
+            else:
+                self.year = None
 
-            # Does validation
-            self.date = datetime.datetime(year=year, month=month, day=day)
-        except ValueError as e:
+            if 'month' in params:
+                self.month = int(params['month'])
+            else:
+                self.month = None
+
+            if 'day' in params:
+                self.day = int(params['day'])
+            else:
+                self.day = None
+        except (TypeError, ValueError) as e:
             raise APIReportParamsException('Invalid date specified: {}'.format(e))
 
     @property
@@ -105,16 +112,71 @@ class UsageReport(Report):
         return True
 
     def build(self):
-        # TODO: Implement
-        return None
+        # Take year, month (or current year month)
+        if self.year or self.month:
+            # Require both values be set
+            if not self.year or not self.month:
+                raise APIReportParamsException('Must specify both year and month')
+        else:
+            now = datetime.datetime.now()
+            self.year = now.year
+            self.month = now.month
+
+        # Generate report on current year/month
+        query = {'year': self.year, 'month': self.month}
+        # Remove unwanted fields via projection
+        projection = {'_id': 0, 'year': 0, 'month': 0, 'days': 0}
+        sort = [('group', 1), ('project_label', 1)]
+
+        records = [] # Sequential list of records
+        group_record = {} # Current group record
+
+        # Run the query, project just totals
+        for row in config.db.usage_data.find(query, projection, sort=sort):
+            group = row['group']
+
+            if group_record and group_record['group'] != group:
+                # Total the prior group record
+                self._total_record(group_record)
+                group_record = None
+
+            if not group_record:
+                # Create group roll-up record
+                group_record = self._default_record(group, None, None)
+                records.append(group_record)
+
+            # Produce the project record by flattening the total record, and removing/adjusting fields
+            row.update(row.pop('total'))
+
+            # Sum group record
+            self._sum_records(row, group_record)
+
+            # Total the project record
+            self._total_record(row)
+            records.append(row)
+
+        # Total the remaining group record
+        if group_record:
+            self._total_record(group_record)
+
+        return records
+
+    def before_collect(self):
+        # Set start and end dates. Jobs that completed between start & end will be included
+        # Files and sessions created before end will be included
+        try:
+            if self.year or self.month or self.day:
+                self.start_date = datetime.datetime(year=self.year, month=self.month, day=self.day)
+            else:
+                now = datetime.datetime.now()
+                self.start_date = datetime.datetime(year=now.year, month=now.month, day=now.day) -  datetime.timedelta(days=1)
+        except (TypeError, ValueError) as e:
+            raise APIReportParamsException('Invalid date specified: {}'.format(e))
+
+        self.end_date = self.start_date + datetime.timedelta(days=1)
 
     def collect(self):
         """Collect daily usage data. NOTE: We deliberately include deleted collections/files"""
-        # Set start and end dates. Jobs that completed between start & end will be included
-        # Files and sessions created before end will be included
-        start_date = self.date
-        end_date = self.date + datetime.timedelta(days=1)
-
         # First update the file_job_origin collection, for joins
         yield { 'status': 'Updating file_job_origin collection' }
         file_job_origin.update_file_job_origin()
@@ -128,7 +190,7 @@ class UsageReport(Report):
 
         # Count sessions created in timeframe, returns cursor
         yield { 'status': 'Getting session counts...' }
-        for entry in self._get_session_counts(end_date):
+        for entry in self._get_session_counts(self.end_date):
             _id = entry['_id']
             report_entries[_id['project']]['session_count'] = entry['count']
 
@@ -136,7 +198,7 @@ class UsageReport(Report):
         skipped = 0
         for coll_name in FILE_COLLECTIONS:
             yield { 'status': 'Getting {} storage usage...'.format(coll_name) }
-            for entry in self._get_file_size_counts(coll_name, end_date):
+            for entry in self._get_file_size_counts(coll_name, self.end_date):
                 _id = entry['_id']
                 size = entry['bytes']
 
@@ -160,7 +222,7 @@ class UsageReport(Report):
 
         # Aggregate jobs counts run with execution time (in milliseconds) in timeframe
         yield { 'status': 'Getting compute usage...' }
-        for entry in self._get_job_stats(start_date, end_date):
+        for entry in self._get_job_stats(self.start_date, self.end_date):
             _id = entry['_id']
 
             project_rec = report_entries.get(_id['project'])
@@ -178,9 +240,9 @@ class UsageReport(Report):
         # Bulk updates
         update_count = 0
         record_count = len(report_entries)
-        year = self.date.year
-        month = self.date.month
-        day = str(self.date.day)
+        year = self.start_date.year
+        month = self.start_date.month
+        day = str(self.start_date.day)
         day_entry = 'days.{}'.format(day)
         bulk_updates = []
 
@@ -193,7 +255,7 @@ class UsageReport(Report):
                 }
 
             group = row.pop('group')
-            project = row.pop('project_id')
+            project = row.pop('project')
             project_label = row.pop('project_label')
 
             query = {
@@ -211,7 +273,7 @@ class UsageReport(Report):
                     '$set': {
                         'project_label': project_label,
                         day_entry: row,
-                        'total.sessions': row['session_count']
+                        'total.session_count': row['session_count']
                     },
                     '$inc': {
                         'total.days': 1,
@@ -234,19 +296,37 @@ class UsageReport(Report):
 
             if len(bulk_updates) >= BULK_UPDATE_BLOCK_SIZE:
                 # Do bulk update block
-                config.db.usage_data.bulk_write(bulk_updates, ordered=False)
+                self._batch_insert(bulk_updates)
                 bulk_updates = []
 
             update_count += 1
 
         # Send final bulk update
-        if bulk_updates:
-            config.db.usage_data.bulk_write(bulk_updates, ordered=False)
+        self._batch_insert(bulk_updates)
 
         yield {'status': 'Complete'}
 
-        # TODO: Set metric for last successful usage collection date
-        # TODO: Set metric counter for usage collection failure
+    @staticmethod
+    def _batch_insert(updates):
+        if not updates:
+            return
+
+        conflicts = 0
+
+        try:
+            config.db.usage_data.bulk_write(updates, ordered=False)
+        except BulkWriteError as e:
+            for err in e.details.get('writeErrors', []) + e.details.get('writeConcernErrors', []):
+                code = err.get('code', 0)
+                if code == 11000:
+                    conflicts += 1
+                else:
+                    config.log.error('usage-report collection insertion error: %d - %s',
+                        code, err.get('errmsg', 'UNKNOWN ERROR'))
+
+        if conflicts:
+            config.log.warning('usage-report - %d entries not created due to conflicts', conflicts)
+
 
     def _is_center_gear(self, key): # pylint: disable=unused-argument
         """Check if the given key is a center gear.
@@ -347,7 +427,7 @@ class UsageReport(Report):
     def _default_record(group, project_id, project_label):
         return {
             'group': group,
-            'project_id': project_id,
+            'project': project_id,
             'project_label': project_label,
             'session_count': 0,
             'center_job_count': 0,
@@ -357,3 +437,22 @@ class UsageReport(Report):
             'center_compute_ms': 0,
             'group_compute_ms': 0,
         }
+
+    @staticmethod
+    def _sum_records(src, dst):
+        dst['center_job_count'] += src['center_job_count']
+        dst['group_job_count'] += src['group_job_count']
+        dst['center_storage_bytes'] += src['center_storage_bytes']
+        dst['group_storage_bytes'] += src['group_storage_bytes']
+        dst['center_compute_ms'] += src['center_compute_ms']
+        dst['group_compute_ms'] += src['group_compute_ms']
+        dst['session_count'] += src['session_count']
+        dst['days'] = max(src.get('days', 0), dst.get('days', 0))
+
+    @staticmethod
+    def _total_record(record):
+        record['center_storage_byte_day'] = record.pop('center_storage_bytes')
+        record['group_storage_byte_day'] = record.pop('group_storage_bytes')
+        record['total_job_count'] = record['center_job_count'] + record['group_job_count']
+        record['total_storage_byte_day'] = record['center_storage_byte_day'] + record['group_storage_byte_day']
+        record['total_compute_ms'] = record['center_compute_ms'] + record['group_compute_ms']

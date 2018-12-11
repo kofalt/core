@@ -1,13 +1,79 @@
 import bson
 import calendar
 import collections
+import csv
 import datetime
 import json
+
+from StringIO import StringIO
 
 FILE_DATA = 'a' * 1024
 INPUT_FILE = ('input.txt', FILE_DATA)
 EXTRA_FILE = ('extra.txt', FILE_DATA)
 OUTPUT_FILE = ('output.txt', FILE_DATA)
+
+def consistency_check(rec, expected):
+    assert rec['days'] == expected['days']
+
+    assert rec['session_count'] == expected['session_count']
+    assert rec['center_compute_ms'] == expected['center_compute_ms']
+    assert rec['group_compute_ms'] == expected['group_compute_ms']
+    assert rec['center_job_count'] == expected['center_job_count']
+    assert rec['group_job_count'] == expected['group_job_count']
+    assert rec['center_storage_byte_day'] == expected['center_storage_bytes']
+    assert rec['group_storage_byte_day'] == expected['group_storage_bytes']
+
+    assert rec['total_job_count'] == rec['center_job_count'] + rec['group_job_count']
+    assert rec['total_compute_ms'] == rec['center_compute_ms'] + rec['group_compute_ms']
+    assert rec['total_storage_byte_day'] == rec['center_storage_byte_day'] + rec['group_storage_byte_day']
+
+def test_usage_report_parameters(as_admin):
+    r = as_admin.get('/report/usage/collect?year&month')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?year=a&month=b')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?year=2018')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?month=11')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?year=2018&month=11')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?year=2018&month=13')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?year=2018&month=0')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?year=2018&month=2&day=31')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage/collect?year=2018&month=2&day=0')
+    assert r.status_code == 400
+
+    r = as_admin.get('/report/usage?year=2018')
+    assert r.status_code == 400
+    r = as_admin.get('/report/usage?month=11')
+    assert r.status_code == 400
+
+    r = as_admin.get('/report/daily-usage?year=2018')
+    assert r.status_code == 400
+    r = as_admin.get('/report/daily-usage?month=1')
+    assert r.status_code == 400
+
+
+def test_usage_report_permissions(as_user, as_public):
+    r = as_user.get('/report/usage/collect')
+    assert r.status_code == 403
+    r = as_public.get('/report/usage/collect')
+    assert r.status_code == 403
+
+    r = as_user.get('/report/usage?year=2018&month=10')
+    assert r.status_code == 403
+    r = as_public.get('/report/usage?year=2018&month=10')
+    assert r.status_code == 403
+
+    r = as_user.get('/report/daily-usage?year=2018&month=10')
+    assert r.status_code == 403
+    r = as_public.get('/report/daily-usage?year=2018&month=10')
+    assert r.status_code == 403
+
 
 def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload):
     group = data_builder.create_group()
@@ -49,7 +115,32 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert r.ok
     assert status[-1]['status'] == 'Complete'
 
+    # Yesterday's
+    record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': now.year, 'month': now.month})
+    yesterday = now - datetime.timedelta(days=1)
+    day = str(yesterday.day)
+    assert day in record['days']
+
+    assert record['project_label'] == 'usage'
+    assert record['days'][day]['center_compute_ms'] == 0
+    assert record['days'][day]['center_job_count'] == 0
+    assert record['days'][day]['center_storage_bytes'] == 0
+    assert record['days'][day]['group_compute_ms'] == 0
+    assert record['days'][day]['group_job_count'] == 0
+    assert record['days'][day]['group_storage_bytes'] == 0
+    assert record['days'][day]['session_count'] == 0
+    assert record['total']['center_compute_ms'] == 0
+    assert record['total']['center_job_count'] == 0
+    assert record['total']['center_storage_bytes'] == 0
+    assert record['total']['group_compute_ms'] == 0
+    assert record['total']['group_job_count'] == 0
+    assert record['total']['group_storage_bytes'] == 0
+    assert record['total']['session_count'] == 0
+
     # Verify collection of "today's" record
+    r = as_admin.get('/report/usage/collect?year={}&month={}&day={}'.format(now.year, now.month, now.day))
+    assert r.ok
+
     record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': now.year, 'month': now.month})
     assert record
 
@@ -70,7 +161,8 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert record['total']['group_compute_ms'] == 30 * 60 * 1000
     assert record['total']['group_job_count'] == 1
     assert record['total']['group_storage_bytes'] == 2 * len(FILE_DATA)
-    assert record['total']['sessions'] == 1
+    assert record['total']['session_count'] == 1
+    assert record['total']['days'] == 2
 
     # Verify that re-collection after creating new data in the day does not update
     # (i.e. once a day has been collected, it's a no-op to collect that day again)
@@ -81,6 +173,41 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
 
     record2 = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': now.year, 'month': now.month})
     assert record == record2
+
+    # Get today's daily usage, by project
+    r = as_admin.get('/report/daily-usage?group={}&project={}'.format(group, project))
+    assert r.ok
+    rows = r.json()
+    assert len(rows) == 2
+
+    assert rows[0]['year'] == yesterday.year
+    assert rows[0]['month'] == yesterday.month
+    assert rows[0]['day'] == yesterday.day
+    assert rows[0]['group'] == group
+    assert rows[0]['project'] == project
+    assert rows[0]['project_label'] == 'usage'
+    assert rows[0]['center_compute_ms'] == 0
+    assert rows[0]['center_job_count'] == 0
+    assert rows[0]['center_storage_bytes'] == 0
+    assert rows[0]['group_compute_ms'] == 0
+    assert rows[0]['group_job_count'] == 0
+    assert rows[0]['group_storage_bytes'] == 0
+    assert rows[0]['session_count'] == 0
+
+    assert rows[1]['year'] == now.year
+    assert rows[1]['month'] == now.month
+    assert rows[1]['day'] == now.day
+    assert rows[1]['group'] == group
+    assert rows[1]['project'] == project
+    assert rows[1]['project_label'] == 'usage'
+    assert rows[1]['center_compute_ms'] == 0
+    assert rows[1]['center_job_count'] == 0
+    assert rows[1]['center_storage_bytes'] == 0
+    assert rows[1]['group_compute_ms'] == 30 * 60 * 1000
+    assert rows[1]['group_job_count'] == 1
+    assert rows[1]['group_storage_bytes'] == 2 * len(FILE_DATA)
+    assert rows[1]['session_count'] == 1
+
 
 def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload):
     # Test multiple days that cross a monthly boundary
@@ -179,8 +306,9 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
 
         expected = collections.OrderedDict()
 
-        # Ensure file_job_origin is empty before starting
+        # Ensure file_job_origin and usage_data are empty before starting
         api_db.file_job_origin.remove({})
+        api_db.usage_data.remove({})
 
         previous_day = None
         previous_month = None
@@ -236,14 +364,54 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': year, 'month': month})
             assert record
             assert record['days'].get(str(day)) == day_stats
-            total = total.copy()
-            total['sessions'] = total.pop('session_count')
             assert record['total'] == total
 
-        # Now, build the usage report
+        # Run the usage report for both months
+        for month in [10, 11]:
+            r = as_admin.get('/report/usage?year=2018&month={}'.format(month))
+            assert r.ok
 
-        # Then build the billing report
+            report = r.json()
+            assert len(report) == 2
 
+            expected_rec = expected[(2018, month)]
+
+            assert report[0]['group'] == group
+            assert report[0]['project'] == None
+            assert report[0]['project_label'] == None
+            consistency_check(report[0], expected_rec)
+
+            assert report[1]['group'] == group
+            assert report[1]['project'] == project
+            assert report[1]['project_label'] == 'usage'
+            consistency_check(report[1], expected_rec)
+
+        # Collect daily usage report for october
+        r = as_admin.get('/report/daily-usage?year=2018&month=10&csv=true')
+        assert r.ok
+
+        body = StringIO(r.text)
+        rows = list(csv.DictReader(body))
+        assert len(rows) == 3
+
+        for i, day in enumerate([29, 30, 31]):
+            row = rows[i]
+            expected_row = expected[(2018, 10, day)]
+
+            assert row['year'] == '2018'
+            assert row['month'] == '10'
+            assert row['day'] == str(day)
+            assert row['group'] == group
+            assert row['project'] == project
+            assert row['project_label'] == 'usage'
+
+            assert int(row['session_count']) == expected_row['session_count']
+            assert int(row['center_job_count']) == expected_row['center_job_count']
+            assert int(row['group_job_count']) == expected_row['group_job_count']
+            assert int(row['center_compute_ms']) == expected_row['center_compute_ms']
+            assert int(row['group_compute_ms']) == expected_row['group_compute_ms']
+            assert int(row['center_storage_bytes']) == expected_row['center_storage_bytes']
+            assert int(row['group_storage_bytes']) == expected_row['group_storage_bytes']
 
     finally:
         # Cleanup site
