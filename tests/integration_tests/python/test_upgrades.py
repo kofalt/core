@@ -797,9 +797,9 @@ def test_60(api_db, data_builder, database):
 
     # Test subject id mismatch
     subject_same_id = bson.ObjectId()
-    same_id = create_session({'code': 'code A', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=False)
-    same_id_2 = create_session({'code': 'code A2', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=False)
-    same_id_deleted = create_session({'code': 'code B', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=True)
+    same_id = create_session({'code': '', '_id': subject_same_id, 'firstname': 'Person 5'}, deleted=False)
+    same_id_2 = create_session({'code': '', '_id': subject_same_id, 'firstname': 'Person 6'}, deleted=False)
+    same_id_deleted = create_session({'code': '', '_id': subject_same_id, 'firstname': 'Person 7'}, deleted=True)
 
     database.upgrade_to_55()
 
@@ -830,7 +830,6 @@ def test_60(api_db, data_builder, database):
     session = api_db.sessions.find_one({'_id': same_id})
     same_id_subject = api_db.subjects.find_one({'_id': session['subject']})
     assert same_id_subject
-    assert same_id_subject['code'] == 'code A'
 
     database.upgrade_to_60()
 
@@ -857,11 +856,11 @@ def test_60(api_db, data_builder, database):
     session = api_db.sessions.find_one({'_id': same_id})
     same_id_subject = api_db.subjects.find_one({'_id': session['subject']})
     assert same_id_subject
-    assert same_id_subject['code'] == 'code A'
+    assert same_id_subject['firstname'] == 'Person 5'
 
     session = api_db.sessions.find_one({'_id': same_id_deleted})
     same_id_deleted_subject = api_db.subjects.find_one({'_id': session['subject']})
     assert same_id_deleted_subject
-    assert same_id_deleted_subject['code'] == 'code B'
+    assert same_id_deleted_subject['firstname'] == 'Person 7'
 
     data_builder.delete_group(group, recursive=True)
