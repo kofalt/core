@@ -801,6 +801,11 @@ def test_60(api_db, data_builder, database):
     same_id_2 = create_session({'code': 'code A2', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=False)
     same_id_deleted = create_session({'code': 'code B', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=True)
 
+    codeless_id = bson.ObjectId()
+    codeless = create_session({'code': '', '_id': subject_same_id, 'firstname': 'Person 5'}, deleted=False)
+    codeless_2 = create_session({'code': '', '_id': subject_same_id, 'firstname': 'Person 6'}, deleted=False)
+    codeless_deleted = create_session({'code': '', '_id': subject_same_id, 'firstname': 'Person 7'}, deleted=True)
+
     database.upgrade_to_55()
 
     def get_subject(session_id):
@@ -863,5 +868,15 @@ def test_60(api_db, data_builder, database):
     same_id_deleted_subject = api_db.subjects.find_one({'_id': session['subject']})
     assert same_id_deleted_subject
     assert same_id_deleted_subject['code'] == 'code B'
+
+    session = api_db.sessions.find_one({'_id': codeless})
+    codeless_subject = api_db.subjects.find_one({'_id': session['subject']})
+    assert codeless_subject
+    assert codeless_subject['firstname'] == 'Person 5'
+
+    session = api_db.sessions.find_one({'_id': codeless_deleted})
+    codeless_deleted_subject = api_db.subjects.find_one({'_id': session['subject']})
+    assert codeless_deleted_subject
+    assert codeless_deleted_subject['firstname'] == 'Person 7'
 
     data_builder.delete_group(group, recursive=True)
