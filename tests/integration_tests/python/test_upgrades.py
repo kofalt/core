@@ -795,6 +795,12 @@ def test_60(api_db, data_builder, database):
     half_deleted = create_session({'code': 'half deleted', '_id': half_deleted_id, 'firstname': 'Person 3'}, deleted=True)
     full_deleted = create_session({'code': 'deleted', 'firstname': 'Person 4'}, deleted=True)
 
+    # Test subject id mismatch
+    subject_same_id = bson.ObjectId()
+    same_id = create_session({'code': 'code A', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=False)
+    same_id_2 = create_session({'code': 'code A2', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=False)
+    same_id_deleted = create_session({'code': 'code B', '_id': subject_same_id, 'firstname': 'Person 3'}, deleted=True)
+
     database.upgrade_to_55()
 
     def get_subject(session_id):
@@ -821,6 +827,11 @@ def test_60(api_db, data_builder, database):
     full_deleted_subject = api_db.subjects.find_one({'_id': session['subject']['_id']})
     assert not full_deleted_subject
 
+    session = api_db.sessions.find_one({'_id': same_id})
+    same_id_subject = api_db.subjects.find_one({'_id': session['subject']})
+    assert same_id_subject
+    assert same_id_subject['code'] == 'code A'
+
     database.upgrade_to_60()
 
     not_deleted_subject = get_subject(not_deleted)
@@ -843,5 +854,14 @@ def test_60(api_db, data_builder, database):
     full_deleted_subject = get_subject(full_deleted)
     assert full_deleted_subject['firstname'] == 'Person 4'
 
+    session = api_db.sessions.find_one({'_id': same_id})
+    same_id_subject = api_db.subjects.find_one({'_id': session['subject']})
+    assert same_id_subject
+    assert same_id_subject['code'] == 'code A'
+
+    session = api_db.sessions.find_one({'_id': same_id_deleted})
+    same_id_deleted_subject = api_db.subjects.find_one({'_id': session['subject']})
+    assert same_id_deleted_subject
+    assert same_id_deleted_subject['code'] == 'code B'
 
     data_builder.delete_group(group, recursive=True)
