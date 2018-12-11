@@ -191,7 +191,7 @@ def initialize_db():
     db.project_rules.create_index('project_id')
     db.data_views.create_index('parent')
     db.file_job_origin.create_index('value.created')
-    db.usage_data.create_index([('group', 1), ('project', 1), ('year', 1), ('month', 1)])
+    db.usage_data.create_index([('group', 1), ('project', 1), ('year', 1), ('month', 1)], unique=True)
 
     if __config['core']['access_log_enabled']:
         log_db.access_log.create_index('context.ticket_id')
