@@ -35,7 +35,7 @@ class UsersTestCases(SdkTestCase):
 
         try:
             settings2 = self.fw.get_site_settings()
-            self.assertIsNotNone(settings.get('center_gears'))
+            self.assertIsNotNone(settings2.get('center_gears'))
             self.assertIn('test', settings2['center_gears'])
 
         finally:
