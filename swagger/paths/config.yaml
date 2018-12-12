@@ -10,3 +10,27 @@
         examples:
           response:
             $ref: examples/scitran_config.json
+
+/site/settings:
+  get:
+    summary: Return administrative site settings
+    operationId: get_site_settings
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/site-settings.json
+  put:
+    summary: Update administrative site settings
+    operationId: modify_site_settings
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/site-settings.json
+    responses:
+      '200':
+        $ref: '#/responses/200:modified-with-count'
+      '400':
+        $ref: '#/responses/400:invalid-body-json'

@@ -77,6 +77,28 @@
                 "auth",
                 "created"
             ]
+        },
+
+        "site-settings": {
+            "type": "object",
+            "properties": {
+                "center_gears": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "A list of gears that are treated as center-pays for the purpose of the billing report"
+                }
+            }
+        },
+        "site-settings-input": {
+            "type": "object",
+            "properties": {
+                "center_gears": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "A list of gears that are treated as center-pays for the purpose of the billing report"
+                }
+            },
+            "additionalProperties": false
         }
     }
 

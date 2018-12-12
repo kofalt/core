@@ -4,7 +4,7 @@ import webapp2_extras.routes
 from .download                          import Download
 from .handlers.abstractcontainerhandler import AbstractContainerHandler
 from .handlers.collectionshandler       import CollectionsHandler
-from .handlers.confighandler            import Config, Version
+from .handlers.confighandler            import Config, Version, SiteSettingsHandler
 from .handlers.containerhandler         import ContainerHandler
 from .handlers.dataexplorerhandler      import DataExplorerHandler, QueryHandler
 from .handlers.devicehandler            import DeviceHandler
@@ -227,6 +227,7 @@ endpoints = [
 
         # Site
 
+        route('/site/settings',                 SiteSettingsHandler,   m=['GET', 'PUT']),
         route('/<cid:site>/rules',              RulesHandler,          m=['GET', 'POST']),
         route('/<cid:site>/rules/<rid:{oid}>',  RuleHandler,           m=['GET', 'PUT', 'DELETE']),
 
