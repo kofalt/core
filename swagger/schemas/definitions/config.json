@@ -85,7 +85,7 @@
                 "center_gears": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "A list of gears that are treated as center-pays for the purpose of the billing report"
+                    "description": "A list of gear algorithm names that are treated as center-pays for the purpose of the billing report"
                 }
             }
         },
@@ -95,7 +95,7 @@
                 "center_gears": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "A list of gears that are treated as center-pays for the purpose of the billing report"
+                    "description": "A list of gear algorithm names that are treated as center-pays for the purpose of the billing report"
                 }
             },
             "additionalProperties": false
