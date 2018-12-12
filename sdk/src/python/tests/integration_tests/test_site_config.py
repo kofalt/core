@@ -21,3 +21,24 @@ class UsersTestCases(SdkTestCase):
         self.assertIsNotNone(site.api_url)
         self.assertIsNotNone(site.registered)
 
+    def test_site_settings(self):
+        settings = self.fw.get_site_settings()
+        self.assertIsNotNone(settings)
+
+        gears = settings.get('center_gears')
+        if gears is None:
+            gears = []
+
+        self.fw.modify_site_settings({
+            'center_gears': ['test']
+        })
+
+        try:
+            settings2 = self.fw.get_site_settings()
+            self.assertIsNotNone(settings.get('center_gears'))
+            self.assertIn('test', settings2['center_gears'])
+
+        finally:
+            self.fw.modify_site_settings({
+                'center_gears': gears
+            })
