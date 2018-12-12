@@ -1,0 +1,27 @@
+/site/settings:
+  get:
+    summary: Return administrative site settings
+    operationId: get_site_settings
+    tags:
+      - site
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/site-settings.json
+  put:
+    summary: Update administrative site settings
+    operationId: modify_site_settings
+    tags:
+      - site
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/site-settings.json
+    responses:
+      '200':
+        description: Settings were updated successfully
+      '400':
+        $ref: '#/responses/400:invalid-body-json'

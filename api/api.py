@@ -22,6 +22,7 @@ from .reports.handler                   import ReportHandler
 from .data_export.handlers              import DownloadHandler
 from .data_views.handlers               import DataViewHandler
 from .container.handlers                import TreeHandler
+from .site.handlers                     import SiteSettingsHandler
 from .web.base                          import RequestHandler
 from . import config
 
@@ -223,6 +224,7 @@ endpoints = [
 
         # Site
 
+        route('/site/settings',                 SiteSettingsHandler,   m=['GET', 'PUT']),
         route('/<cid:site>/rules',              RulesHandler,          m=['GET', 'POST']),
         route('/<cid:site>/rules/<rid:{oid}>',  RuleHandler,           m=['GET', 'PUT', 'DELETE']),
 
