@@ -93,13 +93,12 @@ class UsageReport(Report):
 
     @property
     def center_gears(self):
-        # TODO: Use configured gear names
         if self._center_gears is None:
             record = config.db.singletons.find_one({'_id': 'site'})
-            if record and record['center_gears']:
-                self._center_gears = record['center_gears']
+            if record:
+                self._center_gears = record.get('center_gears')
 
-        if self._center_gears is None:
+        if not self._center_gears:
             self._center_gears = [ 'dicom-mr-classifier', 'dcm2niix', 'mriqc' ]
 
         return self._center_gears
