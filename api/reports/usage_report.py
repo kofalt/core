@@ -42,8 +42,8 @@ class UsageReport(Report):
             group_job_count: The number of jobs ran attributed to the group
             center_storage_bytes: The size of storage usage allocated to the center, in byte-days
             group_storage_bytes: The size of storage usage allocated to the group, in byte-days
-            center_compute_ms: The amount of compute used attributed to the center, in seconds
-            group_compute_ms: The amount of compute used attributed to the group, in seconds
+            center_compute_ms: The amount of compute used attributed to the center, in milliseconds
+            group_compute_ms: The amount of compute used attributed to the group, in milliseconds
         total: A usage total (to-date), same format as the day record, with additional:
             days: The number of days collated for this month
 
@@ -166,14 +166,20 @@ class UsageReport(Report):
     def before_collect(self):
         # Set start and end dates. Jobs that completed between start & end will be included
         # Files and sessions created before end will be included
+        now = datetime.datetime.now()
+        today = datetime.datetime(year=now.year, month=now.month, day=now.day)
+
         try:
             if self.year or self.month or self.day:
                 self.start_date = datetime.datetime(year=self.year, month=self.month, day=self.day)
             else:
-                now = datetime.datetime.now()
-                self.start_date = datetime.datetime(year=now.year, month=now.month, day=now.day) -  datetime.timedelta(days=1)
+                self.start_date = today - datetime.timedelta(days=1)
         except (TypeError, ValueError) as e:
-            raise APIReportParamsException('Invalid date specified: {}'.format(e))
+            raise APIReportParamsException('Invalid date specified - specify year, month and day, or nothing: {}'.format(e))
+
+        # Verify that start date is before today
+        if self.start_date >= today:
+            raise APIReportParamsException('Invalid date specified, must specify a date in the past')
 
         self.end_date = self.start_date + datetime.timedelta(days=1)
 

@@ -27,6 +27,26 @@ def consistency_check(rec, expected):
     assert rec['total_compute_ms'] == rec['center_compute_ms'] + rec['group_compute_ms']
     assert rec['total_storage_byte_day'] == rec['center_storage_byte_day'] + rec['group_storage_byte_day']
 
+def update_created(db, ctype, cid, dt, files=0):
+    """Update the creation date of the given container"""
+    update = {'$set': {'created': dt}}
+    for i in range(files):
+        update['$set']['files.{}.created'.format(i)] = dt
+
+    db[ctype].update({'_id': bson.ObjectId(cid)}, update)
+
+def update_job(db, job_id, dt, duration=(30*60*1000)):
+    """Update the completion date of the given job"""
+    # Fake some numbers
+    update = {'$set': {
+        'created': dt,
+        'modified': dt,
+        'profile.total_time_ms': duration,
+        'transitions.running': dt,
+        'transitions.complete': dt
+    }}
+    db.jobs.update_one({'_id': bson.ObjectId(job_id)}, update)
+
 def test_usage_report_parameters(as_admin):
     r = as_admin.get('/report/usage/collect?year&month')
     assert r.status_code == 400
@@ -57,6 +77,15 @@ def test_usage_report_parameters(as_admin):
     r = as_admin.get('/report/daily-usage?month=1')
     assert r.status_code == 400
 
+    # Today
+    today = datetime.datetime.now()
+    r = as_admin.get('/report/usage/collect?year={}&month={}&day={}'.format(today.year, today.month, today.day))
+    assert r.status_code == 400
+
+    # Future date and time
+    tomorrow = today + datetime.timedelta(days=1)
+    r = as_admin.get('/report/usage/collect?year={}&month={}&day={}'.format(tomorrow.year, tomorrow.month, tomorrow.day))
+    assert r.status_code == 400
 
 def test_usage_report_permissions(as_user, as_public):
     r = as_user.get('/report/usage/collect')
@@ -104,8 +133,14 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     result = api_db.jobs.update({'_id': bson.ObjectId(job)}, {'$set': {'profile.total_time_ms': 30 * 60 * 1000}})
 
     # Run default collection
-    now = datetime.datetime.now()
-    r = as_admin.get('/report/usage/collect', stream=True)
+    today = datetime.datetime.now() - datetime.timedelta(days=1)
+    yesterday = today - datetime.timedelta(days=1)
+
+    update_created(api_db, 'sessions', session, today)
+    update_created(api_db, 'acquisitions', acquisition, today, files=1)
+    update_created(api_db, 'analyses', analysis, today, files=1)
+    update_job(api_db, job, today)
+    r = as_admin.get('/report/usage/collect?year={}&month={}&day={}'.format(yesterday.year, yesterday.month, yesterday.day))
 
     status = []
     for line in r.iter_lines():
@@ -116,8 +151,7 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert status[-1]['status'] == 'Complete'
 
     # Yesterday's
-    record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': now.year, 'month': now.month})
-    yesterday = now - datetime.timedelta(days=1)
+    record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': today.year, 'month': today.month})
     day = str(yesterday.day)
     assert day in record['days']
 
@@ -138,13 +172,13 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert record['total']['session_count'] == 0
 
     # Verify collection of "today's" record
-    r = as_admin.get('/report/usage/collect?year={}&month={}&day={}'.format(now.year, now.month, now.day))
+    r = as_admin.get('/report/usage/collect')
     assert r.ok
 
-    record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': now.year, 'month': now.month})
+    record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': today.year, 'month': today.month})
     assert record
 
-    day = str(now.day)
+    day = str(today.day)
     assert day in record['days']
 
     assert record['project_label'] == 'usage'
@@ -171,7 +205,7 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     r = as_admin.get('/report/usage/collect')
     assert r.ok
 
-    record2 = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': now.year, 'month': now.month})
+    record2 = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': today.year, 'month': today.month})
     assert record == record2
 
     # Get today's daily usage, by project
@@ -194,9 +228,9 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert rows[0]['group_storage_bytes'] == 0
     assert rows[0]['session_count'] == 0
 
-    assert rows[1]['year'] == now.year
-    assert rows[1]['month'] == now.month
-    assert rows[1]['day'] == now.day
+    assert rows[1]['year'] == today.year
+    assert rows[1]['month'] == today.month
+    assert rows[1]['day'] == today.day
     assert rows[1]['group'] == group
     assert rows[1]['project'] == project
     assert rows[1]['project_label'] == 'usage'
@@ -208,13 +242,12 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert rows[1]['group_storage_bytes'] == 2 * len(FILE_DATA)
     assert rows[1]['session_count'] == 1
 
-    api_db.file_job_origin.remove({})
-    api_db.usage_data.remove({})
 
 def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload):
     # Test multiple days that cross a monthly boundary
     # Test center vs group gears
     # Test reaper vs analysis vs uploaded data
+
     group = data_builder.create_group()
     project = data_builder.create_project(label='usage', group=group)
 
@@ -235,23 +268,6 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
         def populate_day(year, month, day):
             dt = datetime.datetime.now().replace(year=year, month=month, day=day)
 
-            def update_created(ctype, cid, files=0):
-                update = {'$set': {'created': dt}}
-                for i in range(files):
-                    update['$set']['files.{}.created'.format(i)] = dt
-
-                api_db[ctype].update({'_id': bson.ObjectId(cid)}, update)
-
-            def update_job(job_id):
-                # Fake some numbers
-                update = {'$set': {
-                    'created': dt,
-                    'modified': dt,
-                    'profile.total_time_ms': 30 * 60 * 1000,
-                    'transitions.running': dt,
-                    'transitions.complete': dt
-                }}
-                api_db.jobs.update_one({'_id': bson.ObjectId(job_id)}, update)
 
             # Add session
             session = data_builder.create_session(project=project)
@@ -290,11 +306,11 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             assert as_drone.put('/jobs/' + group_job, params={'root': 'true'}, json={'state': 'complete'}).ok
 
             # Set execution time for job (30 minutes)
-            update_created('sessions', session, files=1)
-            update_created('acquisitions', acquisition, files=3)
-            update_created('analyses', analysis, files=1)
-            update_job(center_job)
-            update_job(group_job)
+            update_created(api_db, 'sessions', session, dt, files=1)
+            update_created(api_db, 'acquisitions', acquisition, dt, files=3)
+            update_created(api_db, 'analyses', analysis, dt, files=1)
+            update_job(api_db, center_job, dt)
+            update_job(api_db, group_job, dt)
 
             return {
                 'center_compute_ms': 30 * 60 * 1000,
@@ -310,10 +326,10 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
 
         previous_day = None
         previous_month = None
+        year = 2018
 
         # We're collecting over 5 days and verifying the collection records
         for i in range(5):
-            year = 2050
             day = 1 + ((28 + i) % 31)
 
             if day < 25:
@@ -366,13 +382,13 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
 
         # Run the usage report for both months
         for month in [10, 11]:
-            r = as_admin.get('/report/usage?year=2050&month={}'.format(month))
+            r = as_admin.get('/report/usage?year={}&month={}'.format(year, month))
             assert r.ok
 
             report = [row for row in r.json() if row['group'] == group]
             assert len(report) == 2
 
-            expected_rec = expected[(2050, month)]
+            expected_rec = expected[(year, month)]
 
             assert report[0]['group'] == group
             assert report[0]['project'] == None
@@ -385,7 +401,7 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             consistency_check(report[1], expected_rec)
 
         # Collect daily usage report for october
-        r = as_admin.get('/report/daily-usage?year=2050&month=10&csv=true'.format(group))
+        r = as_admin.get('/report/daily-usage?year={}&month=10&csv=true'.format(year, group))
         assert r.ok
 
         body = StringIO(r.text)
@@ -394,9 +410,9 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
 
         for i, day in enumerate([29, 30, 31]):
             row = rows[i]
-            expected_row = expected[(2050, 10, day)]
+            expected_row = expected[(year, 10, day)]
 
-            assert row['year'] == '2050'
+            assert row['year'] == str(year)
             assert row['month'] == '10'
             assert row['day'] == str(day)
             assert row['group'] == group
@@ -417,6 +433,3 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             api_db.singletons.update({'_id': 'site'}, previous_site)
         else:
             api_db.singletons.remove({'_id': 'site'})
-
-        api_db.file_job_origin.remove({})
-        api_db.usage_data.remove({})
