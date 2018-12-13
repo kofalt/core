@@ -29,6 +29,8 @@ def create_analysis(as_admin, file_form, container, c_id, label, inp_file):
     return analysis
 
 def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
+    user_id = as_user.get('/users/self').json()['_id']
+
     # ROOT
     # try accessing resolver w/o logging in
     r = as_public.post('/resolve', json={'path': []})
@@ -111,6 +113,16 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     assert path_in_result([group, project], result)
     assert child_in_result({'_id': session, 'container_type': 'session'}, result)
     assert len(result['children']) == 2
+
+    # resolve root/group/project (1 file, 1 session) as user with permission on the project
+    assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'ro'}).ok
+    r = as_user.post('/resolve', json={'path': [group, project_label]})
+    result = r.json()
+    assert r.ok
+    assert path_in_result([group, project], result)
+    assert child_in_result({'_id': session, 'container_type': 'session'}, result)
+    assert len(result['children']) == 2
+    assert as_admin.delete('/projects/' + project + '/permissions/' + user_id).ok
 
     # resolve root/group/project/files (1 file, 1 session)
     r = as_admin.post('/resolve', json={'path': [group, project_label, 'files']})

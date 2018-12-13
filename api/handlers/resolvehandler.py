@@ -71,12 +71,14 @@ class ResolveHandler(base.RequestHandler):
 
         resolver = Resolver(id_only=id_only, include_subjects=self.is_enabled('Subject-Container'))
         result = resolver.resolve(doc['path'])
+        path_length = len(result['path'])
 
         # Cancel the request if anything in the path is unauthorized; remove any children that are unauthorized.
+        # Except for the group, only check permissions for groups if it's the only container in the path
         if not self.superuser_request:
             for x in result["path"]:
                 ok = False
-                if x['container_type'] in ['acquisition', 'session', 'project', 'group']:
+                if (path_length == 1 and x['container_type'] == 'group') or x['container_type'] in ['acquisition', 'session', 'project']:
                     perms = x.get('permissions', [])
                     for y in perms:
                         if y.get('_id') == self.uid:
