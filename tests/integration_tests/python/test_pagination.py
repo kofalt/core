@@ -92,7 +92,7 @@ def test_limit(data_builder, as_admin, file_form):
     assert len(as_admin.get('/gears').json()) > 1
     assert len(as_admin.get('/gears?limit=1').json()) == 1
 
-    rule_doc = {'gear_id': g_a1, 'name': 'foo', 'any': [], 'all': [], 'not': []}
+    rule_doc = {'gear_id': g_a1, 'name': 'foo', 'any': [{'type': 'file.type', 'value': 'dicom', 'regex': False}], 'all': [], 'not': []}
     r1 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
     r2 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
     assert len(as_admin.get('/site/rules').json()) > 1
@@ -306,7 +306,7 @@ def test_after_id(data_builder, as_admin, file_form):
     # TODO enable after_id for /gears if needed
     # assert len(as_admin.get('/gears?after_id=' + g_a1).json()) == 1
 
-    rule_doc = {'gear_id': g_a1, 'name': 'foo', 'any': [], 'all': [], 'not': []}
+    rule_doc = {'gear_id': g_a1, 'name': 'foo', 'any': [{'type': 'file.type', 'value': 'dicom', 'regex': False}], 'all': [], 'not': []}
     r1 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
     r2 = as_admin.post('/site/rules', json=rule_doc).json()['_id']
     assert len(as_admin.get('/site/rules').json()) > 1

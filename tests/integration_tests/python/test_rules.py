@@ -36,6 +36,17 @@ def test_site_rules(randstr, data_builder, as_admin, as_user, as_public):
     assert r.status_code == 400
     assert 'Empty Payload' in r.json()['message']
 
+    # attempt to add site rule without any conditions
+    r = as_admin.post('/site/rules', json={
+        'gear_id': gear,
+        'name': 'no-conditions-rule',
+        'any': [],
+        'not': [],
+        'all': []
+    })
+    assert r.status_code == 400
+    assert 'conditions' in r.json()['message']
+
     # attempt to add site rule with invalid regex
     invalid_pattern = '^(?non-image$).+'
     r = as_admin.post('/site/rules', json={
@@ -111,6 +122,12 @@ def test_site_rules(randstr, data_builder, as_admin, as_user, as_public):
 
     # attempt to modify site rule with empty payload
     r = as_admin.put('/site/rules/' + rule_id, json={})
+    assert r.status_code == 400
+
+    # attempt to modify site rule into invalid rule
+    r = as_admin.put('/site/rules/' + rule_id, json={
+        'all': []
+    })
     assert r.status_code == 400
 
     # attempt to modify site rule with invalid regex

@@ -387,6 +387,10 @@ class RulesHandler(base.RequestHandler):
         validate_regexes(payload)
         validate_gear_config(get_gear(payload['gear_id']), payload.get('config'))
 
+        # Check that the rule has at least one rule-item
+        if not (payload.get('any') or payload.get('all') or payload.get('all')):
+            raise InputValidationException('Cannot create rule without any conditions')
+
         if requires_read_write_key(get_gear(payload['gear_id'])):
             raise InputValidationException("Cannot create rule with a gear that requires a read-write api-key.")
 
@@ -474,6 +478,8 @@ class RuleHandler(base.RequestHandler):
             raise InputValidationException("Rule cannot use a gear that requires a read-write api-key.")
 
         doc.update(updates)
+        if not (doc.get('any') or doc.get('all') or doc.get('all')):
+            raise InputValidationException('Rule must have at least one condition')
         config.db.project_rules.replace_one({'_id': bson.ObjectId(rid)}, doc)
 
     def delete(self, cid, rid):
