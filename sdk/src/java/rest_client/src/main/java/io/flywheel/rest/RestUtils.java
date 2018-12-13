@@ -211,7 +211,7 @@ public class RestUtils {
                 if( postParams != null && postParams.length > 0 ) {
                     setRequestEntityFormData(request, postParams);
                 }
-                if( files != null & files.length > 0 ) {
+                if( files != null && files.length > 0 ) {
                     setRequestEntityFiles(request, files);
                 }
             }

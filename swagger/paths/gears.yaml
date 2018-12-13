@@ -2,6 +2,7 @@
   get:
     summary: List all gears
     operationId: get_all_gears
+    x-fw-pagination: true
     tags:
     - gears
     responses:

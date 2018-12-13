@@ -18,12 +18,80 @@
             [returnData, resp] = obj.modifyJob(jobId, struct('state', state), varargin{:});
         end
 
+        function [returnData, resp] = get(obj, id, varargin)
+            [returnData, resp] = obj.getContainer(id, varargin{:});
+        end
+
         function [returnData, resp] = resolve(obj, path, varargin)
             [returnData, resp] = obj.resolvePath(flywheel.model.ResolverInput('path', split(path, '/')), varargin{:});
         end
 
         function [returnData, resp] = lookup(obj, path, varargin)
             [returnData, resp] = obj.lookupPath(flywheel.model.ResolverInput('path', split(path, '/')), varargin{:});
+        end
+
+        function url = fileUrl(obj, path)
+            result = obj.resolve(path);
+            tail = result.path{end};
+            if ~isprop(tail, 'containerType') || ~strcmp(tail.containerType, 'file')
+                throw(MException('ApiClient:apiException', 'Resolved path is not a file!'));
+            end
+            url = tail.url();
+        end
+
+        function summary = downloadTar(obj, varargin)
+            % Download the given set of containers as a tarball to dest_file.
+            %
+            % Supports downloading Projects, Sessions, Acquisitions and/or Analyses.
+            %
+            % Parameters:
+            % containers: (required) The container, or list of containers to download.
+            % destFile: (required) The destination file on disk
+            % includeTypes: The optional list of types to include in the download (e.g. ['nifti'])
+            % excludeTypes: The optional list of types to exclude from the download (e.g. ['dicom'])
+
+            p = inputParser;
+            p.StructExpand = false;
+            addRequired(p, 'containers');
+            addRequired(p, 'destFile');
+            addParameter(p, 'includeTypes', []);
+            addParameter(p, 'excludeTypes', []);
+            parse(p, varargin{:});
+
+            if iscell(p.Results.containers)
+                containers = p.Results.containers;
+            else
+                containers = {p.Results.containers};
+            end
+
+            % Extract the list of nodes
+            nodes = [];
+            for i = 1:numel(containers)
+                container = containers{i};
+                if ~isprop(container, 'containerType')
+                    throw(MException('ApiClient:apiException', 'Unknown container specified!'));
+                end
+                nodes = horzcat(nodes, {flywheel.model.DownloadNode('level', container.containerType, 'id', container.id)});
+            end
+
+            % Setup filters
+            typeFilter = [];
+            if ~isempty(p.Results.includeTypes) || ~isempty(p.Results.excludeTypes)
+                typeFilter = flywheel.model.DownloadFilterDefinition('plus', p.Results.includeTypes, ...
+                    'minus', p.Results.excludeTypes);
+            end
+
+            downloadFilters = [];
+            if ~isempty(typeFilter)
+                downloadFilters = {flywheel.model.DownloadFilter('types', typeFilter)};
+            end
+
+            % Create download request
+            request = flywheel.model.Download('nodes', nodes, 'filters', downloadFilters, 'optional', true);
+            summary = obj.createDownloadTicket(request);
+
+            % Perform download
+            obj.downloadTicket(summary.ticket, p.Results.destFile);
         end
 
         function view = View(obj, varargin)

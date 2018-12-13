@@ -73,16 +73,24 @@ public class FlywheelCodegenSupport {
         // If the model includes a list of "x-sdk-include-empty" properties, then we need to
         // push that to the individual properties. (If the properties reference other types then the
         // vendorExtensions don't get picked up)
-        if( model.vendorExtensions != null && model.vendorExtensions.containsKey("x-sdk-include-empty") ) {
-            List<String> emptyProps = (List<String>) model.vendorExtensions.get("x-sdk-include-empty");
-            for (String propName : emptyProps) {
-                CodegenProperty prop = findPropertyByName(model, propName);
-                if (prop != null) {
-                    if (prop.vendorExtensions == null) {
-                        prop.vendorExtensions = new HashMap<>();
+        if( model.vendorExtensions != null ) {
+            if( model.vendorExtensions.containsKey("x-sdk-include-empty") ) {
+                List<String> emptyProps = (List<String>) model.vendorExtensions.get("x-sdk-include-empty");
+                for (String propName : emptyProps) {
+                    CodegenProperty prop = findPropertyByName(model, propName);
+                    if (prop != null) {
+                        if (prop.vendorExtensions == null) {
+                            prop.vendorExtensions = new HashMap<>();
+                        }
+                        prop.vendorExtensions.put("x-sdk-include-empty", true);
                     }
-                    prop.vendorExtensions.put("x-sdk-include-empty", true);
                 }
+            }
+
+            if( model.vendorExtensions.containsKey("x-sdk-container-mixin") ) {
+                // Convert model name
+                String mixinName = (String)model.vendorExtensions.get("x-sdk-container-mixin");
+                model.vendorExtensions.put("x-sdk-container-mixin", gen.toModelName(mixinName));
             }
         }
 

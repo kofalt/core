@@ -58,7 +58,7 @@
             defaultHeaders = obj.apiClient.restClient.getDefaultHeaders();
             for i = 1:numel(defaultHeaders)
                 header = cell(defaultHeaders(i));
-                if strcmp('user-agent', lower(header{1}))
+                if strcmpi('user-agent', header{1})
                     userAgent = header{2};
                 else
                     headers = [headers; { header{1} header{2} }];
@@ -126,5 +126,25 @@
                 major = str2num(parts{1});
                 minor = str2num(parts{2});
             end
+        end
+        function enableFeature(obj, value)
+            features = [];
+
+            defaultHeaders = obj.apiClient.restClient.getDefaultHeaders();
+            for i = 1:numel(defaultHeaders)
+                header = cell(defaultHeaders(i));
+                if strcmpi('X-Accept-Feature', header{1})
+                    features = header{2};
+                    break
+                end
+            end
+
+            if ~isempty(features)
+                features = sprintf('%s %s', features, value);
+            else
+                features = value;
+            end
+
+            obj.apiClient.restClient.setDefaultHeader('X-Accept-Feature', features);
         end
 

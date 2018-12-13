@@ -50,7 +50,8 @@
 				{"$ref":"#/definitions/analysis-input-adhoc"},
 				{"$ref":"#/definitions/analysis-input-job"}
 			],
-			"x-sdk-schema": {"$ref":"#/definitions/analysis-input-adhoc"}
+			"x-sdk-schema": {"$ref":"#/definitions/analysis-input-adhoc"},
+		    "x-sdk-model": "analysis-input"
 		},
 		"analysis-update":{
 			"type":"object",
@@ -91,7 +92,8 @@
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
 				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
 			},
-			"required":["_id", "label", "created", "modified"]
+			"required":["_id", "label", "created", "modified"],
+          	"x-sdk-container-mixin": "analysis-mixin"
 		},
 		"analysis-list-entry":{
 			"type":"object",
@@ -115,7 +117,8 @@
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
 				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
 			},
-			"required":["_id", "label", "created", "modified"]
+			"required":["_id", "label", "created", "modified"],
+          	"x-sdk-container-mixin": "analysis-mixin"
 		},
 		"analysis-files-create-ticket-output": {
 			"type":"object",

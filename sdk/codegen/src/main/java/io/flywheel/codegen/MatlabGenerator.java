@@ -206,6 +206,40 @@ public class MatlabGenerator extends DefaultCodegen implements CodegenConfig {
         supportingFiles.add(new SupportingFile("client.mustache", packageFolder, "Client.m"));
         // Dataview files
         supportingFiles.add(new SupportingFile("ViewBuilder.m", packageFolder, "ViewBuilder.m"));
+        // Finder
+        supportingFiles.add(new SupportingFile("Finder.mustache", packageFolder, "Finder.m"));
+        supportingFiles.add(new SupportingFile("Cursor.m", packageFolder, "Cursor.m"));
+        // Util
+        supportingFiles.add(new SupportingFile("Util.m", packageFolder, "Util.m"));
+
+        // Mixin Files
+        final String mixinFolder = packageFolder + "/+mixins";
+        supportingFiles.add(new SupportingFile("mixins/ContainerBase.mustache", mixinFolder, "ContainerBase.m"));
+
+        supportingFiles.add(new SupportingFile("mixins/FileMethods.mustache", mixinFolder, "FileMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/InfoMethods.mustache", mixinFolder, "InfoMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/NoteMethods.mustache", mixinFolder, "NoteMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/PermissionMethods.mustache", mixinFolder, "PermissionMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/TagMethods.mustache", mixinFolder, "TagMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/TimestampMethods.mustache", mixinFolder, "TimestampMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/DownloadMethods.mustache", mixinFolder, "DownloadMethods.m"));
+        supportingFiles.add(new SupportingFile("mixins/AnalysisMethods.mustache", mixinFolder, "AnalysisMethods.m"));
+
+        supportingFiles.add(new SupportingFile("mixins/GroupMixin.mustache", mixinFolder, "GroupMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/ProjectMixin.mustache", mixinFolder, "ProjectMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/SubjectMixin.mustache", mixinFolder, "SubjectMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/SessionMixin.mustache", mixinFolder, "SessionMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/AcquisitionMixin.mustache", mixinFolder, "AcquisitionMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/AnalysisMixin.mustache", mixinFolder, "AnalysisMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/CollectionMixin.mustache", mixinFolder, "CollectionMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/FileMixin.mustache", mixinFolder, "FileMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/SearchResponseMixin.mustache", mixinFolder, "SearchResponseMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/ResolverOutputMixin.mustache", mixinFolder, "ResolverOutputMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/GearMixin.mustache", mixinFolder, "GearMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/GearInvocation.mustache", mixinFolder, "GearInvocation.m"));
+        supportingFiles.add(new SupportingFile("mixins/JobMixin.mustache", mixinFolder, "JobMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/BatchProposalMixin.mustache", mixinFolder, "BatchProposalMixin.m"));
+        supportingFiles.add(new SupportingFile("mixins/BatchMixin.mustache", mixinFolder, "BatchMixin.m"));
 
         // Documentation Files
         final String docFolder = "sphinx/source";

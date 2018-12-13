@@ -33,14 +33,14 @@ will not propagate to the project.
 .. code-block:: matlab
 
 	# See project permissions
-	project = fw.getProject(projectId);
+	project = fw.get(projectId);
 	disp(project.permissions{1});
 
 	# Add permission to a project
-	fw.addProjectPermission(projectId, flywheel.model.Permission('id', 'justinehlert@flywheel.io', 'access', 'ro'));
+	project.addPermission(flywheel.model.Permission('id', 'justinehlert@flywheel.io', 'access', 'ro'));
 
 	# Remove permission from a project
-	fw.deleteProjectUserPermission(projectId, 'justinehlert@flywheel.io');
+	project.deletePermission(projectId, 'justinehlert@flywheel.io');
 
 .. _data-model-containers:
 
@@ -56,14 +56,14 @@ Tags are concise labels that provide descriptive metadata that can be searched o
 .. code-block:: matlab
 
 	# See tags on a session
-	session = fw.getSession(sessionId);
+	session = fw.get(sessionId);
 	fprintf('%s\n', strjoin(session.tags, ', '));
 
 	# Add a tag to a session
-	fw.addSessionTag(sessionId, 'Control');
+	session.addTag('Control');
 
 	# Remove a tag from a session
-	fw.deleteSessionTag(sessionId, 'Analysis Required');
+	session.deleteTag('Analysis Required');
 
 Notes
 +++++
@@ -72,14 +72,14 @@ Notes are user-entered, human readable metadata attached to a container. They ar
 .. code-block:: matlab
 
 	# See notes on a session
-	session = fw.getSession(sessionId);
+	session = fw.get(sessionId);
 	disp(session.notes{1});
 
 	# Add a note to a session
-	fw.addSessionNote(sessionId, 'This is a note');
+	session.addNote('This is a note');
 
 	# Delete a note from a session
-	fw.deleteSessionNote(sessionId, session.notes{1}.id);
+	session.deleteNote(session.notes{1}.id);
 
 Info
 ++++
@@ -89,17 +89,17 @@ Info is free-form JSON metadata associated with a container or file.
 .. code-block:: matlab
 
 	# Print the info for an acquisition
-	acquisition = fw.getAcquisition(acquisitionId);
+	acquisition = fw.get(acquisitionId);
 	disp(acquisition.info);
 
 	# Replace the entire contents of acquisition info
-	fw.replaceAcquisitionInfo(acquisitionId, struct('splines', 34));
+	acquisition.replaceInfo(struct('splines', 34));
 
 	# Add additional fields to acquisition info
-	fw.setAcquisitionInfo(acquisitionId, struct('curve', 'bezier'));
+	acquisition.setInfo(struct('curve', 'bezier'));
 
 	# Delete fields from acquisition info
-	fw.deleteAcquisitionInfoFields(acquisitionId, {{'splines'; 'bezier'}});
+	acquisition.deleteInfo({{'splines'; 'bezier'}});
 
 Files
 +++++
@@ -108,19 +108,88 @@ Files are a set of file attachments associated with a container. See also :ref:`
 .. code-block:: matlab
 
 	# List files on an acquisition
-	acquisition = fw.getAcquisition(acquisitionId);
+	acquisition = fw.get(acquisitionId);
 
 	for idx = 1:numel(acquisition.files)
 	  fprintf('Name: %s, type: %s\n', acquisition.files{idx}.name, acquisition.files{idx}.type);
 	end
 
 	# Upload a file to an acquisition
-	fw.uploadFileToAcquisition(acquisitionId, '/path/to/file.txt');
+	acquisition.uploadFile('/path/to/file.txt');
 
 	# Download a file to disk
-	fw.downloadFileFromAcquisition(acquisitionId, 'file.txt', '/path/to/file.txt');
+	acquisition.downloadFile('file.txt', '/path/to/file.txt');
 
 	# Files can also have metadata
 	disp(acquisition.files{1}.info);
 
-	fw.replaceAcquisitionFileInfo(acquisitionId, 'file.txt', struct('wordCount', 327));
+	acquisition.replaceFileInfo('file.txt', struct('wordCount', 327));
+
+File Classification
++++++++++++++++++++
+Flywheel supports an extensible, multi-dimenstional classification scheme for files. Each dimension
+of classification is referred to as an aspect. The available aspects are determined by the file's
+modality.
+
+For example, the ``MR`` modality provides the ``Intent``, ``Measurement`` and ``Features`` aspects.
+In addition, the ``Custom`` aspect is always available, regardless of modality.
+
+.. code-block:: matlab
+
+	% Display the aspects defined in the MR modality
+	mr = fw.get_modality('MR');
+	keys = mr.classification.keys();
+	for i = 1:numel(keys)
+		aspectName = keys{i};
+		aspectValues = strjoin(mr.classification.(aspectName), ', ');
+		fprintf('%s: %s\n', aspectName, aspectValues);
+	end
+
+	% Replace a file's modality and classification
+	acquisition.replaceFileClassification('file.txt', ...
+		struct('Intent', {{'Structural'}}, 'Measurement', {{'T2'}}),
+		'modality', 'MR');
+
+	% Update a file's Custom classification, without changing
+	% existing values or modality
+	acquisition.updateFileClassification('file.txt', ...
+		struct('Custom', {{'value1', 'value2'}}));
+
+	% Delete 'value1' from Custom classification
+	acquisition.deleteFileClassification('file.txt', ...
+		struct('Custom', {{'value1'}}));
+
+Timestamps [NEW]
+++++++++++++++++
+Objects with timestamps and created/modified dates provide helper accessors
+to get those dates in the local (system) timezone, as well as the original
+timezone in the case of acquisition and session timestamps.
+
+For example:
+
+.. code-block:: matlab
+
+	% Acquisition Timestamp (tz=UTC)
+	disp(acquisition.timestamp);
+
+	% Acquisition Timestamp (tz=Local Timezone)
+	disp(acquisition.localTimestamp);
+
+	% Acquisition Timestamp (tz=Original Timezone)
+	disp(acquisition.originalTimestamp);
+
+Age at Time of Session [NEW]
+++++++++++++++++++++++++++++
+Sessions have a field for subject age at the time of the session,
+in seconds. There are also helper accessors to get age in years,
+months, weeks and days.
+
+For example:
+
+.. code-block:: matlab
+
+	% Subject age in seconds
+	fprintf('Subject was %0.2f seconds old\n', session.age);
+
+	% Subject age in years
+	fprintf('Subject was %0.2f years old\n', session.ageYears);

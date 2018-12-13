@@ -48,6 +48,8 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
     public void processOpts() {
         super.processOpts();
 
+        final String modelFolder = modelPackage.replace('.', '/');
+
         additionalProperties.put("requests", "true");
 
         // Filespec helper file
@@ -55,9 +57,15 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
 
         // Flywheel wrapper file
         supportingFiles.add(new SupportingFile("flywheel.mustache", packageName, "flywheel.py"));
+        supportingFiles.add(new SupportingFile("client.mustache", packageName, "client.py"));
 
         // Other API files
         supportingFiles.add(new SupportingFile("view_builder.py", packageName, "view_builder.py"));
+        supportingFiles.add(new SupportingFile("finder.py", packageName, "finder.py"));
+        supportingFiles.add(new SupportingFile("util.py", packageName, "util.py"));
+        supportingFiles.add(new SupportingFile("mixins.py", modelFolder, "mixins.py"));
+        supportingFiles.add(new SupportingFile("gear_mixin.py", modelFolder, "gear_mixin.py"));
+        supportingFiles.add(new SupportingFile("gear_invocation.py", modelFolder, "gear_invocation.py"));
 
         // PIP Files
         supportingFiles.add(new SupportingFile("LICENSE.mustache", "", "LICENSE.txt"));

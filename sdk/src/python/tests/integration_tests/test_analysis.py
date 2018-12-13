@@ -8,7 +8,7 @@ import flywheel
 class AnalysisTestCases(SdkTestCase):
     def setUp(self):
         self.group_id, self.project_id, self.session_id = create_test_session()
-        self.gear_id = create_test_gear()
+        self.gear_id = create_test_gear(category='analysis')
 
     def tearDown(self):
         self.fw.delete_project(self.project_id)
@@ -49,6 +49,9 @@ class AnalysisTestCases(SdkTestCase):
         r_analysis2 = fw.get_analysis(analysis_id)
         self.assertEqual(r_analysis, r_analysis2)
 
+        # Generic Get is equivalent
+        self.assertEqual(fw.get(analysis_id).to_dict(), r_analysis2.to_dict())
+
         # Analysis Notes
         text = self.rand_string()
         fw.add_session_analysis_note(self.session_id, analysis_id, text)
@@ -69,8 +72,9 @@ class AnalysisTestCases(SdkTestCase):
         self.assertEqual(r_analysis.parent.id, session.id)
 
         # Access multiple analyses
-        analysis_id2 = fw.add_session_analysis(self.session_id, analysis)
-        self.assertNotEmpty(analysis_id2)
+        analysis2 = session.add_analysis(label=analysis.label, description=analysis.description, inputs=analysis.inputs)
+        self.assertIsNotNone(analysis2)
+        analysis_id2 = analysis2.id
 
         # Try getting analysis incorrectly
         self.assertRaises(flywheel.ApiException, fw.get_analyses, 'session', self.session_id, 'projects')
@@ -127,29 +131,19 @@ class AnalysisTestCases(SdkTestCase):
         poem = 'A gaze blank and pitiless as the sun,'
         fw.upload_file_to_session(self.session_id, flywheel.FileSpec('yeats.txt', poem))
 
-        file_ref = flywheel.FileReference(
-            id=self.session_id,
-            type='session',
-            name='yeats.txt'
-        )
+        session = fw.get_session(self.session_id)
+        any_file = session.files[0]
+        self.assertEqual(any_file.name, 'yeats.txt')
 
         tag = self.rand_string()
-
-        job = flywheel.Job(
-            gear_id=self.gear_id,
-            inputs={
-                'any-file': file_ref
-            },
-            tags=[tag]
-        )
-        
-        analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), job=job)
+        analysis_label = self.rand_string()
 
         # Add
-        analysis_id = fw.add_session_analysis(self.session_id, analysis)
+        analysis_id = gear.run(analysis_label=analysis_label, destination=session, 
+                tags=[tag], inputs={'any-file': any_file})
         self.assertNotEmpty(analysis_id)
 
-        session = fw.get_session(self.session_id)
+        session = session.reload()
         self.assertEqual(len(session.analyses), 1)
 
         r_analysis = session.analyses[0]
@@ -175,10 +169,11 @@ class AnalysisTestCases(SdkTestCase):
         self.assertEqual(r_analysis, r_analysis2)
 
         # Project based analysis
-        analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), job=job)
+        project = fw.get_project(self.project_id)
 
         # Add
-        analysis_id = fw.add_project_analysis(self.project_id, analysis)
+        analysis_id = gear.run(analysis_label=analysis_label, destination=project,
+                tags = [tag], inputs={'any-file': any_file})
         self.assertNotEmpty(analysis_id)
 
         project = fw.get_project(self.project_id)
@@ -218,9 +213,10 @@ class AnalysisTestCases(SdkTestCase):
         self.assertDownloadFileTextEqualsWithTicket(fw.get_analysis_input_download_url, analysis_id, 'yeats.txt', poem)
 
         poem_out = 'Surely the Second Coming is at hand.'
-        fw.upload_output_to_analysis(analysis_id, flywheel.FileSpec('yeats-out.txt', poem_out))
+        r_analysis = fw.get(analysis_id)
+        r_analysis.upload_output(flywheel.FileSpec('yeats-out.txt', poem_out))
 
-        r_analysis = fw.get_analysis(analysis_id)
+        r_analysis = r_analysis.reload()
         self.assertEqual(len(r_analysis.files), 1)
         self.assertEqual(r_analysis.files[0].name, 'yeats-out.txt')
         self.assertEqual(r_analysis.files[0].size, 36)

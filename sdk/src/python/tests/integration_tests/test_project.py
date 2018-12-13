@@ -36,6 +36,9 @@ class ProjectsTestCases(SdkTestCase):
         self.assertTimestampBeforeNow(r_project.created)
         self.assertGreaterEqual(r_project.modified, r_project.created)
 
+        # Generic Get is equivalent
+        self.assertEqual(fw.get(project_id).to_dict(), r_project.to_dict())
+
         # Get All
         projects = fw.get_all_projects()
         r_project.info = {}

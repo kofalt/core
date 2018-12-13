@@ -3,6 +3,7 @@ from sdk_test_case import SdkTestCase
 from test_project import create_test_project
 
 import flywheel
+from flywheel import util
 
 class SessionsTestCases(SdkTestCase):
     def setUp(self):
@@ -25,7 +26,7 @@ class SessionsTestCases(SdkTestCase):
                 firstname = self.rand_string(),
                 lastname = self.rand_string(),
                 sex = 'other',
-                age = 56,
+                age = util.years_to_seconds(56),
                 info = { 'some-subject-key': 37 }
             )
         )
@@ -44,6 +45,10 @@ class SessionsTestCases(SdkTestCase):
         self.assertGreaterEqual(r_session.modified, r_session.created)
         self.assertIsNotNone(r_session.subject)
         self.assertEqual(r_session.subject.firstname, session.subject.firstname)
+        self.assertEqual(r_session.age_years, 56)
+
+        # Generic Get is equivalent
+        self.assertEqual(fw.get(session_id).to_dict(), r_session.to_dict())
 
         # Get All
         sessions = fw.get_all_sessions()
@@ -286,18 +291,32 @@ class SessionsTestCases(SdkTestCase):
         session.subject.info_exists = info_exists
 
 
-def create_test_session():
+def create_test_session(return_subject=False):
     group_id, project_id = create_test_project()
+    subject = {
+        'code': SdkTestCase.rand_string_lower(),
+        'firstname': SdkTestCase.rand_string(),
+        'lastname': SdkTestCase.rand_string(),
+        'sex': 'other'
+    }
+
+    if return_subject:
+        subject['project'] = project_id
+        subject_id = SdkTestCase.fw.add_subject(subject)
+        session_id = SdkTestCase.fw.add_session({
+            'project': project_id, 
+            'label': SdkTestCase.rand_string(),
+            'subject': {
+                '_id': subject_id
+            }
+        })
+        return group_id, project_id, subject_id, session_id
+
     return group_id, project_id, SdkTestCase.fw.add_session({
         'project': project_id, 
         'label': SdkTestCase.rand_string(),
-        'subject': {
-            'code': SdkTestCase.rand_string_lower(),
-            'firstname': SdkTestCase.rand_string(),
-            'lastname': SdkTestCase.rand_string(),
-            'sex': 'other',
-            'age': 57
-        }
+        'subject': subject,
+        'age': 57
     })
 
 

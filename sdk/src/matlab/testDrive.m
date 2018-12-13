@@ -6,17 +6,25 @@
 
 % Create string to be used in testdrive
 testString = '123235jakhf7sadf7v';
-% A test file
+
+% Test Files
 filename = 'test.txt';
 fid = fopen(filename, 'w');
 fprintf(fid, 'This is a test file');
 fclose(fid);
+
+filename2 = 'test2.txt';
+fid = fopen(filename2, 'w');
+fprintf(fid, 'This is a second test file');
+fclose(fid);
+
 % Define error message
 errMsg = 'Strings not equal';
 
 % Create client
 apiKey = getenv('SdkTestKey');
-fw = flywheel.Flywheel(apiKey);
+assert(~isempty(apiKey));
+fw = flywheel.Client(apiKey);
 
 %% Users
 disp('Testing Users')
@@ -28,7 +36,7 @@ assert(length(users) >= 1, 'No users returned')
 
 % add a new user
 email = strcat(testString, '@', testString, '.com');
-userId = fw.addUser(struct('id',email,'email',email,'firstname',testString,'lastname',testString));
+userId = fw.addUser('id',email,'email',email,'firstname',testString,'lastname',testString);
 
 % modify the new user
 fw.modifyUser(userId, struct('firstname', 'John'));
@@ -41,7 +49,8 @@ fw.deleteUser(userId);
 %% Groups
 disp('Testing Groups')
 
-groupId = fw.addGroup(struct('id',testString));
+groupId = fw.addGroup('id',testString);
+assert(strcmp(groupId, testString), errMsg);
 
 fw.addGroupTag(groupId, 'blue');
 fw.modifyGroup(groupId, struct('label','testdrive'));
@@ -56,20 +65,22 @@ assert(strcmp(group.label,'testdrive'), errMsg)
 %% Projects
 disp('Testing Projects')
 
-projectId = fw.addProject(struct('label',testString,'group',groupId));
+project = group.addProject('label', testString);
+assert(strcmp(project.label, testString), errMsg)
+projectId = project.id;
 
-fw.addProjectTag(projectId, 'blue');
-fw.modifyProject(projectId, struct('label','testdrive'));
-fw.addProjectNote(projectId, 'This is a note');
+project.addTag('blue');
+project.update('label', 'testdrive');
+project.addNote('This is a note');
 
 projects = fw.getAllProjects();
 assert(~isempty(projects), errMsg)
 
-fw.uploadFileToProject(projectId, filename);
+project.uploadFile(filename);
 projectDownloadFile = fullfile(tempdir, 'download.txt');
-fw.downloadFileFromProject(projectId, filename, projectDownloadFile);
+project.downloadFile(filename, projectDownloadFile);
 
-project = fw.getProject(projectId);
+project = project.reload();
 assert(strcmp(project.tags{1},'blue'), errMsg)
 assert(strcmp(project.label,'testdrive'), errMsg)
 assert(strcmp(project.notes{1}.text, 'This is a note'), errMsg)
@@ -77,13 +88,14 @@ assert(strcmp(project.files{1}.name, filename), errMsg)
 s = dir(projectDownloadFile);
 assert(project.files{1}.size == s.bytes, errMsg)
 
-projectDownloadUrl = fw.getProjectDownloadUrl(projectId, filename);
+projectDownloadUrl = project.files{1}.url;
 assert(~strcmp(projectDownloadUrl, ''), errMsg)
 
 %% Subjects
 disp('Testing Subjects')
 
-subjectId = fw.addSubject(struct('code', testString, 'project', projectId));
+subject = project.addSubject('code', testString);
+subjectId = subject.id;
 
 fw.addSubjectTag(subjectId, 'blue');
 fw.modifySubject(subjectId, struct('code', 'testdrive'));
@@ -99,13 +111,14 @@ fw.uploadFileToSubject(subjectId, filename);
 subjectDownloadFile = fullfile(tempdir, 'download2.txt');
 fw.downloadFileFromSubject(subjectId, filename, subjectDownloadFile);
 
-subject = fw.getSubject(subjectId);
+subject = fw.get(subjectId);
 assert(strcmp(subject.tags{1}, 'blue'), errMsg)
 assert(strcmp(subject.label, 'testdrive'), errMsg)
 assert(strcmp(subject.notes{1}.text, 'This is a note'), errMsg)
-assert(strcmp(subject.files{1}.name, filename), errMsg)
+
+subjectFile = subject.getFile(filename);
 s = dir(subjectDownloadFile);
-assert(subject.files{1}.size == s.bytes, errMsg)
+assert(subjectFile.size == s.bytes, errMsg)
 
 subjectDownloadUrl = fw.getSubjectDownloadUrl(subjectId, filename);
 assert(~strcmp(subjectDownloadUrl, ''), errMsg)
@@ -121,16 +134,18 @@ assert(s.bytes >= summary.size, errMsg)
 %% Sessions
 disp('Testing Sessions')
 
-sessionId = fw.addSession(struct('label', testString, 'project', projectId));
+subjectAge = flywheel.Util.yearsToSeconds(35);
+session = subject.addSession('label', testString, 'age', subjectAge);
+sessionId = session.id;
 
 fw.addSessionTag(sessionId, 'blue');
 fw.modifySession(sessionId, struct('label', 'testdrive'));
 fw.addSessionNote(sessionId, 'This is a note');
 
-sessions = fw.getProjectSessions(projectId);
+sessions = project.sessions();
 assert(~isempty(sessions), errMsg)
 
-sessions = fw.getAllSessions();
+sessions = fw.sessions();
 assert(~isempty(sessions), errMsg)
 
 fw.uploadFileToSession(sessionId, filename);
@@ -144,31 +159,43 @@ assert(strcmp(session.notes{1}.text, 'This is a note'), errMsg)
 assert(strcmp(session.files{1}.name, filename), errMsg)
 s = dir(sessionDownloadFile);
 assert(session.files{1}.size == s.bytes, errMsg)
+assert(session.ageYears == 35, errMsg)
 
 sessionDownloadUrl = fw.getSessionDownloadUrl(sessionId, filename);
 assert(~strcmp(sessionDownloadUrl, ''), errMsg)
 
-downloadNodes = { struct('level', 'session', 'id', sessionId) };
-summary = fw.createDownloadTicket(struct('optional', false, 'nodes', downloadNodes));
-assert(~isempty(summary.ticket), errMsg)
 sessionDownloadTar = fullfile(tempdir, 'session-download.tar');
-fw.downloadTicket(summary.ticket, sessionDownloadTar);
+summary = session.downloadTar(sessionDownloadTar);
 s = dir(sessionDownloadTar);
 assert(s.bytes >= summary.size, errMsg)
+
+% Session Analysis
+analysis = session.addAnalysis('label', 'testdrive', ...
+    'inputs', { session.files{1}.ref() });
+analysisId = analysis.id;
+
+analysis.uploadOutput(filename2);
+
+analysis = analysis.reload();
+assert(strcmp(analysis.label, 'testdrive'), errMsg);
+
+assert(strcmp(analysis.inputs{1}.name, filename), errMsg);
+assert(strcmp(analysis.files{1}.name, filename2), errMsg);
 
 %% Acquisitions
 disp('Testing Acquisitions')
 
-acqId = fw.addAcquisition(struct('label', testString,'session', sessionId));
+acq = session.addAcquisition(struct('label', testString));
+acqId = acq.id;
 
 fw.addAcquisitionTag(acqId, 'blue');
 fw.modifyAcquisition(acqId, struct('label', 'testdrive'));
 fw.addAcquisitionNote(acqId, 'This is a note');
 
-acqs = fw.getSessionAcquisitions(sessionId);
+acqs = session.acquisitions();
 assert(~isempty(acqs), errMsg)
 
-acqs = fw.getAllAcquisitions();
+acqs = fw.acquisitions();
 assert(~isempty(acqs), errMsg)
 
 fw.uploadFileToAcquisition(acqId, filename);
@@ -186,44 +213,119 @@ assert(acq.files{1}.size == s.bytes, errMsg)
 acqDownloadUrl = fw.getAcquisitionDownloadUrl(acqId, filename);
 assert(~strcmp(acqDownloadUrl, ''), errMsg)
 
+acqFile = acq.files{1};
+
+% Update file modality and type
+acqFile.update('modality', 'modality', 'type', 'type');
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(strcmp(acqFile.modality, 'modality'), errMsg);
+assert(strcmp(acqFile.type, 'type'), errMsg);
+
+% Test classification functions
+acqFile.replaceClassification('classification', ...
+    struct('Custom', {{'measurement1', 'measurement2'}}), ...
+    'modality', 'modality2');
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(strcmp(acqFile.modality, 'modality2'));
+assert(strcmp(acqFile.classification.Custom{1}, 'measurement1'), errMsg);
+assert(strcmp(acqFile.classification.Custom{2}, 'measurement2'), errMsg);
+
+acqFile.updateClassification(struct('Custom', {{'HelloWorld'}}));
+acqFile.deleteClassification(struct('Custom', {{'measurement2'}}));
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(strcmp(acqFile.classification.Custom{1}, 'measurement1'), errMsg);
+assert(strcmp(acqFile.classification.Custom{2}, 'HelloWorld'), errMsg);
+
+% Test file info
+acqFile.replaceInfo(struct('a', 1, 'b', 2, 'c', 3, 'd', 4));
+acqFile.updateInfo('c', 5);
+
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(acqFile.info.a == 1, errMsg);
+assert(acqFile.info.b == 2, errMsg);
+assert(acqFile.info.c == 5, errMsg);
+assert(acqFile.info.d == 4, errMsg);
+
+acqFile.deleteInfo({{'c', 'd'}});
+acq = acq.reload();
+acqFile = acq.files{1};
+assert(acqFile.info.a == 1, errMsg);
+assert(acqFile.info.b == 2, errMsg);
+assert(~isfield(acqFile.info, 'c'), errMsg);
+assert(~isfield(acqFile.info, 'd'), errMsg);
+
 %% Collections
 disp('Testing Collections')
 
 colId = fw.addCollection(struct('label', testString));
+collection = fw.getCollection(colId);
 
-fw.addSessionsToCollection(colId, {sessionId});
-fw.addAcquisitionsToCollection(colId, {acqId});
+collSessions = collection.sessions();
+assert(isempty(collSessions), errMsg)
 
-collSessions = fw.getCollectionSessions(colId);
+collAqs = collection.acquisitions();
+assert(isempty(collAqs), errMsg)
+
+collection.addSessions(sessionId);
+collection.addAcquisitions(acqId);
+
+collSessions = collection.sessions();
 assert(~isempty(collSessions), errMsg)
 
-collAqs = fw.getCollectionAcquisitions(colId);
+collAqs = collection.acquisitions();
 assert(~isempty(collAqs), errMsg)
 
-fw.addCollectionNote(colId, 'This is a note');
+collection.addNote('This is a note');
 
-fw.uploadFileToCollection(colId, filename);
+collection.uploadFile(filename);
 collectionDownloadFile = fullfile(tempdir, 'download4.txt');
-fw.downloadFileFromCollection(colId, filename, collectionDownloadFile);
+collection.downloadFile(filename, collectionDownloadFile);
 
-collection = fw.getCollection(colId);
+collection = collection.reload();
 assert(strcmp(collection.notes{1}.text, 'This is a note'), errMsg)
 assert(strcmp(collection.files{1}.name, filename), errMsg)
 s = dir(collectionDownloadFile);
-assert(collection.files{1}.size == s.bytes, errMsg)
+collFile = collection.files{1};
+assert(collFile.size == s.bytes, errMsg)
 
-colDownloadUrl = fw.getCollectionDownloadUrl(colId, filename);
+colDownloadUrl = collFile.url;
 assert(~strcmp(colDownloadUrl, ''), errMsg)
 
-fw.deleteCollectionFile(colId, filename);
+collection.deleteFile(filename);
 
-collection = fw.getCollection(colId);
+collection = collection.reload();
 assert(isempty(collection.files), errMsg)
 
 %% Gears
 disp('Testing Gears')
 
-gearId = fw.addGear('test-drive-gear', struct('category','converter','exchange', struct('gitCommit','example','rootfsHash','sha384:example','rootfsUrl','https://example.example'),'gear', struct('name','test-drive-gear','label','Test Drive Gear','version','3','author','None','description','An empty example gear','license','Other','source','http://example.example','url','http://example.example','inputs', struct('x', struct('base','file')))));
+gearId = fw.addGear('test-drive-gear', struct(...
+        'category','converter',...
+        'exchange', struct(...
+            'gitCommit','example',...
+            'rootfsHash','sha384:example',...
+            'rootfsUrl','https://example.example'...
+        ),...
+        'gear', struct(...
+            'name','test-drive-gear',...
+            'label','Test Drive Gear',...
+            'version','3',...
+            'author','None',...
+            'description','An empty example gear',...
+            'license','Other',...
+            'source','http://example.example',...
+            'url','http://example.example',...
+            'inputs', struct(...
+                'x', struct('base','file')...
+            )...
+        )));
 
 gear = fw.getGear(gearId);
 assert(strcmp(gear.gear.name, 'test-drive-gear'), errMsg)
@@ -231,14 +333,63 @@ assert(strcmp(gear.gear.name, 'test-drive-gear'), errMsg)
 gears = fw.getAllGears();
 assert(~isempty(gears), errMsg)
 
-job2Add = struct('gearId',gearId,'inputs',struct('x',struct('type','acquisition','id',acqId,'name',filename)));
-jobId = fw.addJob(job2Add);
+jobId = gear.run('x', acqFile);
 
 job = fw.getJob(jobId);
 assert(strcmp(job.gearId,gearId), errMsg)
 
 logs = fw.getJobLogs(jobId);
 % Likely will not have anything in them yet
+
+%% Batch proposal
+
+proposal = gear.proposeBatch(session.acquisitions());
+assert(1 == numel(proposal.matched));
+
+jobs = proposal.run();
+assert(1 == numel(jobs));
+
+assert(strcmp(jobs{1}.gearId, gearId), errMsg);
+
+
+%% Analysis Job
+disp('Testing Analysis Job')
+
+analysisGearId = fw.addGear('test-drive-analysis-gear', struct(...
+        'category','analysis',...
+        'exchange', struct(...
+            'gitCommit','example',...
+            'rootfsHash','sha384:example',...
+            'rootfsUrl','https://example.example'...
+        ),...
+        'gear', struct(...
+            'name','test-drive-analysis-gear',...
+            'label','Test Drive Analysis Gear',...
+            'version','3',...
+            'author','None',...
+            'description','An empty example gear',...
+            'license','Other',...
+            'source','http://example.example',...
+            'url','http://example.example',...
+            'config', struct(...
+              'y', struct('type', 'string', 'default', 'z')...  
+            ),...
+            'inputs', struct(...
+                'x', struct('base','file')...
+            )...
+        )));
+
+analysisGear = fw.getGear(analysisGearId);
+
+jobAnalysisId = analysisGear.run('config', struct('y', 'a'), ...
+    'destination', session, 'x', acq.files{1});
+
+jobAnalysis = fw.getAnalysis(jobAnalysisId);
+assert(startsWith(jobAnalysis.label, 'test-drive-analysis-gear'));
+
+assert(strcmp(analysis.inputs{1}.name, acq.files{1}.name), errMsg);
+assert(strcmp(analysis.parent.type, 'session'), errMsg);
+assert(strcmp(analysis.parent.id, sessionId), errMsg);
 
 %% Containers
 disp('Testing Abstract Containers')
@@ -271,9 +422,11 @@ acq = fw.getContainer(acqId);
 assert(strcmp(acq.tags{1},'blue'), errMsg)
 assert(strcmp(acq.label,'testdrive'), errMsg)
 assert(strcmp(acq.notes{1}.text, 'This is a note'), errMsg)
-assert(strcmp(acq.files{1}.name, filename), errMsg)
+
+acqFiles = acq.getFiles();
+assert(strcmp(acqFiles{1}.name, filename), errMsg)
 s = dir(acquisitionDownloadFile);
-assert(acq.files{1}.size == s.bytes, errMsg)
+assert(acqFiles{1}.size == s.bytes, errMsg)
 
 acqDownloadUrl = fw.getContainerDownloadUrl(acqId, filename);
 assert(~strcmp(acqDownloadUrl, ''), errMsg)
@@ -291,11 +444,15 @@ assert(fwVersion.database >= 25, errMsg)
 disp('Cleanup')
 
 fw.deleteCollection(colId);
+fw.deleteSessionAnalysis(sessionId, jobAnalysisId);
 fw.deleteAcquisition(acqId);
 fw.deleteSession(sessionId);
 fw.deleteProject(projectId);
 fw.deleteGroup(groupId);
 fw.deleteGear(gearId);
+fw.deleteGear(analysisGearId);
+
+delete(filename, filename2);
 
 disp('')
 disp('Test drive complete.')

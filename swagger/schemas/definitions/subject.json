@@ -81,7 +81,8 @@
               }
             },
             "additionalProperties": false,
-            "x-sdk-model": "subject"
+            "x-sdk-model": "subject",
+            "x-sdk-container-mixin": "subject-mixin"
         },
         "subject-metadata-input": {
             "type": "object",
@@ -138,12 +139,14 @@
               }
             },
             "additionalProperties": false,
-            "x-sdk-model": "subject"
+            "x-sdk-model": "subject",
+            "x-sdk-container-mixin": "subject-mixin"
         },
         "subject-output-default-required":{
             "allOf":[{"$ref":"#/definitions/subject-output"}],
             "required":["_id"],
-            "x-sdk-model": "subject"
+            "x-sdk-model": "subject",
+            "x-sdk-container-mixin": "subject-mixin"
         }
     }
 }

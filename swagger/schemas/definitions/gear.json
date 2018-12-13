@@ -216,7 +216,8 @@
                 "created":  { "$ref":"created-modified.json#/definitions/created"},
                 "modified": { "$ref":"created-modified.json#/definitions/modified"}
             },
-            "description": "A full gear description, including manifest and exchange information"
+            "description": "A full gear description, including manifest and exchange information",
+            "x-sdk-container-mixin": "gear-mixin"
         }
     }
 }

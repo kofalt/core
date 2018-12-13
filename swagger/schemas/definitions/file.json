@@ -85,8 +85,9 @@
             "zip_member_count": {"$ref": "#/definitions/zip-member-count"}
           },
           "additionalProperties": false,
+          "description": "A file description",
           "x-sdk-model": "file-entry",
-          "description": "A file description"
+          "x-sdk-container-mixin": "file-mixin"
         },
         "file-input":{
             "type": "object",
@@ -101,7 +102,8 @@
               "zip_member_count": {"$ref": "#/definitions/zip-member-count"}
           },
           "additionalProperties": false,
-          "x-sdk-model": "file-entry"
+          "x-sdk-model": "file-entry",
+          "x-sdk-container-mixin": "file-mixin"
         },
         "file-update":{
             "type": "object",
@@ -109,13 +111,15 @@
               "type":             {"$ref":"#/definitions/file-type"},
               "modality":         {"$ref":"#/definitions/modality"}          },
           "additionalProperties": false,
-          "x-sdk-model": "file-entry"
+          "x-sdk-model": "file-entry",
+          "x-sdk-container-mixin": "file-mixin"
         },
         "file-output":{
           "type": "object",
           "allOf": [{"$ref":"#/definitions/file-entry"}],
           "required":["modified", "size"],
-          "x-sdk-model": "file-entry"
+          "x-sdk-model": "file-entry",
+          "x-sdk-container-mixin": "file-mixin"
         },
         "file-reference": {
           "type": "object",

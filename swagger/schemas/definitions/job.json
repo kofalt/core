@@ -24,17 +24,20 @@
         "[-_ a-zA-Z0-9]+": {"$ref":"file.json#/definitions/file-reference"}
       }
     },
+    "inputs-array-item": {
+      "type": "object",
+      "properties": {
+        "type":  {"$ref":"container.json#/definitions/container-type"},
+        "id":    {"$ref":"container.json#/definitions/_id"},
+        "name":  {"$ref":"file.json#/definitions/name"},
+        "input": {"type":"string"},
+        "base":  {"type":"string"},
+        "found": {"type":"boolean"}
+      }
+    },
     "inputs-array":{
       "type":"array",
-      "items":{
-        "type":"object",
-        "properties":{
-          "type": {"$ref":"container.json#/definitions/container-type"},
-          "id": {"$ref":"container.json#/definitions/_id"},
-          "name": {"$ref":"file.json#/definitions/name"},
-          "input":{"type":"string"}
-        }
-      }
+      "items": {"$ref": "#/definitions/inputs-array-item"}
     },
     "destination": {
       "type": "object",
@@ -271,7 +274,8 @@
         }
       },
       "additionalProperties":false,
-      "x-sdk-model":"job"
+      "x-sdk-model":"job",
+      "x-sdk-container-mixin": "job-mixin"
     },
     "job-list-entry": {
       "type":"object",
@@ -281,7 +285,7 @@
         "gear_id":{"$ref":"#/definitions/gear_id"},
         "gear_info":{"$ref":"gear.json#/definitions/gear-info"},
         "previous_job_id":{"type":"string"},
-        "inputs":{"$ref":"#/definitions/inputs-object"},
+        "inputs":{"$ref":"#/definitions/inputs-array"},
         "destination":{"$ref":"#/definitions/destination"},
         "tags":{"$ref":"#/definitions/tags"},
         "state":{"$ref":"#/definitions/state"},
@@ -293,7 +297,8 @@
         "request":{"$ref":"#/definitions/request"},
         "saved_files":{"$ref":"#/definitions/saved_files"}
       },
-      "additionalProperties":false
+      "additionalProperties":false,
+      "x-sdk-container-mixin": "job-mixin"
     },
     "job-input": {
       "type":"object",
@@ -308,6 +313,19 @@
       "additionalProperties":false,
       "x-sdk-model":"job"
     },
+    "job-input-update": {
+      "type": "object",
+      "properties": {
+        "gear_id":{"$ref":"#/definitions/gear_id"},
+        "inputs":{"$ref":"#/definitions/inputs-object"},
+        "destination":{"$ref":"#/definitions/destination"},
+        "state":{"$ref":"#/definitions/state"},
+        "tags":{"$ref":"#/definitions/tags"},
+        "config":{"$ref":"#/definitions/config"}
+      },
+      "additionalProperties":false,
+      "x-sdk-model":"job"
+    },
     "job-output": {
       "type": "object",
       "allOf": [{"$ref":"#/definitions/job"}],
@@ -315,7 +333,8 @@
         "id", "gear_id", "inputs", "config",
         "destination", "tags", "state", "attempt"
       ],
-      "x-sdk-model":"job"
+      "x-sdk-model":"job",
+      "x-sdk-container-mixin": "job-mixin"
     },
     "job-config-inputs": {
       "type": "object"

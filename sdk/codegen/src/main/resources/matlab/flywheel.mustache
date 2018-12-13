@@ -39,10 +39,19 @@ classdef Flywheel < handle
         {{classVarName}}
         {{/apis}}
         {{/apiInfo}}
+        users
+        groups
+        projects
+        sessions
+        subjects
+        acquisitions
+        jobs
+        gears
+        collections
         checkVersion
     end
     methods
-        function obj = Flywheel(apiKey, root, skipVersionCheck)
+        function obj = Flywheel(apiKey, root, skipVersionCheck, subjectsInResolver)
             obj.apiClient = {{packageName}}.ApiClient(apiKey);
 
             % Set root mode
@@ -62,12 +71,33 @@ classdef Flywheel < handle
 
             {{#apiInfo}}
             {{#apis}}
-            obj.{{classVarName}} = {{apiPackage}}.{{classname}}(obj.apiClient);
+            obj.{{classVarName}} = {{apiPackage}}.{{classname}}(obj.apiClient, obj);
             {{/apis}}
             {{/apiInfo}}
 
+            % Initialize finders
+            obj.users = {{packageName}}.Finder(obj, 'getAllUsers');
+            obj.groups = {{packageName}}.Finder(obj, 'getAllGroups');
+            obj.projects = {{packageName}}.Finder(obj, 'getAllProjects');
+            obj.subjects = {{packageName}}.Finder(obj, 'getAllSubjects');
+            obj.sessions = {{packageName}}.Finder(obj, 'getAllSessions');
+            obj.acquisitions = {{packageName}}.Finder(obj, 'getAllAcquisitions');
+            obj.jobs = {{packageName}}.Finder(obj, 'getAllJobs');
+            obj.gears = {{packageName}}.Finder(obj, 'getAllGears');
+            obj.collections = {{packageName}}.Finder(obj, 'getAllCollections');
+
             % Perform version check
             obj.apiClient.setVersionCheckFn(@() obj.performVersionCheck());
+
+            % Enable subjects in resolver by default
+            if ~exist('subjectsInResolver', 'var')
+                subjectsEnv = getenv('FLYWHEEL_SDK_SUBJECTS_IN_RESOLVER');
+                subjectsInResolver = ~(strcmp('0', subjectsEnv) || strcmpi('false', subjectsEnv));
+            end
+
+            if subjectsInResolver
+                obj.enableFeature('Subject-Container');
+            end
         end
         {{#apiInfo}}
         {{#apis}}

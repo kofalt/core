@@ -14,14 +14,14 @@ class ClassificationTestCases(SdkTestCase):
     def test_modalities(self):
         fw = self.fw
 
-        modality = flywheel.Modality('CT', {
+        modality = flywheel.Modality('FOO', {
             'Intent': ["Structural", "Functional", "Localizer"],
             'Contrast': ["B0", "B1", "T1", "T2"]
         })
 
         # === Add modality ===
         self.modality_id = fw.add_modality(modality)
-        self.assertEqual(self.modality_id, 'CT')
+        self.assertEqual(self.modality_id, 'FOO')
         
         # === Get modality ===
         # Non-existent

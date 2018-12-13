@@ -2,6 +2,7 @@
   get:
     summary: Return a list of all users
     operationId: get_all_users
+    x-sdk-pagination: true
     tags:
     - users
     responses:

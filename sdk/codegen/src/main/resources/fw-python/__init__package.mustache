@@ -6,6 +6,9 @@
 
 from __future__ import absolute_import
 
+# import util
+import {{packageName}}.util
+
 # import apis into sdk package
 {{#apiInfo}}{{#apis}}from {{apiPackage}}.{{classVarName}} import {{classname}}
 {{/apis}}{{/apiInfo}}
@@ -13,7 +16,8 @@ from __future__ import absolute_import
 from {{packageName}}.file_spec import FileSpec
 from {{packageName}}.api_client import ApiClient
 from {{packageName}}.configuration import Configuration
-from {{packageName}}.flywheel import Flywheel, Client
+from {{packageName}}.flywheel import Flywheel
+from {{packageName}}.client import Client
 from {{packageName}}.view_builder import ViewBuilder
 from {{packageName}}.rest import ApiException
 

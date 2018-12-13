@@ -23,16 +23,10 @@ class BatchTestCases(SdkTestCase):
 
         # Add
         tag = self.rand_string()
-        targets = [flywheel.ContainerReference(
-            type='acquisition',
-            id=self.acquisition_id
-        )]
-        proposal = fw.propose_batch(flywheel.BatchProposalInput(
-            gear_id=self.gear_id,
-            config={},
-            tags=[tag],
-            targets=targets
-        ))
+        acq = fw.get_acquisition(self.acquisition_id)
+        gear = fw.get_gear(self.gear_id)
+        
+        proposal = gear.propose_batch([acq], tags=[tag])
         self.assertIsNotNone(proposal)
 
         self.assertNotEmpty(proposal.id)
@@ -65,7 +59,7 @@ class BatchTestCases(SdkTestCase):
         self.assertIn(r_batch, batches)
 
         # Start
-        jobs = fw.start_batch(proposal.id)
+        jobs = proposal.run()
         self.assertEqual(len(jobs), 1)
 
         # Get again
@@ -74,7 +68,7 @@ class BatchTestCases(SdkTestCase):
         self.assertTimestampAfter(r_batch2.modified, r_batch.modified)
 
         # Cancel
-        cancelled = fw.cancel_batch(proposal.id)
+        cancelled = r_batch2.cancel()
         self.assertEqual(cancelled, 1)
 
     def test_batch_with_jobs(self):

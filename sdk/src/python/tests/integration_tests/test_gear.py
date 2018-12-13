@@ -42,6 +42,7 @@ class GearTestCases(SdkTestCase):
         self.assertEqual(r_gear.gear.name, gear.name)
         self.assertTimestampBeforeNow(r_gear.created)
         self.assertGreaterEqual(r_gear.modified, r_gear.created)
+        self.assertFalse(r_gear.is_analysis_gear())
 
         # Get invocation
         gear_schema = fw.get_gear_invocation(gear_id)
@@ -59,7 +60,7 @@ class GearTestCases(SdkTestCase):
         gears = fw.get_all_gears()
         self.assertNotIn(r_gear, gears)
         
-def create_test_gear():
+def create_test_gear(category='utility'):
     #
     ## Do not modify the below gear document without checking the other callees!
     #
@@ -82,7 +83,7 @@ def create_test_gear():
     )
 
     gear_doc = flywheel.GearDoc(
-        category='utility',
+        category=category,
         gear=gear,
         exchange=flywheel.GearExchange(
             git_commit='aex',

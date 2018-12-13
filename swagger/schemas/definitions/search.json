@@ -56,7 +56,8 @@
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"}
     		},
-    		"description": "Fields for project search response"
+    		"description": "Fields for project search response",
+            "x-sdk-container-mixin": "project-mixin"
     	},
     	"search-group-response": {
     		"type": "object",
@@ -64,7 +65,8 @@
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"}
     		},
-    		"description": "Fields for group search response"
+    		"description": "Fields for group search response",
+            "x-sdk-container-mixin": "group-mixin"
     	},
     	"search-session-response": {
     		"type": "object",
@@ -74,7 +76,8 @@
                 "timestamp":   {"$ref":"common.json#/definitions/timestamp"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
     		},
-    		"description": "Fields for session search response"
+    		"description": "Fields for session search response",
+            "x-sdk-container-mixin": "session-mixin"
     	},
     	"search-acquisition-response": {
     		"type": "object",
@@ -84,14 +87,16 @@
                 "timestamp":   {"$ref":"common.json#/definitions/timestamp"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
     		},
-    		"description": "Fields for acquisition search response"
+    		"description": "Fields for acquisition search response",
+            "x-sdk-container-mixin": "acquisition-mixin"
     	},
     	"search-subject-response": {
     		"type": "object",
     		"properties": {
                 "code":         {"$ref":"subject.json#/definitions/code"}
             },
-    		"description": "Fields for subject search response"
+    		"description": "Fields for subject search response",
+            "x-sdk-container-mixin": "subject-mixin"
     	},
     	"search-file-response": {
     		"type": "object",
@@ -102,7 +107,8 @@
 	            "name":           {"$ref":"file.json#/definitions/name"},
 	            "size":           {"$ref":"file.json#/definitions/size"}
     		},
-    		"description": "Fields for file search response"
+    		"description": "Fields for file search response",
+            "x-sdk-container-mixin": "file-mixin"
     	},
     	"search-analysis-response": {
     		"type": "object",
@@ -112,15 +118,8 @@
                 "user":        {"$ref":"common.json#/definitions/user-id"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
     		},
-    		"description": "Fields for acquisition search response"
-    	},
-    	"search-parent-response": {
-    		"type": "object",
-    		"properties": {
-                "_id":         {"$ref":"container.json#/definitions/_id"},
-                "type":        {"$ref":"container.json#/definitions/container-type"}
-            },
-			"description": "Fields for parent search response"
+    		"description": "Fields for acquisition search response",
+            "x-sdk-container-mixin": "analysis-mixin"
     	},
     	"search-collection-response": {
     		"type": "object",
@@ -130,8 +129,69 @@
                 "curator":     {"$ref":"common.json#/definitions/user-id"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
     		},
-    		"description": "Fields for collection search response"
+    		"description": "Fields for collection search response",
+            "x-sdk-container-mixin": "collection-mixin"
     	},
+
+        "search-parent-response": {
+            "type": "object",
+            "properties": {
+                "_id":         {"$ref":"container.json#/definitions/_id"},
+                "type":        {"$ref":"container.json#/definitions/container-type"}
+            },
+            "discriminator": "type",
+            "required": ["type"],
+            "description": "Fields for parent search response"
+        },
+        "search-parent-group": {
+          "allOf": [
+            {"$ref":"#/definitions/search-parent-response"},
+            {"$ref":"group.json#/definitions/group-output"}
+          ],
+          "x-discriminator-value": "group",
+          "x-sdk-container-mixin": "group-mixin"
+        },
+        "search-parent-project": {
+          "allOf": [
+            {"$ref":"#/definitions/search-parent-response"},
+            {"$ref":"project.json#/definitions/project-output"}
+          ],
+          "x-discriminator-value": "project",
+          "x-sdk-container-mixin": "project-mixin"
+        },
+        "search-parent-session": {
+          "allOf": [
+            {"$ref":"#/definitions/search-parent-response"},
+            {"$ref":"session.json#/definitions/session-output"}
+          ],
+          "x-discriminator-value": "session",
+          "x-sdk-container-mixin": "project-mixin"
+        },
+        "search-parent-acquisition": {
+          "allOf": [
+            {"$ref":"#/definitions/search-parent-response"},
+            {"$ref":"acquisition.json#/definitions/acquisition-output"}
+          ],
+          "x-discriminator-value": "acquisition",
+          "x-sdk-container-mixin": "acquisition-mixin"
+        },
+        "search-parent-collection": {
+          "allOf": [
+            {"$ref":"#/definitions/search-parent-response"},
+            {"$ref":"collection.json#/definitions/collection-output"}
+          ],
+          "x-discriminator-value": "collection",
+          "x-sdk-container-mixin": "collection-mixin"
+        },
+        "search-parent-analysis": {
+            "allOf": [
+                {"$ref":"#/definitions/search-parent-response"},
+                {"$ref":"analysis.json#/definitions/analysis-output"}
+            ],
+            "x-discriminator-value": "analysis",
+            "x-sdk-container-mixin": "analysis-mixin"
+        },
+
     	"search-response": {
     		"type": "object",
     		"properties": {
@@ -147,7 +207,8 @@
     			"parent":      {"$ref":"#/definitions/search-parent-response"},
     			"permissions": {"$ref":"permission.json#/definitions/permission-output-list"}
     		},
-    		"description": "Single search response entry"
+    		"description": "Single search response entry",
+            "x-sdk-container-mixin": "search-response-mixin"
     	}
     }
 }

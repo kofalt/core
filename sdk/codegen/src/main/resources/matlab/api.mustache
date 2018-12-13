@@ -16,10 +16,12 @@ classdef {{classname}} < handle
     % Do not edit the file manually.
     properties
         apiClient
+        context_
     end
     methods
-        function obj = {{classname}}(apiClient)
+        function obj = {{classname}}(apiClient, context)
             obj.apiClient = apiClient;
+            obj.context_ = context;
         end
 
 {{#operation}}
@@ -77,7 +79,7 @@ classdef {{classname}} < handle
             {{#queryParams}}
             if ~isempty(x__inp.Results.{{paramName}})
                 {{^isListContainer}}
-                queryParams = [queryParams, '{{baseName}}', x__inp.Results.{{paramName}}];
+                queryParams = [queryParams, '{{baseName}}', {{packageName}}.ApiClient.castParam(x__inp.Results.{{paramName}}, '{{dataType}}')];
                 {{/isListContainer}}
                 {{#isListContainer}}
                 queryParams = {{packageName}}.ApiClient.formatParamCollection(queryParams, '{{baseName}}', x__inp.Results.{{paramName}}, '{{collectionFormat}}');
@@ -155,13 +157,13 @@ classdef {{classname}} < handle
                     end
                     json = {{packageName}}.ApiClient.getResponseJson(resp);
                     {{^isListContainer}}
-                    returnData = {{modelPackage}}.{{dataType}}.fromJson(json);
+                    returnData = {{modelPackage}}.{{dataType}}.fromJson(json, obj.context_);
                     if ~isempty(returnData)
                         returnData = returnData.returnValue();
                     end
                     {{/isListContainer}}
                     {{#isListContainer}}
-                    returnData = {{packageName}}.ModelBase.cellmap(@{{modelPackage}}.{{baseType}}.fromJson, json);
+                    returnData = {{packageName}}.ModelBase.cellmap(@(x) {{modelPackage}}.{{baseType}}.fromJson(x, obj.context_), json);
                     {{/isListContainer}}
                 {{/dataType}}
                 {{#vendorExtensions.x-sdk-download-file-param}}

@@ -25,27 +25,14 @@ class JobsTestCases(SdkTestCase):
         fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
 
         tag = self.rand_string()
-        job = flywheel.Job(
-            gear_id=self.gear_id,
-            
-            destination=flywheel.JobDestination(
-                id=self.acquisition_id, 
-                type='acquisition'
-            ),
 
-            inputs={
-                'any-file': flywheel.FileReference(
-                    id=self.acquisition_id,
-                    type='acquisition',
-                    name='yeats.txt'
-                )
-            },
-
-            tags=[tag]
-        )
+        # Get the acquisition destination and file input
+        acq = fw.get_acquisition(self.acquisition_id)
+        any_file = acq.files[0]
+        self.assertEqual(any_file.name, 'yeats.txt')
 
         # Add
-        job_id = fw.add_job(job)
+        job_id = gear.run(destination=acq, tags=[tag], inputs={'any-file': any_file})
         self.assertNotEmpty(job_id)
 
         # Get
@@ -66,8 +53,7 @@ class JobsTestCases(SdkTestCase):
 
         # Modify
         tag2 = self.rand_string()
-        job_mod = flywheel.Job(tags=[tag2])
-        fw.modify_job(job_id, job_mod)
+        r_job.update(tags=[tag2])
 
         # Check
         r_job = fw.get_job(job_id)
@@ -84,7 +70,7 @@ class JobsTestCases(SdkTestCase):
         self.assertIn(r_job, jobs.jobs)
 
         # Get all jobs
-        jobs = fw.get_all_jobs(limit=100, sort='created:desc')
+        jobs = fw.jobs(limit=100, sort='created:desc')
         self.assertIsNotNone(jobs)
         self.assertGreaterEqual(len(jobs), 1)
         self.assertTrue(any([ job.id == job_id for job in jobs]))
@@ -161,7 +147,7 @@ class JobsTestCases(SdkTestCase):
         fw.add_job_logs(job_id, log2)
 
         # Finish
-        fw.change_job_state(job_id, 'complete')
+        r_job.change_state('complete')
 
         r_job3 = fw.get_job(job_id)
         self.assertEqual(r_job3.state, 'complete')

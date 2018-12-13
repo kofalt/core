@@ -29,6 +29,9 @@ class AcquisitionsTestCases(SdkTestCase):
         self.assertTimestampBeforeNow(r_acquisition.created)
         self.assertGreaterEqual(r_acquisition.modified, r_acquisition.created)
 
+        # Generic Get is equivalent
+        self.assertEqual(fw.get(acquisition_id).to_dict(), r_acquisition.to_dict())
+
         # Get All
         acquisitions = fw.get_all_acquisitions()
         self.sanitize_for_collection(r_acquisition, info_exists=False)
@@ -36,29 +39,28 @@ class AcquisitionsTestCases(SdkTestCase):
 
         # Modify
         new_name = self.rand_string()
-        acquisition_mod = flywheel.Project(label=new_name, info={'another-key': 52})
-        fw.modify_acquisition(acquisition_id, acquisition_mod)
+        r_acquisition.update(label=new_name, info={'another-key':52})
 
-        changed_acquisition = fw.get_acquisition(acquisition_id)
+        changed_acquisition = r_acquisition.reload()
         self.assertEqual(changed_acquisition.label, new_name)
         self.assertEqual(changed_acquisition.created, r_acquisition.created)
         self.assertGreater(changed_acquisition.modified, r_acquisition.modified)
 
         # Notes, Tags
         message = 'This is a note'
-        fw.add_acquisition_note(acquisition_id, message)
+        r_acquisition.add_note(message)
         
         tag = 'example-tag'
-        fw.add_acquisition_tag(acquisition_id, tag)
+        r_acquisition.add_tag(tag)
 
         # Replace Info
-        fw.replace_acquisition_info(acquisition_id, { 'foo': 3, 'bar': 'qaz' })
+        r_acquisition.replace_info({ 'foo': 3, 'bar': 'qaz' })
 
         # Set Info
-        fw.set_acquisition_info(acquisition_id, { 'foo': 42, 'hello': 'world' })
+        r_acquisition.update_info({ 'foo': 42, 'hello': 'world' })
 
         # Check
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition = r_acquisition.reload()
 
         self.assertEqual(len(r_acquisition.notes), 1)
         self.assertEqual(r_acquisition.notes[0].text, message)
@@ -71,9 +73,9 @@ class AcquisitionsTestCases(SdkTestCase):
         self.assertEqual(r_acquisition.info['hello'], 'world')
 
         # Delete info fields
-        fw.delete_acquisition_info_fields(acquisition_id, ['foo', 'bar'])
+        r_acquisition.delete_info('foo', 'bar')
 
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition = r_acquisition.reload()
         self.assertNotIn('foo', r_acquisition.info)
         self.assertNotIn('bar', r_acquisition.info)
         self.assertEqual(r_acquisition.info['hello'], 'world')
@@ -113,85 +115,76 @@ class AcquisitionsTestCases(SdkTestCase):
         self.assertEmpty(r_acquisition.files[0].classification)
         self.assertEqual(r_acquisition.files[0].type, 'text')
 
-        resp = fw.modify_acquisition_file(acquisition_id, 'yeats.txt', flywheel.FileEntry(
-            modality='modality',
-            type='type'
-        ))
+        resp = r_acquisition.update_file('yeats.txt', modality='modality', type='type')
 
         # Check that no jobs were triggered, and attrs were modified
         self.assertEqual(resp.jobs_spawned, 0)
 
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition = r_acquisition.reload()
         self.assertEqual(r_acquisition.files[0].modality, "modality")
         self.assertEmpty(r_acquisition.files[0].classification)
         self.assertEqual(r_acquisition.files[0].type, 'type')
+        r_file = r_acquisition.files[0]
+        self.assertIsNotNone(r_file)
 
         # Test classifications
-        resp = fw.modify_acquisition_file_classification(acquisition_id, 'yeats.txt', {
-            'modality': 'modality2',
-            'replace': {
-                'Custom': ['measurement1', 'measurement2'],
-            }
-        })
+        resp = r_file.replace_classification({'Custom': ['measurement1', 'measurement2']}, modality='modality2')
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition = r_acquisition.reload()
         self.assertEqual(r_acquisition.files[0].modality, 'modality2')
         self.assertEqual(r_acquisition.files[0].classification, {
             'Custom': ['measurement1', 'measurement2']
         });
 
-        resp = fw.set_acquisition_file_classification(acquisition_id, 'yeats.txt', {
-            'Custom': ['HelloWorld']
-        })
+        resp = r_file.update_classification({'Custom': ['HelloWorld']})
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
-        resp = fw.delete_acquisition_file_classification_fields(acquisition_id, 'yeats.txt', {
-            'Custom': ['measurement2']
-        })
+        resp = r_file.delete_classification({'Custom': ['measurement2']})
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition = r_acquisition.reload()
         self.assertEqual(r_acquisition.files[0].classification, {
             'Custom': ['measurement1', 'HelloWorld'],
         });
 
         # Test file info
-        self.assertEmpty(r_acquisition.files[0].info)
-        fw.replace_acquisition_file_info(acquisition_id, 'yeats.txt', {
+        r_file = r_acquisition.files[0]
+        self.assertEmpty(r_file.info)
+        r_file.replace_info({
             'a': 1,
             'b': 2,
             'c': 3,
             'd': 4
         })
 
-        fw.set_acquisition_file_info(acquisition_id, 'yeats.txt', {
+        r_file.update_info({
             'c': 5
         })
 
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition = r_acquisition.reload()
         self.assertEqual(r_acquisition.files[0].info['a'], 1)
         self.assertEqual(r_acquisition.files[0].info['b'], 2)
         self.assertEqual(r_acquisition.files[0].info['c'], 5)
         self.assertEqual(r_acquisition.files[0].info['d'], 4)
     
-        fw.delete_acquisition_file_info_fields(acquisition_id, 'yeats.txt', ['c', 'd'])  
+        r_file.delete_info(['c', 'd'])  
         r_acquisition = fw.get_acquisition(acquisition_id)
         self.assertEqual(r_acquisition.files[0].info['a'], 1)
         self.assertEqual(r_acquisition.files[0].info['b'], 2)
         self.assertNotIn('c', r_acquisition.files[0].info)
         self.assertNotIn('d', r_acquisition.files[0].info)
 
-        fw.replace_acquisition_file_info(acquisition_id, 'yeats.txt', {})
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition.replace_file_info('yeats.txt', {})
+        r_acquisition = r_acquisition.reload()
         self.assertEmpty(r_acquisition.files[0].info)
 
         # Delete file
-        fw.delete_acquisition_file(acquisition_id, 'yeats.txt')
-        r_acquisition = fw.get_acquisition(acquisition_id)
+        r_acquisition.delete_file('yeats.txt')
+        r_acquisition = r_acquisition.reload()
         self.assertEmpty(r_acquisition.files)
 
         # Delete acquisition
@@ -260,11 +253,13 @@ class AcquisitionsTestCases(SdkTestCase):
         acquisition.info_exists = info_exists
         acquisition.analyses = None
 
-def create_test_acquisition():
-    group_id, project_id, session_id = create_test_session()
-    return group_id, project_id, session_id, SdkTestCase.fw.add_acquisition({
-        'session': session_id, 
+def create_test_acquisition(return_subject=False):
+    pfx_ids = create_test_session(return_subject=return_subject)
+    acquisition_id = SdkTestCase.fw.add_acquisition({
+        'session': pfx_ids[-1], 
         'label': SdkTestCase.rand_string()
     })
+
+    return pfx_ids + (acquisition_id,)
 
 

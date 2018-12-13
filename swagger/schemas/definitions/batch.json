@@ -32,7 +32,8 @@
         },
         "created":{"$ref":"created-modified.json#/definitions/created"},
         "modified":{"$ref":"created-modified.json#/definitions/modified"}
-      }
+      },
+      "x-sdk-container-mixin": "batch-mixin"
     },
     "batch-proposal": {
       "type": "object",
@@ -58,7 +59,8 @@
         "created":{"$ref":"created-modified.json#/definitions/created"},
         "modified":{"$ref":"created-modified.json#/definitions/modified"}
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "x-sdk-container-mixin": "batch-proposal-mixin"
     },
     "batch-proposal-input": {
       "type": "object",

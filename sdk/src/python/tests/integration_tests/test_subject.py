@@ -38,6 +38,9 @@ class SubjectsTestCases(SdkTestCase):
         self.assertTimestampBeforeNow(r_subject.created)
         self.assertGreaterEqual(r_subject.modified, r_subject.created)
 
+        # Generic Get is equivalent
+        self.assertEqual(fw.get(subject_id).to_dict(), r_subject.to_dict())
+
         # Get All
         subjects = fw.get_all_subjects()
         self.assertNotEmpty(subjects)
@@ -51,8 +54,7 @@ class SubjectsTestCases(SdkTestCase):
 
         # Modify
         new_sex = 'male'
-        subject_mod = flywheel.Subject(code=subject_code, sex=new_sex)
-        fw.modify_subject(subject_id, subject_mod)
+        r_subject.update(sex=new_sex)
 
         changed_subject = fw.get_subject(subject_id)
         self.assertEqual(changed_subject.sex, new_sex)
@@ -61,10 +63,10 @@ class SubjectsTestCases(SdkTestCase):
 
         # Notes, Tags
         message = 'This is a note'
-        fw.add_subject_note(subject_id, message)
+        r_subject.add_note(message)
 
         tag = 'example-tag'
-        fw.add_subject_tag(subject_id, tag)
+        r_subject.add_tag(tag)
 
         # Replace Info
         fw.replace_subject_info(subject_id, { 'foo': 3, 'bar': 'qaz' })
@@ -92,6 +94,11 @@ class SubjectsTestCases(SdkTestCase):
         self.assertNotIn('foo', r_subject.info)
         self.assertNotIn('bar', r_subject.info)
         self.assertEqual(r_subject.info['hello'], 'world')
+
+        # Add session
+        r_session = r_subject.add_session(label='Session 1')
+        self.assertEqual(r_session.project, self.project_id)
+        self.assertEqual(r_session.subject.id, subject_id)
 
         # Delete
         fw.delete_subject(subject_id)
@@ -128,10 +135,7 @@ class SubjectsTestCases(SdkTestCase):
         self.assertEmpty(r_subject.files[0].classification)
         self.assertEqual(r_subject.files[0].type, 'text')
 
-        resp = fw.modify_subject_file(subject_id, 'yeats.txt', flywheel.FileEntry(
-            modality='modality',
-            type='type'
-        ))
+        resp = r_subject.files[0].update(type='type', modality='modality')
 
         # Check that no jobs were triggered, and attrs were modified
         self.assertEqual(resp.jobs_spawned, 0)

@@ -1,0 +1,18 @@
+classdef AnalysisMixin < {{packageName}}.mixins.ContainerBase ...
+        & {{packageName}}.mixins.TagMethods ...
+        & {{packageName}}.mixins.InfoMethods ...
+        & {{packageName}}.mixins.NoteMethods ...
+        & {{packageName}}.mixins.FileMethods ...
+        & {{packageName}}.mixins.DownloadMethods
+    properties
+        containerType_ = 'Analysis';
+    end
+    methods
+        function [returnData, resp] = uploadFile(obj, file)
+            [returnData, resp] = obj.invokeContainerApi('uploadOutputToAnalysis', obj.get('id'), file);
+        end
+        function [returnData, resp] = uploadOutput(obj, file)
+            [returnData, resp] = obj.invokeContainerApi('uploadOutputToAnalysis', obj.get('id'), file);
+        end
+    end
+end

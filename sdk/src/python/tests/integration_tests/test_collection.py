@@ -38,19 +38,22 @@ class CollectionsTestCases(SdkTestCase):
         self.assertTimestampBeforeNow(saved_collection.created)
         self.assertGreaterEqual(saved_collection.modified, saved_collection.created)
 
+        # Generic Get is equivalent
+        self.assertEqual(fw.get(collection_id).to_dict(), saved_collection.to_dict())
+
         # Add acquisition to the collection
         group_id, project_id, session_id, acquisition_id = create_test_acquisition()
         self.group_ids.append(group_id)
         self.project_ids.append(project_id)
-        fw.add_acquisitions_to_collection(collection_id, [acquisition_id])
+        saved_collection.add_acquisitions(acquisition_id)
 
         # Get sessions
-        saved_sessions = fw.get_collection_sessions(collection_id)
+        saved_sessions = saved_collection.sessions()
         self.assertEqual(len(saved_sessions), 1)
         self.assertEqual(saved_sessions[0].id, session_id)
 
         # Get acquisitions
-        saved_acquisitions = fw.get_collection_acquisitions(collection_id)
+        saved_acquisitions = saved_collection.acquisitions()
         self.assertEqual(len(saved_acquisitions), 1)
         self.assertEqual(saved_acquisitions[0].id, acquisition_id)
 
@@ -63,17 +66,17 @@ class CollectionsTestCases(SdkTestCase):
         group_id, project_id, session_id2, acquisition_id2 = create_test_acquisition()
         self.group_ids.append(group_id)
         self.project_ids.append(project_id)
-        fw.add_sessions_to_collection(collection_id, [session_id2])
-        saved_collection = fw.get_collection(collection_id)
+        saved_collection.add_sessions(session_id2)
+        saved_collection = saved_collection.reload()
         
         # Get sessions
-        saved_sessions = fw.get_collection_sessions(collection_id)
+        saved_sessions = saved_collection.sessions()
         self.assertEqual(len(saved_sessions), 2)
         self.assertEqual(len(list(filter(lambda x: x.id == session_id, saved_sessions))), 1)
         self.assertEqual(len(list(filter(lambda x: x.id == session_id2, saved_sessions))), 1)
 
         # Get acquisitions
-        saved_acquisitions = fw.get_collection_acquisitions(collection_id)
+        saved_acquisitions = saved_collection.acquisitions()
         self.assertEqual(len(saved_acquisitions), 2)
         self.assertEqual(len(list(filter(lambda x: x.id == acquisition_id, saved_acquisitions))), 1)
         self.assertEqual(len(list(filter(lambda x: x.id == acquisition_id2, saved_acquisitions))), 1)
@@ -84,35 +87,35 @@ class CollectionsTestCases(SdkTestCase):
         self.assertEqual(saved_session_acquisitions[0].id, acquisition_id)
 
         # Get All
+        saved_collection = saved_collection.reload()  # Clear internal state
         collections = fw.get_all_collections()
         self.sanitize_for_collection(saved_collection, info_exists=False)
         self.assertIn(saved_collection, collections)
 
         # Modify
         new_name = self.rand_string()
-        collection_mod = flywheel.Collection(label=new_name)
-        fw.modify_collection(collection_id, collection_mod)
+        saved_collection.update(label=new_name)
 
-        changed_collection = fw.get_collection(collection_id)
+        changed_collection = saved_collection.reload()
         self.assertEqual(changed_collection.label, new_name)
         self.assertEqual(changed_collection.created, saved_collection.created)
         self.assertGreater(changed_collection.modified, saved_collection.modified)
 
         # Add note 
         message = 'This is a note'
-        fw.add_collection_note(collection_id, message)
+        saved_collection.add_note(message)
         
         tag = 'example-tag'
-        fw.add_collection_tag(collection_id, tag)
+        saved_collection.add_tag(tag)
 
         # Replace Info
-        fw.replace_collection_info(collection_id, { 'foo': 3, 'bar': 'qaz' })
+        saved_collection.replace_info({ 'foo': 3, 'bar': 'qaz' })
 
         # Set Info
-        fw.set_collection_info(collection_id, { 'foo': 42, 'hello': 'world' })
+        saved_collection.update_info({ 'foo': 42, 'hello': 'world' })
 
         # Check
-        changed_collection = fw.get_collection(collection_id)
+        changed_collection = saved_collection.reload()
 
         self.assertEqual(len(changed_collection.notes), 1)
         self.assertEqual(changed_collection.notes[0].text, message)
@@ -125,9 +128,9 @@ class CollectionsTestCases(SdkTestCase):
         self.assertEqual(changed_collection.info['hello'], 'world')
 
         # Delete info fields
-        fw.delete_collection_info_fields(collection_id, ['foo', 'bar'])
+        saved_collection.delete_info(['foo', 'bar'])
 
-        changed_collection = fw.get_collection(collection_id)
+        changed_collection = saved_collection.reload()
         self.assertNotIn('foo', changed_collection.info)
         self.assertNotIn('bar', changed_collection.info)
         self.assertEqual(changed_collection.info['hello'], 'world')

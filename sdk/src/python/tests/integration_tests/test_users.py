@@ -1,3 +1,4 @@
+import re
 import unittest
 from sdk_test_case import SdkTestCase
 
@@ -9,7 +10,7 @@ class UsersTestCases(SdkTestCase):
         self.assertIsNotNone(user)
 
         self.assertNotEmpty(user.id)
-        self.assertRegexpMatches(user.email, r'.+@.+')
+        self.assertTrue(re.search(r'.+@.+', user.email))
         self.assertNotEmpty(user.firstname)
         self.assertNotEmpty(user.lastname)
         self.assertTimestampBeforeNow(user.created)

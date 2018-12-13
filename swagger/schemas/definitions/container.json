@@ -85,42 +85,64 @@
             {"$ref":"#/definitions/container-output"},
             {"$ref":"group.json#/definitions/group-output"}
           ],
-          "x-discriminator-value": "group"
+          "x-discriminator-value": "group",
+          "x-sdk-container-mixin": "group-mixin"
         },
         "project-output": {
           "allOf": [
             {"$ref":"#/definitions/container-output"},
             {"$ref":"project.json#/definitions/project-output"}
           ],
-          "x-discriminator-value": "project"
+          "x-discriminator-value": "project",
+          "x-sdk-container-mixin": "project-mixin"
+        },
+        "subject-output": {
+          "allOf": [
+            {"$ref":"#/definitions/container-output"},
+            {"$ref":"subject.json#/definitions/subject-output"}
+          ],
+          "x-discriminator-value": "subject",
+          "x-sdk-container-mixin": "subject-mixin"
         },
         "session-output": {
           "allOf": [
             {"$ref":"#/definitions/container-output"},
             {"$ref":"session.json#/definitions/session-output"}
           ],
-          "x-discriminator-value": "session"
+          "x-discriminator-value": "session",
+          "x-sdk-container-mixin": "session-mixin"
         },
         "acquisition-output": {
           "allOf": [
             {"$ref":"#/definitions/container-output"},
             {"$ref":"acquisition.json#/definitions/acquisition-output"}
           ],
-          "x-discriminator-value": "acquisition"
+          "x-discriminator-value": "acquisition",
+          "x-sdk-container-mixin": "acquisition-mixin"
         },
         "file-output": {
           "allOf": [
             {"$ref":"#/definitions/container-output"},
             {"$ref":"file.json#/definitions/file-output"}
           ],
-          "x-discriminator-value": "file"
+          "x-discriminator-value": "file",
+          "x-sdk-container-mixin": "file-mixin"
         },
         "analysis-output": {
-            "allOf": [
-                {"$ref":"#/definitions/container-output"},
-                {"$ref":"analysis.json#/definitions/analysis-output"}
-            ],
-            "x-discriminator-value": "analysis"
+          "allOf": [
+              {"$ref":"#/definitions/container-output"},
+              {"$ref":"analysis.json#/definitions/analysis-output"}
+          ],
+          "x-discriminator-value": "analysis",
+          "x-sdk-container-mixin": "analysis-mixin"
+        },
+        "collection-output": {
+          "allOf": [
+              {"$ref":"#/definitions/container-output"},
+              {"$ref":"collection.json#/definitions/collection-output"}
+          ],
+          "x-discriminator-value": "collection",
+          "x-sdk-container-mixin": "collection-mixin"
         },
         "container-update": {
           "type": "object",

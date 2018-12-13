@@ -4,13 +4,12 @@
   "items": {"$ref": "../definitions/job.json#/definitions/job-list-entry"},
   "example": [
     {
-        "inputs": {
-            "dicom": {
-                "type": "acquisition",
-                "id": "57d75ec38e4eb9699b3c245e",
-                "name": "1_1_dicom.zip"
-            }
-        },
+        "inputs": [{
+            "input": "dicom",
+            "type": "acquisition",
+            "id": "57d75ec38e4eb9699b3c245e",
+            "name": "1_1_dicom.zip"
+        }],
         "attempt": 1,
         "gear_id": "dcm-convert",
         "tags": [
