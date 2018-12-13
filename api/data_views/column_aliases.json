@@ -23,7 +23,9 @@
 	
 	{
 		"name": "subject",
-		"group": ["subject.id", "subject.label", "subject.firstname", "subject.lastname", "subject.age", "subject.sex", "subject.race", "subject.ethnicity"],
+		"group": ["subject.id", "subject.label", "subject.firstname", "subject.lastname",
+                    "subject.sex", "subject.cohort", "subject.type", "subject.race", "subject.ethnicity",
+                    "subject.species", "subject.strain"],
 		"description": "All column aliases belonging to subject"
 	},
 	{
@@ -50,35 +52,40 @@
 		"name": "subject.age",
 		"src": "subject.age",
 		"description": "The subject age, in seconds",
-		"type": "int"
+		"type": "int",
+		"hidden": true
 	},
 	{
 		"name": "subject.age_years",
 		"src": "subject.age",
 		"description": "The subject age, in years",
 		"type": "float",
-		"expr": "x / 31557600.0"
+		"expr": "x / 31557600.0",
+		"hidden": true
 	},
 	{
 		"name": "subject.age_months",
 		"src": "subject.age",
 		"description": "The subject age, in months",
 		"type": "float",
-		"expr": "x / 2592000.0"
+		"expr": "x / 2592000.0",
+		"hidden": true
 	},
 	{
 		"name": "subject.age_weeks",
 		"src": "subject.age",
 		"description": "The subject age, in weeks",
 		"type": "float",
-		"expr": "x / 604800.0"
+		"expr": "x / 604800.0",
+		"hidden": true
 	},
 	{
 		"name": "subject.age_days",
 		"src": "subject.age",
 		"description": "The subject age, in days",
 		"type": "float",
-		"expr": "x / 86400.0"
+		"expr": "x / 86400.0",
+		"hidden": true
 	},
 	{
 		"name": "subject.sex",
@@ -96,6 +103,26 @@
 		"description": "The subject ethnicity (one of Not Hispanic or Latino|Hispanic or Latino|Unknown or Not Reported)"
 	},
 	{
+		"name": "subject.cohort",
+		"src": "subject.cohort",
+		"description": "The subject cohort (one of Control|Study|Training|Test|Validation)"
+	},
+	{
+		"name": "subject.type",
+		"src": "subject.type",
+		"description": "The subject type (one of human|animal|phantom)"
+	},
+	{
+		"name": "subject.species",
+		"src": "subject.species",
+		"description": "The subject species"
+	},
+	{
+		"name": "subject.strain",
+		"src": "subject.strain",
+		"description": "The subject strain"
+	},
+	{
 		"name": "subject.info",
 		"src": "subject.info",
 		"type": "object",
@@ -104,7 +131,8 @@
 
 	{
 		"name": "session",
-		"group": ["session.id", "session.label", "session.operator", "session.timestamp", "session.timezone"],
+		"group": ["session.id", "session.label", "session.operator", "session.timestamp",
+                    "session.timezone", "session.age", "session.weight"],
 		"description": "All column aliases belonging to session"
 	},
 	{
@@ -138,7 +166,46 @@
 		"type": "object",
 		"description": "The freeform session metadata"
 	},
-
+	{
+		"name": "session.age",
+		"src": "session.age",
+		"description": "The subject age at time of session, in seconds",
+		"type": "int"
+	},
+	{
+		"name": "session.age_years",
+		"src": "session.age",
+		"description": "The subject age at time of session, in years",
+		"type": "float",
+		"expr": "x / 31557600.0"
+	},
+	{
+		"name": "session.age_months",
+		"src": "session.age",
+		"description": "The subject age at time of session, in months",
+		"type": "float",
+		"expr": "x / 2592000.0"
+	},
+	{
+		"name": "session.age_weeks",
+		"src": "session.age",
+		"description": "The subject age at time of session, in weeks",
+		"type": "float",
+		"expr": "x / 604800.0"
+	},
+	{
+		"name": "session.age_days",
+		"src": "session.age",
+		"description": "The subject age at time of session, in days",
+		"type": "float",
+		"expr": "x / 86400.0"
+	},
+	{
+		"name": "session.weight",
+		"src": "session.weight",
+		"description": "The subject weight at time of session, in kg",
+		"type": "float"
+	},
 
 	{
 		"name": "acquisition",

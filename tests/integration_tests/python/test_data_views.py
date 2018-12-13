@@ -11,16 +11,23 @@ from StringIO import StringIO
 def years_to_secs(age):
     return int(age * 86400 * 365.25)
 
+def secs_to_years(age):
+    return age / (86400 * 365.25)
+
 subject1 = {
     'code': '1001',
     'sex': 'male',
-    'age': years_to_secs(27)
+    'age': years_to_secs(27),
+    'cohort': 'Control',
+    'type': 'human'
 }
 
 subject2 = {
     'code': '1002',
     'sex': 'female',
-    'age': years_to_secs(33)
+    'age': years_to_secs(33),
+    'cohort': 'Study',
+    'type': 'human'
 }
 
 subject3 = {
@@ -79,7 +86,8 @@ def test_data_view_columns(as_user):
     assert r.ok
     columns = r.json()
     # This is just a subset of expected aliases
-    expected_columns = { 'project', 'project.label', 'subject.label', 'subject.age', 'file.name', 'analysis.label' }
+    expected_columns = { 'project', 'project.label', 'subject.label', 'session.age', 'session.age_years', 'file.name', 'analysis.label' }
+    expected_missing_columns = { 'subject.age', 'subject.age_years' }
     valid_types = { 'int', 'float', 'bool', 'string', 'object' }
 
     for col in columns:
@@ -94,6 +102,7 @@ def test_data_view_columns(as_user):
                 pytest.fail('Unexpected column type: {}'.format(col['type']))
 
         expected_columns.discard(col['name'])
+        assert col['name'] not in expected_missing_columns
 
     if len(expected_columns):
         pytest.fail('Did not find all expected columns: {}'.format(', '.join(expected_columns)))
@@ -191,6 +200,7 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
             { 'src': 'project.label', 'dst': 'project_label' },
             { 'src': 'subject.code', 'dst': 'subject_label' },
             { 'src': 'subject.age' },
+            { 'src': 'subject.age_years' },
             { 'src': 'subject.sex' },
             { 'src': 'session.label', 'dst': 'session_label' },
             { 'src': 'acquisition.label', 'dst': 'acquisition_label' }
@@ -205,6 +215,7 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     assert rows[0]['project_label'] == 'test-project'
     assert rows[0]['subject_label'] == subject1['code']
     assert rows[0]['subject.age'] == subject1['age']
+    assert rows[0]['subject.age_years'] == secs_to_years(subject1['age'])
     assert rows[0]['subject.sex'] == subject1['sex']
     assert rows[0]['session.id'] == session1
     assert rows[0]['session_label'] == 'ses-01'
@@ -215,6 +226,7 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     assert rows[1]['project_label'] == 'test-project'
     assert rows[1]['subject_label'] == subject2['code']
     assert rows[1]['subject.age'] == subject2['age']
+    assert rows[1]['subject.age_years'] == secs_to_years(subject2['age'])
     assert rows[1]['subject.sex'] == subject2['sex']
     assert rows[1]['session.id'] == session2
     assert rows[1]['session_label'] == 'ses-01'
@@ -323,9 +335,11 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
         'columns': [
             { 'src': 'project' },
             { 'src': 'subject.code', 'dst': 'subject' },
-            { 'src': 'subject.age_years' },
             { 'src': 'subject.sex' },
+            { 'src': 'subject.type' },
+            { 'src': 'subject.cohort' },
             { 'src': 'session.label', 'dst': 'session' },
+            { 'src': 'session.age_years' },
             { 'src': 'acquisition.label', 'dst': 'acquisition' }
         ]
     })
@@ -337,9 +351,11 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     assert rows[0]['project.id'] == project
     assert rows[0]['project.label'] == 'test-project'
     assert rows[0]['subject'] == subject2['code']
-    assert rows[0]['subject.age_years'] == 33.0
     assert rows[0]['subject.sex'] == subject2['sex']
+    assert rows[0]['subject.type'] == subject2['type']
+    assert rows[0]['subject.cohort'] == subject2['cohort']
     assert rows[0]['session'] == 'ses-01'
+    assert rows[0]['session.age_years'] == 33.0
     assert rows[0]['acquisition'] == 'scout'
 
 def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
@@ -1273,6 +1289,18 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     assert r.status_code == 400
 
     r = as_admin.post('/views/data?containerId={}&filter=subject.code=1001'.format(project), json={
+        'includeIds': True,
+        'includeLabels': True,
+        'columns': [
+            { 'src': 'session.label' },
+        ]
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 1
+
+    r = as_admin.post('/views/data?containerId={}&filter=subject.cohort=Control'.format(project), json={
         'includeIds': True,
         'includeLabels': True,
         'columns': [

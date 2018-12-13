@@ -131,14 +131,14 @@ class DataViewTestCases(SdkTestCase):
             reader = csv.reader(resp)
 
             row = next(reader)
-            self.assertEqual(len(row), 9)
+            self.assertEqual(len(row), 11)
             self.assertEqual(row, ['subject.age', 'subject.sex', 'session.id', 'session.label', 'session.operator', 
-                'session.timestamp', 'session.timezone', 'project.id', 'subject.id'])
+                'session.timestamp', 'session.timezone', 'session.age', 'session.weight', 'project.id', 'subject.id'])
 
             row = next(reader)
-            self.assertEqual(len(row), 9)
+            self.assertEqual(len(row), 11)
             self.assertEqual(row, [str(self.subject.age), self.subject.sex, self.session_id, self.session.label, 
-                '', '', '', self.project_id, self.subject.id])
+                '', '', '', '57', '', self.project_id, self.subject.id])
 
     def test_data_view_files(self):
         fw = self.fw

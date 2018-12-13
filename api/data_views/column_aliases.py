@@ -36,10 +36,12 @@ class ColumnAliases(object):
         return cls.__instance
 
     @classmethod
-    def get_columns(cls):
+    def get_columns(cls, include_hidden=False):
         """Get the full list of column aliases, including type and description"""
         inst = cls.instance()
-        return inst.columns
+        if include_hidden:
+            return inst.columns
+        return [ col for col in inst.columns if not col.get('hidden') ]
 
     @classmethod
     def get_column_alias(cls, key):
