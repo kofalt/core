@@ -353,7 +353,8 @@ def test_saml_auth(config, as_drone, as_public, api_db):
         auth_endpoint='http://saml.test/secure/login/saml',
         verify_endpoint='http://saml.test/Shibboleth.sso/Session',
         refresh_rate=300,
-        display_string='SAML Auth')
+        display_string='SAML Auth',
+        uid_key_name='mail')
 
 
     uid = 'saml_uid@saml.test'
