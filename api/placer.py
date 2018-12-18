@@ -25,7 +25,7 @@ class Placer(object):
     Interface for a placer, which knows how to process files and place them where they belong - on disk and database.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger):
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
         self.container_type = container_type
         self.container      = container
         self.id_            = id_
@@ -51,6 +51,9 @@ class Placer(object):
 
         # A list of files that have been ignored by save_file() because a file with the same name and hash already existed
         self.ignored        = []
+
+        # Context logger
+        self.logger         = logger
 
 
     def check(self):
@@ -99,7 +102,8 @@ class Placer(object):
         # Update the DB
         if file_attrs is not None:
 
-            container_before, self.container, saved_state = hierarchy.upsert_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger, ignore_hash_replace=ignore_hash_replace)
+            container_before, self.container, saved_state = hierarchy.upsert_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger,
+                ignore_hash_replace=ignore_hash_replace, logger=self.logger)
 
             # If this file was ignored because an existing file with the same name and hash existed on this project,
             # add the file to the ignored list and move on
@@ -190,8 +194,8 @@ class UIDPlacer(Placer):
     ignore_hash_replace = False
 
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger):
-        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
+        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
         self.metadata_for_file = {}
         self.session_id = None
         self.count = 0
@@ -407,8 +411,8 @@ class TokenPlacer(Placer):
     Intended for use with a token that tracks where the files will be stored.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger):
-        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
+        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
 
         self.paths  =   []
         self.folder =   None
@@ -446,8 +450,8 @@ class PackfilePlacer(Placer):
     A placer that can accept N files, save them into a zip archive, and place the result on an acquisition.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger):
-        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
+        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
 
         # This endpoint is an SSE endpoint
         self.sse            = True

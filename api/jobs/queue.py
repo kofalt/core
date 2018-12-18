@@ -91,6 +91,7 @@ class Queue(object):
 
             # Set transition timestamp
             mutation['transitions.{}'.format(mutation['state'])] = now
+            log.info('Transitioning job %s from %s to %s', job.id_, job.state, mutation['state'])
 
         # Any modification must be a timestamp update
         mutation['modified'] = now
@@ -352,7 +353,7 @@ class Queue(object):
         if gear_name not in tags:
             tags.append(gear_name)
 
-        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, 
+        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n,
             previous_job_id=previous_job_id, origin=origin, batch=batch, parents=parents, profile=profile,
             related_container_ids=list(related_containers))
 
