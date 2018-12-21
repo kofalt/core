@@ -108,7 +108,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
                     f['name'] = name_fn(f['name'])
 
     placer_class = strategy.value
-    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger)
+    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=log)
     placer.check()
 
     # Browsers, when sending a multipart upload, will send files with field name "file" (if sinuglar)

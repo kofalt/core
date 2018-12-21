@@ -254,24 +254,32 @@ def create_jobs(db, container_before, container_after, container_type, replaced_
     # Using a uniqueness constraint, create a list of the set difference of jobs_after \ jobs_before
     # (members of jobs_after that are not in jobs_before)
     for ja in jobs_after:
+        replaced_file_name = ''
 
         replaced_file_in_job_inputs = False
         list_of_inputs = [i for i in ja['job'].inputs.itervalues()]
-        for rf in replaced_files:
-            if rf in list_of_inputs:
+        for replaced_file in replaced_files:
+            if replaced_file in list_of_inputs:
+                replaced_file_name = replaced_file.name
                 replaced_file_in_job_inputs = True
                 break
 
         if replaced_file_in_job_inputs:
             # one of the replaced files is an input
+            log.info('Scheduling job for %s=%s via rule=<%s>, replaced_file=<%s>.',
+                container_type, container_before['_id'], ja['rule'].get('name'), replaced_file_name)
             potential_jobs.append(ja)
         else:
             should_enqueue_job = True
             for jb in jobs_before:
                 if ja['job'].intention_equals(jb['job']):
+                    log.info('Ignoring rule: <%s> for %s=%s - Job has already been queued!',
+                        ja['rule'].get('name'), container_type, container_before['_id'])
                     should_enqueue_job = False
                     break # this job matched in both before and after, ignore
             if should_enqueue_job:
+                log.info('Scheduling job for %s=%s via rule=<%s>.',
+                    container_type, container_before['_id'], ja['rule'].get('name'))
                 potential_jobs.append(ja)
 
 

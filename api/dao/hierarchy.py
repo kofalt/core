@@ -214,7 +214,7 @@ def update_fileinfo(cont_name, _id, fileinfo):
     return container_before, container_after, 'saved'
 
 
-def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace=False):
+def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace=False, logger=config.log):
     """
     Used when a file object is added as well as any relevant metadata.
 
@@ -231,7 +231,6 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace
     container_after = None
     saved_state = 'saved'
 
-
     # Look to see if file with the same name already exists in the container
     for f in container_before.get('files',[]):
 
@@ -243,20 +242,25 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace
                 remove_file(cont_name, _id, fileinfo['name'])
                 container_after = add_file(cont_name, _id, fileinfo)
                 saved_state = 'saved'
+                logger.info('File id=%s, name=<%s> replaced deleted file on %s=%s', fileinfo['_id'], fileinfo['name'], cont_name, _id)
 
 
             # Files from a failed job should never replaced existing files that are "accepted" (unless they are deleted)
             elif fileinfo.get('from_failed_job') and not f.get('from_failed_job'):
                 saved_state = 'ignored'
+                logger.info('File id=%s, name=<%s> was from a failed job, and ignored because accepted file exists on %s=%s', fileinfo['_id'], fileinfo['name'], cont_name, _id)
 
             # The file object is the same as an existing file and the caller has chosen to ignore in this situation
             elif ignore_hash_replace and hashes_equal_or_empty(f.get('hash'), fileinfo['hash']):
                 saved_state = 'ignored'
+                logger.info('File id=%s, name=<%s> was ignored because its hash <%s> matches the existing hash <%s> on %s=%s',
+                    fileinfo['_id'], fileinfo['name'], fileinfo['hash'], f.get('hash'), cont_name, _id)
 
             # No special circumstances, proceed with a replace
             else:
                 container_after = replace_file(cont_name, _id, f, fileinfo, access_logger)
                 saved_state = 'replaced'
+                logger.info('File id=%s, name=<%s> replaced existing file (id=%s) on %s=%s', fileinfo['_id'], fileinfo['name'], f.get('_id'), cont_name, _id)
 
             break
 
@@ -265,6 +269,7 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace
 
         # File was not already in container, add as normal
         container_after = add_file(cont_name, _id, fileinfo)
+        logger.info('File id=%s, name=<%s> was added to %s=%s', fileinfo['_id'], fileinfo['name'], cont_name, _id)
 
 
     return container_before, container_after, saved_state
