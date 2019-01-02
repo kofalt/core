@@ -151,7 +151,7 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert status[-1]['status'] == 'Complete'
 
     # Yesterday's
-    record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': today.year, 'month': today.month})
+    record = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': yesterday.year, 'month': yesterday.month})
     day = str(yesterday.day)
     assert day in record['days']
 
@@ -181,6 +181,11 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     day = str(today.day)
     assert day in record['days']
 
+    if today.month == yesterday.month:
+        expected_days = 2
+    else:
+        expected_days = 1
+
     assert record['project_label'] == 'usage'
     assert record['days'][day]['center_compute_ms'] == 0
     assert record['days'][day]['center_job_count'] == 0
@@ -196,7 +201,7 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert record['total']['group_job_count'] == 1
     assert record['total']['group_storage_bytes'] == 2 * len(FILE_DATA)
     assert record['total']['session_count'] == 1
-    assert record['total']['days'] == 2
+    assert record['total']['days'] == expected_days
 
     # Verify that re-collection after creating new data in the day does not update
     # (i.e. once a day has been collected, it's a no-op to collect that day again)
@@ -208,39 +213,49 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     record2 = api_db.usage_data.find_one({'group': group, 'project': bson.ObjectId(project), 'year': today.year, 'month': today.month})
     assert record == record2
 
-    # Get today's daily usage, by project
-    r = as_admin.get('/report/daily-usage?group={}&project={}'.format(group, project))
+    # Get yesterday's daily usage, by project
+    r = as_admin.get('/report/daily-usage?group={}&project={}&year={}&month={}'.format(group, project, yesterday.year, yesterday.month))
     assert r.ok
     rows = r.json()
-    assert len(rows) == 2
 
-    assert rows[0]['year'] == yesterday.year
-    assert rows[0]['month'] == yesterday.month
-    assert rows[0]['day'] == yesterday.day
-    assert rows[0]['group'] == group
-    assert rows[0]['project'] == project
-    assert rows[0]['project_label'] == 'usage'
-    assert rows[0]['center_compute_ms'] == 0
-    assert rows[0]['center_job_count'] == 0
-    assert rows[0]['center_storage_bytes'] == 0
-    assert rows[0]['group_compute_ms'] == 0
-    assert rows[0]['group_job_count'] == 0
-    assert rows[0]['group_storage_bytes'] == 0
-    assert rows[0]['session_count'] == 0
+    row = next((row for row in r.json() if row['day'] == yesterday.day), None)
+    assert row is not None
 
-    assert rows[1]['year'] == today.year
-    assert rows[1]['month'] == today.month
-    assert rows[1]['day'] == today.day
-    assert rows[1]['group'] == group
-    assert rows[1]['project'] == project
-    assert rows[1]['project_label'] == 'usage'
-    assert rows[1]['center_compute_ms'] == 0
-    assert rows[1]['center_job_count'] == 0
-    assert rows[1]['center_storage_bytes'] == 0
-    assert rows[1]['group_compute_ms'] == 30 * 60 * 1000
-    assert rows[1]['group_job_count'] == 1
-    assert rows[1]['group_storage_bytes'] == 2 * len(FILE_DATA)
-    assert rows[1]['session_count'] == 1
+    assert row['year'] == yesterday.year
+    assert row['month'] == yesterday.month
+    assert row['day'] == yesterday.day
+    assert row['group'] == group
+    assert row['project'] == project
+    assert row['project_label'] == 'usage'
+    assert row['center_compute_ms'] == 0
+    assert row['center_job_count'] == 0
+    assert row['center_storage_bytes'] == 0
+    assert row['group_compute_ms'] == 0
+    assert row['group_job_count'] == 0
+    assert row['group_storage_bytes'] == 0
+    assert row['session_count'] == 0
+
+    # Get yesterday's daily usage, by project
+    r = as_admin.get('/report/daily-usage?group={}&project={}&year={}&month={}'.format(group, project, today.year, today.month))
+    assert r.ok
+    rows = r.json()
+
+    row = next((row for row in r.json() if row['day'] == today.day), None)
+
+    assert row is not None
+    assert row['year'] == today.year
+    assert row['month'] == today.month
+    assert row['day'] == today.day
+    assert row['group'] == group
+    assert row['project'] == project
+    assert row['project_label'] == 'usage'
+    assert row['center_compute_ms'] == 0
+    assert row['center_job_count'] == 0
+    assert row['center_storage_bytes'] == 0
+    assert row['group_compute_ms'] == 30 * 60 * 1000
+    assert row['group_job_count'] == 1
+    assert row['group_storage_bytes'] == 2 * len(FILE_DATA)
+    assert row['session_count'] == 1
 
 
 def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload):
