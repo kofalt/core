@@ -233,14 +233,19 @@ def get_registry_connectivity():
     c = config.get_config()
     pw = c['core']['drone_secret']
     url =  urlparse(c['site']['redirect_url'])
-    host = url.hostname + ':' + str(url.port)
+
+    if url.port is None or url.port == 443:
+        host = url.hostname
+    else:
+        host = url.hostname + ':' + str(url.port)
+
     api_key = ''
     username = 'device.flywheel'
 
-    if url.port != 443:
-        api_key = url.hostname + ':' + str(url.port) + ':' + pw
-    else:
+    if url.port is None or url.port == 443:
         api_key = url.hostname + ':' + pw
+    else:
+        api_key = url.hostname + ':' + str(url.port) + ':' + pw
 
     return host, username, api_key
 

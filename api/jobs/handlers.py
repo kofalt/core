@@ -609,12 +609,12 @@ class JobHandler(base.RequestHandler):
                         else:
                             raise Exception('Cannot provide an API key to a job not launched by a user')
 
-                        parsed_url = urlparse(config.get_item('site', 'api_url'))
+                        url = urlparse(config.get_item('site', 'api_url'))
 
-                        if parsed_url.port != 443:
-                            api_key = parsed_url.hostname + ':' + str(parsed_url.port) + ':' + api_key
+                        if url.port is None or url.port == 443:
+                            api_key = url.hostname + ':' + api_key
                         else:
-                            api_key = parsed_url.hostname + ':' + api_key
+                            api_key = url.hostname + ':' + str(url.port) + ':' + api_key
 
                         if c.get('inputs') is None:
                             c['inputs'] = {}
