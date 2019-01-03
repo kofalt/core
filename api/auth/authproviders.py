@@ -365,7 +365,7 @@ class SAMLAuthProvider(AuthProvider):
         attributes = json.loads(r.content).get('attributes', [])
 
         for a in attributes:
-            if a.get('name') == 'mail':
+            if a.get('name') == self.config['uid_key_name']:
                 values = a.get('values')
                 uid = values[0] if values else None
 
