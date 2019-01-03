@@ -1,5 +1,29 @@
+from enum import Enum
+
 from ..types import Origin
 from ..web.errors import APIPermissionException
+from ..config import log
+
+# The values for the role privileges are below
+class Privilege(Enum):
+
+    is_user =           0b0001
+    can_upload_gear =   0b0010
+    is_admin =          0b0100
+    is_drone =          0b1000
+
+# the values for the user roles and what they can access are below
+class Role(Enum):
+    public =       ('public', 0)
+    user =         ('user', Privilege.is_user.value)
+    developer =    ('developer', Privilege.is_user.value | Privilege.can_upload_gear.value)
+    site_admin =   ('site_admin', Privilege.is_user.value | Privilege.can_upload_gear.value | Privilege.is_admin.value)
+    drone =        ('drone', Privilege.is_user.value | Privilege.can_upload_gear.value | Privilege.is_admin.value | Privilege.is_drone.value)
+
+    def __init__(self, role, privileges):
+        self.role = role
+        self.privileges = privileges
+
 
 PERMISSIONS = [
     {
@@ -47,40 +71,22 @@ def always_ok(exec_op):
     """
     return exec_op
 
-def require_login(handler_method):
+def require_privilege(privilege):
     """
-    A decorator to ensure the request is not a public request.
+    Returns a decorator that requires the given role
+    """
+    def require_privilege_decorator(handler_method):
+        def check_role(self, *args, **kwargs):
+            if not any([role.privileges & privilege.value == privilege.value for role in self.roles]):
+                raise APIPermissionException('{} privilege required for action.'.format(privilege.name))
+            return handler_method(self, *args, **kwargs)
+        return check_role
+    return require_privilege_decorator
 
-    Accepts drone and user requests.
+def has_privilege(roles, privilege):
     """
-    def check_login(self, *args, **kwargs):
-        if self.public_request:
-            raise APIPermissionException('Login required.')
-        return handler_method(self, *args, **kwargs)
-    return check_login
-
-def require_admin(handler_method):
+    A non decorator role check function
     """
-    A decorator to ensure the request is made as a site admin.
-
-    Accepts drone and user requests.
-    """
-    def check_admin(self, *args, **kwargs):
-        if not self.user_is_admin:
-            raise APIPermissionException('Admin user required.')
-        return handler_method(self, *args, **kwargs)
-    return check_admin
-
-def require_drone(handler_method):
-    """
-    A decorator to ensure the request is made as a drone.
-
-    Will also ensure site admin, which is implied with a drone request.
-    """
-    def check_drone(self, *args, **kwargs):
-        if self.origin.get('type', '') != Origin.device:
-            raise APIPermissionException('Drone request required.')
-        if not self.user_is_admin:
-            raise APIPermissionException('Superuser required.')
-        return handler_method(self, *args, **kwargs)
-    return check_drone
+    if not any([role.privileges & privilege.value == privilege.value for role in roles]):
+        raise APIPermissionException('{} privilege required for action.'.format(privilege))
+    return True

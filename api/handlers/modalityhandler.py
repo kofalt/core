@@ -1,6 +1,6 @@
 from ..web import base
 from .. import config
-from ..auth import require_login, require_admin
+from ..auth import require_privilege, Privilege
 from ..dao import containerstorage
 from ..web.errors import APINotFoundException, APIValidationException
 from ..validators import validate_data
@@ -14,15 +14,15 @@ class ModalityHandler(base.RequestHandler):
         super(ModalityHandler, self).__init__(request, response)
         self.storage = containerstorage.ContainerStorage('modalities', use_object_id=False)
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get(self, modality_name):
         return self.storage.get_container(modality_name)
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_all(self):
         return self.storage.get_all_el(None, None, None)
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def post(self):
         payload = self.request.json_body
         validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
@@ -30,7 +30,7 @@ class ModalityHandler(base.RequestHandler):
         result = self.storage.create_el(payload)
         return {'_id': result.inserted_id}
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def put(self, modality_name):
         payload = self.request.json_body
         validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
@@ -39,7 +39,7 @@ class ModalityHandler(base.RequestHandler):
         if result.matched_count != 1:
             raise APINotFoundException('Modality with name {} not found, modality not updated'.format(modality_name))
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def delete(self, modality_name):
         result = self.storage.delete_el(modality_name)
         if result.deleted_count != 1:

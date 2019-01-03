@@ -26,6 +26,7 @@
                           "title": "Avatar",
                           "type": "string"
                         },
+    "roles":            { "type": "array"},
     "root":             { "type": "boolean"},
     "disabled":         { "type": "boolean"},
     "preferences":      {
@@ -44,5 +45,5 @@
     "wechat": {}
   },
   "additionalProperties": false,
-  "required":["_id", "firstname", "lastname", "created", "modified", "root"]
+  "required":["_id", "firstname", "lastname", "created", "modified", "roles"]
 }

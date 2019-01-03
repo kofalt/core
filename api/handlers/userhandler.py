@@ -7,7 +7,7 @@ from ..web import base
 from .. import util
 from .. import config
 from .. import validators
-from ..auth import userauth, require_admin, require_login
+from ..auth import userauth, require_privilege, Privilege
 from ..auth.apikeys import UserApiKey
 from ..dao import containerstorage
 from ..dao import noop
@@ -36,6 +36,7 @@ class UserHandler(base.RequestHandler):
         result = permchecker(self.storage.exec_op)('GET', _id, projection=projection or None)
         if result is None:
             self.abort(404, 'User does not exist')
+        result['root'] = 'site_admin' in result.get('roles', ['user'])
         return result
 
     def self(self):
@@ -45,6 +46,7 @@ class UserHandler(base.RequestHandler):
         user = self.storage.exec_op('GET', self.uid)
         if not user:
             self.abort(403, 'user does not exist')
+        user['root'] = 'site_admin' in user.get('roles', ['user'])
         api_key = UserApiKey.get(self.uid)
         if api_key:
             user['api_key'] = {
@@ -60,6 +62,8 @@ class UserHandler(base.RequestHandler):
         if not self.user_is_admin:
             projection['wechat'] = 0
         page = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
+        for result in page['results']:
+            result['root'] = 'site_admin' in result.get('roles', ['user'])
         if page['results'] is None:
             self.abort(404, 'Not found')
         return self.format_page(page)
@@ -82,8 +86,8 @@ class UserHandler(base.RequestHandler):
         user = self._get_user(_id)
         permchecker = userauth.default(self, user)
         payload = self.request.json_body
-        if not payload:
-            self.abort(400, 'PUT request body cannot be empty')
+        if payload.get('root') is not None:
+            payload['roles'] = ['site_admin'] if payload.pop('root', None) else ['user']
         mongo_schema_uri = validators.schema_uri('mongo', 'user.json')
         mongo_validator = validators.decorator_from_schema_path(mongo_schema_uri)
         payload_schema_uri = validators.schema_uri('input', 'user-update.json')
@@ -103,6 +107,10 @@ class UserHandler(base.RequestHandler):
         """Add user"""
         permchecker = userauth.default(self)
         payload = self.request.json_body
+        payload['roles'] = payload.get('roles', ['user'])
+        if payload.pop('root', None):
+            payload['roles'] = ['site_admin']
+
         if self.is_true('wechat'):
             payload['wechat'] = {'registration_code': base64.urlsafe_b64encode(os.urandom(42))}
         mongo_schema_uri = validators.schema_uri('mongo', 'user.json')
@@ -111,7 +119,6 @@ class UserHandler(base.RequestHandler):
         payload_validator = validators.from_schema_path(payload_schema_uri)
         payload_validator(payload, 'POST')
         payload['created'] = payload['modified'] = datetime.datetime.utcnow()
-        payload['root'] = payload.get('root', False)
         payload.setdefault('email', payload['_id'])
         payload.setdefault('avatars', {})
 
@@ -121,7 +128,7 @@ class UserHandler(base.RequestHandler):
             except pymongo.errors.DuplicateKeyError:
                 pass
             else:
-                payload['root'] = True
+                payload['roles'] = ['site_admin']
                 result = mongo_validator(self.storage.exec_op)('POST', payload=payload)
                 if result.acknowledged:
                     api_key = UserApiKey.generate(payload['_id'])
@@ -187,7 +194,7 @@ class UserHandler(base.RequestHandler):
         generated_key = UserApiKey.generate(self.uid)
         return {'key': generated_key}
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def reset_registration(self, uid):
         new_registration_code = base64.urlsafe_b64encode(os.urandom(42))
         update = {
@@ -209,7 +216,7 @@ class UserHandler(base.RequestHandler):
         else:
             self.abort(404, 'user {} not found'.format(_id))
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_info(self):
         result = self.storage.get_el(self.uid, projection={'info': 1}).get('info', {})
         if self.get_param('fields', None):
@@ -220,7 +227,7 @@ class UserHandler(base.RequestHandler):
             result = filtered
         return result
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     @validators.verify_payload_exists
     def modify_info(self):
         payload = self.request.json_body
@@ -228,7 +235,7 @@ class UserHandler(base.RequestHandler):
         result = self.storage.modify_info(self.uid, payload)
         return {'modified': result.modified_count}
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_jobs(self):
         whitelist = {'created-by': [self.uid]}
         if self.get_param('gear', None):

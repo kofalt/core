@@ -2,7 +2,7 @@ import time
 
 from .. import code_generator, mappers, models
 from ... import config
-from ...auth import require_admin, require_login
+from ...auth import require_privilege, Privilege
 from ...validators import validate_data
 from ...web import base, errors
 
@@ -18,14 +18,14 @@ class MasterSubjectCodeHandler(base.RequestHandler):
         super(MasterSubjectCodeHandler, self).__init__(*args, **kwargs)
 
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def verify_code(self, _id):
         """Verify that the given msc code exists."""
         master_code = self.mapper.get_by_id(_id)
         if not master_code:
             raise errors.APINotFoundException("This master subject code doesn't exists")
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def post(self):
         """Generate or find master subject code for the given patient."""
         payload = self.request.json_body
@@ -86,3 +86,4 @@ class MasterSubjectCodeHandler(base.RequestHandler):
                             "Possibly we are running out of the free ones. Consider increasing the size of the code.".format(time.time() - start)
                         )
                         raise
+

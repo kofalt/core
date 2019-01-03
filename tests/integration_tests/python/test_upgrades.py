@@ -1221,6 +1221,9 @@ def test_63(api_db, database):
         if project['_id'] == project_1:
             assert isinstance(project.get('templates'), list)
             assert project['templates'][0] == template
+    api_db.groups.delete_one({'_id': group})
+    api_db.projects.delete_one({'_id': project_1})
+    api_db.projects.delete_one({'_id': project_2})
 
 
 def test_64(api_db, database):
@@ -1325,3 +1328,17 @@ def test_check_for_cas_files(api_db, checks):
 
     api_db.acquisitions.delete_one({'_id': acquisition_id})
     api_db.sessions.delete_one({'_id': session_id})
+
+def test_65(api_db, database):
+    api_db.users.insert({'_id': 'user1', 'firstname': 'upgrade_test', 'root': False})
+    api_db.users.insert({'_id': 'user2', 'firstname': 'upgrade_test', 'root': True})
+    api_db.users.insert({'_id': 'user3', 'firstname': 'upgrade_test'})
+
+    database.upgrade_to_65()
+
+    assert api_db.users.find_one({'_id': 'user1'}).get('roles') == ['user']
+    assert api_db.users.find_one({'_id': 'user2'}).get('roles') == ['site_admin']
+    assert api_db.users.find_one({'_id': 'user3'}).get('roles') == ['user']
+
+    api_db.users.delete_many({'firstname': 'upgrade_test'})
+
