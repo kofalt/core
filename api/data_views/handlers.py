@@ -1,4 +1,4 @@
-from ..auth import require_login
+from ..auth import require_privilege_decorator, Privilege
 
 from .. import config, validators
 from ..create_file import FileCreator
@@ -22,7 +22,7 @@ class DataViewHandler(base.RequestHandler):
     storage = DataViewStorage()
     parent_projection = {'permissions':1, 'public':1}
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get_columns(self):
         """Return all known column aliases with description and type"""
         return ColumnAliases.get_columns()
@@ -45,7 +45,7 @@ class DataViewHandler(base.RequestHandler):
         """Create a new view on the parent container"""
         parent_container = self.storage.find_parent_by_id(parent, projection=self.parent_projection)
         self.permcheck('POST', parent_container=parent_container)
-        
+
         # Validate payload
         payload = self.request.json
         validators.validate_data(payload, 'data-view-new.json', 'input', 'POST')
@@ -88,7 +88,7 @@ class DataViewHandler(base.RequestHandler):
         """Update the view identified by _id"""
         parent_container = self.storage.get_parent(_id, projection=self.parent_projection)
         self.permcheck('PUT', parent_container=parent_container)
-        
+
         # Validate payload
         payload = self.request.json
         validators.validate_data(payload, 'data-view-update.json', 'input', 'POST')
@@ -107,7 +107,7 @@ class DataViewHandler(base.RequestHandler):
 
         return self.do_execute_view(cont)
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     @validators.verify_payload_exists
     def execute_and_save(self):
         """Execute the data view specified, and save the results as a file"""
@@ -144,7 +144,7 @@ class DataViewHandler(base.RequestHandler):
         # Execute the data view
         return self.do_execute_view(view, target, payload['containerType'], payload['filename'])
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     @validators.verify_payload_exists
     def execute_adhoc(self):
         """Execute the data view specified in body"""
@@ -156,7 +156,7 @@ class DataViewHandler(base.RequestHandler):
 
     def do_execute_view(self, view_spec, target_container=None, target_container_type=None, target_filename=None):
         """ Complete view execution for the given view definition """
-        # Find destination container and validate permissions 
+        # Find destination container and validate permissions
         container_id = self.request.GET.get('containerId')
         data_format = self.request.GET.get('format', 'json')
 
@@ -185,7 +185,7 @@ class DataViewHandler(base.RequestHandler):
                     ])
 
                     fileobj = file_creator.create_file(target_filename)
-                    write = fileobj.write 
+                    write = fileobj.write
                 else:
                     write = start_response('200 OK', [
                         ('Content-Type', view.get_content_type()),
@@ -207,11 +207,11 @@ class DataViewHandler(base.RequestHandler):
 
             return ''
 
-        return response_handler 
+        return response_handler
 
     def permcheck(self, method, container=None, parent_container=None):
         """Perform permission check for data view storage operations
-        
+
         Arguments:
             container (dict): The optional data view
             parent_container (dict,str): The parent container, one of "site", user, group or container

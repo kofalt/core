@@ -1208,3 +1208,21 @@ def test_63(api_db, database):
         if project['_id'] == project_1:
             assert isinstance(project.get('templates'), list)
             assert project['templates'][0] == template
+
+    api_db.groups.delete_one({'_id': group})
+    api_db.projects.delete_one({'_id': project_1})
+    api_db.projects.delete_one({'_id': project_2})
+
+def test_64(api_db, database):
+    api_db.users.insert({'_id': 'user1', 'firstname': 'upgrade_test', 'root': False})
+    api_db.users.insert({'_id': 'user2', 'firstname': 'upgrade_test', 'root': True})
+    api_db.users.insert({'_id': 'user3', 'firstname': 'upgrade_test'})
+
+    database.upgrade_to_64()
+
+    assert api_db.users.find_one({'_id': 'user1'}).get('role') == 'user'
+    assert api_db.users.find_one({'_id': 'user2'}).get('role') == 'site_admin'
+    assert api_db.users.find_one({'_id': 'user3'}).get('role') == 'user'
+
+    api_db.users.delete_many({'firstname': 'upgrade_test'})
+

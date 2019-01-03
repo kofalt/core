@@ -11,7 +11,7 @@ from .. import config
 from ..types import Origin
 from ..auth.authproviders import AuthProvider
 from ..auth.apikeys import APIKey
-from ..auth import require_login
+from ..auth import require_privilege_decorator, require_privilege_check, Role, Privilege
 from ..web import errors
 from elasticsearch import ElasticsearchException
 from ..web.request import log_access, AccessType
@@ -116,6 +116,7 @@ class RequestHandler(webapp2.RequestHandler):
                 self.origin = {'type': Origin.job, 'id': job_id}
 
         self.public_request = not drone_request and not self.uid and not self.scope
+        self.role = Role.public
 
         if self.public_request:
             self.user_is_admin = False
@@ -123,24 +124,28 @@ class RequestHandler(webapp2.RequestHandler):
         elif drone_request:
             self.user_is_admin = True
             self.complete_list = True
+            self.role = Role.drone
         elif self.scope is not None:
             self.user_is_admin = False
             self.complete_list = False
+            self.role = Role.user
         else:
-            user = config.db.users.find_one({'_id': self.uid}, ['root', 'disabled'])
+            user = config.db.users.find_one({'_id': self.uid}, ['role', 'disabled'])
+            self.log.debug('RUser request has privkledr orle of {}'.format(user.get('role')))
             if not user:
                 self.abort(402, 'User {} will need to be added to the system before managing data.'.format(self.uid))
             if user.get('disabled', False) is True:
                 self.abort(402, 'User {} is disabled.'.format(self.uid))
-            if user.get('root'):
+            if user.get('role', 'user') == 'site_admin':
                 self.user_is_admin = True
             else:
                 self.user_is_admin = False
-            if self.is_true('root') or self.is_true('exhaustive'):
-                if self.user_is_admin:
-                    self.complete_list = True
-                else:
-                    self.abort(403, 'user ' + self.uid + ' is not authorized to request complete lists.')
+
+            self.role = Role[user.get('role', 'user')]
+
+            if self.is_true('root') and require_privilege_check(self.role, Privilege.site_admin):
+                self.role = Role.super_user
+                self.complete_list = True
             else:
                 self.complete_list = False
 
@@ -285,7 +290,7 @@ class RequestHandler(webapp2.RequestHandler):
         self._generate_session(token_entry)
         self.redirect('{}/#/login?token={}'.format(config.get_item('site', 'redirect_url'), token_entry['_id']))
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def auth_status(self):
         """
         Validate that the credentials are good, and return some basic details

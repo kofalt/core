@@ -27,7 +27,12 @@
                           "type": "string",
                           "description": "Avatar image URL"
                         },
-    "root":             { 
+    "role":             {
+                          "type": "string",
+                          "description": "User's role on the site",
+                          "enum": ["site_admin", "developer", "user"]
+                        },
+    "root":             {
                           "type": "boolean",
                           "description": "Super admin flag"
                         },
@@ -57,6 +62,7 @@
         "email":{"$ref":"#/definitions/email"},
         "avatar":{"$ref":"#/definitions/avatar"},
         "avatars":{"$ref":"avatars.json#/definitions/avatars"},
+        "role":{"$ref":"#/definitions/role"},
         "root":{"$ref":"#/definitions/root"},
         "disabled":{"$ref":"#/definitions/disabled"},
         "preferences":{"$ref":"#/definitions/preferences"},
@@ -76,6 +82,7 @@
         "email":{"$ref":"#/definitions/email"},
         "avatar":{"$ref":"#/definitions/avatar"},
         "avatars":{"$ref":"avatars.json#/definitions/avatars"},
+        "role":{"$ref":"#/definitions/role"},
         "root":{"$ref":"#/definitions/root"},
         "disabled":{"$ref":"#/definitions/disabled"},
         "preferences":{"$ref":"#/definitions/preferences"},
@@ -98,6 +105,7 @@
         "email":{"$ref":"#/definitions/email"},
         "avatar":{"$ref":"#/definitions/avatar"},
         "avatars":{"$ref":"avatars.json#/definitions/avatars"},
+        "role":{"$ref":"#/definitions/role"},
         "root":{"$ref":"#/definitions/root"},
         "disabled":{"$ref":"#/definitions/disabled"},
         "preferences":{"$ref":"#/definitions/preferences"},
@@ -110,9 +118,9 @@
       "additionalProperties":false,
       "required":[
          "_id", "firstname", "lastname",
-         "root", "email", "created", "modified"
+         "role", "email", "created", "modified"
       ],
-      "x-sdk-model": "user"      
+      "x-sdk-model": "user"
     }
   }
 }

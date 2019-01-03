@@ -12,7 +12,7 @@ from .job_util import resolve_context_inputs, get_context_for_destination
 from .. import config
 from .. import upload
 from .. import files
-from ..auth import require_drone, require_login, require_admin, has_access
+from ..auth import require_privilege_decorator, has_access, Privilege
 from ..auth.apikeys import JobApiKey
 from ..dao import dbutil
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
@@ -42,7 +42,7 @@ class GearsHandler(base.RequestHandler):
 
     """Provide /gears API routes."""
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get(self):
         """List all gears."""
 
@@ -66,14 +66,14 @@ class GearsHandler(base.RequestHandler):
         gear_page = get_gears(all_versions=self.is_true('all_versions'), pagination=self.pagination)
         return self.format_page(gear_page)
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def check(self):
         """Check if a gear upload is likely to succeed."""
 
         check_for_gear_insertion(self.request.json)
         return None
 
-    @require_admin
+    @require_privilege_decorator(Privilege.developer)
     def prepare_add(self):
         """
         Declare a gear that will be uploaded to the Flywheel registry
@@ -96,7 +96,7 @@ class GearsHandler(base.RequestHandler):
             'ticket': ticket.inserted_id
         }
 
-    @require_admin
+    @require_privilege_decorator(Privilege.developer)
     def get_ticket(self, _id):
         """
         Retrieve a gear-upload ticket.
@@ -111,7 +111,7 @@ class GearsHandler(base.RequestHandler):
         else:
             return result
 
-    @require_admin
+    @require_privilege_decorator(Privilege.developer)
     def get_own_tickets(self):
         """
         Retrieve all gear-upload tickets owned by the current origin.
@@ -130,7 +130,7 @@ class GearsHandler(base.RequestHandler):
         else:
             return result
 
-    @require_admin
+    @require_privilege_decorator(Privilege.developer)
     def save(self): # pragma: no cover
         """
         Save a gear described by an upload ticket.
@@ -177,17 +177,17 @@ class GearsHandler(base.RequestHandler):
 class GearHandler(base.RequestHandler):
     """Provide /gears/x API routes."""
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get(self, _id):
         result = get_gear(_id)
         add_container_type(self.request, result)
         return result
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get_invocation(self, _id):
         return get_invocation_schema(get_gear(_id))
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def suggest(self, _id, cont_name, cid):
         """
         Given a container reference, return display information about parents, children and files
@@ -270,7 +270,7 @@ class GearHandler(base.RequestHandler):
 
         return response
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get_context(self, _id, cont_name, cid):
         """
         Given a container reference, return the set of context values that are found,
@@ -304,7 +304,7 @@ class GearHandler(base.RequestHandler):
 
         return result
 
-    @require_admin
+    @require_privilege_decorator(Privilege.developer)
     def upload(self): # pragma: no cover
         r = upload.process_upload(self.request, upload.Strategy.gear, self.log_user_access, container_type='gear', origin=self.origin, metadata=self.request.headers.get('metadata'))
         gear_id = upsert_gear(r[1])
@@ -330,7 +330,7 @@ class GearHandler(base.RequestHandler):
             stream = file_system.open(file_path, 'rb')
             set_for_download(self.response, stream=stream, filename='gear.tar')
 
-    @require_admin
+    @require_privilege_decorator(Privilege.developer)
     def post(self, _id):
         payload = self.request.json
 
@@ -344,7 +344,7 @@ class GearHandler(base.RequestHandler):
         except ValidationError as err:
             raise InputValidationException(cause=err)
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def delete(self, _id):
         return remove_gear(_id)
 
@@ -499,13 +499,13 @@ class RuleHandler(base.RequestHandler):
 
 class JobsHandler(base.RequestHandler):
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def get(self):
         """List all jobs."""
         page = dbutil.paginate_find(config.db.jobs, {}, self.pagination)
         return self.format_page(page)
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def add(self):
         """Add a job to the queue."""
         payload = self.request.json
@@ -522,7 +522,7 @@ class JobsHandler(base.RequestHandler):
 
         return { '_id': job.id_ }
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def stats(self):
         all_flag = self.is_true('all')
         unique = self.is_true('unique')
@@ -538,7 +538,7 @@ class JobsHandler(base.RequestHandler):
 
         return Queue.get_statistics(tags=tags, last=last, unique=unique, all_flag=all_flag)
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def pending(self):
         tags = self.request.GET.getall('tags')
 
@@ -548,7 +548,7 @@ class JobsHandler(base.RequestHandler):
 
         return Queue.get_pending(tags=tags)
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def next(self):
         peek = self.is_true('peek')
         tags = self.request.GET.getall('tags')
@@ -564,7 +564,7 @@ class JobsHandler(base.RequestHandler):
         else:
             return job
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def reap_stale(self):
         count = Queue.scan_for_orphans()
         return { 'orphaned': count }
@@ -572,11 +572,11 @@ class JobsHandler(base.RequestHandler):
 class JobHandler(base.RequestHandler):
     """Provides /Jobs/<jid> routes."""
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def get(self, _id):
         return Job.get(_id)
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get_detail(self, _id):
         # Get the job instance
         job = Job.get(_id)
@@ -693,7 +693,7 @@ class JobHandler(base.RequestHandler):
         return result
 
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def get_config(self, _id):
         """Get a job's config"""
         j = Job.get(_id)
@@ -750,7 +750,7 @@ class JobHandler(base.RequestHandler):
 
         set_for_download(self.response, stream=stream, filename='config.json', length=length)
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def put(self, _id):
         """
         Update a job. Updates timestamp.
@@ -783,7 +783,7 @@ class JobHandler(base.RequestHandler):
                 if new_state:
                     update(batch_id, {'state': new_state})
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     @verify_payload_exists
     def update_profile(self, _id):
         # Updates job.profile with the given input doc
@@ -836,7 +836,7 @@ class JobHandler(base.RequestHandler):
 
         return
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def add_logs(self, _id):
         doc = self.request.json
 
@@ -877,14 +877,14 @@ class JobHandler(base.RequestHandler):
         new_id = Queue.retry(j, force=True, only_failed=not self.is_true('ignoreState'))
         return { "_id": new_id }
 
-    @require_drone
+    @require_privilege_decorator(Privilege.drone)
     def prepare_complete(self, _id):
         # Create the ticket
         return {
             'ticket': JobTicket.create(_id)
         }
 
-    @require_drone
+    @require_privilege_decorator(Privilege.drone)
     def complete(self, _id):
         payload = self.request.json
         success = payload['success']
@@ -924,7 +924,7 @@ class JobHandler(base.RequestHandler):
 
 class BatchHandler(base.RequestHandler):
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get_all(self):
         """
         Get a list of batch jobs user has created.
@@ -939,7 +939,7 @@ class BatchHandler(base.RequestHandler):
         page = batch.get_all(query, {'proposal': 0}, pagination=self.pagination)
         return self.format_page(page)
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get(self, _id):
         """
         Get a batch job by id.
@@ -951,7 +951,7 @@ class BatchHandler(base.RequestHandler):
         self._check_permission(batch_job)
         return batch_job
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def post(self):
         """
         Create a batch job proposal, insert as 'pending' if there are matched containers
@@ -1101,7 +1101,7 @@ class BatchHandler(base.RequestHandler):
 
         return batch_proposal
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def post_with_jobs(self):
         """
         Creates a batch from preconstructed jobs
@@ -1131,7 +1131,7 @@ class BatchHandler(base.RequestHandler):
 
         return batch_proposal
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def run(self, _id):
         """
         Creates jobs from proposed inputs, returns jobs enqueued.
@@ -1144,7 +1144,7 @@ class BatchHandler(base.RequestHandler):
             self.abort(400, 'Can only run pending batch jobs.')
         return batch.run(batch_job)
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def cancel(self, _id):
         """
         Cancels jobs that are still pending, returns number of jobs cancelled.

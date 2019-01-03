@@ -28,7 +28,7 @@ from api.jobs import batch
 from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fixes
 from process_cursor import process_cursor
 
-CURRENT_DATABASE_VERSION = 63 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 64 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2329,6 +2329,18 @@ def upgrade_to_63():
     '''
     cursor = config.db.projects.find({'template': {'$exists': True}})
     process_cursor(cursor, upgrade_template_to_list)
+
+def upgrade_to_64():
+    """Update all users to having a role, non root -> user and root -> site-admin"""
+    """Assumptions
+        - user.root is boolean if it exists
+    A failure of these assumption won't result in the DB upgrade failing,
+    but the db will be in an inconsistent state
+    """
+
+    config.db.users.update_many({'root': {'$in': [False, None]}, 'role': None}, {'$set': {'role': 'user'}, '$unset': {'root': ''}})
+    config.db.users.update_many({'root': True}, {'$set': {'role': 'site_admin'}, '$unset': {'root': ''}})
+
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

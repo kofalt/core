@@ -15,6 +15,8 @@ def test_users(data_builder, as_admin, as_user, as_public):
     # Get self as admin
     r = as_admin.get('/users/self')
     assert r.ok
+    assert r.json()['role'] == 'site_admin'
+    assert r.json()['root']
     admin_id = r.json()['_id']
     assert admin_id != user_id
 
@@ -56,10 +58,13 @@ def test_users(data_builder, as_admin, as_user, as_public):
         '_id': new_user_id_admin,
         'firstname': 'New2',
         'lastname': 'User2',
+        'root': True
     })
     assert r.ok
-    r = as_admin.get('/users/' + new_user_id)
+    r = as_admin.get('/users/' + new_user_id_admin)
     assert r.ok
+    assert r.json()['role'] == 'site_admin'
+    assert r.json()['root']
 
     #Get another user as user
     r = as_user.get('/users/' + new_user_id)

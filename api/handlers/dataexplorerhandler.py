@@ -7,8 +7,8 @@ from elasticsearch import ElasticsearchException, TransportError, RequestError, 
 from ..web import base
 from .. import config, validators
 from ..create_file import FileCreator
+from ..auth import require_privilege_decorator, groupauth, Privilege
 from ..dao import noop, hierarchy
-from ..auth import require_login, groupauth, require_admin
 from ..dao.containerstorage import QueryStorage, ContainerStorage
 from ..web.errors import APIStorageException, APIPermissionException, APIValidationException, APINotFoundException
 
@@ -427,7 +427,7 @@ class DataExplorerHandler(base.RequestHandler):
         last_seen = mongoconnector['last_seen']
         return {'status': status, 'last_seen': last_seen}
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def aggregate_field_values(self):
         """
         Return list of type ahead values for a key given a value
@@ -499,7 +499,7 @@ class DataExplorerHandler(base.RequestHandler):
         )['aggregations']['results']
         return aggs
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def get_facets(self):
 
         _, filters, search_string, _ = self._parse_request(request_type='facet')
@@ -580,7 +580,7 @@ class DataExplorerHandler(base.RequestHandler):
         return {'nodes':nodes}
 
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def search_fields(self):
         field_query = self.request.json_body.get('field')
 
@@ -607,7 +607,7 @@ class DataExplorerHandler(base.RequestHandler):
         return results
 
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def search(self):
         return_type, filters, search_string, size = self._parse_request()
 
@@ -627,7 +627,7 @@ class DataExplorerHandler(base.RequestHandler):
                 response['facets'] = self.get_facets()
             return response
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def save_training_set(self):
         """Saves a subset of a search result or the results of a given query as a training set file"""
 
@@ -918,7 +918,7 @@ class DataExplorerHandler(base.RequestHandler):
                 doc_s = json.dumps(doc)
                 config.es.index(index='data_explorer_fields', id=field_name, doc_type='flywheel_field', body=doc_s)
 
-    @require_admin
+    @require_privilege_decorator(Privilege.site_admin)
     def index_field_names(self):
 
         try:
@@ -972,7 +972,7 @@ class QueryHandler(base.RequestHandler):
         super(QueryHandler, self).__init__(request, response)
         self.storage = QueryStorage()
 
-    @require_login
+    @require_privilege_decorator(Privilege.user)
     def post(self):
         payload = self.request.json_body
         validators.validate_data(payload, 'save-query-input.json', 'input', 'POST')
