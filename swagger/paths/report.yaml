@@ -115,6 +115,18 @@
       '200':
         description: ''
 
+/report/usage/availability:
+  get:
+    summary: Get year/month combinations where report data is available.
+    operationId: get_usage_availability
+    tags:
+    - 'reports'
+    responses:
+      '200':
+        description: Returns the list of months where report data is available
+        schema:
+          $ref: schemas/output/report-availability-list.json
+
 /report/usage:
   get:
     summary: Get a usage report for the given month.

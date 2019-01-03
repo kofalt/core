@@ -103,16 +103,17 @@ endpoints = [
 
 
         # Top-level endpoints
-        route('/login',                                         RequestHandler, h='log_in',         m=['POST']),
-        route('/login/saml',                                    RequestHandler, h='saml_log_in',    m=['GET']),
-        route('/auth/status',                                   RequestHandler, h='auth_status',    m=['GET']),
-        route('/logout',                                        RequestHandler, h='log_out',        m=['POST']),
-        route('/lookup',                                        ResolveHandler, h='lookup',         m=['POST']),
-        route('/resolve',                                       ResolveHandler, h='resolve',        m=['POST']),
-        route('/schemas/<schema:{schema}>',                     SchemaHandler,                      m=['GET']),
-        route('/report/<report_type:{report_type}>',            ReportHandler,                      m=['GET']),
-        route('/report/accesslog/types',                        ReportHandler,  h='get_types',      m=['GET']),
-        route('/report/<report_type:{report_type}>/collect',    ReportHandler,  h='collect',        m=['GET']),
+        route('/login',                                           RequestHandler, h='log_in',           m=['POST']),
+        route('/login/saml',                                      RequestHandler, h='saml_log_in',      m=['GET']),
+        route('/auth/status',                                     RequestHandler, h='auth_status',      m=['GET']),
+        route('/logout',                                          RequestHandler, h='log_out',          m=['POST']),
+        route('/lookup',                                          ResolveHandler, h='lookup',           m=['POST']),
+        route('/resolve',                                         ResolveHandler, h='resolve',          m=['POST']),
+        route('/schemas/<schema:{schema}>',                       SchemaHandler,                        m=['GET']),
+        route('/report/<report_type:{report_type}>',              ReportHandler,                        m=['GET']),
+        route('/report/accesslog/types',                          ReportHandler,  h='get_types',        m=['GET']),
+        route('/report/<report_type:{report_type}>/availability', ReportHandler,  h='get_availability', m=['GET']),
+        route('/report/<report_type:{report_type}>/collect',      ReportHandler,  h='collect',          m=['GET']),
 
 
         # Search

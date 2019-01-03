@@ -25,8 +25,8 @@ class UsageReport(Report):
     Report includes:
         - Count of sessions
         - Count of complete jobs, grouped by data/analysis
-        - Aggregation of gear execution time in hours, grouped by center/group 
-        - Aggregation of total storage size in megabytes, grouped by center/group 
+        - Aggregation of gear execution time in hours, grouped by center/group
+        - Aggregation of total storage size in megabytes, grouped by center/group
 
     Collection is done nightly, and stored in the usage_data database collection, using the below structure:
         group: The group id
@@ -48,6 +48,7 @@ class UsageReport(Report):
     NOTE: Storage is reported in byte days (i.e. how many bytes were in use for that day)
     """
     can_collect = True
+    has_availability = True
     columns = [
         'group', 'project', 'project_label', 'session_count',
         'center_job_count', 'group_job_count', 'total_job_count',
@@ -255,9 +256,9 @@ class UsageReport(Report):
         for row in report_entries.itervalues():
             # Yield progress every time we empty out bulk_updates
             if not bulk_updates:
-                yield { 
-                    'status': 'Updating records', 
-                    'progress': '{}/{}'.format(update_count, record_count) 
+                yield {
+                    'status': 'Updating records',
+                    'progress': '{}/{}'.format(update_count, record_count)
                 }
 
             group = row.pop('group')
@@ -275,7 +276,7 @@ class UsageReport(Report):
             # Create the bulk update
             bulk_updates.append(UpdateOne(
                 query,
-                { 
+                {
                     '$set': {
                         'project_label': project_label,
                         day_entry: row,
@@ -310,7 +311,23 @@ class UsageReport(Report):
         # Send final bulk update
         self._batch_insert(bulk_updates)
 
-        yield {'status': 'Complete'} 
+        yield {'status': 'Complete'}
+
+    def get_availability(self):
+        # Get a list of distinct year/month groups
+        pipe = [
+            {'$group': {
+                '_id': {'year': '$year', 'month': '$month'}
+            }},
+            {'$project': {
+                '_id': 0,
+                'year': '$_id.year',
+                'month': '$_id.month'
+            }},
+            {'$sort': bson.son.SON([('year',  -1), ('month', -1)])}
+        ]
+
+        return list(config.db.usage_data.aggregate(pipe))
 
     @staticmethod
     def _batch_insert(updates):
@@ -335,7 +352,7 @@ class UsageReport(Report):
 
 
     def _is_center_gear(self, key): # pylint: disable=unused-argument
-        """Check if the given key is a center gear. 
+        """Check if the given key is a center gear.
 
         key is a dict, with 'gear_name' and 'gear_version' properties.
         """
@@ -384,7 +401,7 @@ class UsageReport(Report):
                 'from': 'file_job_origin',
                 'localField': 'files.origin.id',
                 'foreignField': '_id',
-                'as': 'job_origin' 
+                'as': 'job_origin'
             }},
             {'$unwind': {
                 'path': '$job_origin',
