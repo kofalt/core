@@ -395,6 +395,15 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_
             assert record['days'].get(str(day)) == day_stats
             assert record['total'] == total
 
+        # Check report availability
+        r = as_admin.get('/report/usage/availability')
+        assert r.ok
+        availability = r.json()
+
+        assert len(availability) >= 2
+        assert {'year': 2018, 'month': 10} in availability
+        assert {'year': 2018, 'month': 11} in availability
+
         # Run the usage report for both months
         for month in [10, 11]:
             r = as_admin.get('/report/usage?year={}&month={}'.format(year, month))

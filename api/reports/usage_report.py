@@ -51,6 +51,7 @@ class UsageReport(Report):
     """
     required_role = Privilege.is_admin
     can_collect = True
+    has_availability = True
     columns = [
         'group', 'project', 'project_label', 'session_count',
         'center_job_count', 'group_job_count', 'total_job_count',
@@ -313,6 +314,22 @@ class UsageReport(Report):
         self._batch_insert(bulk_updates)
 
         yield {'status': 'Complete'}
+
+    def get_availability(self):
+        # Get a list of distinct year/month groups
+        pipe = [
+            {'$group': {
+                '_id': {'year': '$year', 'month': '$month'}
+            }},
+            {'$project': {
+                '_id': 0,
+                'year': '$_id.year',
+                'month': '$_id.month'
+            }},
+            {'$sort': bson.son.SON([('year',  -1), ('month', -1)])}
+        ]
+
+        return list(config.db.usage_data.aggregate(pipe))
 
     @staticmethod
     def _batch_insert(updates):

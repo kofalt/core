@@ -13,6 +13,7 @@ class Report(object):
     columns = None
     required_role = Privilege.is_admin
     can_collect = False
+    has_availability = False  # Whether or not availability is supported
 
     def __init__(self, params):
         """
@@ -47,7 +48,7 @@ class Report(object):
         Periodically collect data for a report.
         Can/should return a genrator that yields dict progress results.
         """
-        raise APIReportException("Collect not implemented for this report type")
+        raise APIReportException('Collect not implemented for this report type')
 
     def get_writer(self, out_format):
         """
@@ -63,6 +64,12 @@ class Report(object):
         Perform any necessary conversions to write the given flattened row.
         """
         pass
+
+    def get_availability(self):
+        """
+        Get a list of available times for the report
+        """
+        raise APIReportException('Availability reporting not implemented for this report type')
 
     @staticmethod
     def _get_result_list(cont_name, pipeline):

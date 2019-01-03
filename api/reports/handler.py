@@ -87,6 +87,14 @@ class ReportHandler(base.RequestHandler):
 
         return sse_handler
 
+    def get_availability(self, report_type):
+        """Get report availability"""
+        report = self._get_report(report_type)
+        if not report.has_availability:
+            raise NotImplementedError('Report type {} does not provide availability'.format(report_type))
+
+        return report.get_availability()
+
     def _get_report(self, report_type):
         """Get report for report_type and validate permissions"""
         if report_type in ReportTypes:

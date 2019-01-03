@@ -84,7 +84,7 @@
                 "session_count":{"type":"integer"}
             },
             "additionalProperties":false,
-            "required":["project_count", "label", "session_count"]            
+            "required":["project_count", "label", "session_count"]
         },
 
         "report-project": {
@@ -94,7 +94,7 @@
                     "type":"array",
                     "items":{"$ref":"#/definitions/demographics-grid"}
                 }
-            }            
+            }
         },
         "report-site": {
             "type":"object",
@@ -106,7 +106,7 @@
                 }
             },
             "additionalProperties":false,
-            "required":["group_count", "groups"]            
+            "required":["group_count", "groups"]
         },
         "report-access-type": {
             "type": "string",
@@ -185,7 +185,7 @@
             },
             "required": ["_id"],
             "description": "The project that this entry reports on"
-        },        
+        },
         "report-legacy-usage-entry": {
             "type": "object",
             "properties": {
@@ -337,6 +337,25 @@
                 "center_storage_bytes", "group_storage_bytes"
             ],
             "description": "An entry in the usage report, describing storage and gear usage by group"
+        },
+        "report-time-period": {
+            "type": "object",
+            "properties": {
+                "year": {
+                    "type": "integer",
+                    "description": "The year that this report row represents"
+                },
+                "month": {
+                    "type": "integer",
+                    "description": "The month that this report row represents"
+                },
+                "day": {
+                    "type": "integer",
+                    "description": "The day that this report row represents"
+                }
+            },
+            "required": ["year", "month"],
+            "description": "Represents a time-period where report data is available"
         }
     }
 }

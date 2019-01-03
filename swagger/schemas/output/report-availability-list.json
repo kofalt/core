@@ -1,0 +1,13 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type":"array",
+    "items":{
+        "allOf":[{"$ref":"../definitions/report.json#/definitions/report-time-period"}]
+    },
+    "example": [
+        { "year" : 2019, "month" : 1 },
+        { "year" : 2018, "month" : 12 },
+        { "year" : 2018, "month" : 11 },
+        { "year" : 2018, "month" : 10 }
+    ]
+}
