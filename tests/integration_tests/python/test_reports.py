@@ -79,9 +79,13 @@ def test_project_report(data_builder, as_admin, as_user):
     })
     assert r.status_code == 400
 
-    # Add user to projects
-    uid = as_user.get('/users/self').json()['_id']
-    as_admin.post('/projects/' + project_1 + '/permissions', json={'_id': uid, 'access': 'admin'})
+    # get project report w/ permissions
+    user_id = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project_1 + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    })
+    assert r.ok
 
     # get project report w/ date filter not matching sessions
     r = as_user.get('/report/project', params={
@@ -92,6 +96,12 @@ def test_project_report(data_builder, as_admin, as_user):
     projects = r.json()['projects']
     assert len(projects) == 1
     assert projects[0]['session_count'] == 0
+
+    r = as_user.get('/report/project', params={
+        'projects': project_1,
+        'end_date': yesterday_ts,
+    })
+    assert r.ok
 
     # get project report w/ date filter matching sessions
     r = as_user.get('/report/project', params={

@@ -3,7 +3,7 @@ import datetime as dt
 from ..web import base
 from .. import config
 from .. import util
-from ..auth import require_drone, require_login, require_admin
+from ..auth import require_privilege, Privilege
 from ..auth.apikeys import DeviceApiKey
 from ..dao import containerstorage
 from ..web.errors import APINotFoundException, APIValidationException, APIException
@@ -43,14 +43,14 @@ class DeviceHandler(base.RequestHandler):
         super(DeviceHandler, self).__init__(request, response)
         self.storage = containerstorage.ContainerStorage('devices', use_object_id=True)
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get(self, device_id):
         device = self.storage.get_container(device_id)
         if self.user_is_admin:
             self.join_api_key(device)
         return device
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_all(self):
         page = self.storage.get_all_el(None, None, None, pagination=self.pagination)
         devices = page['results']
@@ -65,7 +65,7 @@ class DeviceHandler(base.RequestHandler):
         if device.get('disabled', False) is False:
             device['key'] = api_key['_id'] if api_key else DeviceApiKey.generate(device['_id'])
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def post(self):
         payload = self.request.json_body if self.request.body else {}
 
@@ -80,7 +80,7 @@ class DeviceHandler(base.RequestHandler):
         key = DeviceApiKey.generate(result.inserted_id)
         return {'_id': result.inserted_id, 'key': key}
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def put(self, device_id):
         payload = self.request.json_body if self.request.body else {}
 
@@ -95,24 +95,24 @@ class DeviceHandler(base.RequestHandler):
         elif not is_disabled and device.get('disabled', False):
             DeviceApiKey.generate(device['_id'])
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def delete(self, device_id):
         result = self.storage.delete_el(device_id)
         if result.deleted_count != 1:
             raise APINotFoundException('Device not found')
         return {'deleted': result.deleted_count}
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_status(self):
         return get_device_statuses(self.storage.get_all_el(None, None, None))
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def regenerate_key(self, device_id):
         device = self.storage.get_container(device_id)
         key = DeviceApiKey.generate(device['_id'])
         return {'key': key}
 
-    @require_drone
+    @require_privilege(Privilege.is_drone)
     def put_self(self):
         device_id = self.origin.get('id', '')
         device = self.storage.get_container(device_id)
@@ -131,7 +131,7 @@ class DeviceHandler(base.RequestHandler):
         result = self.storage.update_el(device_id, payload)
         return {'modified': result.modified_count}
 
-    @require_drone
+    @require_privilege(Privilege.is_drone)
     def serve_logging_credentials(self, filename):
         if filename in ['client_cert.pem', 'client_key.pem', 'ca.pem']:
             self.response.headers['Content-Type'] = 'application/x-x509-ca-cert'

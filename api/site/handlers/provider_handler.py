@@ -1,7 +1,7 @@
 """API Handlers for providers"""
 from ... import validators
 from ...web import base
-from ...auth import require_admin, require_login
+from ...auth import require_privilege, Privilege
 
 from ..models import Provider
 from ..providers import (get_provider, get_provider_config,
@@ -20,7 +20,7 @@ class ProviderHandler(base.RequestHandler):
 
     This should be handled by the domain layer in all cases.
     """
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_all(self):
         """List all providers, optionally of the given class"""
         provider_class = self.get_param('class')
@@ -31,12 +31,12 @@ class ProviderHandler(base.RequestHandler):
 
         return results
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get(self, _id):
         provider = get_provider(_id)
         return provider.to_dict()
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def get_config(self, _id):
         # Extra authorization: Ensure that device type is a dispatcher, before
         # returning full configuration
@@ -46,7 +46,7 @@ class ProviderHandler(base.RequestHandler):
         full = device is not None and is_compute_dispatcher(device.get('type'))
         return get_provider_config(_id, full=full)
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     @validators.verify_payload_exists
     def post(self):
         # Creating a new new provider
@@ -59,10 +59,11 @@ class ProviderHandler(base.RequestHandler):
         provider_id = insert_provider(provider)
         return {'_id': provider_id}
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     @validators.verify_payload_exists
     def put(self, _id):
         payload = self.request.json
         validators.validate_data(payload, 'provider-update.json', 'input', 'POST')
 
         update_provider(_id, payload)
+

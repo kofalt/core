@@ -27,6 +27,14 @@
                           "type": "string",
                           "description": "Avatar image URL"
                         },
+    "roles":            {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "description": "User's role on the site",
+                            "enum": ["site_admin", "developer", "user"]
+                          }
+                        },
     "root":             {
                           "type": "boolean",
                           "description": "Super admin flag"
@@ -57,6 +65,7 @@
         "email":{"$ref":"#/definitions/email"},
         "avatar":{"$ref":"#/definitions/avatar"},
         "avatars":{"$ref":"avatars.json#/definitions/avatars"},
+        "roles":{"$ref":"#/definitions/roles"},
         "root":{"$ref":"#/definitions/root"},
         "disabled":{"$ref":"#/definitions/disabled"},
         "preferences":{"$ref":"#/definitions/preferences"},
@@ -76,6 +85,7 @@
         "email":{"$ref":"#/definitions/email"},
         "avatar":{"$ref":"#/definitions/avatar"},
         "avatars":{"$ref":"avatars.json#/definitions/avatars"},
+        "roles":{"$ref":"#/definitions/roles"},
         "root":{"$ref":"#/definitions/root"},
         "disabled":{"$ref":"#/definitions/disabled"},
         "preferences":{"$ref":"#/definitions/preferences"},
@@ -98,6 +108,7 @@
         "email":{"$ref":"#/definitions/email"},
         "avatar":{"$ref":"#/definitions/avatar"},
         "avatars":{"$ref":"avatars.json#/definitions/avatars"},
+        "roles":{"$ref":"#/definitions/roles"},
         "root":{"$ref":"#/definitions/root"},
         "disabled":{"$ref":"#/definitions/disabled"},
         "preferences":{"$ref":"#/definitions/preferences"},
@@ -110,7 +121,7 @@
       "additionalProperties":false,
       "required":[
          "_id", "firstname", "lastname",
-         "root", "email", "created", "modified"
+         "roles", "email", "created", "modified"
       ],
       "x-sdk-model": "user"
     },

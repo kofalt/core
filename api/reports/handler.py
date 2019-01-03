@@ -21,7 +21,7 @@ class ReportHandler(base.RequestHandler):
         else:
             raise NotImplementedError('Report type {} is not supported'.format(report_type))
 
-        if self.user_is_admin or report.user_can_generate(self.uid):
+        if report.user_can_generate(self.uid, self.roles):
             if self.is_true('csv'):
                 download_format = 'csv'
             else:
@@ -46,4 +46,3 @@ class ReportHandler(base.RequestHandler):
                 return report.build()
         else:
             self.abort(403, 'User {} does not have required permissions to generate report'.format(self.uid))
-

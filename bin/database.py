@@ -29,7 +29,7 @@ from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fi
 from checks import get_available_checks, apply_available_checks, get_check_function
 from process_cursor import process_cursor
 
-CURRENT_DATABASE_VERSION = 64 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 65 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2382,6 +2382,19 @@ def upgrade_to_64():
         partialFilterExpression={'code': {'$exists': True}}, unique=True)
     config.db.subjects.create_index([('project', 1), ('master_code', 1), ('deleted', 1)],
         partialFilterExpression={'master_code': {'$exists': True}}, unique=True)
+
+
+def upgrade_to_65():
+    """Update all users to having a role, non root -> user and root -> site-admin"""
+    """Assumptions
+        - user.root is boolean if it exists
+    A failure of these assumption won't result in the DB upgrade failing,
+    but the db will be in an inconsistent state
+    """
+
+    config.db.users.update_many({'root': {'$in': [False, None]}, 'roles': None}, {'$set': {'roles': ['user']}, '$unset': {'root': ''}})
+    config.db.users.update_many({'root': True}, {'$set': {'roles': ['site_admin']}, '$unset': {'root': ''}})
+
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

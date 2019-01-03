@@ -80,7 +80,7 @@ def test_devices(as_public, as_user, as_admin, as_drone, api_db):
     r = as_user.post('/devices')
     assert r.status_code == 403
 
-    # create device
+    # create device w/o root
     r = as_admin.post('/devices', json={'type': 'test'})
     assert r.ok
     device_id = r.json()['_id']

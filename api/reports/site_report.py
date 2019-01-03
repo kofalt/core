@@ -1,6 +1,7 @@
 from .report import Report
 
 from .. import config
+from ..auth import has_privilege, Privilege
 
 class SiteReport(Report):
     """
@@ -11,12 +12,14 @@ class SiteReport(Report):
       - number of projects per group
       - number of sessions per group
     """
+    required_role = Privilege.is_admin
 
-    def user_can_generate(self, uid):
+    def user_can_generate(self, uid, roles):
         """
         User generating report must be site admin
         """
-        return False
+        has_privilege(roles, self.required_role)
+        return True
 
     def build(self):
         report = {}
