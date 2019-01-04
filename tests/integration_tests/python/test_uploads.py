@@ -1,3 +1,4 @@
+import bson
 import copy
 import datetime
 import json
@@ -1464,6 +1465,12 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
     project = data_builder.create_project(group=group)
     session = data_builder.create_session()
 
+    subject = data_builder.create_subject(project=project, code='subj-01')
+    r = as_admin.delete('/subjects/' + subject)
+    assert r.ok
+
+    number_of_subjects = len(list(api_db.subjects.find({'project': bson.ObjectId(project)})))
+
     # try to start packfile-upload to non-project target
     r = as_admin.post('/sessions/' + session + '/packfile-start')
     assert r.status_code == 500
@@ -1528,6 +1535,10 @@ def test_packfile_upload(data_builder, file_form, as_admin, as_root, api_db):
     r = as_admin.post('/projects/' + project + '/packfile-end',
         params={'token': token, 'metadata': metadata_json})
     assert r.ok
+
+    # Check that a new subject was created
+    project_subjects = list(api_db.subjects.find({'project': bson.ObjectId(project)}))
+    assert len(project_subjects) == number_of_subjects + 1
 
     # make sure file was uploaded and mimetype and type are properly set
     created_subject = get_full_container(as_admin, '/projects/' + project + '/subjects', -1)

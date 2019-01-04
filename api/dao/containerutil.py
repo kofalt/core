@@ -119,8 +119,14 @@ def extract_subject(session, project):
     subject.update({'project': bson.ObjectId(str(project['_id'])), 'permissions': project['permissions']})
     if subject.get('_id'):
         subject['_id'] = bson.ObjectId(str(subject['_id']))
+        query = {'_id': subject['_id'], 'project': project['_id'], 'deleted': {'$exists': True}}
+        result = config.db.subjects.find_one(query)
+        # If a subject with that id exists and is deleted, create a new one
+        if result:
+            subject['_id'] = bson.ObjectId()
     elif subject.get('code'):
-        query = {'code': subject['code'], 'project': project['_id']}
+        # If a non-deleted subject with that code doesn't exist in the project, create a new id
+        query = {'code': subject['code'], 'project': project['_id'], 'deleted': {'$exists': False}}
         result = config.db.subjects.find_one(query)
         if result:
             subject['_id'] = result['_id']

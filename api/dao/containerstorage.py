@@ -146,15 +146,21 @@ class SubjectStorage(ContainerStorage):
                 cont['label'] = 'unknown'
 
     def create_or_update_el(self, payload, **kwargs):
-        if self.dbc.find_one({'_id': payload['_id']}):
+        if self.dbc.find_one({'_id': payload['_id'], 'deleted': {'$exists': False}}):
             payload['modified'] = datetime.datetime.utcnow()
             # Pop _id from mongo payload (immutable - would raise error)
             payload_copy = copy.deepcopy(payload)
             _id = payload_copy.pop('_id')
             return super(SubjectStorage, self).update_el(_id, payload_copy, **kwargs)
-        else:
-            payload['created'] = payload['modified'] = datetime.datetime.utcnow()
-            return super(SubjectStorage, self).create_el(payload)
+        elif self.dbc.find_one({'_id': payload['_id']}):
+            # If the subject exists but is deleted, create a new subject with a new id
+            # This logic should only be used by the placers/hierarchy.py
+            # Other subject operations should be going through
+            # extract_subject which prevents this from happening
+            payload.pop('_id')
+
+        payload['created'] = payload['modified'] = datetime.datetime.utcnow()
+        return super(SubjectStorage, self).create_el(payload)
 
     def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
         """Allow 'collections' query key"""
