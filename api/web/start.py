@@ -24,7 +24,9 @@ if os.environ.get("SCITRAN_RUNTIME_COVERAGE") == "true": # pragma: no cover - oh
     def start_coverage():
         import coverage
         print("Enabling code coverage")
-        cov = coverage.coverage(source=["api"], data_suffix="integration-tests")
+        cov = coverage.coverage(source=["api"],
+                data_suffix="integration-tests",
+                concurrency='gevent')
         cov.start()
         atexit.register(save_coverage, cov)
 
