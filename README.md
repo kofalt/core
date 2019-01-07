@@ -1,5 +1,9 @@
 [![Build Status](https://travis-ci.org/flywheel-io/core.svg?branch=master)](https://travis-ci.org/flywheel-io/core)
+
+<!--
+Disabled until codecov is fixed
 [![Coverage Status](https://codecov.io/gh/flywheel-io/core/branch/master/graph/badge.svg)](https://codecov.io/gh/flywheel-io/core/branch/master)
+-->
 
 # SciTran – Scientific Transparency
 

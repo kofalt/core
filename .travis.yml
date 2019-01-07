@@ -52,9 +52,9 @@ script:
 
 after_success:
 # Code coverage report for all master commits and all pull requests
-- if [ "$TRAVIS_BRANCH" == "master" ] || [ "$TRAVIS_EVENT_TYPE" == "pull_request" ] && [ "$BUILD_SDK" == "false" ]; then
-      bash <(curl -s https://codecov.io/bash) -c -X coveragepy -F python;
-  fi
+# - if [ "$TRAVIS_BRANCH" == "master" ] || [ "$TRAVIS_EVENT_TYPE" == "pull_request" ] && [ "$BUILD_SDK" == "false" ]; then
+#       bash <(curl -s https://codecov.io/bash) -c -X coveragepy -F python;
+#   fi
 
 # Tag and push flywheel/core image (master >> :latest + :testing, tag >> :tag)
 - if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "false" ]; then
