@@ -26,7 +26,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 62 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 63 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2309,6 +2309,19 @@ def upgrade_to_62():
     # Update all jobs, set parents
     cursor = config.db.jobs.find({})
     process_cursor(cursor, set_job_containers_62, 'jobs')
+
+def upgrade_template_to_list(cont):
+    if cont.get('template'):
+        cont['templates'] = list(cont.pop('template', []))
+        config.db.projects.find_one_and_update({'_id': cont['_id']}, {'$set': cont})
+
+
+def upgrade_to_63():
+    '''
+    All project templates should be list of templates
+    '''
+    cursor = config.db.porjects.find({'template': {'$exists': True}})
+    process_cursor(cursor, upgrade_template_to_list)
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

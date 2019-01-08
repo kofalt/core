@@ -132,8 +132,7 @@ def test_45(data_builder, randstr, api_db, as_admin, database, file_form):
         }]
     }
 
-    assert as_admin.post('/projects/' + t_project1 + '/template', json=template).ok
-    assert as_admin.post('/projects/' + t_project2 + '/template', json=template).ok
+    api_db.projects.update_many({'_id': {'$in': [bson.ObjectId(t_project1), bson.ObjectId(t_project2)]}}, {'$set': {'template': template}})
 
 
     ### RUN UPGRADE

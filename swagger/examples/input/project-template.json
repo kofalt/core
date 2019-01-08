@@ -1,55 +1,57 @@
-{
-    "session": {
-        "schema": {
-            "$schema": "http://json-schema.org/draft-04/schema#",
-            "properties": {
-                "label": {
-                    "type":     "string",
-                    "pattern":  "^test_pattern$" }
+[
+    {
+        "session": {
+            "schema": {
+                "$schema": "http://json-schema.org/draft-04/schema#",
+                "properties": {
+                    "label": {
+                        "type":     "string",
+                        "pattern":  "^test_pattern$" }
+                }
             }
-        }
-    },
-    "acquisitions": [
-            {
-                "schema": {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "type": "object",
-                    "properties": {
-                        "classification": {
-                            "type":     "string",
-                            "pattern":  "^[aA]natomical$" }
+        },
+        "acquisitions": [
+                {
+                    "schema": {
+                        "$schema": "http://json-schema.org/draft-04/schema#",
+                        "type": "object",
+                        "properties": {
+                            "classification": {
+                                "type":     "string",
+                                "pattern":  "^[aA]natomical$" }
+                        },
+                        "required": ["classification"]
                     },
-                    "required": ["classification"]
+                    "minimum": 2
                 },
-                "minimum": 2
-            },
-            {
-                "schema": {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "type": "object",
-                    "properties": {
-                        "classification": {
-                            "type":     "string",
-                            "pattern":  "^functional$" }
+                {
+                    "schema": {
+                        "$schema": "http://json-schema.org/draft-04/schema#",
+                        "type": "object",
+                        "properties": {
+                            "classification": {
+                                "type":     "string",
+                                "pattern":  "^functional$" }
+                        },
+                        "required": ["classification"]
                     },
-                    "required": ["classification"]
+                    "minimum": 1
                 },
-                "minimum": 1
-            },
-            {
-                "schema": {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "type": "object",
-                    "properties": {
-                        "classification": { "enum": ["Localizer"] },
-                        "label":  {
-                            "type": "string",
-                            "pattern": "t1"
-                        }
+                {
+                    "schema": {
+                        "$schema": "http://json-schema.org/draft-04/schema#",
+                        "type": "object",
+                        "properties": {
+                            "classification": { "enum": ["Localizer"] },
+                            "label":  {
+                                "type": "string",
+                                "pattern": "t1"
+                            }
+                        },
+                        "required": ["label", "classification"]
                     },
-                    "required": ["label", "classification"]
-                },
-                "minimum": 1
-            }
-        ]
-}
+                    "minimum": 1
+                }
+            ]
+    }
+]

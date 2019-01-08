@@ -79,10 +79,17 @@ def test_switching_acquisition_between_sessions(data_builder, as_admin):
 def test_project_template(data_builder, file_form, as_admin):
     project = data_builder.create_project()
     project2 = data_builder.create_project()
-    session = data_builder.create_session(subject={'code': 'compliant'})
+    session_1 = data_builder.create_session(subject={'code': 'compliant'}, label='compliant')
     # NOTE adding acquisition_1 to cover code that's skipping non-matching containers
     acquisition_1 = data_builder.create_acquisition(label='non-compliant')
     acquisition_2 = data_builder.create_acquisition(label='compliant')
+
+    session_2 = data_builder.create_session(label='second-compliant')
+    acquisition_3 = data_builder.create_acquisition(label='compliant2', session=session_2)
+
+    session_3 = data_builder.create_session(label='non-compliant')
+    acquisition_4 = data_builder.create_acquisition(label='compliant2', session=session_3)
+
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/tags', json={'value': 'compliant'}).ok
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/files', files=file_form('non-compliant.txt')).ok
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/files', files=file_form('compliant1.csv')).ok
@@ -90,109 +97,179 @@ def test_project_template(data_builder, file_form, as_admin):
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/files/compliant1.csv/classification', json={'add': {'custom': ['diffusion']}})
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/files/compliant2.csv/classification', json={'add': {'custom': ['diffusion']}})
 
-    # test the session before setting the template
-    r = as_admin.get('/sessions/' + session)
-    assert r.ok
-    assert 'project_has_template' not in r.json()
+    assert as_admin.post('/acquisitions/' + acquisition_3 + '/files', files=file_form('compliant2.csv')).ok
+    assert as_admin.post('/acquisitions/' + acquisition_3 + '/files/compliant2.csv/classification', json={'add': {'custom': ['diffusion']}})
 
-    # create template for project 1
-    r = as_admin.post('/projects/' + project + '/template', json={
-        'session': {'subject': {'code': '^compliant$'}},
-        'acquisitions': [{
-            'minimum': 1,
-            'label': '^compliant$',
-            'tags': '^compliant$',
-            'files': [{
-                'minimum': 2,
-                'mimetype': 'text/csv',
-                'classification': 'diffusion'
-            }]
-        }]
-    })
-    assert r.ok
-    assert r.json()['modified'] == 1
-
-    # create template for project2
-    r = as_admin.post('/projects/' + project2 + '/template', json={
-        'session': {'subject': {'code': '^compliant$'}},
-        'acquisitions': [{
-            'minimum': 100, # Session won't comply
-            'label': '^compliant$',
-            'tags': '^compliant$',
-            'files': [{
-                'minimum': 2,
-                'mimetype': 'text/csv',
-                'classification': 'diffusion'
-            }]
-        }]
-    })
-
-
-    # test session compliance
-    r = as_admin.get('/sessions/' + session)
-    assert r.ok
-    assert r.json()['project_has_template']
-
-    def satisfies_template():
+    def satisfies_template(session):
         r = as_admin.get('/sessions/' + session)
         assert r.ok
         return r.json()['satisfies_template']
 
-    # test that missing any single requirement breaks compliance
-    # session.subject.code
-    assert satisfies_template()
-    assert as_admin.put('/sessions/' + session, json={'subject': {'code': 'non-compliant'}}).ok
-    assert not satisfies_template()
-    assert as_admin.put('/sessions/' + session, json={'subject': {'code': 'compliant'}}).ok
-
-    # test that moving session to another project correctly updates session.satisfies_template
-    assert satisfies_template()
-    assert as_admin.put('/sessions/' + session, json={'project': project2})
-    assert not satisfies_template()
-    assert as_admin.put('/sessions/' + session, json={'project': project})
-    assert satisfies_template()
-
-    # test moving session to project without template
-    assert as_admin.delete('/projects/' + project2 + '/template')
-    r = as_admin.put('/sessions/' + session, json={'project': project2})
-    assert r.ok
-    r = as_admin.get('/sessions/' + session)
+    # test the session before setting the template
+    r = as_admin.get('/sessions/' + session_1)
     assert r.ok
     assert 'project_has_template' not in r.json()
+
+    # create template for project 1
+    r = as_admin.post('/projects/' + project + '/template', json={'templates': [
+        {
+            'session': {'subject': {'code': '^compliant$'}},
+            'acquisitions': [{
+                'minimum': 1,
+                'label': '^compliant$',
+                'tags': '^compliant$',
+                'files': [{
+                    'minimum': 2,
+                    'mimetype': 'text/csv',
+                    'classification': 'diffusion'
+                }]
+            }]
+        }
+    ]})
+    assert r.ok
+
+    assert satisfies_template(session_1)
+    assert not satisfies_template(session_2)
+    assert not satisfies_template(session_3)
+
+    # create a second template for project1
+    r = as_admin.post('/projects/' + project + '/template', json={'templates': [
+        {
+            'session': {'label':'^compliant$'},
+            'acquisitions': [{
+                'minimum': 1,
+                'label': '^compliant$',
+                'tags': '^compliant$',
+                'files': [{
+                    'minimum': 2,
+                    'mimetype': 'text/csv',
+                    'classification': 'diffusion'
+                }]
+            }]
+        },
+        {
+            'session': {'label': '^second\\-compliant$'},
+            'acquisitions': [{
+                'minimum': 1,
+                'label': '^compliant2$',
+                'files': [{
+                    'minimum': 1,
+                    'mimetype': 'text/csv',
+                    'classification': 'diffusion'
+                }]
+            }]
+        }
+    ]})
+    assert r.ok
+
+    assert satisfies_template(session_1)
+    assert satisfies_template(session_2)
+    assert not satisfies_template(session_3)
+
+    r = as_admin.post('/projects/' + project + '/template', json={'templates': [
+        {
+            'session': {'subject': {'code': '^compliant$'}},
+            'acquisitions': [{
+                'minimum': 1,
+                'label': '^compliant$',
+                'tags': '^compliant$',
+                'files': [{
+                    'minimum': 2,
+                    'mimetype': 'text/csv',
+                    'classification': 'diffusion'
+                }]
+            }]
+        }
+    ]})
+    assert r.ok
+
+    assert satisfies_template(session_1)
+    assert not satisfies_template(session_2)
+    assert not satisfies_template(session_3)
+
+    # create template for project2
+    r = as_admin.post('/projects/' + project2 + '/template', json={'templates': [
+        {
+            'session': {'subject': {'code': '^compliant$'}},
+            'acquisitions': [{
+                'minimum': 100, # Session won't comply
+                'label': '^compliant$',
+                'tags': '^compliant$',
+                'files': [{
+                    'minimum': 2,
+                    'mimetype': 'text/csv',
+                    'classification': 'diffusion'
+                }]
+            }]
+        }
+    ]})
+
+
+    # test session compliance
+    r = as_admin.get('/sessions/' + session_1)
+    assert r.ok
+    assert r.json()['project_has_template']
+
+    # test that missing any single requirement breaks compliance
+    # session.subject.code
+    assert satisfies_template(session_1)
+    assert as_admin.put('/sessions/' + session_1, json={'subject': {'code': 'non-compliant'}}).ok
+    assert not satisfies_template(session_1)
+    assert as_admin.put('/sessions/' + session_1, json={'subject': {'code': 'compliant'}}).ok
+
+    # test that moving session to another project correctly updates session.satisfies_template
+    assert satisfies_template(session_1)
+    assert as_admin.put('/sessions/' + session_1, json={'project': project2})
+    assert not satisfies_template(session_1)
+    assert as_admin.put('/sessions/' + session_1, json={'project': project})
+    assert satisfies_template(session_1)
+
+    # test moving session to project without template
+    assert as_admin.delete('/projects/' + project2 + '/template').ok
+    r = as_admin.get('/projects/' + project2)
+    assert r.ok
+    print r.json()
+    assert 'templates' not in r.json()
+    r = as_admin.put('/sessions/' + session_1, json={'project': project2})
+    assert r.ok
+    r = as_admin.get('/sessions/' + session_1)
+    assert r.ok
+    print r.json()
+    assert 'project_has_template' not in r.json()
     assert 'satisfies_template' not in r.json()
-    assert as_admin.put('/sessions/' + session, json={'project': project})
+    assert as_admin.put('/sessions/' + session_1, json={'project': project})
 
     # acquisitions.label
-    assert satisfies_template()
+    assert satisfies_template(session_1)
     assert as_admin.put('/acquisitions/' + acquisition_2, json={'label': 'non-compliant'}).ok
-    assert not satisfies_template()
+    assert not satisfies_template(session_1)
     assert as_admin.put('/acquisitions/' + acquisition_2, json={'label': 'compliant'}).ok
 
     # acquisitions.tags
-    assert satisfies_template()
+    assert satisfies_template(session_1)
     assert as_admin.delete('/acquisitions/' + acquisition_2 + '/tags/compliant').ok
     # TODO figure out why removing the tag does not break compliance
     # assert not satisfies_template()
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/tags', json={'value': 'compliant'}).ok
 
     # acquisitions.files.minimum
-    assert satisfies_template()
+    assert satisfies_template(session_1)
     assert as_admin.delete('/acquisitions/' + acquisition_2 + '/files/compliant2.csv').ok
-    assert not satisfies_template()
+    assert not satisfies_template(session_1)
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/files', files=file_form('compliant2.csv')).ok
-    assert not satisfies_template()
+    assert not satisfies_template(session_1)
     assert as_admin.post('/acquisitions/' + acquisition_2 + '/files/compliant2.csv/classification', json={'add': {'custom': ['diffusion']}})
 
     # acquisitions.minimum
-    assert satisfies_template()
+    assert satisfies_template(session_1)
     assert as_admin.delete('/acquisitions/' + acquisition_2)
-    assert not satisfies_template()
+    assert not satisfies_template(session_1)
 
     # delete project template
     r = as_admin.delete('/projects/' + project + '/template')
     assert r.ok
 
-    r = as_admin.get('/sessions/' + session)
+    r = as_admin.get('/sessions/' + session_1)
     assert r.ok
     assert 'project_has_template' not in r.json()
 

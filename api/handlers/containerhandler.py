@@ -528,9 +528,8 @@ class ContainerHandler(base.RequestHandler):
         self.storage = self.config['storage']
         container = self._get_container(project_id)
 
-        template = self.request.json_body
-        validators.validate_data(template, 'project-template.json', 'input', 'POST')
-        payload = {'template': template}
+        payload = self.request.json_body
+        validators.validate_data(payload.get('templates', []), 'project-template.json', 'input', 'POST')
         payload['modified'] = datetime.datetime.utcnow()
 
         permchecker = self._get_permchecker(container)
@@ -544,7 +543,7 @@ class ContainerHandler(base.RequestHandler):
         container = self._get_container(project_id)
 
         payload = {'modified': datetime.datetime.utcnow()}
-        unset_payload = {'template': ''}
+        unset_payload = {'templates': ''}
 
         permchecker = self._get_permchecker(container)
         result = permchecker(self.storage.exec_op)('PUT', _id=project_id, payload=payload, unset_payload=unset_payload)

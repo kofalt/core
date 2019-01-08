@@ -85,14 +85,14 @@ class ProjectStorage(ContainerStorage):
         if result.modified_count < 1:
             raise APINotFoundException('Could not find project {}'.format(_id))
 
-        if payload and 'template' in payload:
+        if payload and 'templates' in payload:
             # We are adding/changing the project template, update session compliance
             sessions = self.get_children(_id, projection={'_id':1}, include_subjects=False)
             session_storage = SessionStorage()
             for s in sessions:
                 session_storage.update_el(s['_id'], {'project_has_template': True})
 
-        elif unset_payload and 'template' in unset_payload:
+        elif unset_payload and 'templates' in unset_payload:
             # We are removing the project template, remove session compliance
             sessions = self.get_children(_id, projection={'_id':1}, include_subjects=False)
             session_storage = SessionStorage()
@@ -104,7 +104,7 @@ class ProjectStorage(ContainerStorage):
     def recalc_sessions_compliance(self, project_id=None):
         if project_id is None:
             # Recalc all projects
-            projects = self.get_all_el({'template': {'$exists': True}}, None, None)
+            projects = self.get_all_el({'templates': {'$exists': True}}, None, None)
         else:
             project = self.get_container(project_id)
             if project:
@@ -114,14 +114,14 @@ class ProjectStorage(ContainerStorage):
         changed_sessions = []
 
         for project in projects:
-            template = project.get('template',{})
-            if not template:
+            templates = project.get('templates',[])
+            if not templates:
                 continue
             else:
                 session_storage = SessionStorage()
                 sessions = session_storage.get_all_el({'project': project['_id']}, None, None)
                 for s in sessions:
-                    changed = session_storage.recalc_session_compliance(s['_id'], session=s, template=template, hard=True)
+                    changed = session_storage.recalc_session_compliance(s['_id'], session=s, templates=templates, hard=True)
                     if changed:
                         changed_sessions.append(s['_id'])
         return changed_sessions
@@ -212,7 +212,7 @@ class SessionStorage(ContainerStorage):
             project = ProjectStorage().get_container(session['project'])
 
         # Check if new (if project is changed) or current project has template
-        payload_has_template = project.get('template', False)
+        payload_has_template = project.get('templates', False)
         session_has_template = session.get('project_has_template') is not None
         unset_payload_has_template = (unset_payload and 'project_has_template'in unset_payload)
 
@@ -221,9 +221,9 @@ class SessionStorage(ContainerStorage):
             if 'subject' in payload:
                 session_update['subject'] = config.db.subjects.find_one({'_id': payload['subject']})
             session = deep_update(session, session_update)
-            if project and project.get('template'):
+            if project and project.get('templates'):
                 payload['project_has_template'] = True
-                payload['satisfies_template'] = hierarchy.is_session_compliant(session, project.get('template'))
+                payload['satisfies_template'] = hierarchy.is_session_compliant(session, project.get('templates'))
             elif project:
                 if not unset_payload:
                     unset_payload = {}
@@ -242,7 +242,7 @@ class SessionStorage(ContainerStorage):
         return super(SessionStorage, self).get_all_el(query, user, projection, fill_defaults=fill_defaults, pagination=pagination, **kwargs)
 
 
-    def recalc_session_compliance(self, session_id, session=None, template=None, hard=False):
+    def recalc_session_compliance(self, session_id, session=None, templates=None, hard=False):
         """
         Calculates a session's compliance with the project's session template.
         Returns True if the status changed, False otherwise
@@ -255,7 +255,7 @@ class SessionStorage(ContainerStorage):
             # A "hard" flag will also recalc if session is tracked by a project template
 
             project = ProjectStorage().get_container(session['project'])
-            project_has_template = bool(project.get('template'))
+            project_has_template = bool(project.get('templates'))
             if session.get('project_has_template', False) != project_has_template:
                 if project_has_template == True:
                     self.update_el(session['_id'], {'project_has_template': True})
@@ -263,9 +263,9 @@ class SessionStorage(ContainerStorage):
                     self.update_el(session['_id'], None, unset_payload={'project_has_template': '', 'satisfies_template': ''})
                 return True
         if session.get('project_has_template'):
-            if template is None:
-                template = ProjectStorage().get_container(session['project']).get('template')
-            satisfies_template = hierarchy.is_session_compliant(session, template)
+            if templates is None:
+                templates = ProjectStorage().get_container(session['project']).get('templates')
+            satisfies_template = hierarchy.is_session_compliant(session, templates)
             if session.get('satisfies_template') != satisfies_template:
                 update = {'satisfies_template': satisfies_template}
                 super(SessionStorage, self).update_el(session_id, update)

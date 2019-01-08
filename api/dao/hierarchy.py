@@ -100,7 +100,7 @@ def get_parent_tree(cont_name, _id):
 
     return tree
 
-def is_session_compliant(session, template):
+def is_session_compliant(session, templates):
     """
     Given a project-level session template and a session,
     returns True/False if the session is in compliance with the template
@@ -168,34 +168,46 @@ def is_session_compliant(session, template):
                     return False
         return True
 
+    def check_session_for_single_template(session, template):
 
-    s_requirements = template.get('session')
-    a_requirements = template.get('acquisitions')
+        s_requirements = template.get('session')
+        a_requirements = template.get('acquisitions')
 
-    if s_requirements:
-        if not check_cont(session, s_requirements):
-            return False
-
-    if a_requirements:
-        if not session.get('_id'):
-            # New session, won't have any acquisitions. Compliance check fails
-            return False
-        acquisitions = list(config.db.acquisitions.find({'session': session['_id'], 'deleted': {'$exists': False}}))
-        for req in a_requirements:
-            req_temp = copy.deepcopy(req)
-            min_count = req_temp.pop('minimum')
-            count = 0
-            for a in acquisitions:
-                if not check_cont(a, req_temp):
-                    # Didn't find a match, on to the next one
-                    continue
-                else:
-                    count += 1
-                    if count >= min_count:
-                        break
-            if count < min_count:
+        label = s_requirements.pop('label', s_requirements.pop('code', None))
+        if label:
+            m = re.match(label, session['label'])
+            if not m:
                 return False
-    return True
+
+        if s_requirements:
+            if not check_cont(session, s_requirements):
+                return False
+
+        if a_requirements:
+            if not session.get('_id'):
+                # New session, won't have any acquisitions. Compliance check fails
+                return False
+            acquisitions = list(config.db.acquisitions.find({'session': session['_id'], 'deleted': {'$exists': False}}))
+            for req in a_requirements:
+                req_temp = copy.deepcopy(req)
+                min_count = req_temp.pop('minimum')
+                count = 0
+                for a in acquisitions:
+                    if not check_cont(a, req_temp):
+                        # Didn't find a match, on to the next one
+                        continue
+                    else:
+                        count += 1
+                        if count >= min_count:
+                            break
+                if count < min_count:
+                    return False
+        return True
+
+    for template in templates:
+        if check_session_for_single_template(session, template):
+            return True
+    return False
 
 
 def update_fileinfo(cont_name, _id, fileinfo):
