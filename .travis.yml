@@ -64,7 +64,7 @@ after_success:
       docker push flywheel/core:testing;
       bin/trigger_coreplus_build.sh latest;
   fi
-- if [[ "$TRAVIS_BRANCH" =~ ^($CD_BRANCH_NAMES)$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "false" ]; then
+- if [[ "$TRAVIS_BRANCH" != "master" ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$BUILD_SDK" == "false" ]; then
       docker tag core:dist flywheel/core:$TRAVIS_BRANCH.latest;
       docker push flywheel/core:$TRAVIS_BRANCH.latest;
       bin/trigger_coreplus_build.sh $TRAVIS_BRANCH.latest;
