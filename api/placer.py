@@ -179,8 +179,6 @@ class TargetedMultiPlacer(TargetedPlacer):
                 if fileinfo['name'] == file_attrs['name']:
                     file_attrs.update(fileinfo)
         self.save_file(field, file_attrs)
-        self.saved.append(file_attrs)
-
 
 class UIDPlacer(Placer):
     """

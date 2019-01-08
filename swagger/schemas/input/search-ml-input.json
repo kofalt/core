@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf":[{"$ref":"../definitions/search.json#/definitions/search-ml-input"}],
+  "required": ["output"],
+  "example": {
+        "output": {
+            "type": "project",
+            "id": "12341234567856780909abcd"
+        },
+        "files": [
+            {
+                "parent_id": "12341234567856780909abcd",
+                "name": "file.txt"
+            }
+        ]
+	}
+}

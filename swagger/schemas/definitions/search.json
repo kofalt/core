@@ -192,6 +192,30 @@
             "x-sdk-container-mixin": "analysis-mixin"
         },
 
+        "search-ml-input-file": {
+            "type": "object",
+            "properties": {
+                "parent_id": {"$ref": "common.json#/definitions/objectid"},
+                "name": {"$ref": "file.json#/definitions/name"}
+            }
+        },
+        "search-ml-input": {
+            "type": "object",
+            "properties": {
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "search-query": {"$ref": "#/definitions/search-query"},
+                "files": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/search-ml-input-file"}
+                },
+                "output": {"$ref": "container.json#/definitions/container-reference"}
+            }
+        },
     	"search-response": {
     		"type": "object",
     		"properties": {

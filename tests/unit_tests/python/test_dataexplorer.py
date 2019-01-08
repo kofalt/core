@@ -284,6 +284,48 @@ def test_search(as_public, as_drone, es, as_user):
     ], 'size':"10000000"})
     assert r.status_code == 400
 
+    # Search for training set given a set of nodes
+    r = as_drone.post('/dataexplorer/search/training', json={
+        'labels': ['file.classifications'],
+        'files': [{'parent_id': '123456789009876543211234', 'name': 'example.txt'}],
+        'output': {'type': 'project','id': '000000000000000000000000'}
+    })
+    print(r.json)
+    es.mget.assert_called_with(
+        body={
+            'docs':[
+                {
+                    '_source': list(set(deh.SOURCE_FILE + ['file.classifications'])),
+                    '_id': '123456789009876543211234_example.txt'
+                }
+            ]
+        },
+        index='data_explorer')
+    assert r.status_code == 404 # the output container doesn't exist
+
+    # Query search
+    r = as_drone.post('/dataexplorer/search/training', json={
+        'labels': ['file.classifications'],
+        'search_query': {'return_type': cont_type, 'all_data': True},
+        'output': {'type': 'project','id': '000000000000000000000000'}
+    })
+
+    raw_file_results = [{'fields': {'info_exists': [True]}, '_source': {'file': {}}}]
+    es.search.return_value = {'hits': {'hits': copy.deepcopy(raw_file_results)}}
+
+    es.search.assert_called_with(
+        body={
+            '_source': list(set(deh.SOURCE_FILE + ['file.classifications'])),
+            'query': {'bool': {
+                'filter': {'bool': {'must': [
+                    {'term': {'container_type': cont_type}},
+                    {'term': {'deleted': False}}
+                ]}},
+            }},
+            'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
+            'size': 100},
+        doc_type='flywheel',
+        index='data_explorer')
 
 
 def test_get_facets(as_public, as_drone, es):

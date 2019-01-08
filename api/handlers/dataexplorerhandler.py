@@ -1,14 +1,16 @@
 import copy
 import json
+import datetime
 
 from elasticsearch import ElasticsearchException, TransportError, RequestError, helpers
 
 from ..web import base
 from .. import config, validators
+from ..create_file import FileCreator
 from ..auth import require_login, require_superuser, groupauth
-from ..dao import noop
+from ..dao import noop, hierarchy
 from ..dao.containerstorage import QueryStorage
-from ..web.errors import APIStorageException, APIPermissionException
+from ..web.errors import APIStorageException, APIPermissionException, APIValidationException, APINotFoundException
 
 log = config.log
 
@@ -286,6 +288,7 @@ SOURCE_FILE = SOURCE_ANALYSIS + [
     "file.name",
     "file.size",
     "file.type",
+    "file.mimetype",
     "parent",
 ]
 
@@ -305,10 +308,10 @@ EXACT_CONTAINERS = ['file', 'collection']
 class DataExplorerHandler(base.RequestHandler):
     # pylint: disable=broad-except
 
-    def _parse_request(self, request_type='search'):
+    def _parse_request(self, request_type='search', search_request=None):
 
         try:
-            request = self.request.json_body
+            request = search_request if search_request else self.request.json_body
         except (ValueError):
             if request_type == 'search':
                 self.abort(400, 'Must specify return type')
@@ -614,6 +617,77 @@ class DataExplorerHandler(base.RequestHandler):
             if self.is_true('facets'):
                 response['facets'] = self.get_facets()
             return response
+
+    @require_login
+    def save_training_set(self):
+        """Saves a subset of a search result or the results of a given query as a training set file"""
+
+        def traverse_dict(dictionary, field_path):
+            """Traverse a dictionary given . seperated string of fields to index through"""
+            fields = field_path.split('.')
+            value = dictionary
+            for field in fields:
+                if field in value:
+                    value = value[field]
+                else:
+                    return None
+            return value
+
+        def format_file_doc(file_source, labels):
+            """Format the elastic file doc into only the fields we want and where we want them"""
+            return {
+                'parent_type': file_source['parent']['type'],
+                'parent_id': file_source['parent']['_id'],
+                'name': file_source['file']['name'],
+                'file_type': file_source['file']['type'],
+                'mimetype': file_source['file']['mimetype'],
+                'labels': {label: traverse_dict(file_source, label) for label in labels}
+            }
+
+        payload = self.request.json_body
+        validators.validate_data(payload, 'search-ml-input.json', 'input', 'POST')
+
+        labels = payload.get('labels', [])
+        output_filename = payload.get('filename', 'training_set_{}.json'.format(datetime.datetime.now()))
+        output = payload['output']
+
+        if payload.get('search_query'):
+            # If a search query is provided, run a normal search, making sure the labels are in the source filter
+            return_type, filters, search_string, size = self._parse_request(search_request=payload['search_query'])
+            query = self._construct_query(return_type, search_string, filters, size)
+            query['_source'] = list(set(query['_source'] + labels))
+            file_results = self._run_query(query, return_type)
+        elif payload.get('files'):
+            # If a list of files is provided, get their elastic ids and make a multiget request
+            files = payload['files']
+            docs = [{"_id": '{}_{}'.format(f['parent_id'], f['name']), "_source": list(set(SOURCE_FILE+labels))} for f in files]
+            file_results = config.es.mget(
+                index='data_explorer',
+                body={'docs': docs})['docs']
+        else:
+            raise APIValidationException('Must provide a search query OR a list of files')
+
+        output_container = hierarchy.get_container(output['type'], output['id'])
+        if not output_container:
+            raise APINotFoundException('Could not find {} {}'.format(output['type'], output['id']))
+
+        # Format the elastic search results into the training set file format
+        file_results = [format_file_doc(f['_source'], labels) for f in file_results]
+        formatted_search_results = {
+            'dataset': {
+                "description": payload.get('description'),
+                "labels": labels
+            },
+            'files': file_results
+        }
+
+        # Save the json results to a file on the output
+        with FileCreator(self, output['type'], output_container) as file_creator:
+            fileobj = file_creator.create_file(output_filename)
+            fileobj.write(json.dumps(formatted_search_results))
+            result = file_creator.finalize()
+        return result
+
 
 
     ## CONSTRUCTING QUERIES ##
