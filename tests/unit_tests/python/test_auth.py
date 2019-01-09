@@ -404,6 +404,7 @@ def test_saml_auth(config, as_drone, as_public, api_db):
         r = as_public.get('/login/saml', cookies={'_shibsession_test': 'test_cookie_content'})
         assert r.status_code == 302
         assert 'gravatar' not in api_db.users.find_one({'_id': uid})['avatars']
+        assert api_db.refreshtokens.find_one({'uid': uid, 'auth_type': 'saml'})
 
         # log in w/ saml (now w/ existing gravatar)
         m.head(re.compile('https://gravatar.com/avatar'))

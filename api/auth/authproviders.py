@@ -339,6 +339,7 @@ class SAMLAuthProvider(AuthProvider):
 
     def validate_code(self, code, **kwargs):
         uid = self.validate_user(code)
+        self.set_refresh_token_if_exists(uid, code)
         return {
             'access_token': code,
             'uid': uid,
