@@ -416,17 +416,13 @@
           "type": "boolean",
           "description": "Whether or not the job succeeded"
         },
-        "elapsed": {
-          "type": "integer",
-          "description": "The elapsed time of the job, in seconds"
-        },
         "failure_reason": {
           "type": "string",
           "description": "An optional suspected reason for job failure"
         },
         "profile": {"$ref": "#/definitions/job-profile-input"}
       },
-      "required": ["success", "elapsed"]
+      "required": ["success"]
     },
     "job-completion-ticket": {
         "type":"object",

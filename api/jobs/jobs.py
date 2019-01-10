@@ -453,13 +453,12 @@ class JobTicket(object):
         return config.db.job_tickets.find_one({'_id': bson.ObjectId(_id)})
 
     @staticmethod
-    def create(job_id, success, elapsed, failure_reason=None):
+    def create(job_id, success, failure_reason=None):
         j = Job.get(job_id)
 
         result = config.db.job_tickets.insert_one({
             'job': j.id_,
             'success': success,
-            'elapsed': elapsed,
             'timestamp': datetime.datetime.utcnow(),
             'failure_reason': failure_reason
         })

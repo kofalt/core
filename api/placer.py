@@ -383,7 +383,6 @@ class EnginePlacer(Placer):
 
             update_doc ={
                 'state': 'complete' if success else 'failed',
-                'profile.elapsed_time_ms': job_ticket['elapsed'],
                 'profile.total_output_files': output_file_count,
                 'profile.total_output_size_bytes': output_file_size_bytes
             }
@@ -819,7 +818,6 @@ class AnalysisJobPlacer(Placer):
 
             update_doc = {
                 'state': 'complete' if success else 'failed',
-                'profile.elapsed_time_ms': job_ticket['elapsed'],
                 'profile.total_output_files': output_file_count,
                 'profile.total_output_size_bytes': output_file_size_bytes
             }

@@ -883,11 +883,17 @@ class JobHandler(base.RequestHandler):
     def prepare_complete(self, _id):
         payload = self.request.json
         success = payload['success']
-        elapsed = payload['elapsed']
+        elapsed = payload.get('elapsed')
         failure_reason = payload.get('failure_reason') if not success else None
 
         # Create the ticket
-        ticket = JobTicket.create(_id, success, elapsed, failure_reason=failure_reason)
+        ticket = JobTicket.create(_id, success, failure_reason=failure_reason)
+
+        # Poly-fill elapsed_time_ms from elapsed time
+        # This is for backward compatibility with older versions of engine
+        if elapsed is not None:
+            profile = payload.setdefault('profile', {})
+            profile.setdefault('elapsed_time_ms', elapsed)
 
         # Allow profile updates on prepare-complete
         profile = payload.get('profile')
