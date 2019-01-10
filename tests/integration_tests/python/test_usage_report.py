@@ -35,7 +35,7 @@ def update_created(db, ctype, cid, dt, files=0):
 
     db[ctype].update({'_id': bson.ObjectId(cid)}, update)
 
-def update_job(db, job_id, dt, duration=(30*60*1000)):
+def update_job(db, job_id, dt, cores=None, duration=(30*60*1000)):
     """Update the completion date of the given job"""
     # Fake some numbers
     update = {'$set': {
@@ -45,6 +45,10 @@ def update_job(db, job_id, dt, duration=(30*60*1000)):
         'transitions.running': dt,
         'transitions.complete': dt
     }}
+
+    if cores is not None:
+        update['$set']['profile.executor.cpu_cores'] = cores
+
     db.jobs.update_one({'_id': bson.ObjectId(job_id)}, update)
 
 def test_usage_report_parameters(as_admin):
@@ -139,7 +143,7 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     update_created(api_db, 'sessions', session, today)
     update_created(api_db, 'acquisitions', acquisition, today, files=1)
     update_created(api_db, 'analyses', analysis, today, files=1)
-    update_job(api_db, job, today)
+    update_job(api_db, job, today, cores=2)
     r = as_admin.get('/report/usage/collect?year={}&month={}&day={}'.format(yesterday.year, yesterday.month, yesterday.day))
 
     status = []
@@ -190,14 +194,14 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert record['days'][day]['center_compute_ms'] == 0
     assert record['days'][day]['center_job_count'] == 0
     assert record['days'][day]['center_storage_bytes'] == 0
-    assert record['days'][day]['group_compute_ms'] == 30 * 60 * 1000
+    assert record['days'][day]['group_compute_ms'] == 2 * 30 * 60 * 1000
     assert record['days'][day]['group_job_count'] == 1
     assert record['days'][day]['group_storage_bytes'] == 2 * len(FILE_DATA)
     assert record['days'][day]['session_count'] == 1
     assert record['total']['center_compute_ms'] == 0
     assert record['total']['center_job_count'] == 0
     assert record['total']['center_storage_bytes'] == 0
-    assert record['total']['group_compute_ms'] == 30 * 60 * 1000
+    assert record['total']['group_compute_ms'] == 2 * 30 * 60 * 1000
     assert record['total']['group_job_count'] == 1
     assert record['total']['group_storage_bytes'] == 2 * len(FILE_DATA)
     assert record['total']['session_count'] == 1
@@ -252,7 +256,7 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert row['center_compute_ms'] == 0
     assert row['center_job_count'] == 0
     assert row['center_storage_bytes'] == 0
-    assert row['group_compute_ms'] == 30 * 60 * 1000
+    assert row['group_compute_ms'] == 2 * 30 * 60 * 1000
     assert row['group_job_count'] == 1
     assert row['group_storage_bytes'] == 2 * len(FILE_DATA)
     assert row['session_count'] == 1
