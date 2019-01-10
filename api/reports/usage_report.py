@@ -439,10 +439,20 @@ class UsageReport(Report):
 
         pipeline = [
             {'$match': match},
+            {'$project': {
+                'parents': '$parents',
+                'gear_info': '$gear_info',
+                'total_time_ms': {
+                    '$multiply': [
+                        '$profile.total_time_ms',
+                        {'$ifNull': [ '$profile.executor.cpu_cores', 1]}
+                    ]
+                }
+            }},
             {'$group': {
                 '_id': {'project': '$parents.project', 'gear_name': '$gear_info.name', 'gear_version': '$gear_info.version'},
                 'count': {'$sum': 1},
-                'total_ms': {'$sum': '$profile.total_time_ms'},
+                'total_ms': {'$sum': '$total_time_ms'},
             }}
         ]
 
