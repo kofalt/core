@@ -1698,3 +1698,223 @@ def test_config_values(data_builder, default_payload, as_admin, file_form):
 
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
+
+def test_job_detail(data_builder, default_payload, as_admin, as_root, as_user, as_drone, as_public, file_form):
+    # Dupe of test_queue.py
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'zip': {
+            'base': 'file'
+        },
+        'csv': {
+            'base': 'file'
+        },
+        'test_context_value': {
+            'base': 'context'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    group = data_builder.create_group(label='job-detail group')
+    project = data_builder.create_project(label='job-detail project', info={
+        'test_context_value': 3,
+        'context': {
+            'test_context_value': 'project_context_value'
+        }
+    })
+    session = data_builder.create_session(label='job-detail session')
+    acquisition = data_builder.create_acquisition(label='job-detail acquisition')
+
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
+
+    assert as_admin.post('/acquisitions/' + acquisition + '/files/test.csv/info', json={
+        'replace': {
+            'input_key': 'input_value'
+        }
+    }).ok
+
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'zip': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            },
+            'csv': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.csv'
+            }
+        },
+        'destination': {
+            'type': 'session',
+            'id': session
+        }
+    }
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job = r.json()['_id']
+
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    started_job = r.json()
+    assert started_job['id'] == job
+
+    # prepare completion (send success status before engine upload)
+    r = as_drone.post('/jobs/' + job + '/prepare-complete', json={'success': True, 'elapsed': 3})
+    assert r.ok
+    job_ticket = r.json()['ticket']
+
+    r = as_drone.post('/engine',
+        params={'level': 'session', 'id': session, 'job': job, 'job_ticket': job_ticket},
+        files=file_form('result.zip', 'result.csv', meta={
+            'session': {
+                'files': [
+                    {'name': 'result.zip', 'info': {'zip_key': 'zip_value'}},
+                    {'name': 'result.csv', 'info': {'csv_key': 'csv_value'}},
+                ]
+            }
+        }))
+    assert r.ok
+
+    # ===== Happy Path =====
+    # Get job detail
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
+    r_detail = r.json()
+
+    assert r_detail['id'] == job
+
+    # Verify parent container info
+    assert r_detail['parent_info']['group']['_id'] == group
+    assert r_detail['parent_info']['group']['label'] == 'job-detail group'
+
+    assert r_detail['parent_info']['project']['_id'] == project
+    assert r_detail['parent_info']['project']['label'] == 'job-detail project'
+
+    assert r_detail['parent_info']['subject']['label'] == 'unknown'
+
+    assert r_detail['parent_info']['session']['_id'] == session
+    assert r_detail['parent_info']['session']['label'] == 'job-detail session'
+
+    assert 'acquisition' not in r_detail['parent_info']
+    assert 'analysis' not in r_detail['parent_info']
+
+    # Verify inputs
+    zip_input = r_detail['inputs']['zip']
+    assert zip_input['ref']['name'] == 'test.zip'
+    assert zip_input['ref']['type'] == 'acquisition'
+    assert zip_input['ref']['id'] == acquisition
+
+    assert zip_input['object']['name'] == 'test.zip'
+    assert zip_input['object']['type'] == 'archive'
+    assert zip_input['object']['mimetype'] == 'application/zip'
+    assert zip_input['object']['size'] > 0
+
+    csv_input = r_detail['inputs']['csv']
+    assert csv_input['ref']['name'] == 'test.csv'
+    assert csv_input['ref']['type'] == 'acquisition'
+    assert csv_input['ref']['id'] == acquisition
+
+    assert csv_input['object']['name'] == 'test.csv'
+    assert csv_input['object']['type'] == 'tabular data'
+    assert csv_input['object']['mimetype'] == 'text/csv'
+    assert csv_input['object']['size'] > 0
+
+    # Verify outputs
+    zip_out, csv_out = r_detail['outputs']
+    if zip_out['ref']['name'] == 'result.csv':
+        zip_out, csv_out = csv_out, zip_out
+
+    assert zip_out['ref']['name'] == 'result.zip'
+    assert zip_out['ref']['type'] == 'session'
+    assert zip_out['ref']['id'] == session
+
+    assert zip_out['object']['name'] == 'result.zip'
+    assert zip_out['object']['type'] == 'archive'
+    assert zip_out['object']['mimetype'] == 'application/zip'
+    assert zip_out['object']['size'] > 0
+
+    assert csv_out['ref']['name'] == 'result.csv'
+    assert csv_out['ref']['type'] == 'session'
+    assert csv_out['ref']['id'] == session
+
+    assert csv_out['object']['name'] == 'result.csv'
+    assert csv_out['object']['type'] == 'tabular data'
+    assert csv_out['object']['mimetype'] == 'text/csv'
+    assert csv_out['object']['size'] > 0
+
+    # ===== Permission Checks ====
+    r = as_public.get('/jobs/' + job + '/detail')
+    assert r.status_code == 403
+
+    r = as_user.get('/jobs/' + job + '/detail')
+    assert r.status_code == 403
+
+    # Add permission and verify access
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        '_id': 'user@user.com',
+        'access': 'ro'
+    }).ok
+    r = as_user.get('/jobs/' + job + '/detail')
+    assert r.ok
+
+    # Now delete the acquisition (inputs)
+    assert as_admin.delete('/acquisitions/' + acquisition).ok
+    r = as_user.get('/jobs/' + job + '/detail')
+    assert r.ok
+    r_detail = r.json()
+
+    # Endpoint should still work, refs should still exist
+    # No object in the output though
+    zip_input = r_detail['inputs']['zip']
+    assert zip_input['ref']['name'] == 'test.zip'
+    assert zip_input['ref']['type'] == 'acquisition'
+    assert zip_input['ref']['id'] == acquisition
+    assert 'object' not in zip_input
+
+    csv_input = r_detail['inputs']['csv']
+    assert csv_input['ref']['name'] == 'test.csv'
+    assert csv_input['ref']['type'] == 'acquisition'
+    assert csv_input['ref']['id'] == acquisition
+    assert 'object' not in csv_input
+
+    # Now delete the session (destination)
+    assert as_admin.delete('/sessions/' + session).ok
+
+    # No longer accessible to user
+    r = as_user.get('/jobs/' + job + '/detail')
+    assert r.status_code == 403
+
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
+    r_detail = r.json()
+
+    # Verify parent container info
+    assert r_detail['parent_info']['group']['_id'] == group
+    assert r_detail['parent_info']['group']['label'] == 'job-detail group'
+
+    assert r_detail['parent_info']['project']['_id'] == project
+    assert r_detail['parent_info']['project']['label'] == 'job-detail project'
+
+    assert r_detail['parent_info']['subject']['label'] == 'unknown'
+
+    assert r_detail['parent_info']['session']['_id'] == session
+    assert 'label' not in r_detail['parent_info']['session']
+
+    # Verify outputs still have references
+    zip_out, csv_out = r_detail['outputs']
+    if zip_out['ref']['name'] == 'result.csv':
+        zip_out, csv_out = csv_out, zip_out
+
+    assert zip_out['ref']['name'] == 'result.zip'
+    assert zip_out['ref']['type'] == 'session'
+    assert zip_out['ref']['id'] == session
+    assert 'object' not in zip_out
+
+    assert csv_out['ref']['name'] == 'result.csv'
+    assert csv_out['ref']['type'] == 'session'
+    assert csv_out['ref']['id'] == session
+    assert 'object' not in csv_out

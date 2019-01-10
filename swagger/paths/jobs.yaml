@@ -62,7 +62,7 @@
           $ref: schemas/output/job.json
         examples:
           response:
-            $ref: examples/output/job.json        
+            $ref: examples/output/job.json
 /jobs/stats:
   get:
     summary: Get stats about all current jobs
@@ -131,6 +131,24 @@
         required: true
         schema:
           $ref: schemas/input/job-update.json
+/jobs/{JobId}/detail:
+  parameters:
+    - required: true
+      type: string
+      in: path
+      name: JobId
+  get:
+    summary: Get job container details
+    operationId: get_job_detail
+    tags:
+    - jobs
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/job-detail.json
+      '404':
+        description: JobId not found
 /jobs/{JobId}/profile:
   parameters:
     - required: true
@@ -149,7 +167,7 @@
       - name: body
         in: body
         required: true
-        schema: 
+        schema:
           $ref: schemas/input/job-profile-update.json
 /jobs/{JobId}/retry:
   parameters:
@@ -202,7 +220,7 @@
       type: string
       in: path
       name: JobId
-  get: 
+  get:
     summary: Get job logs
     operationId: get_job_logs
     tags:

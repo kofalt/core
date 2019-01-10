@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../definitions/job.json#/definitions/job-detail"
+    }
+  ],
+  "example": {
+    "inputs": {
+      "dicom": {
+        "ref": {
+          "type": "acquisition",
+          "id": "57ac7394c700190017123fb7",
+          "name": "8403_4_1_t1_dicom.zip"
+        },
+        "object": {
+          "origin": {
+            "method": "importer",
+            "type": "device",
+            "id": "importer_Admin_Import",
+            "name": "Admin Import"
+          },
+          "_id": "50708f69-7549-4331-bac0-b4779e5c9ca1",
+          "mimetype": "application/zip",
+          "classification": {},
+          "hash": "v0-sha384-dd3c97bfe0ad1fcba75ae6718c6e81038c59af4f447f5db194d52732efa4f955b28455db02eb64cad3e4e55f11e3679f",
+          "name": "4784_1_1_localizer_dicom.zip",
+          "tags": [],
+          "created": "2016-09-21T14:56:09.943000+00:00",
+          "modified": "2016-09-24T14:56:09.943000+00:00",
+          "replaced": "2016-09-23T14:56:09.943000+00:00",
+          "modality": null,
+          "info": {},
+          "type": "dicom",
+          "size": 989933
+        }
+      }
+    },
+    "parent_info": {
+      "group": {
+        "_id": "scitran",
+        "label": "SciTran"
+      },
+      "project": {
+        "_id": "5c33be8304da10041e880c4c",
+        "label": "Brain Study"
+      },
+      "session": {
+        "_id": "5c33be8304da10041e880c4e",
+        "label": "Session 2018-09-30"
+      },
+      "subject": {
+        "_id": "5c33be8304da10041e880c4d",
+        "label": "unknown"
+      }
+    },
+    "attempt": 1,
+    "gear_id": "dcm_convert",
+    "tags": [
+      "ad-hoc",
+      "dcm_convert"
+    ],
+    "destination": {
+      "type": "acquisition",
+      "id": "573c9e6a844eac7fc01747cd"
+    },
+    "modified": "2016-08-11T13:02:09.055000+00:00",
+    "created": "2016-08-11T13:02:09.055000+00:00",
+    "state": "pending",
+    "id": "57ac77515e325c0018cd17cf",
+    "config": {
+      "speed": 3
+    },
+    "outputs": [
+      {
+        "object": {
+          "origin": {
+            "type": "job",
+            "id": "5c33be8404da10041e880c50"
+          },
+          "mimetype": "text/csv",
+          "hash": "v0-sha384-03a9df0a5e6e21f5d25aacbce76d8a5d9f8de14f6654c31ab2daed961cfbfb236b1708063350856f752a5a094fb64321",
+          "name": "result.csv",
+          "classification": {},
+          "created": "2019-01-07T21:03:00.276000+00:00",
+          "tags": [],
+          "modified": "2019-01-07T21:03:00.248000+00:00",
+          "_id": "84e30303-2568-4af4-a675-98774dac0408",
+          "type": "tabular data",
+          "modality": null,
+          "size": 10
+        },
+        "ref": {
+          "type": "session",
+          "id": "5c33be8304da10041e880c4e",
+          "name": "result.csv"
+        }
+      }
+    ]
+  }
+}

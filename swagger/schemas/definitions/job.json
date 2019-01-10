@@ -16,7 +16,7 @@
         "location":{"type":"string"},
         "vu":{"type":"string"}
       },
-      "required":["type", "uri", "location"]      
+      "required":["type", "uri", "location"]
     },
     "inputs-object": {
       "type": "object",
@@ -335,6 +335,67 @@
       ],
       "x-sdk-model":"job",
       "x-sdk-container-mixin": "job-mixin"
+    },
+    "job-container-detail": {
+      "type": "object",
+      "properties": {
+        "_id":         {"type":"string"},
+        "label":       {"$ref":"common.json#/definitions/label"}
+      },
+      "required": ["_id", "label"]
+    },
+    "job-detail-file-entry": {
+      "type":"object",
+      "properties": {
+        "ref": {"$ref":"file.json#/definitions/file-reference"},
+        "object": {"$ref":"file.json#/definitions/file-entry"}
+      },
+      "required": ["ref"],
+      "additionalProperties": false
+    },
+    "job-detail-inputs-object": {
+      "type": "object",
+      "patternProperties": {
+        "[-_ a-zA-Z0-9]+": {"$ref":"#/definitions/job-detail-file-entry"}
+      }
+    },
+    "job-detail-parent-info": {
+        "type": "object",
+        "properties": {
+            "group":{"$ref": "#/definitions/job-container-detail"},
+            "project":{"$ref": "#/definitions/job-container-detail"},
+            "subject":{"$ref": "#/definitions/job-container-detail"},
+            "session":{"$ref": "#/definitions/job-container-detail"},
+            "acquisition":{"$ref": "#/definitions/job-container-detail"},
+            "analysis":{"$ref": "#/definitions/job-container-detail"}
+        },
+        "additionalProperties": false
+    },
+    "job-detail": {
+      "type":"object",
+      "properties":{
+        "id":{"$ref":"common.json#/definitions/objectid"},
+        "origin":{"$ref":"#/definitions/job-origin"},
+        "gear_id":{"$ref":"#/definitions/gear_id"},
+        "gear_info":{"$ref":"gear.json#/definitions/gear-info"},
+        "parent_info":{"$ref":"#/definitions/job-detail-parent-info"},
+        "previous_job_id":{"type":"string"},
+        "inputs":{"$ref":"#/definitions/job-detail-inputs-object"},
+        "outputs":{
+            "type": "array",
+            "items": {"$ref":"#/definitions/job-detail-file-entry"}
+        },
+        "destination":{"$ref":"#/definitions/destination"},
+        "tags":{"$ref":"#/definitions/tags"},
+        "state":{"$ref":"#/definitions/state"},
+        "attempt":{"$ref":"#/definitions/attempt"},
+        "created":{"$ref":"created-modified.json#/definitions/created"},
+        "modified":{"$ref":"created-modified.json#/definitions/modified"},
+        "retried": {"$ref": "created-modified.json#/definitions/retried"},
+        "config":{"$ref":"#/definitions/config"},
+        "request":{"$ref":"#/definitions/request"}
+      },
+      "additionalProperties": false
     },
     "job-config-inputs": {
       "type": "object"

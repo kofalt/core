@@ -38,6 +38,7 @@ from .batch import check_state, update
 from .queue import Queue
 from .rules import create_jobs, validate_regexes, validate_auto_update
 
+log = config.log
 
 class GearsHandler(base.RequestHandler):
 
@@ -576,6 +577,123 @@ class JobHandler(base.RequestHandler):
     @require_admin
     def get(self, _id):
         return Job.get(_id)
+
+    @require_login
+    def get_detail(self, _id):
+        # Get the job instance
+        job = Job.get(_id)
+
+        result = job.map()
+        result.pop('inputs', {})
+        parents = result.pop('parents', {})
+        saved_files = result.pop('saved_files', [])
+
+        # Cached lookup for containers, returns None if not found
+        _parent_projection = {'label': 1}
+        _container_cache = {}
+        def get_container(ref):
+            """Helper for cached retrieval of container"""
+            # Normalize id
+            strid = str(ref.id)
+            if strid in _container_cache:
+                result = _container_cache[strid]
+            else:
+                try:
+                    result = ref.get()
+                except APINotFoundException:
+                    log.debug('Unable to retrieve container: type=%s, id=%s',
+                        ref.type, ref.id)
+                    result = None
+
+                _container_cache[strid] = result
+            return result
+
+        # Read inputs while checking permission
+        authorized = self.user_is_admin
+        result['inputs'] = {}
+        if job.inputs is not None:
+            for key, ref in job.inputs.items():
+                rec = {
+                    'ref': ref.map()
+                }
+                result['inputs'][key] = rec
+
+                # Duck-typing, we're only dealing with references from here
+                if not hasattr(ref, 'check_access'):
+                    continue
+
+                # Retrieve the container
+                cont = get_container(ref)
+                if cont is None:
+                    continue
+
+                if not self.user_is_admin:
+                    # Check access, (Raises APIPermissionException)
+                    ref.check_access(self.uid, 'ro', cont=cont)
+                    authorized = True
+
+                if hasattr(ref, 'get_file'):
+                    # Raises APINotFoundException
+                    try:
+                        rec['object'] = ref.get_file(container=cont)
+                        rec['object'].pop('info', None)  # Remove info, if present
+                    except APINotFoundException:
+                        log.debug('Unable to retrieve file on container: type=%s, id=%s, name=%s',
+                            ref.type, ref.id, ref.name)
+                else:
+                    rec['object'] = cont
+
+        # If we're still not authorized, check the destination
+        dest_cont = get_container(job.destination)
+        if dest_cont and not self.user_is_admin:
+            # Raises APIPermissionException
+            job.destination.check_access(self.uid, 'ro', cont=dest_cont)
+        elif not authorized:
+            # Couldn't find destination container, and cannot check access
+            raise APIPermissionException('User {} does not have access to job {}'.format(self.uid, _id))
+
+        # Resolve parent container (labels)
+        result['parent_info'] = {}
+        for ctype, cid in parents.items():
+            if cid is None:
+                continue
+
+            # Retrieve (cached if possible) parents
+            strid = str(cid)
+            cont = _container_cache.get(strid)
+            if cont is None:
+                storage = cs_factory(ctype)
+                cont = storage.get_el(cid, projection=_parent_projection)
+
+            if cont:
+                result['parent_info'][ctype] = {
+                    '_id': cont['_id'],
+                    'label': cont.get('label')
+                }
+            else:
+                result['parent_info'][ctype] = {'_id': cid}
+
+        # Resolve outputs (saved_files)
+        result['outputs'] = []
+        for name in saved_files:
+            rec = {
+                'ref': {
+                    'type': job.destination.type,
+                    'id': job.destination.id,
+                    'name': name
+                }
+            }
+
+            if dest_cont:
+                obj = job.destination.find_file(name, cont=dest_cont)
+                if obj:
+                    rec['object'] = obj
+                    obj.pop('info', None)  # Remove info, if present
+
+            result['outputs'].append(rec)
+
+        return result
+
 
     @require_admin
     def get_config(self, _id):

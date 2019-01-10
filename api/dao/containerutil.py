@@ -277,6 +277,9 @@ class ContainerReference(object):
             id = fr.id
         )
 
+    def map(self):
+        return copy.deepcopy(self.__dict__)
+
     def get(self):
         collection = pluralize(self.type)
         result = config.db[collection].find_one({'_id': bson.ObjectId(self.id), 'deleted': {'$exists': False}})
@@ -291,8 +294,9 @@ class ContainerReference(object):
             result['permissions'] = parent['permissions']
         return result
 
-    def find_file(self, filename):
-        cont = self.get()
+    def find_file(self, filename, cont=None):
+        if cont is None:
+            cont = self.get()
         for f in cont.get('files', []):
             if f['name'] == filename:
                 return f
