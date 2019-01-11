@@ -86,7 +86,7 @@ def drop_index(coll, key):
             config.db[coll].drop_index(key)
 
 
-def fix_container_parents(cont, cont_name, parents=None):
+def ensure_container_parents(cont, cont_name, parents=None):
     """
     Fix the parents for a container and it's children
     """
@@ -112,10 +112,10 @@ def fix_container_parents(cont, cont_name, parents=None):
         return True
     config.db[child_cont_name].update_many({cont_name: cont['_id']}, {'$set': {'parents': parents}})
     cursor = config.db[child_cont_name].find({cont_name: cont['_id']})
-    process_cursor(cursor, fix_container_parents, child_cont_name, parents=parents)
+    process_cursor(cursor, ensure_container_parents, child_cont_name, parents=parents)
     return True
 
-def fix_parents():
+def ensure_parents():
     """
     Ensure that parents exist for all containers
 
@@ -124,7 +124,7 @@ def fix_parents():
     """
     for cont_name in ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses']:
         cursor = config.db[cont_name].find({'parents': None})
-        process_cursor(cursor, fix_container_parents, cont_name)
+        process_cursor(cursor, ensure_container_parents, cont_name)
 
 
 def process_cursor(cursor, closure, *args, **kwargs):
@@ -2432,8 +2432,8 @@ if __name__ == '__main__':
                 upgrade_schema(args.force_from)
             else:
                 upgrade_schema()
-        elif args.function == 'fix_parents':
-            fix_parents()
+        elif args.function == 'ensure_parents':
+            ensure_parents()
         else:
             logging.error('Unknown method name given as argv to database.py')
             sys.exit(1)

@@ -996,7 +996,7 @@ def test_62(api_db, data_builder, database, default_payload, as_admin, file_form
             job_empty_dest, job_invalid_dest, job_empty_input, job_invalid_input, job_valid]}})
 
 
-def test_fix_parents(api_db, database):
+def test_ensure_parents(api_db, database):
 
     # Create hierarchy
     group = 'g1'
@@ -1018,7 +1018,7 @@ def test_fix_parents(api_db, database):
     analysis = bson.ObjectId()
     api_db.analyses.insert_one({'_id': analysis, 'parent': {'type': 'session', 'id': session_2}})
 
-    database.fix_parents()
+    database.ensure_parents()
 
     project_1_parents = api_db.projects.find_one({'_id': project_1})['parents']
     project_2_parents = api_db.projects.find_one({'_id': project_2})['parents']
