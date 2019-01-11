@@ -996,4 +996,58 @@ def test_62(api_db, data_builder, database, default_payload, as_admin, file_form
             job_empty_dest, job_invalid_dest, job_empty_input, job_invalid_input, job_valid]}})
 
 
+def test_fix_parents(api_db, database):
 
+    # Create hierarchy
+    group = 'g1'
+    api_db.groups.insert_one({'_id': group})
+    project_1 = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project_1, 'group': group, 'parents': {}})
+    project_2 = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project_2, 'group': group})
+    subject_1 = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_1, 'project': project_1, 'group': group})
+    subject_2 = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_2, 'project': project_2, 'group': group})
+    session_1 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_1, 'subject': subject_1, 'project': project_1, 'group': group})
+    session_2 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_2, 'subject': subject_2, 'project': project_2, 'group': group, 'parents': {}})
+    acquisition = bson.ObjectId()
+    api_db.acquisitions.insert_one({'_id': acquisition, 'session': session_1})
+    analysis = bson.ObjectId()
+    api_db.analyses.insert_one({'_id': analysis, 'parent': {'type': 'session', 'id': session_2}})
+
+    database.fix_parents()
+
+    project_1_parents = api_db.projects.find_one({'_id': project_1})['parents']
+    project_2_parents = api_db.projects.find_one({'_id': project_2})['parents']
+    subject_1_parents = api_db.subjects.find_one({'_id': subject_1})['parents']
+    subject_2_parents = api_db.subjects.find_one({'_id': subject_2})['parents']
+    session_1_parents = api_db.sessions.find_one({'_id': session_1})['parents']
+    session_2_parents = api_db.sessions.find_one({'_id': session_2})['parents']
+    acquisition_parents = api_db.acquisitions.find_one({'_id': acquisition})['parents']
+    analysis_parents = api_db.analyses.find_one({'_id': analysis})['parents']
+
+    assert project_1_parents.get('group') == None
+    assert project_2_parents['group'] == group
+    assert session_1_parents.get('group') == None
+    assert session_2_parents.get('group') == None
+    assert acquisition_parents.get('group') == None
+    assert analysis_parents.get('group') == None
+
+    assert session_1_parents['project'] == project_1
+    assert session_2_parents.get('project') == None
+    assert acquisition_parents['project'] == project_1
+    assert analysis_parents.get('project') == None
+
+    assert acquisition_parents['session'] == session_1
+    assert analysis_parents['session'] == session_2
+
+    api_db.groups.delete_one({'_id': group})
+    api_db.projects.delete_one({'_id': project_1})
+    api_db.projects.delete_one({'_id': project_2})
+    api_db.sessions.delete_one({'_id': session_1})
+    api_db.sessions.delete_one({'_id': session_2})
+    api_db.acquisitions.delete_one({'_id': acquisition})
+    api_db.analyses.delete_one({'_id': analysis})

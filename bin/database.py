@@ -86,7 +86,48 @@ def drop_index(coll, key):
             config.db[coll].drop_index(key)
 
 
-def process_cursor(cursor, closure, context = None):
+def fix_container_parents(cont, cont_name, parents=None):
+    """
+    Fix the parents for a container and it's children
+    """
+    child_cont_name = containerutil.CHILD_FROM_PARENT.get(cont_name)
+    if parents is None:
+        if cont_name == 'analyses':
+            parent_id = cont['parent']['id']
+            parent_cont_name = containerutil.pluralize(cont['parent']['type'])
+            parent = config.db[parent_cont_name].find_one({'_id': parent_id})
+        else:
+            parent_cont_name = containerutil.PARENT_FROM_CHILD[cont_name]
+            parent_id = cont[containerutil.singularize(parent_cont_name)]
+            parent = config.db[parent_cont_name].find_one({'_id': parent_id})
+        if not parent:
+            logging.critical('Parent for  {} {} does not exist'.format(cont_name, cont['_id']))
+        parents = parent.get('parents', {})
+        parents[containerutil.singularize(parent_cont_name)] = parent_id
+        config.db[cont_name].update({'_id': cont['_id']}, {'$set': {'parents': parents}})
+
+    parents[cont_name] = cont['_id']
+    config.db.analyses.update_many({'parent.id': cont['_id']}, {'$set': {'parents': parents}})
+    if child_cont_name is None:
+        return True
+    config.db[child_cont_name].update_many({cont_name: cont['_id']}, {'$set': {'parents': parents}})
+    cursor = config.db[child_cont_name].find({cont_name: cont['_id']})
+    process_cursor(cursor, fix_container_parents, child_cont_name, parents=parents)
+    return True
+
+def fix_parents():
+    """
+    Ensure that parents exist for all containers
+
+    IMPORTANT NOTE: This doesn't make sure containers that have a parents key are
+    accurate or that the individual parent id's are set
+    """
+    for cont_name in ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses']:
+        cursor = config.db[cont_name].find({'parents': None})
+        process_cursor(cursor, fix_container_parents, cont_name)
+
+
+def process_cursor(cursor, closure, *args, **kwargs):
     """
     Given an iterable (say, a mongo cursor) and a closure, call that closure in parallel over the iterable.
     Call order is undefined. Currently launches N python process workers, where N is the number of vcpu cores.
@@ -138,10 +179,7 @@ def process_cursor(cursor, closure, context = None):
         if 100 * (cursor_index / cursor_size) >= next_percent:
             logging.info('{} percent complete ...'.format(next_percent))
             next_percent = next_percent + percent_increment
-        if context == None:
-            result = closure(document)
-        else:
-            result = closure(document, context)
+        result = closure(document, *args, **kwargs)
         cursor_index = cursor_index + 1
         if result != True:
             failed = True
@@ -1382,7 +1420,7 @@ def upgrade_to_42():
     """
     for cont_name in ['groups', 'projects', 'sessions', 'acquisitions']:
         cursor = config.db[cont_name].find({'archived': {'$exists': True}})
-        process_cursor(cursor, upgrade_to_42_closure, context=cont_name)
+        process_cursor(cursor, upgrade_to_42_closure, cont_name)
 
 
 def upgrade_to_43_closure(analysis):
@@ -1654,7 +1692,7 @@ def upgrade_to_48():
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
 
         cursor = config.db[cont_name].find({'files.origin.type': 'device'})
-        process_cursor(cursor, upgrade_files_to_48, context=cont_name)
+        process_cursor(cursor, upgrade_files_to_48, cont_name)
 
 def upgrade_files_to_49(cont, cont_name):
 
@@ -1682,7 +1720,7 @@ def upgrade_to_49():
 
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
         cursor = config.db[cont_name].find({'files.classification.Contrast': {'$exists': True}})
-        process_cursor(cursor, upgrade_files_to_49, context=cont_name)
+        process_cursor(cursor, upgrade_files_to_49, cont_name)
 
 def upgrade_files_to_50(cont, cont_name):
     """
@@ -1743,7 +1781,7 @@ def upgrade_to_50():
     for cont_name in ['groups', 'projects', 'collections', 'sessions', 'acquisitions', 'analyses']:
         # Only operate on files with custom classification values
         cursor = config.db[cont_name].find({'files.classification.Custom': {'$exists': True, '$ne': []}})
-        process_cursor(cursor, upgrade_files_to_50, context=cont_name)
+        process_cursor(cursor, upgrade_files_to_50, cont_name)
 
 def upgrade_to_51():
     """
@@ -1783,7 +1821,7 @@ def upgrade_to_52():
         gears[str(gear['_id'])] = gear
 
     cursor = config.db.jobs.find()
-    process_cursor(cursor, upgrade_job_to_52, context=gears)
+    process_cursor(cursor, upgrade_job_to_52, gears)
 
 def upgrade_to_53():
     """
@@ -2394,6 +2432,8 @@ if __name__ == '__main__':
                 upgrade_schema(args.force_from)
             else:
                 upgrade_schema()
+        elif args.function == 'fix_parents':
+            fix_parents()
         else:
             logging.error('Unknown method name given as argv to database.py')
             sys.exit(1)
