@@ -47,6 +47,7 @@ classdef Finder < handle
             if isempty(p.Results.limit)
                 args = horzcat({'limit', 250}, args);
             end
+            args = horzcat(obj.args_, args);
 
             % Generator closure that tracks the last ID
             afterId = '';

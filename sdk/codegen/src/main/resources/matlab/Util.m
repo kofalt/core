@@ -33,6 +33,14 @@ classdef (Abstract) Util
             end
         end
 
+        function result = toDestination(obj)
+            if ismethod(obj, 'ref')
+                result = struct(ref(obj));
+            else
+                result = obj;
+            end
+        end
+
         function applyFnToStructOrCells(fn, value)
             if iscell(value)
                 for i = 1:numel(value)

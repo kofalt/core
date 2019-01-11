@@ -43,7 +43,7 @@ classdef GearInvocation < handle
             obj.inputs.(key) = {{packageName}}.Util.toRef(input);
         end
         function obj = setDestination(obj, dest)
-            obj.destination = {{packageName}}.Util.toRef(dest);
+            obj.destination = {{packageName}}.Util.toDestination(dest);
         end
         function result = run(obj)
             job = {{packageName}}.model.Job(...
