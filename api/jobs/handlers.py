@@ -2,7 +2,6 @@
 API request handlers for the jobs module
 """
 import bson
-import copy
 import datetime
 import StringIO
 from jsonschema import ValidationError
@@ -15,7 +14,7 @@ from .. import upload
 from .. import files
 from ..auth import require_drone, require_login, require_admin, has_access
 from ..auth.apikeys import JobApiKey
-from ..dao import dbutil, hierarchy
+from ..dao import dbutil
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..types import Origin
 from ..util import set_for_download, add_container_type, mongo_dict
@@ -23,8 +22,7 @@ from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
-from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
-from ..web.request import AccessType
+from ..web.errors import APIPermissionException, APINotFoundException, APIGoneException, InputValidationException
 
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,
@@ -36,7 +34,7 @@ from .gears import (
 from .jobs import Job, JobTicket, Logs
 from .batch import check_state, update
 from .queue import Queue
-from .rules import create_jobs, validate_regexes, validate_auto_update
+from .rules import validate_regexes, validate_auto_update
 
 log = config.log
 
@@ -881,57 +879,51 @@ class JobHandler(base.RequestHandler):
 
     @require_drone
     def prepare_complete(self, _id):
+        # Create the ticket
+        return {
+            'ticket': JobTicket.create(_id)
+        }
+
+    @require_drone
+    def complete(self, _id):
         payload = self.request.json
         success = payload['success']
-        elapsed = payload['elapsed']
         failure_reason = payload.get('failure_reason') if not success else None
 
-        # Create the ticket
-        ticket = JobTicket.create(_id, success, elapsed, failure_reason=failure_reason)
+        update_doc = {
+            'state': 'complete' if success else 'failed'
+        }
 
-        # Allow profile updates on prepare-complete
+        # Optional failure reason
+        if failure_reason:
+            update_doc['failure_reason'] = failure_reason
+
+        # Profile updates
         profile = payload.get('profile')
         if profile:
             validate_data(profile, 'job-profile-update.json', 'input', 'POST')
+            update_doc.update(mongo_dict(profile, prefix='profile'))
 
-            profile_update_doc = mongo_dict(profile, prefix='profile')
-            config.db.jobs.update_one({'_id': bson.ObjectId(_id)}, {'$set': profile_update_doc})
+        # Retrieve and update the job
+        job = Job.get(_id)
+        self.log.info('Update job %s with %s', _id, update_doc)
+        Queue.mutate(job, update_doc)
 
-        return { 'ticket': ticket }
+        # Update job logs if there were outputs
+        if job.saved_files:
+            lines = [ 'The following outputs have been saved:\n' ]
+            for name in job.saved_files:
+                lines.append('  - {}\n'.format(name))
+            Logs.add_system_logs(_id, lines)
 
-    @require_login
+        # Finally, remove the ticket
+        ticket_id = self.get_param('job_ticket_id')
+        if ticket_id:
+            JobTicket.remove(ticket_id)
+
     def accept_failed_output(self, _id):
-        j = Job.get(_id)
-
-        # Permission check
-        if not self.superuser_request:
-            j.destination.check_access(self.uid, 'rw')
-
-        if j.state != 'failed':
-            self.abort(400, 'Can only accept failed output of a job that failed')
-
-        # Remove flag from files
-        container = j.destination.get()
-        container_before = copy.deepcopy(container)
-        for f in container.get('files'):
-            if f['origin'] == {'type': 'job', 'id': _id}:
-                del f['from_failed_job']
-        cont_name = pluralize(j.destination.type)
-        query = {'_id': container['_id']}
-        updates = {'$set': {'files': container['files']}}
-        config.db[cont_name].update_one(query, updates)
-
-        # Apply metadata
-        hierarchy.update_container_hierarchy(j.produced_metadata, container['_id'], j.destination.type)
-
-        # Mark and save job
-        j.failed_output_accepted = True
-        j.save()
-
-        # Create any automatic jobs for the accepted files
-        create_jobs(config.db, container_before, container, cont_name)
-
-        self.log_user_access(AccessType.accept_failed_output, cont_name=j.destination.type, cont_id=j.destination.id)
+        self.log.warning('accept-failed-output is not supported!')
+        raise APIGoneException()
 
 class BatchHandler(base.RequestHandler):
 

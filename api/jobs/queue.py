@@ -445,7 +445,7 @@ class Queue(object):
         if result is None:
             raise Exception('Marked job as running but could not generate and save formula')
 
-        Logs.add(job.id_, [{'msg': 'Gear Name: {}, Gear Version: {}\n'.format(gear['gear']['name'], gear['gear']['version']), 'fd': -1}])
+        Logs.add_system_logs(job.id_, 'Gear Name: {}, Gear Version: {}\n'.format(gear['gear']['name'], gear['gear']['version']))
         log.info('Starting Job {}. Gear Name: {}, Gear Version: {}'.format(job.id_, gear['gear']['name'], gear['gear']['version']))
 
         return Job.load(result)
@@ -581,8 +581,8 @@ class Queue(object):
             else:
                 orphaned += 1
                 j = Job.load(doc)
-                Logs.add(j.id_, [{'msg':'The job did not report in for a long time and was canceled.', 'fd':-1}])
+                Logs.add_system_logs(j.id_, 'The job did not report in for a long time and was canceled. ')
                 new_id = Queue.retry(j)
-                Logs.add(j.id_, [{'msg': 'Retried job as ' + str(new_id) if new_id else 'Job retries exceeded maximum allowed', 'fd':-1}])
+                Logs.add_system_logs(j.id_, 'Retried job as ' + str(new_id) if new_id else 'Job retries exceeded maximum allowed')
 
         return orphaned

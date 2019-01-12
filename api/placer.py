@@ -14,7 +14,6 @@ from .dao import containerutil, hierarchy
 from .dao.containerstorage import SubjectStorage, SessionStorage, AcquisitionStorage
 from .jobs import rules
 from .jobs.jobs import Job, JobTicket
-from .jobs.queue import Queue
 from .types import Origin
 from .web import encoder
 from .web.errors import FileFormException
@@ -334,24 +333,14 @@ class EnginePlacer(Placer):
                     file_attrs.update(file_md)
                     break
 
-        if self.context.get('job_ticket_id'):
-            job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
-
-            if not job_ticket['success']:
-                file_attrs['from_failed_job'] = True
-
         self.save_file(field, file_attrs)
 
     def finalize(self):
         job = None
-        job_ticket = None
-        success = True
 
         if self.context.get('job_ticket_id'):
             job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
             job = Job.get(job_ticket['job'])
-            success = job_ticket['success']
-            failure_reason = job_ticket.get('failure_reason')
         elif self.context.get('job_id'):
             job = Job.get(self.context.get('job_id'))
 
@@ -370,10 +359,10 @@ class EnginePlacer(Placer):
             for k in self.metadata.keys():
                 self.metadata[k].pop('files', {})
 
-            if success:
-                hierarchy.update_container_hierarchy(self.metadata, bid, self.container_type)
+            hierarchy.update_container_hierarchy(self.metadata, bid, self.container_type)
 
-        if job_ticket is not None:
+        if job is not None:
+            # Update profile info
             output_file_count = 0
             output_file_size_bytes = 0
 
@@ -381,20 +370,13 @@ class EnginePlacer(Placer):
                 output_file_count += 1
                 output_file_size_bytes += f['size']
 
-            update_doc ={
-                'state': 'complete' if success else 'failed',
-                'profile.elapsed_time_ms': job_ticket['elapsed'],
-                'profile.total_output_files': output_file_count,
-                'profile.total_output_size_bytes': output_file_size_bytes
-            }
+            if job.profile is None:
+                job.profile = {}
 
-            if failure_reason:
-                update_doc['failure_reason'] = failure_reason
+            job.profile['total_output_files'] =  output_file_count
+            job.profile['total_output_size_bytes'] = output_file_size_bytes
 
-            Queue.mutate(job, update_doc)
-            job = Job.get(job.id_)
-
-        if job is not None:
+            # Update saved files & metadata
             job.saved_files = [f['name'] for f in self.saved]
             job.produced_metadata = self.metadata
             job.save()
@@ -779,26 +761,16 @@ class AnalysisJobPlacer(Placer):
                     file_attrs.update(file_md)
                     break
 
-        if self.context.get('job_ticket_id'):
-            job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
-
-            if not job_ticket['success']:
-                file_attrs['from_failed_job'] = True
-
         file_attrs['created'] = file_attrs['modified']
         self.save_file(field)
         self.saved.append(file_attrs)
 
     def finalize(self):
         job = None
-        job_ticket = None
-        success = True
 
         if self.context.get('job_ticket_id'):
             job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
             job = Job.get(job_ticket['job'])
-            success = job_ticket['success']
-            failure_reason = job_ticket.get('failure_reason')
         elif self.context.get('job_id'):
             job = Job.get(self.context.get('job_id'))
 
@@ -809,7 +781,8 @@ class AnalysisJobPlacer(Placer):
             update['$set']['job'] = job.id_
         config.db.analyses.update_one(query, update)
 
-        if job_ticket is not None:
+        if job is not None:
+            # Update profile info
             output_file_count = 0
             output_file_size_bytes = 0
 
@@ -817,20 +790,13 @@ class AnalysisJobPlacer(Placer):
                 output_file_count += 1
                 output_file_size_bytes += f['size']
 
-            update_doc = {
-                'state': 'complete' if success else 'failed',
-                'profile.elapsed_time_ms': job_ticket['elapsed'],
-                'profile.total_output_files': output_file_count,
-                'profile.total_output_size_bytes': output_file_size_bytes
-            }
+            if job.profile is None:
+                job.profile = {}
 
-            if failure_reason:
-                update_doc['failure_reason'] = failure_reason
+            job.profile['total_output_files'] =  output_file_count
+            job.profile['total_output_size_bytes'] = output_file_size_bytes
 
-            Queue.mutate(job, update_doc)
-            job = Job.get(job.id_)
-
-        if job is not None:
+            #Update saved files
             job.saved_files = [f['name'] for f in self.saved]
             job.save()
 

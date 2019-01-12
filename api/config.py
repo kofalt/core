@@ -252,12 +252,20 @@ def get_public_config():
     auth = copy.deepcopy(__config.get('auth'))
     for values in auth.itervalues():
         values.pop('client_secret', None)
+
+    # Start publishing features as a boolean map
+    features = {
+        'job_tickets': True,  #  Support for modern job-ticket workflow
+        'signed_url': hasattr(fs, 'get_signed_url'),
+    }
+
     return {
         'created': __config.get('created'),
         'modified': __config.get('modified'),
         'site': __config.get('site'),
         'auth': auth,
-        'signed_url': hasattr(fs, 'get_signed_url'),
+        'signed_url': features['signed_url'],  # Legacy note: clients expect top-level signed_url key
+        'features': features
     }
 
 def get_version():
