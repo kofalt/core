@@ -256,12 +256,6 @@ def upsert_fileinfo(cont_name, _id, fileinfo, access_logger, ignore_hash_replace
                 saved_state = 'saved'
                 logger.info('File id=%s, name=<%s> replaced deleted file on %s=%s', fileinfo['_id'], fileinfo['name'], cont_name, _id)
 
-
-            # Files from a failed job should never replaced existing files that are "accepted" (unless they are deleted)
-            elif fileinfo.get('from_failed_job') and not f.get('from_failed_job'):
-                saved_state = 'ignored'
-                logger.info('File id=%s, name=<%s> was from a failed job, and ignored because accepted file exists on %s=%s', fileinfo['_id'], fileinfo['name'], cont_name, _id)
-
             # The file object is the same as an existing file and the caller has chosen to ignore in this situation
             elif ignore_hash_replace and hashes_equal_or_empty(f.get('hash'), fileinfo['hash']):
                 saved_state = 'ignored'
