@@ -179,11 +179,12 @@ def find_type_in_container(container, type_):
             return c_file
     return None
 
-def create_potential_jobs(db, container, container_type, file_):
+def create_potential_jobs(db, container, container_type, file_, rule_failure_callback=None):
     """
     Check all rules that apply to this file, and creates the jobs that should be run.
     Jobs are created but not enqueued.
     Returns list of potential job objects containing job ready to be inserted and rule.
+    rule_failure_callback will be called for each rule evauation that fails for any reason
     """
 
     potential_jobs = []
@@ -196,39 +197,42 @@ def create_potential_jobs(db, container, container_type, file_):
         rules.append(hardcoded_rule)
 
     for rule in rules:
+        try:
+            if eval_rule(rule, file_, container):
+                gear_id = rule['gear_id']
+                gear = gears.get_gear(gear_id)
+                gear = gears.filter_optional_inputs(gear)
+                gear_name = gear['gear']['name']
 
-        if 'from_failed_job' not in file_ and eval_rule(rule, file_, container):
+                if rule.get('match') is None:
+                    input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
+                    job = queue_job_legacy(gear_id, input_)
+                else:
+                    inputs = { }
 
-            gear_id = rule['gear_id']
-            gear = gears.get_gear(gear_id)
-            gear = gears.filter_optional_inputs(gear)
-            gear_name = gear['gear']['name']
+                    for input_name, match_type in rule['match'].iteritems():
+                        match = find_type_in_container(container, match_type)
+                        if match is None:
+                            raise Exception("No type " + match_type + " found for alg rule " + gear_name + " that should have been satisfied")
+                        inputs[input_name] = FileReference(type=container_type, id=str(container['_id']), name=match['name'])
 
-            if rule.get('match') is None:
-                input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
-                job = queue_job_legacy(gear_id, input_)
-            else:
-                inputs = { }
+                    job = Job(gear, inputs, tags=['auto', gear_name])
 
-                for input_name, match_type in rule['match'].iteritems():
-                    match = find_type_in_container(container, match_type)
-                    if match is None:
-                        raise Exception("No type " + match_type + " found for alg rule " + gear_name + " that should have been satisfied")
-                    inputs[input_name] = FileReference(type=container_type, id=str(container['_id']), name=match['name'])
+                if 'config' in rule:
+                    job.config = rule['config']
 
-                job = Job(gear, inputs, tags=['auto', gear_name])
-
-            if 'config' in rule:
-                job.config = rule['config']
-
-            potential_jobs.append({
-                'job': job,
-                'rule': rule
-            })
+                potential_jobs.append({
+                    'job': job,
+                    'rule': rule
+                })
+        except Exception as exc_val:  # pylint: disable=broad-except
+            log.exception('Unable to evaluate rule %s(name=%s)', rule['_id'], rule.get('name'))
+            if rule_failure_callback:
+                rule_failure_callback(rule, exc_val)
 
     return potential_jobs
 
-def create_jobs(db, container_before, container_after, container_type, replaced_files=None):
+def create_jobs(db, container_before, container_after, container_type, replaced_files=None, rule_failure_callback=None):
     """
     Given a before and after set of file attributes, enqueue a list of jobs that would only be possible
     after the changes.
@@ -246,10 +250,10 @@ def create_jobs(db, container_before, container_after, container_type, replaced_
     files_after     = container_after.get('files', [])
 
     for f in files_before:
-        jobs_before.extend(create_potential_jobs(db, container_before, container_type, f))
+        jobs_before.extend(create_potential_jobs(db, container_before, container_type, f, rule_failure_callback=rule_failure_callback))
 
     for f in files_after:
-        jobs_after.extend(create_potential_jobs(db, container_after, container_type, f))
+        jobs_after.extend(create_potential_jobs(db, container_after, container_type, f, rule_failure_callback=rule_failure_callback))
 
     # Using a uniqueness constraint, create a list of the set difference of jobs_after \ jobs_before
     # (members of jobs_after that are not in jobs_before)

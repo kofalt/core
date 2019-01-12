@@ -13,7 +13,7 @@ from . import config, util, validators
 from .dao import containerutil, hierarchy
 from .dao.containerstorage import SubjectStorage, SessionStorage, AcquisitionStorage
 from .jobs import rules
-from .jobs.jobs import Job, JobTicket
+from .jobs.jobs import Job, JobTicket, Logs
 from .types import Origin
 from .web import encoder
 from .web.errors import FileFormException
@@ -53,6 +53,9 @@ class Placer(object):
 
         # Context logger
         self.logger         = logger
+
+        # Track failed rule evaluations
+        self.failed_rules = []
 
 
     def check(self):
@@ -117,7 +120,8 @@ class Placer(object):
                 if saved_state == 'replaced':
                     replaced_files.append(containerutil.FileReference(self.container_type, self.id_, file_attrs['name']))
 
-                rules.create_jobs(config.db, container_before, self.container, self.container_type, replaced_files=replaced_files)
+                rules.create_jobs(config.db, container_before, self.container, self.container_type, replaced_files=replaced_files,
+                    rule_failure_callback=self.handle_rule_failure)
 
     def update_file(self, file_attrs):
         """
@@ -129,10 +133,8 @@ class Placer(object):
 
         else:
             self.container = container_after
-            rules.create_jobs(config.db, container_before, self.container, self.container_type)
-
-
-
+            rules.create_jobs(config.db, container_before, self.container, self.container_type,
+                rule_failure_callback=self.handle_rule_failure)
 
     def recalc_session_compliance(self):
         if self.container_type in ['session', 'acquisition'] and self.id_:
@@ -141,6 +143,10 @@ class Placer(object):
             else:
                 session_id = AcquisitionStorage().get_container(str(self.id_)).get('session')
             SessionStorage().recalc_session_compliance(session_id, hard=True)
+
+    def handle_rule_failure(self, rule, _exc_val):
+        if rule not in self.failed_rules:
+            self.failed_rules.append(rule)
 
 
 class TargetedPlacer(Placer):
@@ -380,6 +386,13 @@ class EnginePlacer(Placer):
             job.saved_files = [f['name'] for f in self.saved]
             job.produced_metadata = self.metadata
             job.save()
+
+        # Log any failed rules
+        if self.failed_rules:
+            lines = ['The following project rules could not be evaluated:\n']
+            for rule in self.failed_rules:
+                lines.append('  - {}: {}\n'.format(rule['_id'], rule.get('name')))
+            Logs.add_system_logs(job.id_, lines)
 
         self.recalc_session_compliance()
         return self.saved
