@@ -426,7 +426,9 @@
         },
         "profile": {"$ref": "#/definitions/job-profile-input"}
       },
-      "required": ["success", "elapsed"]
+      "additionalProperties":false,
+      "required": ["success"],
+      "description": "Describes how a job should be transitioned after outputs have been uploaded"
     },
     "job-completion-ticket": {
         "type":"object",

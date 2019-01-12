@@ -5,6 +5,9 @@
   ],
   "example": {
       "success": false,
-      "elapsed": 1342
+      "failure_reason": "execution_failure",
+      "profile": {
+        "elapsed_time_ms": 1342
+      }
     }
 }
