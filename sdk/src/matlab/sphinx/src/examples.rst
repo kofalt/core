@@ -275,11 +275,11 @@ For example:
 	project = fw.lookup('flywheel/Test Project');
 
 	% Download all NIfTI files in the project
-	project.downloadTar('test-project.tar', 'includeTypes', {{'nifti'}});
+	project.downloadTar('test-project.tar', 'includeTypes', {'nifti'});
 
 	% Download all non-DICOM data from sessions created since 2018-10-31
 	sessions = project.sessions.find('created>2018-10-31');
-	fw.downloadTar(sessions, 'session-files.tar', 'excludeTypes', {{'dicom'}});
+	fw.downloadTar(sessions, 'session-files.tar', 'excludeTypes', {'dicom'});
 
 Jobs And Analyses
 =================

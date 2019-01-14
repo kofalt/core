@@ -96,7 +96,7 @@ Info is free-form JSON metadata associated with a container or file.
 	acquisition.replaceInfo(struct('splines', 34));
 
 	# Add additional fields to acquisition info
-	acquisition.setInfo(struct('curve', 'bezier'));
+	acquisition.updateInfo(struct('curve', 'bezier'));
 
 	# Delete fields from acquisition info
 	acquisition.deleteInfo({{'splines'; 'bezier'}});
