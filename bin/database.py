@@ -100,10 +100,14 @@ def ensure_container_parents(cont, cont_name, parents=None):
             parent_cont_name = containerutil.PARENT_FROM_CHILD[cont_name]
             parent_id = cont[containerutil.singularize(parent_cont_name)]
             parent = config.db[parent_cont_name].find_one({'_id': parent_id})
-        if not parent:
+
+        if parent:
+            parents = parent.get('parents', {})
+            parents[containerutil.singularize(parent_cont_name)] = parent_id
+        else:
             logging.critical('Parent for  {} {} does not exist'.format(cont_name, cont['_id']))
-        parents = parent.get('parents', {})
-        parents[containerutil.singularize(parent_cont_name)] = parent_id
+            parents = {}
+
         config.db[cont_name].update({'_id': cont['_id']}, {'$set': {'parents': parents}})
 
     parents[cont_name] = cont['_id']
