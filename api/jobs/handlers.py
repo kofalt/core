@@ -22,7 +22,7 @@ from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
-from ..web.errors import APIPermissionException, APINotFoundException, APIGoneException, InputValidationException
+from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,

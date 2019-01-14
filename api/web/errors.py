@@ -159,11 +159,6 @@ class APIConflictException(APIException):
     status_code = 409
     default_msg = 'A resource with the same unique identification key already exists.'
 
-class APIGoneException(APIException):
-    """The requested endpoint or resource is no longer available"""
-    status_code = 410
-    default_msg = 'The resource is gone.'
-
 class APIConsistencyException(APIException):
     """Legacy db consistency exception"""
     status_code = 400
