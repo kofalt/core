@@ -73,7 +73,9 @@
       '200':
         description: ''
         schema:
-          example:
+          $ref: schemas/output/job-stats.json
+        examples:
+          response:
             $ref: examples/job_stats.json
 /jobs/reap:
   post:

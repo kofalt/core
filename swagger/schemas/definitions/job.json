@@ -459,6 +459,43 @@
           "executor": {"$ref":"#/definitions/executor-info"}
       },
       "additionalProperties": false
+    },
+    "job-stats-states": {
+      "type": "object",
+      "properties": {
+        "pending": {"type": "integer"},
+        "running": {"type": "integer"},
+        "failed": {"type": "integer"},
+        "complete": {"type": "integer"},
+        "cancelled": {"type": "integer"}
+      }
+    },
+    "job-stat-jobs-list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "_id": {"$ref":"common.json#/definitions/objectid"},
+          "modified": {"$ref":"created-modified.json#/definitions/modified"}
+        }
+      }
+    },
+    "job-stats-recent": {
+      "type": "object",
+      "properties": {
+        "pending": {"$ref": "#/definitions/job-stat-jobs-list"},
+        "running": {"$ref": "#/definitions/job-stat-jobs-list"},
+        "failed": {"$ref": "#/definitions/job-stat-jobs-list"},
+        "complete": {"$ref": "#/definitions/job-stat-jobs-list"},
+        "cancelled": {"$ref": "#/definitions/job-stat-jobs-list"}
+      }
+    },
+    "job-stats": {
+      "type": "object",
+      "properties": {
+        "states": {"$ref": "#/definitions/job-stats-states"},
+        "recent": {"$ref": "#/definitions/job-stats-recent"}
+      }
     }
   }
 }
