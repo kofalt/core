@@ -921,9 +921,6 @@ class JobHandler(base.RequestHandler):
         if ticket_id:
             JobTicket.remove(ticket_id)
 
-    def accept_failed_output(self, _id):
-        self.log.warning('accept-failed-output is not supported!')
-        raise APIGoneException()
 
 class BatchHandler(base.RequestHandler):
 

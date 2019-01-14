@@ -545,10 +545,6 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     jobs = [j for j in api_db.jobs.find({'gear_id': gear2})]
     assert len(jobs) == 1
 
-    # Accept failed output should not exist
-    r = as_admin.post('/jobs/' + job + '/accept-failed-output')
-    assert r.status_code == 410
-
     # Verify job logs contains informational message about saved files
     expected_job_logs = [
         {'fd': -1, 'msg': 'The following outputs have been saved:\n'},
