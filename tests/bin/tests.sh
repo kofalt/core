@@ -19,6 +19,7 @@ Options:
 
     -s, --shell          Enter shell instead of running tests
     -l, --lint-only      Run linting only
+    --py3lint            Run py3k lint profile
     -L, --skip-lint      Skip linting
 
     PYTEST_ARGS          Arguments passed to py.test
@@ -33,6 +34,7 @@ main() {
     export PYTHONDONTWRITEBYTECODE=1
     local RUN_SHELL=false
     local LINT_TOGGLE=
+    local LINT_PY3K=false
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -48,6 +50,10 @@ main() {
                 ;;
             -L|--skip-lint)
                 LINT_TOGGLE=false
+                ;;
+            --py3lint)
+                LINT_TOGGLE=true
+                LINT_PY3K=true
                 ;;
             --)
                 shift
@@ -117,11 +123,16 @@ main() {
     fi
 
     if [ "$LINT_TOGGLE" != false ]; then
-        log "INFO: Running pylint ..."
-        # TODO Enable Refactor and Convention reports
-        # TODO Move --disable into rc
-        pylint --rcfile=tests/.pylintrc --jobs=4 --reports=no --disable=C,R,W0312,W0141,W0110 api
+        if [ "$LINT_PY3K" == true ]; then
+            log "INFO: Running pylint py3k ..."
+            pylint --rcfile=tests/.py3lintrc --jobs=4 --reports=no api
+        else
+            log "INFO: Running pylint ..."
+            # TODO Enable Refactor and Convention reports
+            # TODO Move --disable into rc
+            pylint --rcfile=tests/.pylintrc --jobs=4 --reports=no --disable=C,R,W0312,W0141,W0110 api
 
+        fi
         # log "INFO: Running pep8 ..."
         # pep8 --max-line-length=150 --ignore=E402 api
     fi
