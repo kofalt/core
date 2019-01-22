@@ -34,6 +34,18 @@ class ContainerBase(object):
                 return fn(*args, **kwargs)
         return None
 
+    def _invoke_file_api(self, fmt, *args, **kwargs):
+        """Invoke container api, formatting the string first"""
+        if self.__context:
+            fname = fmt.format(self.container_type)
+            file_group = getattr(self, '_file_group', None)
+            if file_group is not None:
+                fname = fname.replace('file', file_group)
+            fn = getattr(self.__context, fname, None)
+            if fn:
+                return fn(*args, **kwargs)
+        return None
+
     def _add_child(self, child_type, args, kwargs):
         """Add a child to this container, returns the child that was created"""
         fname = 'add_{}'.format(child_type)
@@ -185,58 +197,58 @@ class AnalysisMethods(object):
 class FileMethods(object):
     def upload_file(self, file):
         """Upload a file to a container"""
-        return self._invoke_container_api('upload_file_to_{}', self.id, file)
+        return self._invoke_file_api('upload_file_to_{}', self.id, file)
 
     def download_file(self, file_name, dest_file):
         """Download file to the given path"""
-        return self._invoke_container_api('download_file_from_{}', self.id, file_name, dest_file)
+        return self._invoke_file_api('download_file_from_{}', self.id, file_name, dest_file)
 
     def get_file_download_url(self, file_name):
         """Get a ticketed download url for the file"""
-        return self._invoke_container_api('get_{}_download_url', self.id, file_name)
+        return self._invoke_file_api('get_{}_download_url', self.id, file_name)
 
     def read_file(self, file_name):
         """Read the contents of the file"""
-        return self._invoke_container_api('download_file_from_{}_as_data', self.id, file_name)
+        return self._invoke_file_api('download_file_from_{}_as_data', self.id, file_name)
 
     def update_file(self, file_name, *args, **kwargs):
         """Update a file's type and/or modality"""
         body = util.params_to_dict('update_file', args, kwargs)
-        return self._invoke_container_api('modify_{}_file', self.id, file_name, body)
+        return self._invoke_file_api('modify_{}_file', self.id, file_name, body)
 
     def delete_file(self, file_name):
         """Delete file from the container"""
-        return self._invoke_container_api('delete_{}_file', self.id, file_name)
+        return self._invoke_file_api('delete_{}_file', self.id, file_name)
 
     def replace_file_info(self, file_name, info):
         """Fully replace this file's info with the provided value"""
-        return self._invoke_container_api('replace_{}_file_info', self.id, file_name, info)
+        return self._invoke_file_api('replace_{}_file_info', self.id, file_name, info)
 
     def update_file_info(self, file_name, *args, **kwargs):
         """Update the file's info with the passed in arguments"""
         # Could either pass a dictionary or kwargs values
         body = util.params_to_dict('update_file_info', args, kwargs)
-        return self._invoke_container_api('set_{}_file_info', self.id, file_name, body)
+        return self._invoke_file_api('set_{}_file_info', self.id, file_name, body)
 
     def delete_file_info(self, file_name, *args):
         """Delete the file info fields listed in args"""
         body = util.params_to_list(args)
-        return self._invoke_container_api('delete_{}_file_info_fields', self.id, file_name, body)
+        return self._invoke_file_api('delete_{}_file_info_fields', self.id, file_name, body)
 
     def replace_file_classification(self, file_name, classification, modality=None):
         """Fully replace a file's modality and classification"""
         body = {'replace': classification}
         if modality is not None:
             body['modality'] = modality
-        return self._invoke_container_api('modify_{}_file_classification', self.id, file_name, body)
+        return self._invoke_file_api('modify_{}_file_classification', self.id, file_name, body)
 
     def update_file_classification(self, file_name, classification):
         """Update a file's classification"""
-        return self._invoke_container_api('set_{}_file_classification', self.id, file_name, classification)
+        return self._invoke_file_api('set_{}_file_classification', self.id, file_name, classification)
 
     def delete_file_classification(self, file_name, classification):
         """Delete a file's classification fields"""
-        return self._invoke_container_api('delete_{}_file_classification_fields', self.id, file_name, classification)
+        return self._invoke_file_api('delete_{}_file_classification_fields', self.id, file_name, classification)
 
     def get_files(self):
         """Get the files collection, retrieving the container if necessary"""
@@ -263,15 +275,15 @@ class FileMethods(object):
 
     def get_file_zip_info(self, file_name):
         """Get zip member information for this file"""
-        return self._invoke_container_api('get_{}_file_zip_info', self.id, file_name)
+        return self._invoke_file_api('get_{}_file_zip_info', self.id, file_name)
 
     def download_file_zip_member(self, file_name, member_path, dest_file):
         """Download file's zip member to the given path"""
-        return self._invoke_container_api('download_file_from_{}', self.id, file_name, dest_file, member=member_path)
+        return self._invoke_file_api('download_file_from_{}', self.id, file_name, dest_file, member=member_path)
 
     def read_file_zip_member(self, file_name, member_path):
         """Read contents of file's zip member"""
-        return self._invoke_container_api('download_file_from_{}_as_data', self.id, file_name, member=member_path)
+        return self._invoke_file_api('download_file_from_{}_as_data', self.id, file_name, member=member_path)
 
 
 class TimestampMethods(object):
@@ -381,6 +393,7 @@ class AcquisitionMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, Info
 class AnalysisMixin(ContainerBase, NoteMethods, TagMethods, FileMethods, InfoMethods, DownloadMethods):
     container_type = 'analysis'
     child_types = ['files']
+    _file_group = 'output'
 
     def upload_file(self, file):
         """Upload an output file to analysis"""

@@ -236,7 +236,7 @@ the entire zipfile. There are a few operations provided to enable this. For exam
 .. code-block:: matlab
 
 	% Get information about a zip file
-	zipInfo = acquisition.getZipInfo('my-archive.zip');
+	zipInfo = acquisition.getFileZipInfo('my-archive.zip');
 
 	% Download the first zip entry to /tmp/{entry_name}
 	entryName = zipInfo.members{1}.path;

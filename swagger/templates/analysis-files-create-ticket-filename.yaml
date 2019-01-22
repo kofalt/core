@@ -47,15 +47,26 @@ template: |
       - application/json
       - application/octet-stream
     parameters:
-      - description: ticket id of the {{filegroup}} to download
-        type: string
+      - name: ticket
         in: query
-        name: ticket
+        type: string
+        description: ticket id of the {{filegroup}} to download
+      - name: info
+        in: query
+        type: boolean
+        default: false
+        description: If the file is a zipfile, return a json response of zipfile member information
+      - name: member
+        in: query
+        type: string
+        description: The filename of a zipfile member to download rather than the entire file
     {{#resource}}
     x-sdk-download-ticket: get_{{resource}}_analysis_{{#singularize}}{{filegroup}}{{/singularize}}_download_ticket
+    x-sdk-get-zip-info: get_{{resource}}_analysis_{{#singularize}}{{filegroup}}{{/singularize}}_zip_info
     {{/resource}}
     {{^resource}}
     x-sdk-download-ticket: get_analysis_{{#singularize}}{{filegroup}}{{/singularize}}_download_ticket
+    x-sdk-get-zip-info: get_analysis_{{#singularize}}{{filegroup}}{{/singularize}}_zip_info
     {{/resource}}
     responses:
       '200':
