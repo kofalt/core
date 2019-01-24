@@ -272,17 +272,34 @@
       name: JobId
   post:
     summary: Create a ticket for completing a job, with id and status.
-    operationId: prepare_compete_job
+    operationId: prepare_complete_job
     tags:
     - jobs
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: schemas/input/job-completion.json
     responses:
       '200':
         description: 'Returns a ticket'
         schema:
           $ref: schemas/output/job-completion-ticket.json
+/jobs/{JobId}/complete:
+  parameters:
+    - required: true
+      type: string
+      in: path
+      name: JobId
+  post:
+    summary: Complete a job, with information
+    operationId: complete_job
+    parameters:
+      - name: job_ticket_id
+        type: string
+        in: query
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/job-completion.json
+    tags:
+    - jobs
+    responses:
+      '200':
+        description: 'Job completion was successful'

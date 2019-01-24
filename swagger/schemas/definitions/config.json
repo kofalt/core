@@ -1,6 +1,21 @@
 {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "definitions": {
+        "feature-map": {
+            "type": "object",
+            "properties": {
+                "signed_url": {
+                    "type": "boolean",
+                    "description": "Whether or not this server supports signed url uploads"
+                },
+                "job_tickets": {
+                    "type": "boolean",
+                    "description": "Whether or not this server supports new job tickets"
+                }
+            },
+            "additionalProperties": {"type": "boolean"},
+            "description": "A map of supported features"
+        },
         "site-config-output": {
             "type": "object",
             "properties": {
@@ -49,7 +64,7 @@
                 "refresh_endpoint": {
                     "type": "string"
                 }
-            }               
+            }
         },
 
         "config-output": {
@@ -69,7 +84,8 @@
                 "signed_url": {
                     "type": "boolean",
                     "description": "Whether or not this server supports signed url uploads"
-                }
+                },
+                "features": {"$ref": "#/definitions/feature-map"}
             },
             "required": [
                 "site",

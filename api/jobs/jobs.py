@@ -453,15 +453,12 @@ class JobTicket(object):
         return config.db.job_tickets.find_one({'_id': bson.ObjectId(_id)})
 
     @staticmethod
-    def create(job_id, success, elapsed, failure_reason=None):
+    def create(job_id):
         j = Job.get(job_id)
 
         result = config.db.job_tickets.insert_one({
             'job': j.id_,
-            'success': success,
-            'elapsed': elapsed,
             'timestamp': datetime.datetime.utcnow(),
-            'failure_reason': failure_reason
         })
 
         return result.inserted_id
@@ -470,6 +467,11 @@ class JobTicket(object):
     def find(job_id):
         """Find any tickets with job ID"""
         return list(config.db.job_tickets.find({'job': str(job_id)}))
+
+    @staticmethod
+    def remove(_id):
+        """Remove a single ticket by id"""
+        config.db.job_tickets.remove({'_id': bson.ObjectId(_id)})
 
 
 class Logs(object):
@@ -535,3 +537,14 @@ class Logs(object):
             config.db.job_logs.insert_one({'_id': _id, 'logs': []})
 
         config.db.job_logs.update({'_id': _id}, {'$push':{'logs':{'$each':doc}}})
+
+    @staticmethod
+    def add_system_logs(_id, lines):
+        """Shortcut method for adding system logs to a job"""
+        if not lines:
+            return
+
+        if isinstance(lines, str):
+            lines = [lines]
+
+        Logs.add(_id, [{'msg': line, 'fd': -1} for line in lines])
