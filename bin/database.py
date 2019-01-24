@@ -2357,15 +2357,18 @@ def upgrade_to_62():
 
 def upgrade_template_to_list(cont):
     if cont.get('template'):
-        cont['templates'] = list(cont.pop('template', []))
-        config.db.projects.find_one_and_update({'_id': cont['_id']}, {'$set': cont})
+        template = cont.pop('template', None)
+        if template is not None:
+            cont['templates'] = [template]
+        config.db.projects.find_one_and_update({'_id': cont['_id']}, {'$set': cont, '$unset': {'template': ''}})
+    return True
 
 
 def upgrade_to_63():
     '''
     All project templates should be list of templates
     '''
-    cursor = config.db.porjects.find({'template': {'$exists': True}})
+    cursor = config.db.projects.find({'template': {'$exists': True}})
     process_cursor(cursor, upgrade_template_to_list)
 
 ###

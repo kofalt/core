@@ -1064,3 +1064,35 @@ def test_ensure_parents(api_db, database):
     api_db.sessions.delete_one({'_id': session_2})
     api_db.acquisitions.delete_one({'_id': acquisition})
     api_db.analyses.delete_one({'_id': analysis})
+
+def test_63(api_db, database):
+    # Create hierarchy
+    template =  {
+        'session': {'subject': {'code': '^compliant$'}},
+        'acquisitions': [{
+            'minimum': 1,
+            'label': '^compliant$',
+            'tags': '^compliant$',
+            'files': [{
+                'minimum': 2,
+                'mimetype': 'text/csv',
+                'classification': 'diffusion'
+            }]
+        }]
+    }
+    group = 'g1'
+    api_db.groups.insert_one({'_id': group})
+    project_1 = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project_1, 'group': group, 'template': template})
+    project_2 = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project_2, 'group': group})
+
+    database.upgrade_to_63()
+
+    projects = api_db.projects.find()
+
+    for project in projects:
+        assert project.get('template') is None
+        if project['_id'] == project_1:
+            assert isinstance(project.get('templates'), list)
+            assert project['templates'][0] == template

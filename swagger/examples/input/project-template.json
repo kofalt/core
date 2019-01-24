@@ -1,57 +1,27 @@
 [
     {
-        "session": {
-            "schema": {
-                "$schema": "http://json-schema.org/draft-04/schema#",
-                "properties": {
-                    "label": {
-                        "type":     "string",
-                        "pattern":  "^test_pattern$" }
-                }
-            }
-        },
-        "acquisitions": [
-                {
-                    "schema": {
-                        "$schema": "http://json-schema.org/draft-04/schema#",
-                        "type": "object",
-                        "properties": {
-                            "classification": {
-                                "type":     "string",
-                                "pattern":  "^[aA]natomical$" }
-                        },
-                        "required": ["classification"]
-                    },
-                    "minimum": 2
-                },
-                {
-                    "schema": {
-                        "$schema": "http://json-schema.org/draft-04/schema#",
-                        "type": "object",
-                        "properties": {
-                            "classification": {
-                                "type":     "string",
-                                "pattern":  "^functional$" }
-                        },
-                        "required": ["classification"]
-                    },
-                    "minimum": 1
-                },
-                {
-                    "schema": {
-                        "$schema": "http://json-schema.org/draft-04/schema#",
-                        "type": "object",
-                        "properties": {
-                            "classification": { "enum": ["Localizer"] },
-                            "label":  {
-                                "type": "string",
-                                "pattern": "t1"
-                            }
-                        },
-                        "required": ["label", "classification"]
-                    },
-                    "minimum": 1
-                }
-            ]
+        "session": {"label":"^compliant$"},
+        "acquisitions": [{
+            "minimum": 1,
+            "label": "^compliant$",
+            "tags": "^compliant$",
+            "files": [{
+                "minimum": 2,
+                "mimetype": "text/csv",
+                "classification": "diffusion"
+            }]
+        }]
+    },
+    {
+        "session": {"label": "^second\\-compliant$"},
+        "acquisitions": [{
+            "minimum": 1,
+            "label": "^compliant2$",
+            "files": [{
+                "minimum": 1,
+                "mimetype": "text/csv",
+                "classification": "diffusion"
+            }]
+        }]
     }
 ]
