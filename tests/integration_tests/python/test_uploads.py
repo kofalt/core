@@ -1012,7 +1012,8 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
             'label': 'engine session',
             'subject': {
                 'code': 'engine subject',
-                'sex': 'male'
+                'sex': 'male',
+                'age': 100000000000,
             },
             'info': {'test': 's'},
             'tags': ['one', 'two']
@@ -1081,6 +1082,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     s = r.json()
     # Engine metadata should not replace existing fields
     assert s['label'] != metadata['session']['label']
+    assert s['age'] == 100000000000
 
     metadata['session']['info']['subject_raw'] = {'sex': 'male'}
     assert s['info'] == metadata['session']['info']
