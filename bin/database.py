@@ -2306,8 +2306,27 @@ def set_job_containers_62(cont, cont_name):
     update = {}
     dest_ref = cont.get('destination', {})
 
+    # Some very old legacy jobs have a dictionary rather than a list,
+    # And for whatever reason were never upgraded by upgrade 11
+    safe_inputs = cont.get('inputs', [])
+    if not isinstance(safe_inputs, list):
+        if safe_inputs:
+            logging.error('Encountered a non-empty, non-list set of inputs on job: %s', cont['_id'])
+
+        # Convert inputs to an array. See upgrade_to_11
+        if isinstance(safe_inputs, dict):
+            safe_inputs = []
+            for key, inp in cont['inputs'].iteritems():
+                inp['input'] = key
+                safe_inputs.append(inp)
+
+            update['inputs'] = safe_inputs
+        else:
+            logging.critical('Unknown input format, type=%s', type(safe_inputs))
+            safe_inputs = []
+
     # Retrieve each reference once
-    for ref in [dest_ref] + cont.get('inputs', []):
+    for ref in [dest_ref] + safe_inputs:
         if 'id' not in ref:
             # Invalid reference, ignore
             containers.append(None)

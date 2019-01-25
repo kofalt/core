@@ -954,6 +954,19 @@ def test_62(api_db, data_builder, database, default_payload, as_admin, file_form
     job_data['inputs'][0]['id'] = 'ffffffffffffffffffffffff'
     job_invalid_input = api_db.jobs.insert_one(job_data).inserted_id
 
+    # Job with dictionary input
+    job_data = copy.deepcopy(job_src)
+    inputs = job_data['inputs']
+    job_data['inputs'] = {}
+    for inp in inputs:
+        job_data['inputs'][inp.pop('input')] = inp
+    job_dict_input = api_db.jobs.insert_one(job_data).inserted_id
+
+    # Job with empty dictionary input
+    job_data = copy.deepcopy(job_src)
+    job_data['inputs'] = {}
+    job_empty_dict_input = api_db.jobs.insert_one(job_data).inserted_id
+
     # Valid job with inputs & destination
     job_data = copy.deepcopy(job_src)
     job_valid = api_db.jobs.insert_one(job_data).inserted_id
@@ -984,6 +997,24 @@ def test_62(api_db, data_builder, database, default_payload, as_admin, file_form
 
         # Job with non-existent input
         job_data = api_db.jobs.find_one({'_id': job_invalid_input})
+        assert job_data['parents']['group'] == group
+        assert job_data['parents']['project'] == bson.ObjectId(project)
+        assert job_data['parents']['subject'] == bson.ObjectId(subject)
+        assert job_data['parents']['session'] == bson.ObjectId(session)
+        for cid in dest_containers:
+            assert cid in job_data['related_container_ids']
+
+        # Job with dictionary input
+        job_data = api_db.jobs.find_one({'_id': job_dict_input})
+        assert job_data['parents']['group'] == group
+        assert job_data['parents']['project'] == bson.ObjectId(project)
+        assert job_data['parents']['subject'] == bson.ObjectId(subject)
+        assert job_data['parents']['session'] == bson.ObjectId(session)
+        for cid in input_containers:
+            assert cid in job_data['related_container_ids']
+
+        # Job with empty dictionary input
+        job_data = api_db.jobs.find_one({'_id': job_empty_dict_input})
         assert job_data['parents']['group'] == group
         assert job_data['parents']['project'] == bson.ObjectId(project)
         assert job_data['parents']['subject'] == bson.ObjectId(subject)
