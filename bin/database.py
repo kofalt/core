@@ -2373,11 +2373,12 @@ def upgrade_to_63():
 
 
 def set_session_age_from_job(session, subject_age):
-    classifier_job = config.db.jobs.find_one({'related_container_ids': str(session['_id']), 'gear_info.name': 'dicom-mr-classifier', 'produced_metadata.session.subject.age': {'$exists': True}})
-    if not classifier_job:
+    classifier_job = list(config.db.jobs.find({'parents.session': session['_id'], 'gear_info.name': {'$regex': 'classifier$'}, 'produced_metadata.session.subject.age': {'$exists': True}}).limit(1).sort('created', direction=-1))
+    if not classifier_job and session.get('age') is None:
         config.log.warning('Could not find classifier job for session {} that produced a Patient Age, using subject age even though there are multiple sessions for the subject'.format(session['_id']))
         config.db.sessions.update({'_id': session['_id']}, {'$set': {'age': subject_age}})
-    else:
+    elif classifier_job:
+        classifier_job = classifier_job[0]
         config.db.sessions.update({'_id': session['_id']}, {'$set': {'age': classifier_job['produced_metadata']['session']['subject']['age']}})
     return True
 
@@ -2386,8 +2387,8 @@ def move_subject_age_to_session(subject):
         # If the subject only has one session use the subject age
         config.db.sessions.update({'subject': subject['_id']}, {'$set': {'age': subject['age']}})
     else:
-        # Otherwise we need to find a classifier job for each session that doesn't have an age
-        sessions_without_age = config.db.sessions.find({'subject': subject['_id'], 'age': None})
+        # Otherwise we need to find a classifier job for each session
+        sessions_without_age = config.db.sessions.find({'subject': subject['_id']})
         process_cursor(sessions_without_age, set_session_age_from_job, subject['age'])
 
     # Unset the subject age

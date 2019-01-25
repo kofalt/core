@@ -1127,6 +1127,8 @@ def test_64(api_db, database):
     api_db.sessions.insert_one({'_id': session_without_age_subject_age_2, 'subject': subject_with_age, 'project': project, 'group': group})
     session_with_age_subject_age = bson.ObjectId()
     api_db.sessions.insert_one({'_id': session_with_age_subject_age, 'subject': subject_with_age, 'project': project, 'group': group, 'age': 333})
+    session_with_age_subject_age_and_job = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_with_age_subject_age_and_job, 'subject': subject_with_age, 'project': project, 'group': group, 'age': 123})
 
     session_without_age_subject_no_age = bson.ObjectId()
     api_db.sessions.insert_one({'_id': session_without_age_subject_no_age, 'subject': subject_without_age, 'project': project, 'group': group})
@@ -1136,10 +1138,29 @@ def test_64(api_db, database):
     session_without_age_only_session = bson.ObjectId()
     api_db.sessions.insert_one({'_id': session_without_age_only_session, 'subject': subject_with_only_one_session, 'project': project, 'group': group})
 
-    # Insert Job for session_without_age_subject_age_1
-    job = {
+    # Insert Jobs for session_without_age_subject_age_1
+    old_job = {
+        'created': datetime.datetime.utcnow(),
         'gear_info': {'name': 'dicom-mr-classifier'},
-        'related_container_ids': [str(session_without_age_subject_age_1), str(subject_with_age), str(project)],
+        'parents': {
+            'session': session_without_age_subject_age_1
+        },
+        'produced_metadata': {
+            'session': {
+                'subject': {
+                    'age': 9238792849
+                }
+            }
+        }
+    }
+    api_db.jobs.insert_one(old_job)
+
+    job = {
+        'created': datetime.datetime.utcnow(),
+        'gear_info': {'name': 'dicom-mr-classifier'},
+        'parents': {
+            'session': session_without_age_subject_age_1
+        },
         'produced_metadata': {
             'session': {
                 'subject': {
@@ -1150,11 +1171,27 @@ def test_64(api_db, database):
     }
     api_db.jobs.insert_one(job)
 
+    override_job = {
+        'created': datetime.datetime.utcnow(),
+        'gear_info': {'name': 'harsha-dicom-mr-classifier'},
+        'parents': {
+            'session': session_with_age_subject_age_and_job
+        },
+        'produced_metadata': {
+            'session': {
+                'subject': {
+                    'age': 9879318
+                }
+            }
+        }
+    }
+    api_db.jobs.insert_one(override_job)
     database.upgrade_to_64()
 
     assert get_session(session_without_age_subject_age_1).get('age') == job['produced_metadata']['session']['subject']['age']
     assert get_session(session_without_age_subject_age_2).get('age') == 999
     assert get_session(session_with_age_subject_age).get('age') == 333
+    assert get_session(session_with_age_subject_age_and_job).get('age') == override_job['produced_metadata']['session']['subject']['age']
 
     assert get_session(session_without_age_subject_no_age).get('age') == None
     assert get_session(session_with_age_subject_no_age).get('age') == 444
@@ -1162,7 +1199,7 @@ def test_64(api_db, database):
     assert get_session(session_without_age_only_session).get('age') == 222
 
     for subject in api_db.subjects.find({'project': project}):
-        assert not subject.get('age')
+        assert subject.get('age') is None
 
     api_db.groups.delete_one({'_id': group})
     api_db.projects.delete_one({'_id': project})
