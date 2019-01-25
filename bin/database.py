@@ -26,7 +26,7 @@ from api.types import Origin
 from api.jobs import batch
 
 
-CURRENT_DATABASE_VERSION = 63 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 64 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2370,6 +2370,42 @@ def upgrade_to_63():
     '''
     cursor = config.db.projects.find({'template': {'$exists': True}})
     process_cursor(cursor, upgrade_template_to_list)
+
+
+def set_session_age_from_job(session, subject_age):
+    classifier_job = config.db.jobs.find_one({'related_container_ids': str(session['_id']), 'gear_info.name': 'dicom-mr-classifier', 'produced_metadata.session.subject.age': {'$exists': True}})
+    if not classifier_job:
+        config.log.warning('Could not find classifier job for session {} that produced a Patient Age, using subject age even though there are multiple sessions for the subject'.format(session['_id']))
+        config.db.sessions.update({'_id': session['_id']}, {'$set': {'age': subject_age}})
+    else:
+        config.db.sessions.update({'_id': session['_id']}, {'$set': {'age': classifier_job['produced_metadata']['session']['subject']['age']}})
+    return True
+
+def move_subject_age_to_session(subject):
+    if config.db.sessions.find({'subject': subject['_id']}).count() == 1:
+        # If the subject only has one session use the subject age
+        config.db.sessions.update({'subject': subject['_id']}, {'$set': {'age': subject['age']}})
+    else:
+        # Otherwise we need to find a classifier job for each session that doesn't have an age
+        sessions_without_age = config.db.sessions.find({'subject': subject['_id'], 'age': None})
+        process_cursor(sessions_without_age, set_session_age_from_job, subject['age'])
+
+    # Unset the subject age
+    config.db.subjects.update({'_id': subject['_id']}, {'$unset': {'age': ''}})
+    return True
+
+
+def upgrade_to_64():
+    """
+    Subject age needs to be stored on the session
+    Check each subject, if it has a subject age, pop it.
+        if there is only one session for that subject, set the age to the popped subject age
+        if there are more, set the session age to the session's most recent classifier job's produced metadata subject age
+    Not sure what the best way to handle session's that were moved away from their subject
+    """
+    subjects_with_age = config.db.subjects.find({"age": {"$exists": True}})
+    process_cursor(subjects_with_age, move_subject_age_to_session)
+
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

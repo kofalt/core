@@ -1096,3 +1096,76 @@ def test_63(api_db, database):
         if project['_id'] == project_1:
             assert isinstance(project.get('templates'), list)
             assert project['templates'][0] == template
+
+    api_db.groups.delete_one({'_id': group})
+    api_db.projects.delete_one({'_id': project_1})
+    api_db.projects.delete_one({'_id': project_2})
+
+def test_64(api_db, database):
+
+    def get_session(session_id):
+        return api_db.sessions.find_one({'_id': session_id})
+
+    # Create hierarchy
+    group = 'g1'
+    api_db.groups.insert_one({'_id': group})
+    project = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project, 'group': group, 'parents': {}})
+
+    subject_with_age = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_with_age, 'project': project, 'group': group, 'age': 999})
+
+    subject_without_age = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_without_age, 'project': project, 'group': group})
+
+    subject_with_only_one_session = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_with_only_one_session, 'project': project, 'group': group, 'age': 222})
+
+    session_without_age_subject_age_1 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_subject_age_1, 'subject': subject_with_age, 'project': project, 'group': group})
+    session_without_age_subject_age_2 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_subject_age_2, 'subject': subject_with_age, 'project': project, 'group': group})
+    session_with_age_subject_age = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_with_age_subject_age, 'subject': subject_with_age, 'project': project, 'group': group, 'age': 333})
+
+    session_without_age_subject_no_age = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_subject_no_age, 'subject': subject_without_age, 'project': project, 'group': group})
+    session_with_age_subject_no_age = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_with_age_subject_no_age, 'subject': subject_without_age, 'project': project, 'group': group, 'age': 444})
+
+    session_without_age_only_session = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_only_session, 'subject': subject_with_only_one_session, 'project': project, 'group': group})
+
+    # Insert Job for session_without_age_subject_age_1
+    job = {
+        'gear_info': {'name': 'dicom-mr-classifier'},
+        'related_container_ids': [str(session_without_age_subject_age_1), str(subject_with_age), str(project)],
+        'produced_metadata': {
+            'session': {
+                'subject': {
+                    'age': 10980231
+                }
+            }
+        }
+    }
+    api_db.jobs.insert_one(job)
+
+    database.upgrade_to_64()
+
+    assert get_session(session_without_age_subject_age_1).get('age') == job['produced_metadata']['session']['subject']['age']
+    assert get_session(session_without_age_subject_age_2).get('age') == 999
+    assert get_session(session_with_age_subject_age).get('age') == 333
+
+    assert get_session(session_without_age_subject_no_age).get('age') == None
+    assert get_session(session_with_age_subject_no_age).get('age') == 444
+
+    assert get_session(session_without_age_only_session).get('age') == 222
+
+    for subject in api_db.subjects.find({'project': project}):
+        assert not subject.get('age')
+
+    api_db.groups.delete_one({'_id': group})
+    api_db.projects.delete_one({'_id': project})
+    api_db.subjects.delete_many({'project': project})
+    api_db.sessions.delete_many({'project': project})
+
