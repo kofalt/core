@@ -89,9 +89,13 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
     # The vast majority of this function's wall-clock time is spent here.
     # Tempdir is deleted off disk once out of scope, so let's hold onto this reference.
-    file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
+    #file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
+    file_processor = files.FileProcessor(config.py_fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
+
     if not file_fields:
+
         form = file_processor.process_form(request, use_filepath=use_filepath)
+
         # Non-file form fields may have an empty string as filename, check for 'falsy' values
         file_fields = extract_file_fields(form)
 
@@ -106,6 +110,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             elif isinstance(metadata, list):
                 for f in metadata:
                     f['name'] = name_fn(f['name'])
+
 
     placer_class = strategy.value
     placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=log)
@@ -130,15 +135,19 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Augment the cgi.FieldStorage with a variety of custom fields.
         # Not the best practice. Open to improvements.
         # These are presumbed to be required by every function later called with field as a parameter.
-        field.path = field.filename
-        if not file_processor.temp_fs.exists(field.path):
-            # tempdir_exists = os.path.exists(tempdir.name)
-            raise Exception("file {} does not exist, files in tmpdir: {}".format(
-                field.path,
-                file_processor.temp_fs.listdir('/'),
-            ))
-        field.size = int(file_processor.temp_fs.getsize(field.path))
-        field.uuid = str(uuid.uuid4())
+
+        #if not file_processor.temp_fs.exists(field.path):
+        #    # tempdir_exists = os.path.exists(tempdir.name)
+        #    raise Exception("file {} does not exist, files in tmpdir: {}".format(
+        #        field.path,
+        #        file_processor.temp_fs.listdir('/'),
+        #    ))
+        
+        # This is now handled furtrher of the stack
+        #field.uuid = str(uuid.uuid4())
+        filePath = files.get_file_path({'_id': field._uuid, 'hash': None})
+        
+        field.size = int(file_processor._persistent_fs._fs.getsize(filePath))
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 
@@ -376,7 +385,7 @@ def make_file_attrs(field, origin):
     # create a file-attribute map commonly used elsewhere in the codebase.
     # Stands in for a dedicated object... for now.
     file_attrs = {
-        '_id': field.uuid,
+        '_id': field._uuid,
         'name': field.filename,
         'modified': field.modified,
         'size': field.size,

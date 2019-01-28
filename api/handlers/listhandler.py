@@ -390,7 +390,7 @@ class FileListHandler(ListHandler):
         """
         Builds a json response containing member and comment info for a zipfile
         """
-        with file_system.open(file_path, 'rb') as f:
+        with file_system.open(None, file_path, 'rb', None) as f:
             with zipfile.ZipFile(f) as zf:
                 info = {
                     'comment': zf.comment,
@@ -471,7 +471,9 @@ class FileListHandler(ListHandler):
             # START of duplicated code
             # IMPORTANT: If you modify the below code reflect the code changes in
             # refererhandler.py:AnalysesHandler's download method
-            signed_url = files.get_signed_url(file_path, file_system,
+            signed_url = None
+            if config.py_fs.is_signed_url():
+                signed_url = config.py_fs.get_signed_url(None, file_path, file_system,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
@@ -498,7 +500,8 @@ class FileListHandler(ListHandler):
                     else:
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
-                    self.response.body_file = file_system.open(file_path, 'rb')
+                    #self.response.body_file = file_system.open(file_path, 'rb')
+                    self.response.body_file = file_system.open(None, file_path, 'rb', None)
                     self.response.content_length = fileinfo['size']
                 else:
                     self.response.status = 206
@@ -510,7 +513,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
 
 
-                    with file_system.open(file_path, 'rb') as f:
+                    with file_system.open(None, file_path, 'rb', None) as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
                             if first < 0:

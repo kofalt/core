@@ -7,6 +7,7 @@ import datetime
 import elasticsearch
 
 from fs import open_fs
+from .storage.py_fs_file import PyFsFile
 
 from . import util
 from . import logutil
@@ -319,8 +320,11 @@ def get_release_version():
 
 # Storage configuration
 fs = open_fs(__config['persistent']['fs_url'])
-local_fs = open_fs('osfs://' + __config['persistent']['data_path'])
+#local_fs = open_fs('osfs://' + __config['persistent']['data_path'])
+local_fs = PyFsFile('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']
+py_fs = PyFsFile(__config['persistent']['fs_url'])
+
 
 ### Temp fix for 3-way split storages, where files exist in
 # 1. $SCITRAN_PERSISTENT_DATA_PATH/v0/ha/sh/v0-hash  (before abstract fs)
@@ -329,7 +333,9 @@ support_legacy_fs = __config['persistent']['support_legacy_fs']
 data_path2 = __config['persistent']['data_path'] + '/v1'
 if os.path.exists(data_path2):
     log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-    local_fs2 = open_fs('osfs://' + data_path2)
+    #local_fs2 = open_fs('osfs://' + data_path2)
+    local_fs2 = PyFsFile('osfs://' + data_path2)
+
 else:
     local_fs2 = None
 ###

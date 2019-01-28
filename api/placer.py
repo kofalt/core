@@ -97,9 +97,11 @@ class Placer(object):
 
         Requires an augmented file field; see process_upload() for details.
         """
+
         # Save file
-        if field is not None and self.file_processor is not None:
-            self.file_processor.store_temp_file(field.path, util.path_from_uuid(field.uuid))
+        ###lets assume we have the file in its resting place already.
+        #if field is not None and self.file_processor is not None:
+        #    self.file_processor.store_temp_file(field.path, util.path_from_uuid(field.uuid))
 
         # Update the DB
         if file_attrs is not None:
@@ -437,7 +439,8 @@ class TokenPlacer(Placer):
     def finalize(self):
         for path in self.paths:
             dest = fs.path.join(self.folder, path)
-            self.file_processor.store_temp_file(path, dest, dst_fs=config.local_fs)
+            #lets assume we will do this only as needed on specialized placers. Not on all placers
+            #self.file_processor.store_temp_file(path, dest, dst_fs=config.local_fs)
         self.recalc_session_compliance()
         return self.saved
 
