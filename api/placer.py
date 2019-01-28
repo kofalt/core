@@ -430,7 +430,7 @@ class TokenPlacer(Placer):
         # It must be kept in sync between each instance.
         self.folder = fs.path.join('tokens', 'packfile', token)
 
-        util.mkdir_p(self.folder, config.local_fs)
+        util.mkdir_p(self.folder, config.local_fs._fs)
 
     def process_file_field(self, field, file_attrs):
         self.saved.append(file_attrs)
@@ -439,6 +439,7 @@ class TokenPlacer(Placer):
     def finalize(self):
         for path in self.paths:
             dest = fs.path.join(self.folder, path)
+            
             #lets assume we will do this only as needed on specialized placers. Not on all placers
             #self.file_processor.store_temp_file(path, dest, dst_fs=config.local_fs)
         self.recalc_session_compliance()
@@ -490,7 +491,7 @@ class PackfilePlacer(Placer):
         self.folder = fs.path.join('tokens', 'packfile', token)
 
         try:
-            config.local_fs.isdir(self.folder)
+            config.local_fs._fs.isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
 
@@ -536,7 +537,10 @@ class PackfilePlacer(Placer):
         self.name = self.dir_ + '.zip'
 
         # Create a zip in the tempdir that later gets moved into the CAS.
-        self.path = u'temp.zip'
+        # If this ran twice on the same machine it would overwrite the existing temp file.
+        #self.path = u'temp.zip'
+        self.path = u'' + str(uuid.uuid4()) + '.zip'
+
         self.zip_ = zipfile.ZipFile(self.file_processor.temp_fs.open(self.path, 'wb'),
                                     'w', zipfile.ZIP_DEFLATED, allowZip64=True)
 
@@ -550,7 +554,7 @@ class PackfilePlacer(Placer):
 
     def finalize(self):
 
-        paths = config.local_fs.listdir(self.folder)
+        paths = config.local_fs._fs.listdir(self.folder)
         total = len(paths)
 
         # Write all files to zip
@@ -559,10 +563,10 @@ class PackfilePlacer(Placer):
             full_path = fs.path.join(self.folder, path)
 
             # Set the file's mtime & atime.
-            config.local_fs.settimes(full_path, self.ziptime, self.ziptime)
+            config.local_fs._fs.settimes(full_path, self.ziptime, self.ziptime)
 
             # Place file into the zip folder we created before
-            with config.local_fs.open(full_path, 'rb') as f:
+            with config.local_fs.open(None, full_path, 'rb', None) as f:
                 self.zip_.writestr(fs.path.join(self.dir_, path), f.read())
 
             # Report progress
@@ -575,7 +579,7 @@ class PackfilePlacer(Placer):
         self.zip_.close()
 
         # Remove the folder created by TokenPlacer
-        config.local_fs.removetree(self.folder)
+        config.local_fs._fs.removetree(self.folder)
 
         # Lookup uid on token
         token  = self.context['token']

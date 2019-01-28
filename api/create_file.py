@@ -37,9 +37,10 @@ class FileCreator(object):
             metadata (dict): The optional metadata to set
         """
         if not self.file_processor:
-            self.file_processor = files.FileProcessor(config.fs)
+            self.file_processor = files.FileProcessor(config.py_fs)
 
-        path, fileobj = self.file_processor.make_temp_file()
+        #path, fileobj = self.file_processor.make_temp_file()
+        path, fileobj = files.fileProcessor.create_new_file(filename)
         self._files.append(PendingFile(filename, path, fileobj, metadata))
         return fileobj
 
@@ -69,11 +70,10 @@ class FileCreator(object):
                 'path': pending_file.path,
                 'size': pending_file.fileobj.size,
                 'hash': pending_file.fileobj.hash,
-                'uuid': str(uuid.uuid4()),
+                '_uuid': pending_file._uuid,
                 'mimetype': util.guess_mimetype(pending_file.filename),
                 'modified': timestamp
             })
-            # TODO: anything using this flow will need to be converted to the new ps_fs model
             file_attrs = upload.make_file_attrs(cgi_field, origin)
 
             # Place the file

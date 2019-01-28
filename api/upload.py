@@ -89,8 +89,11 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
     # The vast majority of this function's wall-clock time is spent here.
     # Tempdir is deleted off disk once out of scope, so let's hold onto this reference.
+
     #file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
-    file_processor = files.FileProcessor(config.py_fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
+    # This should be defined in the strategy object.
+    needsTempFile = ['token', 'packfile']
+    file_processor = files.FileProcessor(config.py_fs, local_tmp_fs=strategy in needsTempFile, tempdir_name=tempdir)
 
     if not file_fields:
 
@@ -111,9 +114,9 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
                 for f in metadata:
                     f['name'] = name_fn(f['name'])
 
-
     placer_class = strategy.value
     placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=log)
+
     placer.check()
 
     # Browsers, when sending a multipart upload, will send files with field name "file" (if sinuglar)
@@ -143,10 +146,12 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         #        file_processor.temp_fs.listdir('/'),
         #    ))
         
-        # This is now handled furtrher of the stack
+        # This is now handled further up the stack
         #field.uuid = str(uuid.uuid4())
         filePath = files.get_file_path({'_id': field._uuid, 'hash': None})
-        
+      
+        #Some placers need this value. Consistent object would be nice
+        field.path = filePath
         field.size = int(file_processor._persistent_fs._fs.getsize(filePath))
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
@@ -192,7 +197,9 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 class Upload(base.RequestHandler):
 
     def _create_upload_ticket(self):
-        if not hasattr(config.fs, 'get_signed_url'):
+        #if not config.py_fs.is_signed_url():
+        #    self.abort(405, 'Signed URLs are not supported with the current storage backend')
+        if not hasattr(config.py_fs._fs, 'get_signed_url'):
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -202,15 +209,18 @@ class Upload(base.RequestHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
-        tempdir = str(uuid.uuid4())
+        # tempdir = str(uuid.uuid4())
         # Upload into a temp folder, so we will be able to cleanup
         signed_urls = {}
         for filename in filenames:
-            signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename),
-                                                         config.fs,
-                                                         purpose='upload')
+            newUuid = str(uuid.uuid4())
+            #signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename), config.py_fs, purpose='upload')
+            signed_urls[filename] = {
+                'url': files.get_signed_url(util.path_from_uuid(newUuid), config.py_fs, purpose='upload'),
+                'uuid': newUuid
+            }
 
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filenames, metadata)
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, signed_urls, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
 
@@ -245,13 +255,15 @@ class Upload(base.RequestHandler):
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
             file_fields = []
-            for filename in ticket['filenames']:
+            # for filename in ticket['filenames']:
+            for filename, values in ticket['filenames'].items():
                 file_fields.append(
                     util.dotdict({
-                        'filename': filename
+                        'filename': filename,
+                        '_uuid': values['uuid']
                     })
                 )
-
+            # IN this case we need to save the request body files to the uuid location they are assigned
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                   context=context, file_fields=file_fields, tempdir=ticket['tempdir'])
         else:
@@ -290,7 +302,8 @@ class Upload(base.RequestHandler):
             for filename in ticket['filenames']:
                 file_fields.append(
                     util.dotdict({
-                        'filename': filename
+                        'filename': filename,
+                        '_uuid': filename.uuid
                     })
                 )
 
@@ -333,9 +346,9 @@ class Upload(base.RequestHandler):
         # It must be kept in sync between each instance.
         folder = fs.path.join('tokens', 'packfile')
 
-        util.mkdir_p(folder, config.fs)
+        util.mkdir_p(folder, config.fs._fs)
         try:
-            paths = config.fs.listdir(folder)
+            paths = config.fs._fs.listdir(folder)
         except fs.errors.ResourceNotFound:
             # Non-local storages are used without 0-blobs for "folders" (mkdir_p is a noop)
             paths = []
@@ -356,7 +369,7 @@ class Upload(base.RequestHandler):
 
             if result is None:
                 self.log.info('Cleaning expired token directory %s', token)
-                config.fs.removetree(path)
+                config.fs._fs.removetree(path)
                 cleaned += 1
 
         return {

@@ -324,7 +324,7 @@ fs = open_fs(__config['persistent']['fs_url'])
 local_fs = PyFsFile('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']
 py_fs = PyFsFile(__config['persistent']['fs_url'])
-
+fs = py_fs
 
 ### Temp fix for 3-way split storages, where files exist in
 # 1. $SCITRAN_PERSISTENT_DATA_PATH/v0/ha/sh/v0-hash  (before abstract fs)
