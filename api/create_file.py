@@ -73,6 +73,7 @@ class FileCreator(object):
                 'mimetype': util.guess_mimetype(pending_file.filename),
                 'modified': timestamp
             })
+            # TODO: anything using this flow will need to be converted to the new ps_fs model
             file_attrs = upload.make_file_attrs(cgi_field, origin)
 
             # Place the file
