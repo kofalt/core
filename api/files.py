@@ -19,20 +19,30 @@ class FileProcessor(object):
     def __init__(self, persistent_fs, local_tmp_fs=False, tempdir_name=None):
 
         if not tempdir_name:
-            self._tempdir_name = ''
-            # we dont really need this since tmp will live in the persistent_fs root
-            # self._tempdir_name = str(uuid.uuid4())
+            self._tempdir_name = str(uuid.uuid4())
         else:
             self._tempdir_name = tempdir_name
         
         self._persistent_fs = persistent_fs
         # self._presistent_fs.makedirs(fs.path.join('tmp', self._tempdir_name), recreate=True)
         if not local_tmp_fs:
-            print 'making a new temp_fs'
-            self._temp_fs = fs.subfs.SubFS(persistent_fs, fs.path.join('tmp', self._tempdir_name))
+            print 'not making a temp_fs'
+            # We only need the local_tmp_fs in a few select cases
+            # self._temp_fs = fs.subfs.SubFS(persistent_fs, fs.path.join('tmp', self._tempdir_name))
         else:
-            print 'using existing temp_fs'
+            print 'making a local temp_fs'
             self._temp_fs = fs.tempfs.TempFS('tmp')
+
+    def create_new_file(self, filename, options=None):
+        """ Create a new block storage file with a unique uuid opened for writing
+        """
+        newUuid = str(uuid.uuid4())
+        if not filename:
+            filename = newUuid
+
+        path = util.path_from_uuid(newUuid)
+
+        return path, self._persistent_fs.open(newUuid, path, 'wb', options)
 
     def make_temp_file(self, mode='wb'):
         """Create and open a temporary file for writing.
@@ -65,7 +75,7 @@ class FileProcessor(object):
         if isinstance(self._temp_fs, fs.tempfs.TempFS):
             fs.move.move_file(self._temp_fs, src_path, dst_fs, dst_path)
         else:
-            self._persistent_fs.move(src_path=fs.path.join('tmp', self._tempdir_name, src_path), dst_path=dst_path)
+            self._persistent_fs._fs.move(src_path=fs.path.join('tmp', self._tempdir_name, src_path), dst_path=dst_path)
 
     def process_form(self, request, use_filepath=False):
         """
@@ -149,8 +159,8 @@ class FileProcessor(object):
             self._temp_fs.close()
         # else:
             # Otherwise clean up manually
-            # TODO confirm we dont assume this is used anymore
-            # self._persistent_fs.removetree(fs.path.join('tmp', self._tempdir_name))
+            # We only need the temp fs and not the persistent version... unless we are handling very large data sets?
+            #self._persistent_fs._fs.removetree(fs.path.join('tmp', self._tempdir_name))
 
 class FileHasherWriter(object):
     """File wrapper that hashes while writing to a file"""
@@ -306,7 +316,7 @@ def get_file_path(file_info):
 def get_signed_url(file_path, file_system, **kwargs):
     try:
         if hasattr(file_system, 'get_signed_url'):
-            return file_system.get_signed_url(file_path, **kwargs)
+            return file_system.get_signed_url(None, file_path, **kwargs)
     except fs.errors.NoURL:
         return None
 
@@ -320,12 +330,9 @@ def get_fs_by_file_path(file_path):
     still supports the legacy storage, attempt to serve from there.
     """
 
-    #TODO: is it safe to assume that all are py_fs now?
-    return config.py_fs
-
-
-    if config.fs.isfile(file_path):
-        return config.fs
+    if config.py_fs._fs.isfile(file_path):
+        return config.py_fs
+        #return config.fs
 
     elif config.support_legacy_fs and config.local_fs.isfile(file_path):
         return config.local_fs

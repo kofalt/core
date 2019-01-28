@@ -27,7 +27,7 @@ def test_signed_url_reaper_upload(as_drone, mocker):
 
     assert r.status_code == 405
 
-    mock_fs = mocker.patch('api.upload.config.fs')
+    mock_fs = mocker.patch('api.upload.config.fs._fs')
     mock_fs.get_signed_url.return_value = 'url'
     r = as_drone.post('/upload/reaper?ticket=',
                       json=payload)
