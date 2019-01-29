@@ -24,3 +24,16 @@
         description: A list of results of the search query
         schema:
           $ref: schemas/output/search-response-list.json
+
+/dataexplorer/search/status:
+  get:
+    summary: Get the status of search (Mongo Connector)
+    operationId: get_search_status
+    tags:
+      - dataexplorer
+    responses:
+      '200':
+        description: An object with the status of search, and possibly the time is last checked in
+        schema:
+          $ref: schemas/output/search-status.json
+

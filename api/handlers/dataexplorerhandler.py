@@ -9,7 +9,7 @@ from .. import config, validators
 from ..create_file import FileCreator
 from ..auth import require_login, require_superuser, groupauth
 from ..dao import noop, hierarchy
-from ..dao.containerstorage import QueryStorage
+from ..dao.containerstorage import QueryStorage, ContainerStorage
 from ..web.errors import APIStorageException, APIPermissionException, APIValidationException, APINotFoundException
 
 log = config.log
@@ -417,6 +417,16 @@ class DataExplorerHandler(base.RequestHandler):
             self.abort(400, "Request would return more than 10,000 results. Please add additional filters.")
 
         return return_type, modified_filters, search_string, size
+
+    def get_search_status(self):
+        storage = ContainerStorage('devices', use_object_id=True)
+        mongoconnector = storage.get_all_el({'name': 'mongo-connector'}, None, None)
+        if not mongoconnector:
+            return {'status': 'missing'}
+        mongoconnector = mongoconnector[0]
+        status = mongoconnector.get('info', {}).get('status')
+        last_seen = mongoconnector['last_seen']
+        return {'status': status, 'last_seen': last_seen}
 
     @require_login
     def aggregate_field_values(self):

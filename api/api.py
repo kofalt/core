@@ -113,6 +113,7 @@ endpoints = [
         # Search
         route('/dataexplorer/search',                   DataExplorerHandler,   h='search',                 m=['POST']),
         route('/dataexplorer/facets',                   DataExplorerHandler,   h='get_facets',             m=['POST']),
+        route('/dataexplorer/search/status',            DataExplorerHandler,   h='get_search_status',      m=['GET']),
         route('/dataexplorer/search/fields',            DataExplorerHandler,   h='search_fields',          m=['POST']),
         route('/dataexplorer/search/fields/aggregate',  DataExplorerHandler,   h='aggregate_field_values', m=['POST']),
         route('/dataexplorer/search/nodes',             DataExplorerHandler,   h='get_nodes',              m=['POST']),

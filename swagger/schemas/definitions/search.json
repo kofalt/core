@@ -233,6 +233,17 @@
     		},
     		"description": "Single search response entry",
             "x-sdk-container-mixin": "search-response-mixin"
-    	}
+    	},
+      "search-status": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["missing", "indexing", "up-to-date"]
+          },
+          "last_seen": {"$ref": "created-modified.json#/definitions/modified"}
+        },
+        "additionalProperties": false
+      }
     }
 }

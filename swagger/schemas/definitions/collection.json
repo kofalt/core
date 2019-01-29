@@ -4,8 +4,8 @@
         "collection-node": {
             "type": "object",
             "properties": {
-                "level": { 
-                    "type": "string", 
+                "level": {
+                    "type": "string",
                     "enum": ["project", "session", "acquisition"]
                 },
                 "_id": { "$ref": "common.json#/definitions/objectid" }

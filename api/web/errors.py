@@ -182,3 +182,4 @@ class RangeNotSatisfiable(APIException):
     """
     status_code = 416
     default_msg = 'The requested range is not satisfiable.'
+
