@@ -232,6 +232,7 @@ class Queue(object):
         attempt_n       = job_map.get('attempt_n', 1)
         previous_job_id = job_map.get('previous_job_id', None)
         batch           = job_map.get('batch', None) # A batch id if this job is part of a batch run
+        label           = job_map.get('label', "")
 
         # Add destination container, or select one
         destination = None
@@ -355,7 +356,7 @@ class Queue(object):
 
         job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n,
             previous_job_id=previous_job_id, origin=origin, batch=batch, parents=parents, profile=profile,
-            related_container_ids=list(related_containers))
+            related_container_ids=list(related_containers), label=label)
 
         return job
 

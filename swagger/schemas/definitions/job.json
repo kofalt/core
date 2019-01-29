@@ -307,7 +307,8 @@
         "inputs":{"$ref":"#/definitions/inputs-object"},
         "destination":{"$ref":"#/definitions/destination"},
         "tags":{"$ref":"#/definitions/tags"},
-        "config":{"$ref":"#/definitions/config"}
+        "config":{"$ref":"#/definitions/config"},
+        "label":{"$ref":"common.json#/definitions/label"}
       },
       "required": ["gear_id"],
       "additionalProperties":false,

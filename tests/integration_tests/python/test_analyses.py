@@ -72,7 +72,8 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     r = as_admin.post('/acquisitions/' + acquisition + '/analyses', json={
         'label': 'online',
         'job': {'gear_id': gear,
-                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}}}
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}},
+                'label': 'job-name'}
     })
     assert r.ok
     analysis = r.json()['_id']
@@ -82,6 +83,11 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     assert r.ok
     job = r.json().get('job')
     assert job
+
+    # Verify job label was created with it
+    r = as_admin.get('/jobs/' + job)
+    assert r.ok
+    assert r.json().get('label') == 'job-name'
 
     # Engine upload
     r = as_drone.post('/engine',
