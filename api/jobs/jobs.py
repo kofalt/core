@@ -12,7 +12,6 @@ from ..types import Origin
 from ..dao.containerutil import create_filereference_from_dictionary, create_containerreference_from_dictionary, create_containerreference_from_filereference
 
 from .. import config
-from ..util import render_template
 from ..web.errors import APINotFoundException
 
 
@@ -363,10 +362,7 @@ class Job(object):
         # Add command, if any
         command_base = ''
         if gear['gear'].get('command') is not None:
-
-            command = render_template(gear['gear']['command'], self.config['config'])
-
-            r['target']['command'] = ['bash', '-c', command_base + command ]
+            r['target']['command'] = ['bash', '-c', command_base + gear['gear']['command'] ]
         else:
             r['target']['command'] = ['bash', '-c', command_base + './run' ]
 
