@@ -89,7 +89,11 @@ public class RestUtils {
                 for( int i = 0; i < params.length && !matched; i += 2 ) {
                     String key = params[i].toString();
                     if( param.equals(key) ) {
-                        result.append(params[i+1]);
+                        try {
+                            result.append(URIUtil.encodeWithinPath(params[i+1].toString()));
+                        } catch (URIException e) {
+                            throw new RuntimeException("Invalid path value", e);
+                        }
                         matched = true;
                     }
                 }
