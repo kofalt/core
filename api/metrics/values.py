@@ -13,26 +13,6 @@ RESPONSE_COUNT = Counter('fw_core_response_count', 'Observed response counts', [
 # Log Counter
 LOG_MESSAGE_COUNT = Counter('fw_core_log_message_count', 'Observed log statement counts', ['name', 'level'])
 
-# ===== System =====
-# Global cpu time by mode
-SYSTEM_CPU_TIMES_PCT = Gauge('fw_core_cpu_times_percent', 'Observed cpu times as percent time spent in mode', ['mode'], multiprocess_mode='livesum')
-# Global memory usage
-SYSTEM_MEMORY_USAGE = Gauge('fw_core_memory_usage_bytes', 'Observed system memory usage, in bytes', ['type'], multiprocess_mode='livesum')
-# Network I/O
-SYSTEM_NETWORK_BYTES_SENT = Gauge('fw_core_network_bytes_sent', 'Observed network bytes sent', [], multiprocess_mode='max')
-SYSTEM_NETWORK_BYTES_RECEIVED = Gauge('fw_core_network_bytes_received', 'Observed network bytes received', [], multiprocess_mode='max')
-# Disk I/O
-SYSTEM_DISK_READ_COUNT = Gauge('fw_core_disk_read_count', 'Observed disk read count', [], multiprocess_mode='max')
-SYSTEM_DISK_WRITE_COUNT = Gauge('fw_core_disk_write_count', 'Observed disk write count', [], multiprocess_mode='max')
-SYSTEM_DISK_READ_BYTES = Gauge('fw_core_disk_read_bytes', 'Observed disk read bytes', [], multiprocess_mode='max')
-SYSTEM_DISK_WRITE_BYTES = Gauge('fw_core_disk_write_bytes', 'Observed disk write bytes', [], multiprocess_mode='max')
-# Disk Usage
-SYSTEM_DISK_BYTES_USED = Gauge('fw_core_disk_bytes_used', 'Observed disk usage, in bytes', ['path'], multiprocess_mode='max')
-SYSTEM_DISK_BYTES_FREE = Gauge('fw_core_disk_bytes_free', 'Observed disk availability, in bytes', ['path'], multiprocess_mode='max')
-# Timeout errors
-SYSTEM_TIMEOUT_ERROR_COUNT = Counter('fw_core_timeout_errors', 'Observed TIMEOUT errors', [])
-SYSTEM_CONNECTION_RESET_COUNT = Counter('fw_core_connection_resets', 'Observed Connection reset errors', [])
-
 # ===== DB Stats =====
 # DB Version
 DB_VERSION = Gauge('fw_core_db_version', 'The database version', [], multiprocess_mode='max')

@@ -1,6 +1,5 @@
 """Metrics collection"""
 import logging
-import psutil
 
 from datetime import datetime
 
@@ -14,62 +13,14 @@ log = logging.getLogger('flywheel.metrics')
 # Poll interval in seconds
 POLL_INTERVAL = 30
 
-# We're interested in the following CPU time buckets
-CPU_TIME_MODES = ['user', 'system', 'idle', 'iowait']
-
-# The set of system memory buckets we're interested in
-SYSTEM_MEMORY_TYPES = ['total', 'available', 'used', 'free', 'buffers', 'cached', 'shared']
-
-# The set of per-process memory usage we're interested in
-WORKER_MEMORY_TYPES = ['rss', 'vms', 'shared']
-
-# The set of filesystem paths to report usage on
-DISK_PATHS = ['/', '/tmp']
-
 # Aggregation pipeline to group jobs by state
 JOBS_BY_STATE_QUERY = [{'$group': {
     '_id': '$state',
     'count': {'$sum': 1}
-}}] 
+}}]
 
 # The list of collections to collect raw counts for
 COUNT_COLLECTIONS = ['users', 'groups', 'projects', 'sessions']
-
-def collect_system_metrics():
-    """Collect system-level metrics (CPU, memory, io and disk usage)"""
-    try:
-        # Collect global CPU metrics
-        cpu_times_pct = psutil.cpu_times_percent()
-        for mode in CPU_TIME_MODES:
-            value = getattr(cpu_times_pct, mode, None)
-            if value is not None:
-                values.SYSTEM_CPU_TIMES_PCT.labels(mode).set(value)
-
-        # Collect global Memory metrics
-        mem_info = psutil.virtual_memory()
-        for typename in SYSTEM_MEMORY_TYPES:
-            value = getattr(mem_info, typename, None)
-            if value is not None:
-                values.SYSTEM_MEMORY_USAGE.labels(typename).set(value)
-
-        # Network I/O stats
-        net_info = psutil.net_io_counters()
-        values.SYSTEM_NETWORK_BYTES_SENT.set(net_info.bytes_sent)
-        values.SYSTEM_NETWORK_BYTES_RECEIVED.set(net_info.bytes_recv)
-
-        # Disk I/O stats
-        disk_info = psutil.disk_io_counters()
-        values.SYSTEM_DISK_READ_COUNT.set(disk_info.read_count)
-        values.SYSTEM_DISK_WRITE_COUNT.set(disk_info.write_count)
-        values.SYSTEM_DISK_READ_BYTES.set(disk_info.read_bytes)
-        values.SYSTEM_DISK_WRITE_BYTES.set(disk_info.write_bytes)
-
-        for path in DISK_PATHS:
-            disk_usage = psutil.disk_usage(path)
-            values.SYSTEM_DISK_BYTES_FREE.labels(path).set(disk_usage.free)
-            values.SYSTEM_DISK_BYTES_USED.labels(path).set(disk_usage.used)
-    except: # pylint: disable=bare-except
-        log.exception('Error collecting system metrics')
 
 def collect_db_metrics():
     """Collect metrics from mongodb, including version and job states"""
@@ -184,6 +135,5 @@ def collect_db_metrics():
 
 def collect_metrics():
     with values.COLLECT_METRICS_TIME.time():
-        collect_system_metrics()
         collect_db_metrics()
 
