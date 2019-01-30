@@ -23,7 +23,7 @@ class Job(object):
                  saved_files=None, produced_metadata=None, batch=None,
                  failed_output_accepted=False, profile=None,
                  parents=None, failure_reason=None,
-                 transitions=None, related_container_ids=None):
+                 transitions=None, related_container_ids=None, label=None):
         """
         Creates a job.
 
@@ -133,6 +133,7 @@ class Job(object):
         self.failure_reason     = failure_reason
         self.transitions        = transitions
         self.related_container_ids = related_container_ids
+        self.label              = label
 
     def intention_equals(self, other_job):
         """
@@ -209,7 +210,8 @@ class Job(object):
             parents = d.get('parents', {}),
             failure_reason=d.get('failure_reason'),
             transitions=d.get('transitions', {}),
-            related_container_ids=d.get('related_container_ids', [])
+            related_container_ids=d.get('related_container_ids', []),
+            label = d.get('label')
         )
 
     @classmethod

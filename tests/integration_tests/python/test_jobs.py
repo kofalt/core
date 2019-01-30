@@ -768,13 +768,19 @@ def test_job_context(data_builder, default_payload, as_admin, as_root, file_form
                 'name': 'test.zip'
             }
         },
-        'tags': [ 'test-tag' ]
+        'tags': [ 'test-tag' ],
+        'label': 'job-name'
     }
 
     # add job without context value
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
     job1_id = r.json()['_id']
+
+    # get job label
+    r = as_admin.get('/jobs/' + job1_id)
+    job1_label = r.json()['label']
+    assert job1_label == 'job-name'
 
     # get job
     r = as_root.get('/jobs/' + job1_id)
@@ -893,6 +899,10 @@ def test_job_api_key(data_builder, default_payload, as_public, as_admin, as_user
     assert config['destination']['id'] == acquisition
     assert type(config['config']) is dict
     api_key = config['inputs']['api_key']['key']
+
+    # check if job default label is empty string
+    r = as_root.get('/jobs/'+ job_id)
+    assert r.json().get('label') == ""
 
     # ensure api_key works
     as_job_key = as_public
