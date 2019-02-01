@@ -486,30 +486,32 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     job_ticket = api_db.job_tickets.find_one({'job': job})
     assert job_ticket['timestamp']
 
+    produced_metadata = {
+        'project': {
+            'label': 'engine project',
+            'info': {'test': 'p'}
+        },
+        'session': {
+            'label': 'engine session',
+            'subject': {'code': 'engine subject', 'sex': 'male', 'age': 86400},
+            'info': {'test': 's'}
+        },
+        'acquisition': {
+            'label': 'engine acquisition',
+            'timestamp': '2016-06-20T21:57:36+00:00',
+            'info': {'test': 'a'},
+            'files': [{
+                'name': 'result.txt',
+                'type': 'text',
+                'info': {'test': 'f0'}
+            }]
+        }
+    }
+
     # engine upload
     r = as_drone.post('/engine',
         params={'level': 'acquisition', 'id': acquisition, 'job': job, 'job_ticket': job_ticket['_id']},
-        files=file_form('result.txt', meta={
-            'project': {
-                'label': 'engine project',
-                'info': {'test': 'p'}
-            },
-            'session': {
-                'label': 'engine session',
-                'subject': {'code': 'engine subject'},
-                'info': {'test': 's'}
-            },
-            'acquisition': {
-                'label': 'engine acquisition',
-                'timestamp': '2016-06-20T21:57:36+00:00',
-                'info': {'test': 'a'},
-                'files': [{
-                    'name': 'result.txt',
-                    'type': 'text',
-                    'info': {'test': 'f0'}
-                }]
-            }
-        })
+        files=file_form('result.txt', meta=produced_metadata)
     )
     assert r.ok
 
@@ -536,6 +538,14 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     # verify metadata was applied on hierarchy
     acq = as_admin.get('/acquisitions/' + acquisition).json()
     assert 'test' in acq.get('info', {})
+
+    # Verify raw subject
+    session = as_admin.get('/sessions/' + session).json()
+    assert 'subject_raw' in session.get('info', {})
+    assert session['info']['subject_raw'] == {'sex': 'male'}
+
+    # Verify that produced metadata is preserved
+    assert job_doc['produced_metadata'] == produced_metadata
 
     # verify uploaded file doesn't get marked w/ 'from_failed_job'
     result_file = acq['files'][-1]

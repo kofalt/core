@@ -1069,6 +1069,13 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     )
     assert r.ok
 
+    expected_metadata = copy.deepcopy(metadata)
+    expected_metadata['acquisition']['files'][2]['name'] = 'folderB/two.csv'
+
+    # Confirm produced_metadata is unchanged
+    job_doc = as_root.get('/jobs/' + job).json()
+    assert job_doc['produced_metadata'] == expected_metadata
+
     r = as_root.get('/projects/' + project)
     assert r.ok
     p = r.json()

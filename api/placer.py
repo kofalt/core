@@ -350,6 +350,10 @@ class EnginePlacer(Placer):
         elif self.context.get('job_id'):
             job = Job.get(self.context.get('job_id'))
 
+        # Save a deep-copy of produced metadata before
+        # manipulation (if we're saving it to a job)
+        produced_metadata = copy.deepcopy(self.metadata) if job is not None else None
+
         if self.metadata is not None:
             bid = bson.ObjectId(self.id_)
 
@@ -384,7 +388,7 @@ class EnginePlacer(Placer):
 
             # Update saved files & metadata
             job.saved_files = [f['name'] for f in self.saved]
-            job.produced_metadata = self.metadata
+            job.produced_metadata = produced_metadata
             job.save()
 
         # Log any failed rules
