@@ -42,7 +42,7 @@ def get_db_version():
         # Attempt to find db version at old location
         version = config.db.version.find_one({'_id': 'version'})
     if version is None or version.get('database') is None:
-        return 0
+        return 0, {}
     return version.get('database'), version.get('applied_fixes', {})
 
 
