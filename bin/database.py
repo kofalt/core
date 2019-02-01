@@ -25,19 +25,26 @@ from api.jobs import gears
 from api.types import Origin
 from api.jobs import batch
 
+from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fixes
+from process_cursor import process_cursor
 
 CURRENT_DATABASE_VERSION = 63 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
+    """Get the current db version, with applied fixes.
 
+    Returns:
+        (int, dict): The current database version, and a map of applied fixes
+    """
     version = config.get_version()
     if version is None:
         # Attempt to find db version at old location
         version = config.db.version.find_one({'_id': 'version'})
     if version is None or version.get('database') is None:
         return 0
-    return version.get('database')
+    return version.get('database'), version.get('applied_fixes', {})
+
 
 def confirm_schema_match():
     """
@@ -52,19 +59,19 @@ def confirm_schema_match():
                  than the DB schema version.
     """
 
-    db_version = get_db_version()
+    db_version, applied_fixes = get_db_version()
     if not isinstance(db_version, int) or db_version > CURRENT_DATABASE_VERSION:
         logging.error('The stored db schema version of %s is incompatible with required version %s',
                        str(db_version), CURRENT_DATABASE_VERSION)
         sys.exit(43)
+    elif has_unappliable_fixes(db_version, applied_fixes):
+        sys.exit(43)
     elif db_version < CURRENT_DATABASE_VERSION:
+        sys.exit(42)
+    elif get_available_fixes(db_version, applied_fixes):
         sys.exit(42)
     else:
         sys.exit(0)
-
-def getMonotonicTime():
-    # http://stackoverflow.com/a/7424304
-    return os.times()[4]
 
 
 def get_bson_timestamp(bson_id):
@@ -130,73 +137,6 @@ def ensure_parents():
         cursor = config.db[cont_name].find({'parents': None})
         process_cursor(cursor, ensure_container_parents, cont_name)
 
-
-def process_cursor(cursor, closure, *args, **kwargs):
-    """
-    Given an iterable (say, a mongo cursor) and a closure, call that closure in parallel over the iterable.
-    Call order is undefined. Currently launches N python process workers, where N is the number of vcpu cores.
-
-    Useful for upgrades that need to touch each document in a database, and don't need an iteration order.
-
-    Your closure MUST return True on success. Anything else is logged and treated as a failure.
-    A closure that throws an exception will fail the upgrade immediately.
-    """
-
-    begin = getMonotonicTime()
-
-    # cores = multiprocessing.cpu_count()
-    # pool = multiprocessing.Pool(cores)
-    # logging.info('Iterating over cursor with ' + str(cores) + ' workers')
-
-    # # Launch all work, iterating over the cursor
-    # # Note that this creates an array of n multiprocessing.pool.AsyncResults, where N is table size.
-    # # Memory usage concern in the future? Doesn't seem to be an issue with ~120K records.
-    # # Could be upgraded later with some yield trickery.
-    # results = [pool.apply_async(closure, (document,)) for document in cursor]
-
-    # # Read the results back, presumably in order!
-    # failed = False
-    # for res in results:
-    # 	result = res.get()
-    # 	if result != True:
-    # 		failed = True
-    # 		logging.info('Upgrade failed: ' + str(result))
-
-    # logging.info('Waiting for workers to complete')
-    # pool.close()
-    # pool.join()
-
-    logging.info('Proccessing {} items in cursor ...'.format(cursor.count()))
-
-    failed = False
-    cursor_size = cursor.count()
-    cursor_index = 0.0
-    next_percent = 5.0
-    percent_increment = 5
-    if(cursor_size < 20):
-        next_percent = 25.0
-        percent_increment = 25
-    if(cursor_size < 4):
-        next_percent = 50.0
-        percent_increment = 50
-    for document in cursor:
-        if 100 * (cursor_index / cursor_size) >= next_percent:
-            logging.info('{} percent complete ...'.format(next_percent))
-            next_percent = next_percent + percent_increment
-        result = closure(document, *args, **kwargs)
-        cursor_index = cursor_index + 1
-        if result != True:
-            failed = True
-            logging.info('Upgrade failed: ' + str(result))
-
-    if failed is True:
-        msg = 'Worker pool experienced one or more failures. See above logs.'
-        logging.info(msg)
-        raise Exception(msg)
-
-    end = getMonotonicTime()
-    elapsed = end - begin
-    logging.info('Parallel cursor iteration took ' + ('%.2f' % elapsed))
 
 def upgrade_to_1():
     """
@@ -2412,7 +2352,8 @@ def upgrade_schema(force_from = None):
     Returns (0) if upgrade is successful
     """
 
-    db_version = get_db_version()
+    db_version, applied_fixes = get_db_version()
+    available_fixes = get_available_fixes(db_version, applied_fixes)
 
     if force_from:
         if isinstance(db_version,int) and db_version >= force_from:
@@ -2426,17 +2367,25 @@ def upgrade_schema(force_from = None):
         logging.error('The stored db schema version of %s is incompatible with required version %s',
                        str(db_version), CURRENT_DATABASE_VERSION)
         sys.exit(43)
-    elif db_version == CURRENT_DATABASE_VERSION:
+    elif db_version == CURRENT_DATABASE_VERSION and not available_fixes:
         logging.error('Database already up to date.')
         sys.exit(43)
 
+    update_doc = {}
+
     try:
         while db_version < CURRENT_DATABASE_VERSION:
+            # Apply fixes before performing the next schema update
+            apply_available_fixes(db_version, applied_fixes, update_doc)
+
             db_version += 1
             upgrade_script = 'upgrade_to_'+str(db_version)
             logging.info('Upgrading to version {} ...'.format(db_version))
             globals()[upgrade_script]()
             logging.info('Upgrade to version {} complete.'.format(db_version))
+
+        # Last round of fixes for the current db version
+        apply_available_fixes(db_version, applied_fixes, update_doc)
     except KeyError as e:
         logging.exception('Attempted to upgrade using script that does not exist: {}'.format(e))
         sys.exit(1)
@@ -2444,7 +2393,8 @@ def upgrade_schema(force_from = None):
         logging.exception('Incremental upgrade of db failed')
         sys.exit(1)
     else:
-        config.db.singletons.update_one({'_id': 'version'}, {'$set': {'database': CURRENT_DATABASE_VERSION}})
+        update_doc['database'] = CURRENT_DATABASE_VERSION
+        config.db.singletons.update_one({'_id': 'version'}, {'$set': update_doc})
         sys.exit(0)
 
 if __name__ == '__main__':
@@ -2452,6 +2402,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument("function", help="function to be called from database.py")
         parser.add_argument("-f", "--force_from", help="force database to upgrade from previous version", type=int)
+        parser.add_argument("-F", "--fix-id", help="ID of fix to run if applying a fix")
         args = parser.parse_args()
 
         if args.function == 'confirm_schema_match':
@@ -2463,6 +2414,15 @@ if __name__ == '__main__':
                 upgrade_schema()
         elif args.function == 'ensure_parents':
             ensure_parents()
+        elif args.function == 'apply_fix':
+            if not args.fix_id:
+                logging.error('fix-id is required for apply_fix')
+                sys.exit(1)
+            # Raises if invalid fix_id is specified
+            fixes.get_fix_function(args.fix_id)()
+            # And update the database to indicate that we applied this fix
+            config.db.singletons.update_one({'_id': 'version'}, {'$set': {
+                'applied_fixes.{}'.format(args.fix_id): datetime.datetime.now() }})
         else:
             logging.error('Unknown method name given as argv to database.py')
             sys.exit(1)

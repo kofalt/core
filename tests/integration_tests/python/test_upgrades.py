@@ -15,6 +15,13 @@ def database(mocker):
     import database
     return database
 
+@pytest.fixture(scope='function')
+def fixes(mocker):
+    bin_path = os.path.join(os.getcwd(), 'bin')
+    mocker.patch('sys.path', [bin_path] + sys.path)
+    import fixes
+    return fixes
+
 
 def test_42(data_builder, api_db, as_admin, database):
     # Mimic old-style archived flag
@@ -1095,6 +1102,80 @@ def test_ensure_parents(api_db, database):
     api_db.sessions.delete_one({'_id': session_2})
     api_db.acquisitions.delete_one({'_id': acquisition})
     api_db.analyses.delete_one({'_id': analysis})
+
+def test_fix_subject_age_62(api_db, fixes):
+
+    def get_session(session_id):
+        return api_db.sessions.find_one({'_id': session_id})
+
+    # Create hierarchy
+    group = 'g1'
+    api_db.groups.insert_one({'_id': group})
+    project = bson.ObjectId()
+    api_db.projects.insert_one({'_id': project, 'group': group, 'parents': {}})
+
+    subject_with_age = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_with_age, 'project': project, 'group': group, 'age': 999})
+
+    subject_without_age = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_without_age, 'project': project, 'group': group})
+
+    subject_with_only_one_session = bson.ObjectId()
+    api_db.subjects.insert_one({'_id': subject_with_only_one_session, 'project': project, 'group': group, 'age': 222})
+
+    session_without_age_subject_age_1 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_subject_age_1, 'subject': subject_with_age, 'project': project, 'group': group})
+    session_without_age_subject_age_2 = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_subject_age_2, 'subject': subject_with_age, 'project': project, 'group': group})
+    session_with_age_subject_age = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_with_age_subject_age, 'subject': subject_with_age, 'project': project, 'group': group, 'age': 333})
+    session_with_age_subject_age_and_metadata = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_with_age_subject_age_and_metadata, 'subject': subject_with_age, 'project': project, 'group': group, 'age': 123})
+
+    session_without_age_subject_no_age = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_subject_no_age, 'subject': subject_without_age, 'project': project, 'group': group})
+    session_with_age_subject_no_age = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_with_age_subject_no_age, 'subject': subject_without_age, 'project': project, 'group': group, 'age': 444})
+
+    session_without_age_only_session = bson.ObjectId()
+    api_db.sessions.insert_one({'_id': session_without_age_only_session, 'subject': subject_with_only_one_session, 'project': project, 'group': group})
+
+    now = datetime.datetime.utcnow()
+    created_1 = now - datetime.timedelta(seconds=3)
+    created_2 = now - datetime.timedelta(seconds=2)
+    created_3 = now - datetime.timedelta(seconds=1)
+
+    # Insert acquisition files for session_without_age_subject_age_1
+
+    session_without_age_subject_age_1_PatientAge = '003D'
+    api_db.acquisitions.insert_one({'session': session_without_age_subject_age_1, 'files': [{'type': 'text'}, {'type': 'dicom', 'info': {'PatientAge': session_without_age_subject_age_1_PatientAge}}], 'parents': {'project': project}})
+
+    session_with_age_subject_age_and_metadata_PatientAge = '005D'
+    api_db.acquisitions.insert_one({'session': session_with_age_subject_age_and_metadata, 'files': [{'type': 'nifti', 'info': {}}], 'metadata': {'PatientAge': session_with_age_subject_age_and_metadata_PatientAge}, 'parents': {'project': project}})
+
+    # Run DB Fix
+    fixes.fix_subject_age_62()
+
+    age_parser = fixes.parse_patient_age
+
+    assert get_session(session_without_age_subject_age_1).get('age') == age_parser(session_without_age_subject_age_1_PatientAge)
+    assert get_session(session_without_age_subject_age_2).get('age') is None
+    assert get_session(session_with_age_subject_age).get('age') == 333
+    assert get_session(session_with_age_subject_age_and_metadata).get('age') == 123
+
+    assert get_session(session_without_age_subject_no_age).get('age') == None
+    assert get_session(session_with_age_subject_no_age).get('age') == 444
+
+    assert get_session(session_without_age_only_session).get('age') == 222
+
+    for subject in api_db.subjects.find({'project': project}):
+        assert subject.get('age') is None
+
+    api_db.groups.delete_one({'_id': group})
+    api_db.projects.delete_one({'_id': project})
+    api_db.subjects.delete_many({'project': project})
+    api_db.sessions.delete_many({'project': project})
+    api_db.acquisitions.delete_many({'parents.project': project})
 
 def test_63(api_db, database):
     # Create hierarchy

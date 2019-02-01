@@ -611,6 +611,9 @@ def _update_container_nulls(base_query, update, container_type):
 
     if container_type == 'session' and type(update.get('subject')) is dict:
         subject_update = update.pop('subject')
+        # We store age on the session level
+        if subject_update.get('age'):
+            update['age'] = subject_update.pop('age')
         containerutil.attach_raw_subject(update, subject_update)
         subject_update['modified'] = update['modified']
         _update_container_nulls({'_id': cont['subject']}, subject_update, 'subject')
