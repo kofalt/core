@@ -24,6 +24,10 @@ def test_CDV_was_bumped():
     assert hasattr(database, script_name) is False
 
 
+@patch('api.config.get_version', Mock(return_value=None))
+def test_get_empty_db_version_from_config():
+    assert database.get_db_version() == (0, {})
+
 @patch('api.config.get_version', Mock(return_value={'database': 5}))
 def test_get_db_version_from_config():
     assert database.get_db_version() == (5, {})
