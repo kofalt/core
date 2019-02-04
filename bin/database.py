@@ -25,7 +25,7 @@ from api.jobs import gears
 from api.types import Origin
 from api.jobs import batch
 
-from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fixes
+from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fixes, get_fix_function
 from process_cursor import process_cursor
 
 CURRENT_DATABASE_VERSION = 63 # An int that is bumped when a new schema change is made
@@ -2419,7 +2419,7 @@ if __name__ == '__main__':
                 logging.error('fix-id is required for apply_fix')
                 sys.exit(1)
             # Raises if invalid fix_id is specified
-            fixes.get_fix_function(args.fix_id)()
+            get_fix_function(args.fix_id)()
             # And update the database to indicate that we applied this fix
             config.db.singletons.update_one({'_id': 'version'}, {'$set': {
                 'applied_fixes.{}'.format(args.fix_id): datetime.datetime.now() }})
