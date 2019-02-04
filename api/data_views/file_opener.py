@@ -54,7 +54,7 @@ class FileOpener(object):
         try:
             # Open the file using file_system
             file_path, file_system = files.get_valid_file(self.file_entry)
-            self._system_fd = file_system.open(file_path, open_mode)
+            self._system_fd = file_system.open(None, file_path, open_mode, None)
 
             if self.zip_filter:
                 # Open zipfile

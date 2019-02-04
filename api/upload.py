@@ -81,22 +81,29 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         container = hierarchy.get_container(container_type, id_)
 
     # Check if filename should be basename or full path
+    # TODO: This should never be checked in the service layer, refactor this out
     use_filepath = request.GET.get('filename_path', '').lower() in ('1', 'true')
     if use_filepath:
+        print 'sanitizing path'
         name_fn = util.sanitize_path
     else:
         name_fn = os.path.basename
 
-    # The vast majority of this function's wall-clock time is spent here.
-    # Tempdir is deleted off disk once out of scope, so let's hold onto this reference.
 
-    #file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
-    # This should be defined in the strategy object.
+    # The vast majority of this function's wall-clock time is spent here.
+    local_tmp_fs = None
     needsTempFile = ['token', 'packfile']
-    file_processor = files.FileProcessor(config.py_fs, local_tmp_fs=strategy in needsTempFile, tempdir_name=tempdir)
+    if strategy in needsTempFile:
+        local_tmp_fs = config.local_fs
+
+
+    file_processor = files.FileProcessor(config.py_fs, local_tmp_fs, tempdir_name=tempdir)
 
     if not file_fields:
 
+        # The only time we need the tempdir_name is when we use token and packfile. 
+        # We could use it instead of the local_tmp_fs when we instantiate the file_processor but this gives us the ability
+        # to change the dir mid stream if we are processing multiple forms with a single file_processor instance across multile tokens.... likely???
         form = file_processor.process_form(request, use_filepath=use_filepath)
 
         # Non-file form fields may have an empty string as filename, check for 'falsy' values
@@ -139,20 +146,21 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Not the best practice. Open to improvements.
         # These are presumbed to be required by every function later called with field as a parameter.
 
-        #if not file_processor.temp_fs.exists(field.path):
-        #    # tempdir_exists = os.path.exists(tempdir.name)
-        #    raise Exception("file {} does not exist, files in tmpdir: {}".format(
-        #        field.path,
-        #        file_processor.temp_fs.listdir('/'),
-        #    ))
-        
-        # This is now handled further up the stack
-        #field.uuid = str(uuid.uuid4())
-        filePath = files.get_file_path({'_id': field._uuid, 'hash': None})
-      
+        # If this is changed it needs to be adjusted in the field_storge override in files.py as well
+        if tempdir:
+            filePath = tempdir + '/' + field.filename
+        else:
+            filePath = files.get_file_path({'_id': field._uuid, 'hash': None})
+
         #Some placers need this value. Consistent object would be nice
         field.path = filePath
-        field.size = int(file_processor._persistent_fs._fs.getsize(filePath))
+        # we can get the size from the file on disk but we need to know which fs its stored on.
+        # TODO: we should make that part of the Storage abstraction layer
+        if file_processor._temp_fs:
+            field.size = int(file_processor._temp_fs._fs.getsize(filePath))
+        else:
+            field.size = int(file_processor._persistent_fs._fs.getsize(filePath))
+        
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 
@@ -166,6 +174,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     if placer.sse and not response:
         raise Exception("Programmer error: response required")
     elif placer.sse:
+
         # Returning a callable will bypass webapp2 processing and allow
         # full control over the response.
         def sse_handler(environ, start_response): # pylint: disable=unused-argument
@@ -181,6 +190,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             # Right now, in our environment:
             # - Timeouts may result in nginx-created 500 Bad Gateway HTML being added to the response.
             # - Exceptions add some error json to the response, which is not SSE-sanitized.
+
             for item in placer.finalize():
                 try:
                     write(item)
@@ -197,10 +207,10 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 class Upload(base.RequestHandler):
 
     def _create_upload_ticket(self):
-        #if not config.py_fs.is_signed_url():
-        #    self.abort(405, 'Signed URLs are not supported with the current storage backend')
-        if not hasattr(config.py_fs._fs, 'get_signed_url'):
+        if not config.py_fs.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
+        #if not hasattr(config.py_fs._fs, 'get_signed_url'):
+        #    self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
@@ -216,10 +226,11 @@ class Upload(base.RequestHandler):
             newUuid = str(uuid.uuid4())
             #signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename), config.py_fs, purpose='upload')
             signed_urls[filename] = {
-                'url': files.get_signed_url(util.path_from_uuid(newUuid), config.py_fs, purpose='upload'),
+                'url': config.py_fs.get_signed_url(None, util.path_from_uuid(newUuid), purpose='upload'),
                 'uuid': newUuid
             }
 
+        # We dont need a tempdir at all with a ticket do we? Do we upload ticket based pack files?
         ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, signed_urls, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}

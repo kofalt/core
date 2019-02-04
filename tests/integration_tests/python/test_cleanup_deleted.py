@@ -49,7 +49,7 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
-    assert config.fs.exists(util.path_from_uuid(file_id_1))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_1))
 
     # file won't be deleted after 72 hours if the origin is a user
     d = datetime.datetime.now() - datetime.timedelta(hours=73)
@@ -61,7 +61,7 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
-    assert config.fs.exists(util.path_from_uuid(file_id_1))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_1))
 
     # file deleted after 72 hours if the origin is not a user
     api_db['sessions'].find_one_and_update(
@@ -72,7 +72,7 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # file removed from the filesystem
-    assert not config.fs.exists(util.path_from_uuid(file_id_1))
+    assert not config.fs._fs.exists(util.path_from_uuid(file_id_1))
 
     # file also removed from the database
     document = api_db['sessions'].find_one(
@@ -116,8 +116,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # files still exist
-    assert config.fs.exists(util.path_from_uuid(file_id_2))
-    assert config.fs.exists(util.path_from_uuid(file_id_3))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_2))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_3))
 
     # file won't be deleted after 72 hours if the origin is a user
     d = datetime.datetime.now() - datetime.timedelta(hours=73)
@@ -129,8 +129,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
-    assert config.fs.exists(util.path_from_uuid(file_id_2))
-    assert config.fs.exists(util.path_from_uuid(file_id_3))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_2))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_3))
 
     # file deleted after 72 hours if the origin is not a user
     api_db['sessions'].find_one_and_update(
@@ -141,9 +141,9 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # first file removed from the filesystem
-    assert not config.fs.exists(util.path_from_uuid(file_id_2))
+    assert not config.fs._fs.exists(util.path_from_uuid(file_id_2))
     # but the second file is still there
-    assert config.fs.exists(util.path_from_uuid(file_id_3))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_3))
 
     # upload a file into the first session to see that it is kept when we use the --all flag
     # but others which are marked to delete will be removed
@@ -159,9 +159,9 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     # with --all flag we delete every files which are marked to delete
     # don't care about the origin
     cleanup_deleted.main('--log-level', 'DEBUG', '--all')
-    assert not config.fs.exists(util.path_from_uuid(file_id_3))
+    assert not config.fs._fs.exists(util.path_from_uuid(file_id_3))
     # we keep files which are not marked
-    assert config.fs.exists(util.path_from_uuid(file_id_4))
+    assert config.fs._fs.exists(util.path_from_uuid(file_id_4))
 
     # Mark the first session as deleted
     api_db['sessions'].find_one_and_update(
@@ -171,4 +171,4 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     # now the fourth file will be deleted too
     cleanup_deleted.main('--log-level', 'DEBUG', '--all')
-    assert not config.fs.exists(util.path_from_uuid(file_id_4))
+    assert not config.fs._fs.exists(util.path_from_uuid(file_id_4))

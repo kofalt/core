@@ -346,7 +346,8 @@ class FileListHandler(ListHandler):
     """
 
     def _create_upload_ticket(self):
-        if not hasattr(config.fs, 'get_signed_url'):
+        if not config.fs.is_signed_url():
+        #if not hasattr(config.fs, 'get_signed_url'):
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -360,11 +361,14 @@ class FileListHandler(ListHandler):
         # Upload into a temp folder, so we will be able to cleanup
         signed_urls = {}
         for filename in filenames:
-            signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename),
-                                                         config.fs,
-                                                         purpose='upload')
+            newUuid = str(uuid.uuid4())
+            #TODO: Verify this path is used on the receiving end as well
+            signed_urls[filename] = {
+                    'url': config.fs.get_signed_url(None, tempdir + '/' + newUuid, purpose='upload'),
+                    'uuid': newUuid
+            }
 
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filenames, metadata)
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, signed_urls, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
 
@@ -450,7 +454,7 @@ class FileListHandler(ListHandler):
         elif self.get_param('member') is not None:
             zip_member = self.get_param('member')
             try:
-                with file_system.open(file_path, 'rb') as f:
+                with file_system.open(None, file_path, 'rb', None) as f:
                     with zipfile.ZipFile(f) as zf:
                         self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                         self.response.write(zf.open(zip_member).read())
@@ -473,7 +477,7 @@ class FileListHandler(ListHandler):
             # refererhandler.py:AnalysesHandler's download method
             signed_url = None
             if config.py_fs.is_signed_url():
-                signed_url = config.py_fs.get_signed_url(None, file_path, file_system,
+                signed_url = config.py_fs.get_signed_url(None, file_path,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
@@ -593,6 +597,7 @@ class FileListHandler(ListHandler):
         permchecker(noop)('POST', _id=_id)
 
         # Request for upload ticket
+        # TODO: test this endpoint with an upload ticket
         if self.get_param('ticket') == '':
             return self._create_upload_ticket()
 
@@ -605,13 +610,14 @@ class FileListHandler(ListHandler):
                 self.origin = ticket.get('origin')
 
             file_fields = []
-            for filename in ticket['filenames']:
+            for filename, values in ticket['filenames'].items():
                 file_fields.append(
                     util.dotdict({
-                        'filename': filename
+                        'filename': filename,
+                        '_uuid': values.uuid
                     })
                 )
-
+            #In this flow the file is stored to the tempdir location via fieldStorge and then added to the final zip afterwards.
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                          container_type=containerutil.singularize(cont_name),
                                          id_=_id, file_fields=file_fields, tempdir=ticket['tempdir'])
@@ -738,7 +744,7 @@ class FileListHandler(ListHandler):
         token_id = self.request.GET.get('token')
         self._check_packfile_token(project_id, token_id)
 
-        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id})
+        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id}, tempdir=token_id)
 
     def packfile_end(self, **kwargs):
         """
@@ -752,4 +758,4 @@ class FileListHandler(ListHandler):
         # Because this is an SSE endpoint, there is no form-post. Instead, read JSON data from request param
         metadata = json.loads(self.request.GET.get('metadata'))
 
-        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id}, response=self.response, metadata=metadata)
+        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id}, response=self.response, metadata=metadata, tempdir=token_id)

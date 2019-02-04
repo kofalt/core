@@ -6,7 +6,6 @@ import hashlib
 import uuid
 
 import fs.move
-import fs.subfs
 import fs.tempfs
 import fs.path
 import fs.errors
@@ -16,22 +15,27 @@ from . import config, util
 DEFAULT_HASH_ALG = 'sha384'
 
 class FileProcessor(object):
-    def __init__(self, persistent_fs, local_tmp_fs=False, tempdir_name=None):
+    def __init__(self, persistent_fs, local_tmp_fs=None, tempdir_name=None):
 
-        if not tempdir_name:
-            self._tempdir_name = str(uuid.uuid4())
-        else:
-            self._tempdir_name = tempdir_name
+
+        # The only time we have local_tmp_fs is when we also need a temporary directory so that should be the only parameter required
+        if local_tmp_fs and not tempdir_name:
+            raise Exception("When using a local tempfs you must also provide a tempdir name")
+
+        # Not needed anymore
+        #if not tempdir_name:
+        #    self._tempdir_name = str(uuid.uuid4())
+        #else:
+        #    self._tempdir_name = tempdir_name
         
         self._persistent_fs = persistent_fs
-        # self._presistent_fs.makedirs(fs.path.join('tmp', self._tempdir_name), recreate=True)
-        if not local_tmp_fs:
-            print 'not making a temp_fs'
-            # We only need the local_tmp_fs in a few select cases
-            # self._temp_fs = fs.subfs.SubFS(persistent_fs, fs.path.join('tmp', self._tempdir_name))
-        else:
-            print 'making a local temp_fs'
-            self._temp_fs = fs.tempfs.TempFS('tmp')
+        self._temp_fs = None
+        self._tempdir_name = tempdir_name
+
+        if local_tmp_fs:
+            self._temp_fs = local_tmp_fs
+            if not self._temp_fs._fs.exists(tempdir_name):
+                self._temp_fs._fs.makedir(tempdir_name)
 
     def create_new_file(self, filename, options=None):
         """ Create a new block storage file with a unique uuid opened for writing
@@ -42,8 +46,12 @@ class FileProcessor(object):
 
         path = util.path_from_uuid(newUuid)
 
-        return path, self._persistent_fs.open(newUuid, path, 'wb', options)
+        fileobj = self._persistent_fs.open(newUuid, path, 'wb', options)
+        fileobj.filename = filename;
+        return path, fileobj
 
+    """ @deprecated
+    """
     def make_temp_file(self, mode='wb'):
         """Create and open a temporary file for writing.
 
@@ -109,7 +117,15 @@ class FileProcessor(object):
         env['QUERY_STRING'] = ''
       
         # field_storage_class = get_single_file_field_storage(self._temp_fs, use_filepath=use_filepath)
-        field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
+        # We only need the temp fs for Token and Placer strategy and in both those cases we need the file_path specified as well.
+        # If we link these to the tempdir on file_procesor instantaition it limits the checking we need to do
+
+        if self._temp_fs:
+            print 'saving files using  local tmp filesystem'
+            field_storage_class = get_single_file_field_storage(self._temp_fs, use_filepath=use_filepath, tempdir_name=self._tempdir_name)
+        else:
+            print 'saving files using persistent storage directly'
+            field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
         
         form = field_storage_class(
             fp=request.body_file, environ=env, keep_blank_values=True
@@ -155,8 +171,10 @@ class FileProcessor(object):
     def close(self):
         # Cleaning up
         if isinstance(self._temp_fs, fs.tempfs.TempFS):
+            pass
             # The TempFS cleans up automatically on close
-            self._temp_fs.close()
+            # We need to keep the temp_fs because files will live there between requests
+            # self._temp_fs.close()
         # else:
             # Otherwise clean up manually
             # We only need the temp fs and not the persistent version... unless we are handling very large data sets?
@@ -189,7 +207,7 @@ class FileHasherWriter(object):
     def close(self):
         self.fileobj.close()
 
-def get_single_file_field_storage(file_system, use_filepath=False):
+def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=False):
     # pylint: disable=attribute-defined-outside-init
 
     # We dynamically create this class because we
@@ -206,7 +224,6 @@ def get_single_file_field_storage(file_system, use_filepath=False):
 
         _uuid = None
 
-        #def __init__(self, fp=None, headers=None, outerboundary='', environ='', keep_blank_values=0, strict_parsing=0, uuid=''):
         def __init__(self, *args, **kwargs):
 
             self._uuid = str(uuid.uuid4());
@@ -218,20 +235,29 @@ def get_single_file_field_storage(file_system, use_filepath=False):
             self.hasher = hashlib.new(DEFAULT_HASH_ALG)
             # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
             # dont overwrite filename so we have it easily for metadata 
-            if use_filepath:
-                self.filepath = util.sanitize_path(self.filename)
+
+            # we should move this to a utility function and use it in both places.
+            # Temp files are stored in the token bucket for the id of the token and can use the native filename safely
+            # If this is changed it needs to be adjusted in process_upload in upload.py as well
+            if tempdir_name:
+                self.filepath = tempdir_name + '/' + self.filename
             else:
-                self.filepath = os.path.basename(self.filename)
+                self.filepath = util.path_from_uuid(self._uuid)
+
+            if use_filepath:
+                self.filename = util.sanitize_path(self.filename)
+                # print 'expecting to use this filepath'
+            
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
-            # If the filepath doesn't exist, make it IF the opted in to use full path as name
-            #
-            
-            # TODO: What is this case and do we need it for new files?
+
             #if  self.filename and os.path.dirname(self.filename) and not file_system.exists(os.path.dirname(self.filename)):
             #    file_system.makedirs(os.path.dirname(self.filename))
 
-            self.open_file = file_system.open(None, util.path_from_uuid(self._uuid), 'wb', None)
+            if type(file_system) is fs.tempfs.TempFS:
+                self.open_file = file_system.open(self.filepath, 'wb')
+            else:
+                self.open_file = file_system.open(None, self.filepath, 'wb', None)
             
             return self.open_file
 
@@ -314,6 +340,10 @@ def get_file_path(file_info):
 
 
 def get_signed_url(file_path, file_system, **kwargs):
+    """ 
+    @deprecated
+    Use the file_processor method instead of this method
+    """
     try:
         if hasattr(file_system, 'get_signed_url'):
             return file_system.get_signed_url(None, file_path, **kwargs)
@@ -334,11 +364,11 @@ def get_fs_by_file_path(file_path):
         return config.py_fs
         #return config.fs
 
-    elif config.support_legacy_fs and config.local_fs.isfile(file_path):
+    elif config.support_legacy_fs and config.local_fs._fs.isfile(file_path):
         return config.local_fs
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.isfile(file_path):
+    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2._fs.isfile(file_path):
         return config.local_fs2
     ###
 

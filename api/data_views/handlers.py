@@ -1,12 +1,17 @@
 from ..auth import require_login
 
-from .. import config, validators
+from .. import config, validators, util
 from ..create_file import FileCreator
 from ..auth import containerauth
 from ..dao import noop
 from ..dao.containerstorage import ContainerStorage
 from ..web import base, encoder
 from ..web.errors import APIStorageException, InputValidationException
+
+from ..files import FileProcessor
+from .. import upload
+from ..placer import TargetedMultiPlacer
+import datetime
 
 from .data_view import DataView
 from .storage import DataViewStorage
@@ -150,6 +155,7 @@ class DataViewHandler(base.RequestHandler):
         """Execute the data view specified in body"""
         # Validate payload
         payload = self.request.json
+
         validators.validate_data(payload, 'data-view-adhoc.json', 'input', 'POST')
 
         return self.do_execute_view(payload)
@@ -175,35 +181,75 @@ class DataViewHandler(base.RequestHandler):
         def response_handler(environ, start_response): # pylint: disable=unused-argument
             write_progress=None
 
-            with FileCreator(self, target_container_type, target_container) as file_creator:
-                if target_container:
-                    # If we're saving to container, start SSE event,
-                    # and write the data to a temp file
-                    write_progress = start_response('200 OK', [
-                        ('Content-Type', 'text/event-stream; charset=utf-8'),
-                        ('Connection', 'keep-alive')
-                    ])
+            # Use the placer directly and avoid the extra layer of indirection. I dont see the need for it at this moment.
+            # File creator just abstracts the calls but its not used elsewhere.
+            #with FileCreator(self, target_container_type, target_container) as file_creator:
+            if target_container:
 
-                    fileobj = file_creator.create_file(target_filename)
-                    write = fileobj.write 
-                else:
-                    write = start_response('200 OK', [
-                        ('Content-Type', view.get_content_type()),
-                        ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
-                        ('Connection', 'keep-alive')
-                    ])
+                # Saved directly to persistent storage.
+                file_processor = FileProcessor(config.py_fs)
+                
+                # If we're saving to container, start SSE event,
+                # and write the data to a temp file
+                write_progress = start_response('200 OK', [
+                    ('Content-Type', 'text/event-stream; charset=utf-8'),
+                    ('Connection', 'keep-alive')
+                ])
 
-                view.execute(self.request, self.origin, write, write_progress_fn=write_progress)
+                #fileobj = file_creator.create_file(target_filename)
+                # Create a new file with a new uuid
+                path, fileobj = file_processor.create_new_file(None, None)
+                newUuid = fileobj.filename
+                if target_filename:
+                    fileobj.filename = target_filename
+                write = fileobj.write 
 
-                if target_container:
-                    result = file_creator.finalize()
+                # Construct the file metadata list
+                metadata = []
+                metadata.append({'name': fileobj.filename})
+                timestamp = datetime.datetime.utcnow()
 
-                    # Write final progress
-                    progress = encoder.json_sse_pack({
-                        'event': 'result',
-                        'data': result,
-                    })
-                    write_progress(progress)
+            else:
+                write = start_response('200 OK', [
+                    ('Content-Type', view.get_content_type()),
+                    ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
+                    ('Connection', 'keep-alive')
+                ])
+
+            view.execute(self.request, self.origin, write, write_progress_fn=write_progress)
+
+            if target_container:
+                # Process file calcs but close the file first to flush the buffer
+                fileobj.close()
+                
+                # Create our targeted placer
+                placer = TargetedMultiPlacer(target_container_type, target_container, target_container['_id'],
+                    metadata, timestamp, self.origin, {'uid': self.uid}, file_processor, self.log_user_access)
+                
+                # Not a great practice. See process_upload() for details.
+                cgi_field = util.obj_from_map({
+                    'filename': fileobj.filename,
+                    'path': path,
+                    'size': int(file_processor.persistent_fs._fs.getsize(path)),
+                    'hash': file_processor.hash_file_formatted(path, file_processor.persistent_fs._fs),
+                    '_uuid': newUuid,
+                    'mimetype': util.guess_mimetype(fileobj.filename),
+                    'modified': timestamp
+                })
+
+                file_attrs = upload.make_file_attrs(cgi_field, self.origin)
+
+                # Place the file
+                placer.process_file_field(cgi_field, file_attrs)
+                result = placer.finalize()
+                #result = file_creator.finalize()
+
+                # Write final progress
+                progress = encoder.json_sse_pack({
+                    'event': 'result',
+                    'data': result,
+                })
+                write_progress(progress)
 
             return ''
 

@@ -691,13 +691,50 @@ class DataExplorerHandler(base.RequestHandler):
             'files': file_results
         }
 
-        # Save the json results to a file on the output
-        with FileCreator(self, output['type'], output_container) as file_creator:
-            fileobj = file_creator.create_file(output_filename)
-            fileobj.write(json.dumps(formatted_search_results))
-            result = file_creator.finalize()
-        return result
+        ## Save the json results to a file on the output
+        #with FileCreator(self, output['type'], output_container) as file_creator:
+        #    fileobj = file_creator.create_file(output_filename)
+        #    fileobj.write(json.dumps(formatted_search_results))
+        #    result = file_creator.finalize()
+        # 
+        #return result
 
+        # TODO: This this refactor of the file_creator
+        
+        # Saved directly to persistent storage.
+        file_processor = FileProcessor(config.py_fs)
+        
+        #fileobj = file_creator.create_file(target_filename)
+        # Create a new file with a new uuid
+        path, fileobj = file_processor.create_new_file(None, None)
+
+        #This seems to be empty on file create but verify this is correct
+        metadata = None
+        timestamp = datetime.datetime.utcnow()
+
+        # Create our targeted placer
+        placer = TargetedMultiPlacer(output['type'], output_container, output['id'],
+            metadata, timestamp, self.origin, {'uid': self.uid}, file_processor, self.log_user_access)
+        
+
+        fileobj.close()
+        # Not a great practice. See process_upload() for details.
+        cgi_field = util.obj_from_map({
+            'filename': output_filename,
+            'path': fileobj.path,
+            'size': fileobj.size,
+            'hash': fileobj.hash,
+            '_uuid': fileobj.filename,
+            'mimetype': util.guess_mimetype(output_filename),
+            'modified': timestamp
+        })
+        file_attrs = upload.make_file_attrs(cgi_field, origin)
+
+        # Place the file
+        placer.process_file_field(cgi_field, file_attrs)
+
+        # Process file calcs
+        return placer.finalize()
 
 
     ## CONSTRUCTING QUERIES ##

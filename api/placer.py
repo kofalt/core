@@ -408,6 +408,7 @@ class TokenPlacer(Placer):
     """
     A placer that can accept N files and save them to a persistent directory across multiple requests.
     Intended for use with a token that tracks where the files will be stored.
+    Is the strategy used between packfile-start and packfile-end
     """
 
     def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
@@ -428,20 +429,22 @@ class TokenPlacer(Placer):
         #   upload.clean_packfile_tokens
         #
         # It must be kept in sync between each instance.
-        self.folder = fs.path.join('tokens', 'packfile', token)
 
-        util.mkdir_p(self.folder, config.local_fs._fs)
+        #This logic assumes temp files are placed in a directory that is named after the token.
+        #self.folder = fs.path.join('tokens', 'packfile', token)
+        self.folder = token
+
+        #util.mkdir_p(self.folder, config.local_fs._fs)
+        # Folder is created because we load the file_processer to use a temp file with the token uuid as a param
+        # we only work with temp fs when using token placer
 
     def process_file_field(self, field, file_attrs):
+
         self.saved.append(file_attrs)
         self.paths.append(field.path)
 
     def finalize(self):
-        for path in self.paths:
-            dest = fs.path.join(self.folder, path)
-            
-            #lets assume we will do this only as needed on specialized placers. Not on all placers
-            #self.file_processor.store_temp_file(path, dest, dst_fs=config.local_fs)
+        
         self.recalc_session_compliance()
         return self.saved
 
@@ -488,10 +491,14 @@ class PackfilePlacer(Placer):
         #   upload.clean_packfile_tokens
         #
         # It must be kept in sync between each instance.
-        self.folder = fs.path.join('tokens', 'packfile', token)
+ 
+        # self.folder = fs.path.join('tokens', 'packfile', token)
+        self.folder = token
 
         try:
-            config.local_fs._fs.isdir(self.folder)
+            #All the temp_fs stuff is the local_storage assigned to the FileProcessor
+            self.file_processor.temp_fs._fs.isdir(self.folder)
+            # config.local_fs._fs.isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
 
@@ -533,16 +540,14 @@ class PackfilePlacer(Placer):
         self.ziptime = dateutil.parser.parse(stamp)
 
         # The zipfile is a santizied acquisition label
+        # But the dir is only ever used for human naming it seems
         self.dir_ = util.sanitize_string_to_filename(self.a_label)
         self.name = self.dir_ + '.zip'
 
-        # Create a zip in the tempdir that later gets moved into the CAS.
-        # If this ran twice on the same machine it would overwrite the existing temp file.
-        #self.path = u'temp.zip'
-        self.path = u'' + str(uuid.uuid4()) + '.zip'
-
-        self.zip_ = zipfile.ZipFile(self.file_processor.temp_fs.open(self.path, 'wb'),
-                                    'w', zipfile.ZIP_DEFLATED, allowZip64=True)
+        #Determine the final path location for the final zip file.
+        #self.path = u'' + util.path_from_uuid(token) + '.zip'
+        #print 'we have a zip file'
+        #self.path
 
         # OPPORTUNITY: add zip comment
         # self.zip.comment = json.dumps(metadata, default=metadata_encoder)
@@ -554,20 +559,34 @@ class PackfilePlacer(Placer):
 
     def finalize(self):
 
-        paths = config.local_fs._fs.listdir(self.folder)
+        #paths = config.local_fs._fs.listdir(self.folder)
+        #This is a special case where temp_fs is the local storage assigned to FileProcessor
+        paths = self.file_processor.temp_fs._fs.listdir(self.folder)
         total = len(paths)
 
+        # We create the zip file in the temp file location then get attributes and then move it to the final 
+        # location. Otherwise in the cloud instances we would be writing files across the network which would 
+        # be much slower
+        tempZipPath = self.folder + '/' + str(uuid.uuid4())
+        self.zip_ = zipfile.ZipFile(self.file_processor.temp_fs.open(None, tempZipPath, 'wb', None),
+                                    'w', zipfile.ZIP_DEFLATED, allowZip64=True)
         # Write all files to zip
         complete = 0
         for path in paths:
             full_path = fs.path.join(self.folder, path)
 
+            print 'we are adding a file to the zip'
+            print full_path
+            import sys
+            sys.stdout.flush()
+
             # Set the file's mtime & atime.
-            config.local_fs._fs.settimes(full_path, self.ziptime, self.ziptime)
+            self.file_processor.temp_fs._fs.settimes(full_path, self.ziptime, self.ziptime)
 
             # Place file into the zip folder we created before
-            with config.local_fs.open(None, full_path, 'rb', None) as f:
-                self.zip_.writestr(fs.path.join(self.dir_, path), f.read())
+            with self.file_processor.temp_fs.open(None, full_path, 'rb', None) as f:
+                #self.zip_.writestr(fs.path.join(self.dir_, path), f.read())
+                self.zip_.writestr(path, f.read())
 
             # Report progress
             complete += 1
@@ -578,8 +597,6 @@ class PackfilePlacer(Placer):
 
         self.zip_.close()
 
-        # Remove the folder created by TokenPlacer
-        config.local_fs._fs.removetree(self.folder)
 
         # Lookup uid on token
         token  = self.context['token']
@@ -589,20 +606,33 @@ class PackfilePlacer(Placer):
             'id': uid
         }
 
+        # Finaly move the file from the temp fs to the persistent FS. 
+        # We could make this faster using a move if we know its a local to local fs move.
+        with self.file_processor.temp_fs.open(None, tempZipPath, 'rb', None) as (f1
+                ), self.file_processor.persistent_fs.open(token, util.path_from_uuid(token), 'wb', None) as f2:
+            for line in f1:
+                f2.write(line)
+        f1.close()
+        f2.close()
 
         # Create an anyonmous object in the style of our augmented file fields.
         # Not a great practice. See process_upload() for details.
         cgi_field = util.obj_from_map({
             'filename': self.name,
             'path': self.path,
-            'size': int(self.file_processor.temp_fs.getsize(self.path)),
-            'hash': self.file_processor.hash_file_formatted(self.path, self.file_processor.temp_fs),
-            'uuid': str(uuid.uuid4()),
+            'size': int(self.file_processor.temp_fs._fs.getsize(tempZipPath)),
+            'hash': self.file_processor.hash_file_formatted(tempZipPath, self.file_processor.temp_fs._fs),
+            'uuid': token,
             'mimetype': util.guess_mimetype('lol.zip'),
             'modified': self.timestamp,
             'zip_member_count': complete
         })
 
+
+        # Remove the folder created by TokenPlacer after we calc the needed attributes
+        #config.local_fs._fs.removetree(self.folder)
+        self.file_processor.temp_fs._fs.removetree(self.folder)
+ 
         # Similarly, create the attributes map that is consumed by helper funcs. Clear duplication :(
         # This could be coalesced into a single map thrown on file fields, for example.
         # Used in the API return.

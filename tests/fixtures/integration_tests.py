@@ -67,15 +67,15 @@ def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):
 
     file_path = unicode(util.path_from_hash(file_hash))
     target_dir = fs.path.dirname(file_path)
-    if not config.local_fs.exists(target_dir):
-        config.local_fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.fs, src_path=util.path_from_uuid(file_id), dst_fs=config.local_fs, dst_path=file_path)
+    if not config.local_fs._fs.exists(target_dir):
+        config.local_fs._fs.makedirs(target_dir)
+    fs.move.move_file(src_fs=config.fs._fs, src_path=util.path_from_uuid(file_id), dst_fs=config.local_fs._fs, dst_path=file_path)
 
     yield (project, file_name, file_content)
 
     # clean up
-    config.local_fs.remove(file_path)
-    config.local_fs.removetree(target_dir)
+    config.local_fs._fs.remove(file_path)
+    config.local_fs._fs.removetree(target_dir)
     api_db['projects'].delete_one({'_id': project})
 
 
