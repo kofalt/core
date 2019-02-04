@@ -504,8 +504,6 @@ class Queue(object):
         inclusive_tags = filter(lambda x: not x.startswith('!'), tags)
         exclusive_tags =  map(lambda x: x[1:], filter(lambda x: x.startswith('!'), tags)) # strip the '!' prefix
 
-        query = { 'state': 'pending' }
-
         if len(inclusive_tags) > 0 or len(exclusive_tags) > 0:
             query['tags'] = {}
 
@@ -513,10 +511,6 @@ class Queue(object):
             query['tags']['$in']  = inclusive_tags
         if len(exclusive_tags) > 0:
             query['tags']['$nin'] = exclusive_tags
-
-
-        if tags is not None and len(tags) > 0:
-            query = { 'tags': {'$in': tags } } # match only jobs with given tags
 
         # Count jobs by state, mapping the mongo result to a useful object
         result = list(config.db.jobs.aggregate([{'$match': query }, {'$group': {'_id': '$state', 'count': {'$sum': 1}}}]))
