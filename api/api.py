@@ -118,7 +118,7 @@ endpoints = [
         route('/dataexplorer/search/fields/aggregate',  DataExplorerHandler,   h='aggregate_field_values', m=['POST']),
         route('/dataexplorer/search/nodes',             DataExplorerHandler,   h='get_nodes',              m=['POST']),
         route('/dataexplorer/index/fields',             DataExplorerHandler,   h='index_field_names',      m=['POST']),
-        route('/dataexplorer/search/training',                DataExplorerHandler,   h='save_training_set',      m=['POST']),
+        route('/dataexplorer/search/training',          DataExplorerHandler,   h='save_training_set',      m=['POST']),
 
         # Search Saving
         route('/dataexplorer/queries',                            QueryHandler,                                m=['POST']),

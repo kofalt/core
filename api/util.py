@@ -177,7 +177,7 @@ def upload_ticket(ip, origin, tempdir, filenames, metadata):
         'timestamp': datetime.datetime.utcnow(),
         'ip': ip,
         'tempdir': tempdir,
-        'filenames': filenames,
+        'filenames': filenames, # is a dictionary indexing filename to flywheel uuid and signed_url tuple
         'metadata': metadata,
         'origin': origin
     }

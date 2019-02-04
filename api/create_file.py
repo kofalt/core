@@ -17,12 +17,18 @@ class PendingFile(object):
             self.metadata = {}
         self.metadata['name'] = filename
 
+#Move create file and finalize to the 2 places where its used in the data handlers
+
 class FileCreator(object):
     """Helper class for creating file(s) on target container"""
-    def __init__(self, handler, container_type, container):
+    def __init__(self, handler, container_type, container, file_processor=None):
         """Initialize the file creator, setting the destination container"""
+
+        raise Error('File created should not be used anymore')
+
+
         self.handler = handler
-        self.file_processor = None
+        self.file_processor = file_processor
 
         self.container_type = container_type
         self.container = container
@@ -39,7 +45,6 @@ class FileCreator(object):
         if not self.file_processor:
             self.file_processor = files.FileProcessor(config.py_fs)
 
-        #path, fileobj = self.file_processor.make_temp_file()
         path, fileobj = files.fileProcessor.create_new_file(filename)
         self._files.append(PendingFile(filename, path, fileobj, metadata))
         return fileobj
@@ -47,7 +52,7 @@ class FileCreator(object):
     def finalize(self):
         """Finalize the the file creation.
         
-        This moves the temp files that were created into place, and updates the container.
+        Updates the container.
 
         Returns:
             list: The list of files that were saved
