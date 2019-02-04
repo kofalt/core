@@ -496,13 +496,24 @@ class Queue(object):
                 last = 3
 
         results = { }
-        match = { } # match all jobs
+        query = { } # match all jobs
 
-        if tags is not None and len(tags) > 0:
-            match = { 'tags': {'$in': tags } } # match only jobs with given tags
+        if tags is None:
+            tags = []
+
+        inclusive_tags = filter(lambda x: not x.startswith('!'), tags)
+        exclusive_tags =  map(lambda x: x[1:], filter(lambda x: x.startswith('!'), tags)) # strip the '!' prefix
+
+        if len(inclusive_tags) > 0 or len(exclusive_tags) > 0:
+            query['tags'] = {}
+
+        if len(inclusive_tags) > 0:
+            query['tags']['$in']  = inclusive_tags
+        if len(exclusive_tags) > 0:
+            query['tags']['$nin'] = exclusive_tags
 
         # Count jobs by state, mapping the mongo result to a useful object
-        result = list(config.db.jobs.aggregate([{'$match': match }, {'$group': {'_id': '$state', 'count': {'$sum': 1}}}]))
+        result = list(config.db.jobs.aggregate([{'$match': query }, {'$group': {'_id': '$state', 'count': {'$sum': 1}}}]))
         by_state = {s: 0 for s in JOB_STATES}
         by_state.update({r['_id']: r['count'] for r in result})
         results['states'] = by_state
@@ -513,7 +524,7 @@ class Queue(object):
 
         # List recently modified jobs for each state
         if last is not None:
-            results['recent'] = {s: config.db.jobs.find({'$and': [match, {'state': s}]}, {'modified':1}).sort([('modified', pymongo.DESCENDING)]).limit(last) for s in JOB_STATES}
+            results['recent'] = {s: config.db.jobs.find({'$and': [query, {'state': s}]}, {'modified':1}).sort([('modified', pymongo.DESCENDING)]).limit(last) for s in JOB_STATES}
 
         return results
 
