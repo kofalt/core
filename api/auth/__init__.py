@@ -4,24 +4,26 @@ from ..types import Origin
 from ..web.errors import APIPermissionException
 from ..config import log
 
-# The values for the user roles and what they can access are below
-# A developer can do everything allowed by the developer access key
-#  but also anything allowed by the user and public access keys
-class Role(Enum):
-    public =        0b00000
-    user =          0b00001
-    developer =     0b00011
-    site_admin =    0b00111
-    super_user =    0b01111
-    drone =         0b11111
-
 # The values for the role privileges are below
 class Privilege(Enum):
-    user =         0b00001
-    developer =    0b00010
-    site_admin =   0b00100
-    super_user =   0b01000
-    drone =        0b10000
+
+    is_user =           0b0001
+    can_upload_gear =   0b0010
+    is_admin =          0b0100
+    is_drone =          0b1000
+
+# the values for the user roles and what they can access are below
+class Role(Enum):
+    public =       ('public', 0)
+    user =         ('user', Privilege.is_user.value)
+    developer =    ('developer', Privilege.is_user.value | Privilege.can_upload_gear.value)
+    site_admin =   ('site_admin', Privilege.is_user.value | Privilege.can_upload_gear.value | Privilege.is_admin.value)
+    drone =        ('drone', Privilege.is_user.value | Privilege.can_upload_gear.value | Privilege.is_admin.value | Privilege.is_drone.value)
+
+    def __init__(self, role, privileges):
+        self.role = role
+        self.privileges = privileges
+
 
 PERMISSIONS = [
     {
@@ -75,17 +77,17 @@ def require_privilege_decorator(privilege):
     """
     def require_privilege(handler_method):
         def check_role(self, *args, **kwargs):
-            log.debug(self.role.value)
-            if self.role.value & privilege.value != privilege.value:
+            log.debug(self.role.privileges)
+            if self.role.privileges & privilege.value != privilege.value:
                 raise APIPermissionException('{} privilege required for action.'.format(privilege))
             return handler_method(self, *args, **kwargs)
         return check_role
     return require_privilege
 
-def require_privilege_check(role, privilege):
+def has_privilege(role, privilege):
     """
     A non decorator role check function
     """
-    if role.value & privilege.value != privilege.value:
+    if role.privileges & privilege.value != privilege.value:
         raise APIPermissionException('{} privilege required for action.'.format(privilege))
     return True

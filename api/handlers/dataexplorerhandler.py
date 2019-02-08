@@ -427,7 +427,7 @@ class DataExplorerHandler(base.RequestHandler):
         last_seen = mongoconnector['last_seen']
         return {'status': status, 'last_seen': last_seen}
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def aggregate_field_values(self):
         """
         Return list of type ahead values for a key given a value
@@ -499,7 +499,7 @@ class DataExplorerHandler(base.RequestHandler):
         )['aggregations']['results']
         return aggs
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def get_facets(self):
 
         _, filters, search_string, _ = self._parse_request(request_type='facet')
@@ -580,7 +580,7 @@ class DataExplorerHandler(base.RequestHandler):
         return {'nodes':nodes}
 
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def search_fields(self):
         field_query = self.request.json_body.get('field')
 
@@ -607,7 +607,7 @@ class DataExplorerHandler(base.RequestHandler):
         return results
 
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def search(self):
         return_type, filters, search_string, size = self._parse_request()
 
@@ -627,7 +627,7 @@ class DataExplorerHandler(base.RequestHandler):
                 response['facets'] = self.get_facets()
             return response
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def save_training_set(self):
         """Saves a subset of a search result or the results of a given query as a training set file"""
 
@@ -918,7 +918,7 @@ class DataExplorerHandler(base.RequestHandler):
                 doc_s = json.dumps(doc)
                 config.es.index(index='data_explorer_fields', id=field_name, doc_type='flywheel_field', body=doc_s)
 
-    @require_privilege_decorator(Privilege.site_admin)
+    @require_privilege_decorator(Privilege.is_admin)
     def index_field_names(self):
 
         try:
@@ -972,7 +972,7 @@ class QueryHandler(base.RequestHandler):
         super(QueryHandler, self).__init__(request, response)
         self.storage = QueryStorage()
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def post(self):
         payload = self.request.json_body
         validators.validate_data(payload, 'save-query-input.json', 'input', 'POST')

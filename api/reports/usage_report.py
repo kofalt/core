@@ -5,7 +5,7 @@ import dateutil
 from .report import Report
 
 from .. import config
-from ..auth import require_privilege_check, Privilege
+from ..auth import has_privilege, Privilege
 from ..web.errors import APIReportException, APIReportParamsException
 
 
@@ -23,7 +23,7 @@ class UsageReport(Report):
       - count of sessions
       - aggregation of file size in megabytes
     """
-    required_role = Privilege.site_admin
+    required_role = Privilege.is_admin
 
     def __init__(self, params):
         """
@@ -64,7 +64,7 @@ class UsageReport(Report):
         """
         User generating report must be site admin
         """
-        require_privilege_check(role, self.required_role)
+        has_privilege(role, self.required_role)
         return True
 
 

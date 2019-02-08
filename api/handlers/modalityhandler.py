@@ -14,15 +14,15 @@ class ModalityHandler(base.RequestHandler):
         super(ModalityHandler, self).__init__(request, response)
         self.storage = containerstorage.ContainerStorage('modalities', use_object_id=False)
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def get(self, modality_name):
         return self.storage.get_container(modality_name)
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def get_all(self):
         return self.storage.get_all_el(None, None, None)
 
-    @require_privilege_decorator(Privilege.site_admin)
+    @require_privilege_decorator(Privilege.is_admin)
     def post(self):
         payload = self.request.json_body
         validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
@@ -30,7 +30,7 @@ class ModalityHandler(base.RequestHandler):
         result = self.storage.create_el(payload)
         return {'_id': result.inserted_id}
 
-    @require_privilege_decorator(Privilege.site_admin)
+    @require_privilege_decorator(Privilege.is_admin)
     def put(self, modality_name):
         payload = self.request.json_body
         validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
@@ -39,7 +39,7 @@ class ModalityHandler(base.RequestHandler):
         if result.matched_count != 1:
             raise APINotFoundException('Modality with name {} not found, modality not updated'.format(modality_name))
 
-    @require_privilege_decorator(Privilege.site_admin)
+    @require_privilege_decorator(Privilege.is_admin)
     def delete(self, modality_name):
         result = self.storage.delete_el(modality_name)
         if result.deleted_count != 1:

@@ -190,7 +190,7 @@ class UserHandler(base.RequestHandler):
         generated_key = UserApiKey.generate(self.uid)
         return {'key': generated_key}
 
-    @require_privilege_decorator(Privilege.site_admin)
+    @require_privilege_decorator(Privilege.is_admin)
     def reset_registration(self, uid):
         new_registration_code = base64.urlsafe_b64encode(os.urandom(42))
         update = {

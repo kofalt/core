@@ -31,7 +31,7 @@ class CollectionsHandler(ContainerHandler):
     def get(self, **kwargs):
         return super(CollectionsHandler, self).get('collections', **kwargs)
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def post(self):
         mongo_validator, payload_validator = self._get_validators()
 

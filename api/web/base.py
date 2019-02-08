@@ -11,7 +11,7 @@ from .. import config
 from ..types import Origin
 from ..auth.authproviders import AuthProvider
 from ..auth.apikeys import APIKey
-from ..auth import require_privilege_decorator, require_privilege_check, Role, Privilege
+from ..auth import require_privilege_decorator, has_privilege, Role, Privilege
 from ..web import errors
 from elasticsearch import ElasticsearchException
 from ..web.request import log_access, AccessType
@@ -143,8 +143,7 @@ class RequestHandler(webapp2.RequestHandler):
 
             self.role = Role[user.get('role', 'user')]
 
-            if self.is_true('root') and require_privilege_check(self.role, Privilege.site_admin):
-                self.role = Role.super_user
+            if (self.is_true('root') or self.is_true('exhaustive')) and has_privilege(self.role, Privilege.is_admin):
                 self.complete_list = True
             else:
                 self.complete_list = False
@@ -290,7 +289,7 @@ class RequestHandler(webapp2.RequestHandler):
         self._generate_session(token_entry)
         self.redirect('{}/#/login?token={}'.format(config.get_item('site', 'redirect_url'), token_entry['_id']))
 
-    @require_privilege_decorator(Privilege.user)
+    @require_privilege_decorator(Privilege.is_user)
     def auth_status(self):
         """
         Validate that the credentials are good, and return some basic details

@@ -11,7 +11,7 @@ class Report(object):
 
     filename = 'report'
     columns = None
-    required_role = Privilege.super_user
+    required_role = Privilege.is_admin
 
     def __init__(self, params):
         """

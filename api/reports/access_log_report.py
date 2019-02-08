@@ -7,7 +7,7 @@ from .report import Report
 from .. import config
 from .. import util
 
-from ..auth import require_privilege_check, Privilege
+from ..auth import has_privilege, Privilege
 
 from ..web.errors import APIReportParamsException
 from ..web.request import AccessTypeList
@@ -28,7 +28,7 @@ class AccessLogReport(Report):
 
     # What to name csvs generated from this report
     filename = 'accesslog'
-    required_role = Privilege.site_admin
+    required_role = Privilege.is_admin
 
     columns = [
         "_id",
@@ -118,7 +118,7 @@ class AccessLogReport(Report):
         """
         User generating report must be site admin
         """
-        require_privilege_check(role, self.required_role)
+        has_privilege(role, self.required_role)
         return True
 
     def build(self):
