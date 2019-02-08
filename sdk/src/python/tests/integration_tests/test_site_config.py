@@ -3,7 +3,14 @@ from sdk_test_case import SdkTestCase
 
 import flywheel
 
-class UsersTestCases(SdkTestCase):
+class SiteConfigTestCases(SdkTestCase):
+    def setUp(self):
+        self.gear_id = None
+
+    def tearDown(self):
+        if self.gear_id:
+            self.fw.delete_gear(self.gear_id)
+
     def test_get_config(self):
         config = self.fw.get_config()
         self.assertIsNotNone(config)
@@ -22,6 +29,29 @@ class UsersTestCases(SdkTestCase):
         self.assertIsNotNone(site.registered)
 
     def test_site_settings(self):
+        # Add a test gear
+        gear = flywheel.Gear(
+            name=self.rand_string_lower(),
+            label=self.rand_string(),
+            description=self.rand_string(),
+            version=self.rand_string(),
+            author=self.rand_string(),
+            maintainer=self.rand_string(),
+            license='Other',
+            source='http://example.example',
+            url='http://example.example',
+            config={},
+            inputs={}
+        )
+
+        gear_doc = flywheel.GearDoc(
+            category='utility',
+            gear=gear
+        )
+
+        self.gear_id = self.fw.add_gear(gear.name, gear_doc)
+
+        # Get current settings
         settings = self.fw.get_site_settings()
         self.assertIsNotNone(settings)
 
@@ -30,13 +60,13 @@ class UsersTestCases(SdkTestCase):
             gears = []
 
         self.fw.modify_site_settings({
-            'center_gears': ['test']
+            'center_gears': [gear.name]
         })
 
         try:
             settings2 = self.fw.get_site_settings()
             self.assertIsNotNone(settings2.get('center_gears'))
-            self.assertIn('test', settings2['center_gears'])
+            self.assertIn(gear.name, settings2['center_gears'])
 
         finally:
             self.fw.modify_site_settings({
