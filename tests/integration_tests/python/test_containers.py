@@ -110,6 +110,25 @@ def test_project_template(data_builder, file_form, as_admin):
     assert r.ok
     assert 'project_has_template' not in r.json()
 
+    # try setting a template with additional properties
+    r = as_admin.post('/projects/' + project + '/template', json={'templates': [
+        {
+            'session': {'subject': {'code': '^compliant$'}},
+            'acquisitions': [{
+                'minimum': 1,
+                'label': '^compliant$',
+                'tags': '^compliant$',
+                'files': [{
+                    'minimum': 2,
+                    'mimetype': 'text/csv',
+                    'classification': 'diffusion'
+                }]
+            }],
+            'not-valid-template-key': {}
+        }
+    ]})
+    assert r.status_code == 400
+
     # create template for project 1
     r = as_admin.post('/projects/' + project + '/template', json={'templates': [
         {
@@ -190,7 +209,6 @@ def test_project_template(data_builder, file_form, as_admin):
     # create template for project2
     r = as_admin.post('/projects/' + project2 + '/template', json={'templates': [
         {
-            'session': {'subject': {'code': '^compliant$'}},
             'acquisitions': [{
                 'minimum': 100, # Session won't comply
                 'label': '^compliant$',
@@ -203,6 +221,7 @@ def test_project_template(data_builder, file_form, as_admin):
             }]
         }
     ]})
+    assert r.ok
 
 
     # test session compliance
