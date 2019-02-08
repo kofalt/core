@@ -1144,6 +1144,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_root):
     metadata['acquisition']['files'][1]['name'] = 'two.csv'
 
     for mf in metadata['acquisition']['files']:
+
         f = find_file_in_array(mf['name'], a['files'])
         assert mf is not None
         assert f['type'] == mf['type']

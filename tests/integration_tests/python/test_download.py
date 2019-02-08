@@ -305,10 +305,9 @@ def test_filelist_download(data_builder, file_form, as_admin, legacy_cas_file):
 
     ticket = r.json()['ticket']
 
-    #TODO: this fails trying to get a sha hash ID from GCP which does not seem to be valid
-    #r = as_admin.get('/projects/' + project + '/files/' + file_name, params={'ticket': ticket})
-    #assert r.ok
-    #assert r.content == file_content
+    r = as_admin.get('/projects/' + project + '/files/' + file_name, params={'ticket': ticket})
+    assert r.ok
+    assert r.content == file_content
 
 
 def test_filelist_range_download(data_builder, as_admin, file_form):

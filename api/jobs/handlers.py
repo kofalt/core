@@ -323,11 +323,13 @@ class GearHandler(base.RequestHandler):
             '_id': gear['exchange'].get('rootfs-id', ''),
             'hash': 'v0-' + gear['exchange']['rootfs-hash'].replace(':', '-')
         })
-        signed_url = files.get_signed_url(file_path, file_system, filename='gear.tar', attachment=True, response_type='application/octet-stream')
+        signed_url = None
+        if file_system.is_signed_url():
+            signed_url = files.get_signed_url(file_path, file_system, filename='gear.tar', attachment=True, response_type='application/octet-stream')
         if signed_url:
             self.redirect(signed_url)
         else:
-            stream = file_system.open(file_path, 'rb')
+            stream = file_system.open(None, file_path, 'rb', None)
             set_for_download(self.response, stream=stream, filename='gear.tar')
 
     @require_admin

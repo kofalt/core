@@ -398,11 +398,14 @@ class AnalysesHandler(RefererHandler):
                     # listhandler.py:FileListHandler's download method
                     signed_url = None
                     if config.py_fs.is_signed_url():
-                        signed_url = config.py_fs.get_signed_url(None, file_path,
+                        try:
+                            signed_url = config.py_fs.get_signed_url(None, file_path,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(
                                                           fileinfo.get('mimetype', 'application/octet-stream')))
+                        except fs.errors.ResourceNotFound as e:
+                            pass
                     if signed_url:
                         self.redirect(signed_url)
 
@@ -430,7 +433,6 @@ class AnalysesHandler(RefererHandler):
                                 self.response.headers['Content-Type'] = 'application/octet-stream'
                                 self.response.headers['Content-Disposition'] = 'attachment; filename="' \
                                                                                + str(filename) + '"'
-                            #self.response.body_file = file_system.open(file_path, 'rb')
                             self.response.body_file = file_system.open(None, file_path, 'rb', None)
                             self.response.content_length = fileinfo['size']
                         else:

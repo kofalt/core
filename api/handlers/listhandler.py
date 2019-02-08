@@ -347,7 +347,6 @@ class FileListHandler(ListHandler):
 
     def _create_upload_ticket(self):
         if not config.fs.is_signed_url():
-        #if not hasattr(config.fs, 'get_signed_url'):
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -362,7 +361,6 @@ class FileListHandler(ListHandler):
         signed_urls = {}
         for filename in filenames:
             newUuid = str(uuid.uuid4())
-            #TODO: Verify this path is used on the receiving end as well
             signed_urls[filename] = {
                     'url': config.fs.get_signed_url(None, tempdir + '/' + newUuid, purpose='upload'),
                     'uuid': newUuid
@@ -477,10 +475,13 @@ class FileListHandler(ListHandler):
             # refererhandler.py:AnalysesHandler's download method
             signed_url = None
             if config.py_fs.is_signed_url():
-                signed_url = config.py_fs.get_signed_url(None, file_path,
+                try:
+                    signed_url = config.py_fs.get_signed_url(None, file_path,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
+                except fs.errors.ResourceNotFound as e:
+                    pass
             if signed_url:
                 self.redirect(signed_url)
             else:
@@ -504,7 +505,6 @@ class FileListHandler(ListHandler):
                     else:
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
-                    #self.response.body_file = file_system.open(file_path, 'rb')
                     self.response.body_file = file_system.open(None, file_path, 'rb', None)
                     self.response.content_length = fileinfo['size']
                 else:
@@ -597,7 +597,6 @@ class FileListHandler(ListHandler):
         permchecker(noop)('POST', _id=_id)
 
         # Request for upload ticket
-        # TODO: test this endpoint with an upload ticket
         if self.get_param('ticket') == '':
             return self._create_upload_ticket()
 

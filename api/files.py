@@ -22,12 +22,6 @@ class FileProcessor(object):
         if local_tmp_fs and not tempdir_name:
             raise Exception("When using a local tempfs you must also provide a tempdir name")
 
-        # Not needed anymore
-        #if not tempdir_name:
-        #    self._tempdir_name = str(uuid.uuid4())
-        #else:
-        #    self._tempdir_name = tempdir_name
-        
         self._persistent_fs = persistent_fs
         self._temp_fs = None
         self._tempdir_name = tempdir_name
@@ -49,41 +43,6 @@ class FileProcessor(object):
         fileobj = self._persistent_fs.open(newUuid, path, 'wb', options)
         fileobj.filename = filename;
         return path, fileobj
-
-    """ @deprecated
-    """
-    def make_temp_file(self, mode='wb'):
-        """Create and open a temporary file for writing.
-
-        The file that is opened is wrapped in a FileHasherWriter, so once writing is
-        complete, you can get the size and hash of the written file.
-        
-        Arguments:
-            mode (str): The open mode (default is 'wb')
-
-        Returns:
-            str, file: The path and opened file
-        """
-        filename = str(uuid.uuid4())
-        fileobj = self._temp_fs.open(filename, mode)
-        return filename, FileHasherWriter(fileobj)
-
-    # TODO: Confirm this is deprecated now
-    """ @deprecated
-    """
-    def store_temp_file(self, src_path, dst_path, dst_fs=None):
-        if not isinstance(src_path, unicode):
-            src_path = six.u(src_path)
-        if not isinstance(dst_path, unicode):
-            dst_path = six.u(dst_path)
-        dst_dir = fs.path.dirname(dst_path)
-        if not dst_fs:
-            dst_fs = self.persistent_fs
-        # self._presistent_fs.makedirs(dst_dir, recreate=True)
-        if isinstance(self._temp_fs, fs.tempfs.TempFS):
-            fs.move.move_file(self._temp_fs, src_path, dst_fs, dst_path)
-        else:
-            self._persistent_fs._fs.move(src_path=fs.path.join('tmp', self._tempdir_name, src_path), dst_path=dst_path)
 
     def process_form(self, request, use_filepath=False):
         """
@@ -121,10 +80,8 @@ class FileProcessor(object):
         # If we link these to the tempdir on file_procesor instantaition it limits the checking we need to do
 
         if self._temp_fs:
-            print 'saving files using  local tmp filesystem'
             field_storage_class = get_single_file_field_storage(self._temp_fs, use_filepath=use_filepath, tempdir_name=self._tempdir_name)
         else:
-            print 'saving files using persistent storage directly'
             field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
         
         form = field_storage_class(
@@ -170,15 +127,9 @@ class FileProcessor(object):
 
     def close(self):
         # Cleaning up
-        if isinstance(self._temp_fs, fs.tempfs.TempFS):
-            pass
-            # The TempFS cleans up automatically on close
-            # We need to keep the temp_fs because files will live there between requests
-            # self._temp_fs.close()
-        # else:
-            # Otherwise clean up manually
-            # We only need the temp fs and not the persistent version... unless we are handling very large data sets?
-            #self._persistent_fs._fs.removetree(fs.path.join('tmp', self._tempdir_name))
+        # We need to keep  temp_fs because files will live there between requests
+        # We will require the placer to clean up files as needed when the request flows are finished
+        pass
 
 class FileHasherWriter(object):
     """File wrapper that hashes while writing to a file"""
@@ -235,30 +186,31 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             self.hasher = hashlib.new(DEFAULT_HASH_ALG)
             # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
             # dont overwrite filename so we have it easily for metadata 
+            # TODO: This should be abstracted out so that its the same method used in in process_upload when no files are added but metadata is given, as it is in here
+            if use_filepath:
+                self.filename = util.sanitize_path(self.filename)
+            else:
+                self.filename = os.path.basename(self.filename)
 
             # we should move this to a utility function and use it in both places.
-            # Temp files are stored in the token bucket for the id of the token and can use the native filename safely
             # If this is changed it needs to be adjusted in process_upload in upload.py as well
             if tempdir_name:
-                self.filepath = tempdir_name + '/' + self.filename
+                #TODO: we might need to make dirs in the temp dir if the filename has them, or it might error out. Not sure if pyfs does that for you
+                self.filepath = tempdir_name + '/' + self._uuid
             else:
                 self.filepath = util.path_from_uuid(self._uuid)
 
-            if use_filepath:
-                self.filename = util.sanitize_path(self.filename)
-                # print 'expecting to use this filepath'
-            
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
 
-            #if  self.filename and os.path.dirname(self.filename) and not file_system.exists(os.path.dirname(self.filename)):
+            # if  self.filename and os.path.dirname(self.filename) and not file_system.exists(os.path.dirname(self.filename)):
             #    file_system.makedirs(os.path.dirname(self.filename))
 
             if type(file_system) is fs.tempfs.TempFS:
                 self.open_file = file_system.open(self.filepath, 'wb')
             else:
                 self.open_file = file_system.open(None, self.filepath, 'wb', None)
-            
+          
             return self.open_file
 
         # override private method __write of superclass FieldStorage

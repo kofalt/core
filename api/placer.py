@@ -99,9 +99,7 @@ class Placer(object):
         """
 
         # Save file
-        ###lets assume we have the file in its resting place already.
-        #if field is not None and self.file_processor is not None:
-        #    self.file_processor.store_temp_file(field.path, util.path_from_uuid(field.uuid))
+        # We already have the file in the final location on persistent storage
 
         # Update the DB
         if file_attrs is not None:
@@ -431,10 +429,7 @@ class TokenPlacer(Placer):
         # It must be kept in sync between each instance.
 
         #This logic assumes temp files are placed in a directory that is named after the token.
-        #self.folder = fs.path.join('tokens', 'packfile', token)
         self.folder = token
-
-        #util.mkdir_p(self.folder, config.local_fs._fs)
         # Folder is created because we load the file_processer to use a temp file with the token uuid as a param
         # we only work with temp fs when using token placer
 
@@ -492,13 +487,11 @@ class PackfilePlacer(Placer):
         #
         # It must be kept in sync between each instance.
  
-        # self.folder = fs.path.join('tokens', 'packfile', token)
         self.folder = token
 
         try:
             #All the temp_fs stuff is the local_storage assigned to the FileProcessor
             self.file_processor.temp_fs._fs.isdir(self.folder)
-            # config.local_fs._fs.isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
 
@@ -544,22 +537,18 @@ class PackfilePlacer(Placer):
         self.dir_ = util.sanitize_string_to_filename(self.a_label)
         self.name = self.dir_ + '.zip'
 
-        #Determine the final path location for the final zip file.
-        #self.path = u'' + util.path_from_uuid(token) + '.zip'
-        #print 'we have a zip file'
-        #self.path
-
         # OPPORTUNITY: add zip comment
         # self.zip.comment = json.dumps(metadata, default=metadata_encoder)
 
 
     def process_file_field(self, field, file_attrs):
+        # We need to remove the upload file that was saved direclty to the fs from the form post
+        self.file_processor.temp_fs._fs.remove(self.folder + '/' + field._uuid)
         # Should not be called with any files
         raise Exception('Files must already be uploaded')
 
     def finalize(self):
 
-        #paths = config.local_fs._fs.listdir(self.folder)
         #This is a special case where temp_fs is the local storage assigned to FileProcessor
         paths = self.file_processor.temp_fs._fs.listdir(self.folder)
         total = len(paths)
@@ -574,11 +563,6 @@ class PackfilePlacer(Placer):
         complete = 0
         for path in paths:
             full_path = fs.path.join(self.folder, path)
-
-            print 'we are adding a file to the zip'
-            print full_path
-            import sys
-            sys.stdout.flush()
 
             # Set the file's mtime & atime.
             self.file_processor.temp_fs._fs.settimes(full_path, self.ziptime, self.ziptime)
@@ -596,7 +580,6 @@ class PackfilePlacer(Placer):
             })
 
         self.zip_.close()
-
 
         # Lookup uid on token
         token  = self.context['token']
@@ -619,7 +602,7 @@ class PackfilePlacer(Placer):
         # Not a great practice. See process_upload() for details.
         cgi_field = util.obj_from_map({
             'filename': self.name,
-            'path': self.path,
+            'path': util.path_from_uuid(token),
             'size': int(self.file_processor.temp_fs._fs.getsize(tempZipPath)),
             'hash': self.file_processor.hash_file_formatted(tempZipPath, self.file_processor.temp_fs._fs),
             'uuid': token,
@@ -630,7 +613,6 @@ class PackfilePlacer(Placer):
 
 
         # Remove the folder created by TokenPlacer after we calc the needed attributes
-        #config.local_fs._fs.removetree(self.folder)
         self.file_processor.temp_fs._fs.removetree(self.folder)
  
         # Similarly, create the attributes map that is consumed by helper funcs. Clear duplication :(
