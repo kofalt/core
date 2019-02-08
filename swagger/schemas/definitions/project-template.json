@@ -20,7 +20,8 @@
                     "minItems": 1,
                     "items": {"$ref": "#/definitions/requirement"}
                 }
-            }
+            },
+            "additionalProperties": false
         },
         "project-template": {
             "type": "array",
