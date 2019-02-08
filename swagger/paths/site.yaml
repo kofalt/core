@@ -1,6 +1,10 @@
 /site/settings:
   get:
     summary: Return administrative site settings
+    description: >
+      Returns the site settings, which includes center-pays gear list.
+      If the site settings have never been created, then center_gears will be null,
+      rather than an empty list.
     operationId: get_site_settings
     tags:
       - site

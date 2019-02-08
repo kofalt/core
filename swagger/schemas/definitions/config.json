@@ -98,12 +98,15 @@
         "site-settings": {
             "type": "object",
             "properties": {
+                "created": {"type": "string"},
+                "modified": {"type": "string"},
                 "center_gears": {
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "A list of gear algorithm names that are treated as center-pays for the purpose of the billing report"
                 }
-            }
+            },
+            "required": ["created", "modified", "center_gears"]
         },
         "site-settings-input": {
             "type": "object",
