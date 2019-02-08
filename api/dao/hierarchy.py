@@ -173,13 +173,13 @@ def is_session_compliant(session, templates):
         s_requirements = template.get('session')
         a_requirements = template.get('acquisitions')
 
-        label = s_requirements.pop('label', s_requirements.pop('code', None))
-        if label:
-            m = re.match(label, session['label'])
-            if not m:
-                return False
-
         if s_requirements:
+            label = s_requirements.pop('label', None)
+            if label:
+                m = re.match(label, session.get('label', ''))
+                if not m:
+                    return False
+
             if not check_cont(session, s_requirements):
                 return False
 
