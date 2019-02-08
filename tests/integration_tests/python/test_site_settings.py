@@ -55,7 +55,7 @@ def test_site_settings_validation(as_admin):
 
     # center_gears values
     r = as_admin.put('/site/settings', json={'center_gears': ['not_a_gear']})
-    assert r.status_code == 400
+    assert r.status_code == 422
 
 
 def test_site_settings_authorization(as_public, as_user):

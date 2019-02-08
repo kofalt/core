@@ -23,7 +23,7 @@ def update_site_settings(doc):
         doc (dict): The update to apply
 
     Raises:
-        InputValidationException: If invalid center gears are provided
+        APIValidationException: If invalid center gears are provided
     """
     if 'center_gears' in doc:
         # Get a list of valid gear names
@@ -35,7 +35,7 @@ def update_site_settings(doc):
                 invalid_names.add(gear_name)
 
         if invalid_names:
-            raise errors.InputValidationException('The following gear(s) do not exist: {}'.format(', '.join(invalid_names)))
+            raise errors.APIValidationException('The following gear(s) do not exist: {}'.format(', '.join(invalid_names)))
 
     mapper = SiteSettingsMapper()
     return mapper.patch(doc)
