@@ -6,7 +6,6 @@ from elasticsearch import ElasticsearchException, TransportError, RequestError, 
 
 from ..web import base
 from .. import config, validators
-from ..create_file import FileCreator
 from ..auth import require_login, require_superuser, groupauth
 from ..dao import noop, hierarchy
 from ..dao.containerstorage import QueryStorage, ContainerStorage
@@ -691,20 +690,9 @@ class DataExplorerHandler(base.RequestHandler):
             'files': file_results
         }
 
-        ## Save the json results to a file on the output
-        #with FileCreator(self, output['type'], output_container) as file_creator:
-        #    fileobj = file_creator.create_file(output_filename)
-        #    fileobj.write(json.dumps(formatted_search_results))
-        #    result = file_creator.finalize()
-        # 
-        #return result
-
-        # TODO: This this refactor of the file_creator
-        
         # Saved directly to persistent storage.
         file_processor = FileProcessor(config.py_fs)
         
-        #fileobj = file_creator.create_file(target_filename)
         # Create a new file with a new uuid
         path, fileobj = file_processor.create_new_file(None, None)
 
@@ -716,7 +704,6 @@ class DataExplorerHandler(base.RequestHandler):
         placer = TargetedMultiPlacer(output['type'], output_container, output['id'],
             metadata, timestamp, self.origin, {'uid': self.uid}, file_processor, self.log_user_access)
         
-
         fileobj.close()
         # Not a great practice. See process_upload() for details.
         cgi_field = util.obj_from_map({

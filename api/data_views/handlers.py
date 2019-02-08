@@ -1,7 +1,6 @@
 from ..auth import require_login
 
 from .. import config, validators, util
-from ..create_file import FileCreator
 from ..auth import containerauth
 from ..dao import noop
 from ..dao.containerstorage import ContainerStorage
@@ -181,9 +180,6 @@ class DataViewHandler(base.RequestHandler):
         def response_handler(environ, start_response): # pylint: disable=unused-argument
             write_progress=None
 
-            # Use the placer directly and avoid the extra layer of indirection. I dont see the need for it at this moment.
-            # File creator just abstracts the calls but its not used elsewhere.
-            #with FileCreator(self, target_container_type, target_container) as file_creator:
             if target_container:
 
                 # Saved directly to persistent storage.
@@ -196,7 +192,6 @@ class DataViewHandler(base.RequestHandler):
                     ('Connection', 'keep-alive')
                 ])
 
-                #fileobj = file_creator.create_file(target_filename)
                 # Create a new file with a new uuid
                 path, fileobj = file_processor.create_new_file(None, None)
                 newUuid = fileobj.filename
@@ -242,7 +237,6 @@ class DataViewHandler(base.RequestHandler):
                 # Place the file
                 placer.process_file_field(cgi_field, file_attrs)
                 result = placer.finalize()
-                #result = file_creator.finalize()
 
                 # Write final progress
                 progress = encoder.json_sse_pack({

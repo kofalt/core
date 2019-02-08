@@ -84,7 +84,6 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     # TODO: This should never be checked in the service layer, refactor this out
     use_filepath = request.GET.get('filename_path', '').lower() in ('1', 'true')
     if use_filepath:
-        print 'sanitizing path'
         name_fn = util.sanitize_path
     else:
         name_fn = os.path.basename
@@ -97,13 +96,11 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         local_tmp_fs = config.local_fs
 
 
+    # The only time we need the tempdir_name is when we use token and packfile. 
     file_processor = files.FileProcessor(config.py_fs, local_tmp_fs, tempdir_name=tempdir)
 
     if not file_fields:
 
-        # The only time we need the tempdir_name is when we use token and packfile. 
-        # We could use it instead of the local_tmp_fs when we instantiate the file_processor but this gives us the ability
-        # to change the dir mid stream if we are processing multiple forms with a single file_processor instance across multile tokens.... likely???
         form = file_processor.process_form(request, use_filepath=use_filepath)
 
         # Non-file form fields may have an empty string as filename, check for 'falsy' values
@@ -146,16 +143,16 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Not the best practice. Open to improvements.
         # These are presumbed to be required by every function later called with field as a parameter.
 
-        # If this is changed it needs to be adjusted in the field_storge override in files.py as well
-        if tempdir:
-            filePath = tempdir + '/' + field.filename
-        else:
-            filePath = files.get_file_path({'_id': field._uuid, 'hash': None})
+        #We can trust the filepath on upload is accurate after form processing
+        filePath = field.filepath
+        if not filePath:
+            raise Exception('File path was not set')
 
         #Some placers need this value. Consistent object would be nice
         field.path = filePath
+
         # we can get the size from the file on disk but we need to know which fs its stored on.
-        # TODO: we should make that part of the Storage abstraction layer
+        # TODO: we should make it part of the Storage abstraction layer
         if file_processor._temp_fs:
             field.size = int(file_processor._temp_fs._fs.getsize(filePath))
         else:
@@ -209,8 +206,6 @@ class Upload(base.RequestHandler):
     def _create_upload_ticket(self):
         if not config.py_fs.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
-        #if not hasattr(config.py_fs._fs, 'get_signed_url'):
-        #    self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
@@ -219,18 +214,14 @@ class Upload(base.RequestHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
-        # tempdir = str(uuid.uuid4())
-        # Upload into a temp folder, so we will be able to cleanup
         signed_urls = {}
         for filename in filenames:
             newUuid = str(uuid.uuid4())
-            #signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename), config.py_fs, purpose='upload')
             signed_urls[filename] = {
                 'url': config.py_fs.get_signed_url(None, util.path_from_uuid(newUuid), purpose='upload'),
                 'uuid': newUuid
             }
 
-        # We dont need a tempdir at all with a ticket do we? Do we upload ticket based pack files?
         ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, signed_urls, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
@@ -266,7 +257,6 @@ class Upload(base.RequestHandler):
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
             file_fields = []
-            # for filename in ticket['filenames']:
             for filename, values in ticket['filenames'].items():
                 file_fields.append(
                     util.dotdict({
