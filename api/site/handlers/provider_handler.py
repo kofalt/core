@@ -21,7 +21,7 @@ class ProviderHandler(base.RequestHandler):
     This should be handled by the domain layer in all cases.
     """
     @require_login
-    def list(self):
+    def get_all(self):
         """List all providers, optionally of the given class"""
         provider_class = self.get_param('class')
 

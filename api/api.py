@@ -224,7 +224,7 @@ endpoints = [
 
         # Site
 
-        route('/site/providers',                ProviderHandler,   h='list',       m=['GET']),
+        route('/site/providers',                ProviderHandler,   h='get_all',    m=['GET']),
         route('/site/providers',                ProviderHandler,                   m=['POST']),
         prefix('/site/providers', [
             route('/<_id:{oid}>',               ProviderHandler,                   m=['GET', 'PUT']),
