@@ -5,7 +5,6 @@ from enum import Enum
 
 from ... import models
 
-
 class ProviderClass(Enum):
     """Enumeration of provider classes"""
     compute = 'compute'  # Compute resource provider
