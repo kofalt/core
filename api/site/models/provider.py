@@ -77,7 +77,12 @@ class Provider(object):
     @property
     def config(self):
         """Returns the provider configuration"""
-        return self._doc['config']
+        return self._doc.get('config')
+
+    @config.deleter
+    def config(self):
+        if 'config' in self._doc:
+            del self._doc['config']
 
     def to_dict(self):
         """Return the dictionary representation of this object."""

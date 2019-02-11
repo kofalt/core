@@ -11,7 +11,6 @@ class StaticComputeProvider(ComputeProvider):
     provider_key = ProviderKey(ProviderClass.compute, 'static')
 
     def validate_config(self):
-        # Configuration is ignored for static compute
+        # Only empty configuration is valid
         if self.config:
             raise errors.APIValidationException('Static Compute should have NO configuration!')
-        pass
