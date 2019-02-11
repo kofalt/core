@@ -88,25 +88,25 @@ class RequestHandler(webapp2.RequestHandler):
 
             # Upsert for backwards compatibility (ie. not-yet-seen device still using drone secret)
             label = (drone_method + '_' + drone_name).replace(' ', '_')  # Note: old drone _id's are kept under label
-            device = config.db.devices.find_one_and_update(
+            self.device = config.db.devices.find_one_and_update(
                 {'label': label},
                 {'$set': {'label': label, 'type': drone_method, 'name': drone_name}},
                 upsert=True,
                 return_document=pymongo.collection.ReturnDocument.AFTER
             )
 
-            self.origin = {'type': Origin.device, 'id': device['_id']}
+            self.origin = {'type': Origin.device, 'id': self.device['_id']}
             drone_request = True
 
         if self.origin['type'] == Origin.device:
             # Update device.last_seen
             # In the future, consider merging any keys into self.origin?
-            config.db.devices.update_one(
+            self.device = config.db.devices.find_one_and_update(
                 {'_id': self.origin['id']},
                 {'$set': {
                     'last_seen': datetime.datetime.utcnow(),
                     'errors': []  # Reset errors list if device checks in
-                }})
+                }}, return_document=pymongo.collection.ReturnDocument.AFTER)
 
             # Bit hackish - detect from route if a job is the origin, and if so what job ID.
             # Could be removed if routes get reorganized. POST /api/jobs/id/result, maybe?

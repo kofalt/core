@@ -53,18 +53,22 @@ class ProviderMapper(object):
         result = self.dbc.find_one({'_id': bson.ObjectId(provider_id)})
         return self._load_provider(result)
 
-    def find_by_class(self, provider_class):
+    def find_all(self, provider_class=None):
         """Find all providers of the given class.
 
         Args:
-            provider_class (str|ProviderClass) The provider class
+            provider_class (str|ProviderClass) The provider class, or None for all classes
 
         Yields:
             Provider: The next provider matching the given class
         """
-        if isinstance(provider_class, ProviderClass):
-            provider_class = provider_class.value
-        return self._find_all({'provider_class': provider_class})
+        if provider_class:
+            if isinstance(provider_class, ProviderClass):
+                provider_class = provider_class.value
+            query = {'provider_class': provider_class}
+        else:
+            query = {}
+        return self._find_all(query)
 
     def _find_all(self, query, **kwargs):
         """Find all providers matching the given query.

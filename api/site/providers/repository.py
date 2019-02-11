@@ -2,6 +2,14 @@
 from ...web import errors
 from .factory import create_provider
 from ..mappers import ProviderMapper
+from ..models import ProviderClass
+
+
+COMPUTE_DISPATCHERS = [ 'cloud-scale', 'compute-dispatcher' ]
+
+def is_compute_dispatcher(device_type):
+    """Whether or not the given device_type is a compute dispatcher"""
+    return device_type in COMPUTE_DISPATCHERS
 
 
 def get_provider(provider_id):
@@ -39,20 +47,23 @@ def get_provider_config(provider_id):
     result = mapper.find(provider_id)
     if not result:
         raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+    # Cannot get provider config this way
+    if result.provider_class != ProviderClass.compute:
+        raise errors.APIPermissionException()
     return result.config
 
 
-def get_providers_by_class(provider_class):
+def get_providers(provider_class=None):
     """Get all providers matching the given type, without config.
 
     Args:
-        provider_class (ProviderClass|str): The provider class
+        provider_class (ProviderClass|str): The provider class, if filtering is desired
 
     Yields:
         Provider: The next provider matching the given class
     """
     mapper = ProviderMapper()
-    for provider in mapper.find_by_class(provider_class):
+    for provider in mapper.find_all(provider_class):
         yield _scrub_config(provider)
 
 
@@ -94,9 +105,9 @@ def update_provider(provider_id, doc):
 
     Raises:
         APINotFoundException: If the provider does not exist.
-        InputValidationException: If an invalid property was specified
-        APIValidationException: If the update would result in
-            an invalid provider configuration.
+        APIValidationException: If the update would result in an invalid provider
+            configuration, or an invalid field was specified
+            (e.g. attempt to change provider type)
     """
     mapper = ProviderMapper()
     current_provider = mapper.find(provider_id)
@@ -106,10 +117,10 @@ def update_provider(provider_id, doc):
 
     # NOTE: We do NOT permit updating provider class or type
     if 'provider_class' in doc:
-        raise errors.InputValidationException('Cannot change provider class!')
+        raise errors.APIValidationException('Cannot change provider class!')
 
     if 'provider_type' in doc:
-        raise errors.InputValidationException('Cannot change provider type!')
+        raise errors.APIValidationException('Cannot change provider type!')
 
     if 'config' in doc:
         # Validate the new configuration

@@ -99,7 +99,7 @@ def test_provider_mapper_patch(api_db):
         # Cleanup
         api_db.providers.remove({'_id': provider_id})
 
-def test_provider_mapper_find_by_type(api_db):
+def test_provider_mapper_find_all(api_db):
     compute_provider = _make_provider()
     storage_provider = _make_provider(cls=ProviderClass.storage)
 
@@ -108,16 +108,19 @@ def test_provider_mapper_find_by_type(api_db):
     sid = mapper.insert(storage_provider)
 
     try:
-        results = list(mapper.find_by_class(ProviderClass.storage))
+        results = list(mapper.find_all(ProviderClass.storage))
         assert len(results) == 1
         assert results[0].to_dict() == storage_provider.to_dict()
 
-        results = list(mapper.find_by_class('compute'))
+        results = list(mapper.find_all('compute'))
         assert len(results) == 1
         assert results[0].to_dict() == compute_provider.to_dict()
 
-        results = list(mapper.find_by_class('none'))
+        results = list(mapper.find_all('nothing'))
         assert len(results) == 0
+
+        results = list(mapper.find_all())
+        assert len(results) == 2
 
     finally:
         # Cleanup
@@ -172,11 +175,11 @@ def test_provider_repository_insert_and_update(api_db):
             providers.update_provider(bson.ObjectId(), {'label': 'New Label'})
 
         # Try to update provider class
-        with pytest.raises(errors.InputValidationException):
+        with pytest.raises(errors.APIValidationException):
             providers.update_provider(str(provider_id), {'provider_class': 'storage'})
 
         # Try to update provider type
-        with pytest.raises(errors.InputValidationException):
+        with pytest.raises(errors.APIValidationException):
             providers.update_provider(str(provider_id), {'provider_type': 'garbage'})
 
         # Try to set invalid config
@@ -214,8 +217,12 @@ def test_provider_repository_load(api_db):
         del expected['config']
         assert result.to_dict() == expected
 
+        # Load all
+        results = list(providers.get_providers())
+        assert len(results) == 2
+
         # Load by type
-        results = list(providers.get_providers_by_class('compute'))
+        results = list(providers.get_providers('compute'))
         assert len(results) == 1
         assert results[0].to_dict() == expected
 
@@ -226,4 +233,3 @@ def test_provider_repository_load(api_db):
         # Cleanup
         api_db.providers.remove({'_id': cid})
         api_db.providers.remove({'_id': sid})
-

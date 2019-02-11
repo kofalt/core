@@ -1,0 +1,17 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type":"array",
+    "items":{"$ref":"../definitions/provider.json#/definitions/provider"},
+    "example": [{
+        "_id": "5c61dc66fb4abf0062cc16ac",
+        "provider_class": "compute",
+        "provider_type": "static",
+        "label": "My Provider",
+        "origin": {
+            "type": "user",
+            "id": "admin@user.com"
+        },
+        "created": "2019-02-11T20:34:46.522000+00:00",
+        "modified": "2019-02-11T20:34:46.522000+00:00"
+    }]
+}

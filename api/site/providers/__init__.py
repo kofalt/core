@@ -6,4 +6,4 @@ from .factory import create_provider
 
 # Import repository functions directly
 from .repository import (get_provider, get_provider_config,
-    get_providers_by_class, insert_provider, update_provider)
+    get_providers, insert_provider, update_provider, is_compute_dispatcher)

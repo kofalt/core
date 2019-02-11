@@ -86,6 +86,7 @@ paths:
     - paths/data-views.yaml
     - paths/containers.yaml
     - paths/tree.yaml
+    - paths/providers.yaml
 
 securityDefinitions:
   ApiKey:
