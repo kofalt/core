@@ -10,10 +10,15 @@ class Storage(object):
         Open a file like object
 
         :param self: self reference
-        :param uid: string
-        :param path_hint: strig
-        :param mode: string
-        :param options list
+        :param uid: internal id of file reference
+        :param path_hint: local relative path for file location
+        :param mode: Mode to open file
+        :param options: Options list to pass to underlying storage layer
+        :type uid: string
+        :type path_hint: string
+        :type mode: string
+        :type options: list
+        :returns: An object implemeting a file like interface
         :rtype: File
 
         """
@@ -23,14 +28,54 @@ class Storage(object):
     def is_signed_url(self):
         """
         Return boolean if signed url is possible for this file type
+
+        :param self: self reference
+        :returns boolean:
         """
         raise NotImplementedError()
     
     @abstractmethod
     def get_signed_url(self, id, path_hint, purpose):
+        """
+        Returns the signed url location of the file reference
+
+        :param self: self reference
+        :param string id: internal file uuid reference
+        :param string path_hint: internal reference to file object on storage, used when uuid is not available
+        :param string purpose: stated reason for signed url: upload or download
+        :returns: The signed url string for accessing the referenced file
+        :rtype: string
+
+        """
         raise NotImplementedError()
     
     @abstractmethod
     def get_file_hash(self, id, path_hint):
+        """
+        Returns the calculated hash for the current contents of the referenced file
+
+        :param self: self reference
+        :param string id: internal file uuid reference
+        :param string path_hint: internal reference to the file object on storage, used when uuid is not available
+        :returns: The hash value of the curreent file contents
+        :rtype: string
+        """
+        raise NotImplementedError()
+
+    #abstractmethod
+    def get_file_info(self, id, path_hint):
+        """
+        Returns basic file info about the referenced file object
+
+        :param self: self reference
+        :param string id: internal fild uuid reference
+        :param path_hint string: internal reference to the file object on stroage, used when uuid is not available
+        :returns: Dict of file information with the following data attributes
+            {
+                'filesize': int,
+            }
+        :rtype: Dict
+        
+        """
         raise NotImplementedError()
 

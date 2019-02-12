@@ -1,16 +1,22 @@
 from .storage import Storage
 from fs import open_fs
+import hashlib
 import fs
+from ..util import path_from_uuid, format_hash
+#from ..util import util
 
-#This is OSFS only.   Which is legacy only
+DEFAULT_HASH_ALG = 'sha384'
+DEFAULT_BUFFER_SIZE = 65536
 
-class PyFsFile(Storage):
+class PyFsStorage(Storage):
 
     def __init__(self, url):
-        super (PyFsFile, self).__init__()
+        super (PyFsStorage, self).__init__()
         self._fs = open_fs(url)
         self._has_signed_url = hasattr(self._fs, 'get_signed_url')
-        
+
+        self._default_hash_alg = DEFAULT_HASH_ALG
+        self._buffer_size = DEFAULT_BUFFER_SIZE
     def open(self, id, path_hint, mode, options):
 
         if 'w' in mode:
@@ -56,4 +62,41 @@ class PyFsFile(Storage):
         return self._fs.get_signed_url(path_hint, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type) 
 
     def get_file_hash(self, id, path_hint):
-        return None
+        
+        # TODO: do we want to allow custom hash algs in this interface?
+        hash_alg = self._default_hash_alg
+        hasher = hashlib.new(hash_alg)
+
+        if id:
+            filepath = path_from_uuid(id)
+        else:
+            filepath = path_hint
+
+        if not isinstance(filepath, unicode):
+            filepath = six.u(filepath)
+
+        with self._fs.open(filepath, 'rb') as f:
+            while True:
+                data = f.read(self._buffer_size)
+                if not data:
+                    break
+                hasher.update(data)
+
+        return format_hash(hash_alg, hasher.hexdigest())
+
+    def get_file_info(self, id, path_hint):
+
+        data = {}
+        if path_hint:
+            data['filesize'] = int(self._fs.getsize(path_hint))
+        else:
+            size['filesize'] = int(self._fs.getsize(path_from_uuid(id)))
+
+        return data
+
+    def get_fs(self):
+        """
+            Returns the local file system OSFS object for local file maniulation/processing
+        """
+        return self._fs
+

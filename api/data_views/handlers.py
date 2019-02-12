@@ -183,7 +183,7 @@ class DataViewHandler(base.RequestHandler):
             if target_container:
 
                 # Saved directly to persistent storage.
-                file_processor = FileProcessor(config.py_fs)
+                file_processor = FileProcessor(config.storage)
                 
                 # If we're saving to container, start SSE event,
                 # and write the data to a temp file
@@ -219,14 +219,14 @@ class DataViewHandler(base.RequestHandler):
                 
                 # Create our targeted placer
                 placer = TargetedMultiPlacer(target_container_type, target_container, target_container['_id'],
-                    metadata, timestamp, self.origin, {'uid': self.uid}, file_processor, self.log_user_access)
+                    metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
                 
                 # Not a great practice. See process_upload() for details.
                 cgi_field = util.obj_from_map({
                     'filename': fileobj.filename,
                     'path': path,
-                    'size': int(file_processor.persistent_fs._fs.getsize(path)),
-                    'hash': file_processor.hash_file_formatted(path, file_processor.persistent_fs._fs),
+                    'size': config.storage.get_file_info(newUuid, path)['filesize'],
+                    'hash': config.storage.get_file_hash(newUuid, path),
                     '_uuid': newUuid,
                     'mimetype': util.guess_mimetype(fileobj.filename),
                     'modified': timestamp

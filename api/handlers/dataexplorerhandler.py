@@ -691,7 +691,7 @@ class DataExplorerHandler(base.RequestHandler):
         }
 
         # Saved directly to persistent storage.
-        file_processor = FileProcessor(config.py_fs)
+        file_processor = FileProcessor(config.storage)
         
         # Create a new file with a new uuid
         path, fileobj = file_processor.create_new_file(None, None)
@@ -702,7 +702,7 @@ class DataExplorerHandler(base.RequestHandler):
 
         # Create our targeted placer
         placer = TargetedMultiPlacer(output['type'], output_container, output['id'],
-            metadata, timestamp, self.origin, {'uid': self.uid}, file_processor, self.log_user_access)
+            metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
         
         fileobj.close()
         # Not a great practice. See process_upload() for details.

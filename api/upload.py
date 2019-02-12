@@ -81,27 +81,30 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         container = hierarchy.get_container(container_type, id_)
 
     # Check if filename should be basename or full path
-    # TODO: This should never be checked in the service layer, refactor this out
-    use_filepath = request.GET.get('filename_path', '').lower() in ('1', 'true')
-    if use_filepath:
+    filename_path = request.GET.get('filename_path', '').lower() in ('1', 'true')
+    if filename_path:
         name_fn = util.sanitize_path
     else:
         name_fn = os.path.basename
 
 
     # The vast majority of this function's wall-clock time is spent here.
-    local_tmp_fs = None
-    needsTempFile = ['token', 'packfile']
-    if strategy in needsTempFile:
-        local_tmp_fs = config.local_fs
+    
+   
+    # Technically temp file necesity could be inferred from the strategy but we need the tempdir anyway
+    #needsTempFile = ['token', 'packfile']
+    #if strategy in needsTempFile:
+    #    local_tmp_fs = config.local_fs
+    #    ##It is now assumed that local_fs is always going to be an OSFS object
 
 
-    # The only time we need the tempdir_name is when we use token and packfile. 
-    file_processor = files.FileProcessor(config.py_fs, local_tmp_fs, tempdir_name=tempdir)
+    # file_processor = files.FileProcessor(config.storage, local_tmp_fs, tempdir_name=tempdir)
+    file_processor = files.FileProcessor(config.storage)
 
     if not file_fields:
 
-        form = file_processor.process_form(request, use_filepath=use_filepath)
+        # The only time we need the tempdir_name is when we use token and packfile. 
+        form = file_processor.process_form(request, use_filepath=filename_path, tempdir_name=tempdir)
 
         # Non-file form fields may have an empty string as filename, check for 'falsy' values
         file_fields = extract_file_fields(form)
@@ -119,7 +122,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
                     f['name'] = name_fn(f['name'])
 
     placer_class = strategy.value
-    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=log)
+    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=log)
 
     placer.check()
 
@@ -152,11 +155,10 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         field.path = filePath
 
         # we can get the size from the file on disk but we need to know which fs its stored on.
-        # TODO: we should make it part of the Storage abstraction layer
-        if file_processor._temp_fs:
-            field.size = int(file_processor._temp_fs._fs.getsize(filePath))
+        if tempdir:
+            field.size = int(config.local_fs.get_fs().getsize(filePath))
         else:
-            field.size = int(file_processor._persistent_fs._fs.getsize(filePath))
+            field.size = (config.storage.get_file_info(None, filePath))['filesize']
         
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
@@ -204,7 +206,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 class Upload(base.RequestHandler):
 
     def _create_upload_ticket(self):
-        if not config.py_fs.is_signed_url():
+        if not config.storage.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -218,7 +220,7 @@ class Upload(base.RequestHandler):
         for filename in filenames:
             newUuid = str(uuid.uuid4())
             signed_urls[filename] = {
-                'url': config.py_fs.get_signed_url(None, util.path_from_uuid(newUuid), purpose='upload'),
+                'url': config.storage.get_signed_url(None, util.path_from_uuid(newUuid), purpose='upload'),
                 'uuid': newUuid
             }
 
@@ -295,6 +297,7 @@ class Upload(base.RequestHandler):
         if self.get_param('upload_ticket') == '':
             return self._create_upload_ticket()
 
+
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('upload_ticket')
         if ticket_id:
@@ -319,6 +322,7 @@ class Upload(base.RequestHandler):
                                   origin=self.origin, context=context)
 
     def clean_packfile_tokens(self):
+        #TODO: I dont think this will remove the correct folders and it wont find 'extra' folders anymore
         """Clean up expired upload tokens and invalid token directories.
         Ref placer.TokenPlacer and FileListHandler.packfile_start for context.
         """
@@ -328,50 +332,33 @@ class Upload(base.RequestHandler):
 
         # Race condition: we could delete tokens & directories that are currently processing.
         # For this reason, the modified timeout is long.
-        result = config.db['tokens'].delete_many({
+
+        result = config.db['tokens'].find({
             'type': 'packfile',
             'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(hours=1)},
         })
+        removed = 0;
+        for token in result:
+            # the token id is the folder.
+            try: 
+                config.local_fs.get_fs().removetree(token)
+            except:
+                self.log.error('Error removing token directory %s', token)
+                break;
 
-        removed = result.deleted_count
+            #We remove the token last so the tokens will always map to current directories
+            result = config.db['tokens'].delete({
+                '_id': token
+            })
+            removed += 1
+
+        cleaned = removed
+
         if removed > 0:
             self.log.info('Removed %s expired packfile tokens', removed)
 
-        # Next, find token directories and remove any that don't map to a token.
-
-        # This logic is used by:
-        #   TokenPlacer.check
-        #   PackfilePlacer.check
-        #   upload.clean_packfile_tokens
-        #
-        # It must be kept in sync between each instance.
-        folder = fs.path.join('tokens', 'packfile')
-
-        util.mkdir_p(folder, config.fs._fs)
-        try:
-            paths = config.fs._fs.listdir(folder)
-        except fs.errors.ResourceNotFound:
-            # Non-local storages are used without 0-blobs for "folders" (mkdir_p is a noop)
-            paths = []
-
-        cleaned = 0
-
-        for token in paths:
-            path = fs.path.join(folder, token)
-
-            result = None
-            try:
-                result = config.db['tokens'].find_one({
-                    '_id': token
-                })
-            except bson.errors.InvalidId:
-                # Folders could be an invalid mongo ID, in which case they're definitely expired :)
-                pass
-
-            if result is None:
-                self.log.info('Cleaning expired token directory %s', token)
-                config.fs._fs.removetree(path)
-                cleaned += 1
+        # Because we only create directories after we issue a token and we remove directories 
+        # before we delete the token directories should always map to the current tokens in the DB. 
 
         return {
             'removed': {

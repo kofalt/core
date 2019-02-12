@@ -1,7 +1,7 @@
-from api.storage.py_fs_file import PyFsFile
+from api.storage.py_fs_storage import PyFsStorage
 
-def test_py_fs_file():
-    storage = PyFsFile(u'osfs:///tmp')
+def test_py_fs_storage():
+    storage = PyFsStorage(u'osfs:///tmp')
     assert storage._fs is not None
     assert storage.is_signed_url() == False
 
@@ -64,3 +64,8 @@ def test_py_fs_file():
     d = f.read()
     assert d == 'Test in a new deeply nested directory'
     d = f.close()
+
+    data = storage.get_file_info(None, 'test.txt')
+    assert filesize in data
+
+
