@@ -3,9 +3,7 @@ import datetime
 import json
 import os
 import uuid
-
 import fs.errors
-import fs.path
 
 from .web import base
 from .web.errors import FileFormException
@@ -147,18 +145,19 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # These are presumbed to be required by every function later called with field as a parameter.
 
         #We can trust the filepath on upload is accurate after form processing
-        filePath = field.filepath
-        if not filePath:
-            raise Exception('File path was not set')
+        if hasattr(field, 'filepath'):
+            filePath = field.filepath
+            #Some placers need this value. Consistent object would be nice
+            field.path = filePath
+        #if not filePath:
+        #    raise Exception('File path was not set')
 
-        #Some placers need this value. Consistent object would be nice
-        field.path = filePath
 
         # we can get the size from the file on disk but we need to know which fs its stored on.
         if tempdir:
             field.size = int(config.local_fs.get_fs().getsize(filePath))
         else:
-            field.size = (config.storage.get_file_info(None, filePath))['filesize']
+            field.size = (config.storage.get_file_info(None, util.path_from_uuid(field.uuid)))['filesize']
         
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
@@ -167,7 +166,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Stands in for a dedicated object... for now.
         file_attrs = make_file_attrs(field, origin)
 
-        placer.process_file_field(field, file_attrs)
+        placer.process_file_field(file_attrs)
 
     # Respond either with Server-Sent Events or a standard json map
     if placer.sse and not response:
@@ -217,14 +216,19 @@ class Upload(base.RequestHandler):
             self.abort(400, 'metadata and at least one filename are required')
 
         signed_urls = {}
+        filedata = {}
         for filename in filenames:
             newUuid = str(uuid.uuid4())
-            signed_urls[filename] = {
-                'url': config.storage.get_signed_url(None, util.path_from_uuid(newUuid), purpose='upload'),
-                'uuid': newUuid
+            signed_url = config.storage.get_signed_url(None, util.path_from_uuid(newUuid), purpose='upload'),
+            signed_urls[filename] = signed_url[0]
+            filedata[filename] = {
+                'url': signed_url[0],
+                #'url': config.storage.get_signed_url(None, tempdir + '/' + newUuid, purpose='upload'),
+                'uuid': newUuid,
+                'filepath': util.path_from_uuid(newUuid)
             }
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filenames, metadata, filedata)
 
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, signed_urls, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
 
@@ -259,17 +263,22 @@ class Upload(base.RequestHandler):
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
             file_fields = []
-            for filename, values in ticket['filenames'].items():
+            for filename, values in ticket['filedata'].items():
                 file_fields.append(
                     util.dotdict({
                         'filename': filename,
-                        '_uuid': values['uuid']
+                        'uuid': values['uuid'],
+                        'filepath': values['filepath']
                     })
                 )
-            # IN this case we need to save the request body files to the uuid location they are assigned
+            # IN this case we saved the files to the uuid location they are assigned on signed url storage
+            # Technically we dont need the tempdir since its not used if we provide file_fields
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
-                                  context=context, file_fields=file_fields, tempdir=ticket['tempdir'])
+                                  context=context, file_fields=file_fields, 
+                                  tempdir=None)
+                                  #tempdir=ticket['tempdir'])
         else:
+            # In this case we are going to save the files to direct locations from the reqeust post.
             return process_upload(self.request, strategy, self.log_user_access, origin=self.origin, context=context)
 
     def engine(self):
@@ -303,11 +312,12 @@ class Upload(base.RequestHandler):
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
             file_fields = []
-            for filename in ticket['filenames']:
+            for filename, values in ticket['filedata'].items():
                 file_fields.append(
                     util.dotdict({
                         'filename': filename,
-                        '_uuid': filename.uuid
+                        'uuid': values['uuid'],
+                        'filepath': values['filepath']
                     })
                 )
 
@@ -322,7 +332,6 @@ class Upload(base.RequestHandler):
                                   origin=self.origin, context=context)
 
     def clean_packfile_tokens(self):
-        #TODO: I dont think this will remove the correct folders and it wont find 'extra' folders anymore
         """Clean up expired upload tokens and invalid token directories.
         Ref placer.TokenPlacer and FileListHandler.packfile_start for context.
         """
@@ -337,28 +346,30 @@ class Upload(base.RequestHandler):
             'type': 'packfile',
             'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(hours=1)},
         })
-        removed = 0;
+        removed = 0
         for token in result:
             # the token id is the folder.
-            try: 
-                config.local_fs.get_fs().removetree(token)
-            except:
-                self.log.error('Error removing token directory %s', token)
-                break;
+            try:
+                config.local_fs.get_fs().removetree(token['_id'])
+            except fs.errors.ResourceNotFound:
+                pass
+            except IOError:
+                self.log.error('Error removing token directory %s', token['_id'])
+                continue
 
             #We remove the token last so the tokens will always map to current directories
-            result = config.db['tokens'].delete({
-                '_id': token
+            result = config.db['tokens'].delete_one({
+                '_id': token['_id']
             })
             removed += 1
-
+        
         cleaned = removed
-
         if removed > 0:
             self.log.info('Removed %s expired packfile tokens', removed)
 
         # Because we only create directories after we issue a token and we remove directories 
         # before we delete the token directories should always map to the current tokens in the DB. 
+        cleaned = removed
 
         return {
             'removed': {
@@ -385,8 +396,15 @@ def extract_file_fields(form):
 def make_file_attrs(field, origin):
     # create a file-attribute map commonly used elsewhere in the codebase.
     # Stands in for a dedicated object... for now.
+    
+    # Not all placers need the path attribut and if they are using UUID it can be inferred
+    # Once this get strandardized into a model class we can clean up the specifics
+    path = None
+    if hasattr(field, 'path'):
+        path = field.path
+
     file_attrs = {
-        '_id': field._uuid,
+        '_id': field.uuid,
         'name': field.filename,
         'modified': field.modified,
         'size': field.size,
@@ -394,6 +412,7 @@ def make_file_attrs(field, origin):
         'hash': field.hash,
         'origin': origin,
 
+        'path': path,
         'type': None,
         'modality': None,
         'classification': {},

@@ -19,7 +19,7 @@ from .web import encoder
 from .web.errors import FileFormException
 
 
-CHUNK_SIZE = 1024
+CHUNK_SIZE = 1048576
 
 class Placer(object):
     """
@@ -64,7 +64,7 @@ class Placer(object):
         """
         raise NotImplementedError() # pragma: no cover
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         """"
         Process a single file field.
         """
@@ -90,7 +90,7 @@ class Placer(object):
         if self.metadata == None:
             raise FileFormException('Metadata required')
 
-    def save_file(self, field=None, file_attrs=None, ignore_hash_replace=False):
+    def save_file(self, file_attrs=None, ignore_hash_replace=False):
         """
         Helper function that moves a file saved via a form field into our CAS.
         May trigger jobs, if applicable, so this should only be called once we're ready for that.
@@ -99,7 +99,7 @@ class Placer(object):
         """
 
         # Save file
-        # We already have the file in the final location on persistent storage
+        # We already have the file in the final location on persistent storage so we dont to do anything anymore
 
         # Update the DB
         if file_attrs is not None:
@@ -158,10 +158,10 @@ class TargetedPlacer(Placer):
         self.requireTarget()
         validators.validate_data(self.metadata, 'file.json', 'input', 'POST', optional=True)
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata:
             file_attrs.update(self.metadata)
-        self.save_file(field, file_attrs)
+        self.save_file(file_attrs)
 
 
     def finalize(self):
@@ -178,12 +178,12 @@ class TargetedMultiPlacer(TargetedPlacer):
         self.requireTarget()
         validators.validate_data(self.metadata, 'file-list.json', 'input', 'POST', optional=True)
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata:
             for fileinfo in self.metadata:
                 if fileinfo['name'] == file_attrs['name']:
                     file_attrs.update(fileinfo)
-        self.save_file(field, file_attrs)
+        self.save_file(file_attrs)
 
 class UIDPlacer(Placer):
     """
@@ -212,7 +212,7 @@ class UIDPlacer(Placer):
 
 
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         # Only create the hierarchy once
         if self.count == 0:
             # If not a superuser request, pass uid of user making the upload request
@@ -231,7 +231,7 @@ class UIDPlacer(Placer):
         self.count += 1
 
         # For the file, given self.targets, choose a target
-        name        = field.filename
+        name        = file_attrs['name']
         target      = self.metadata_for_file.get(name)
 
         # if the file was not included in the metadata skip it
@@ -244,7 +244,7 @@ class UIDPlacer(Placer):
         self.container_type = container.level
         self.id_            = container.id_
         self.container      = container.container
-        self.save_file(field, file_attrs, ignore_hash_replace=self.ignore_hash_replace)
+        self.save_file(file_attrs, ignore_hash_replace=self.ignore_hash_replace)
 
     def finalize(self):
         # Check that there is at least one file being uploaded
@@ -330,7 +330,7 @@ class EnginePlacer(Placer):
                         f['classification'] = {'Custom': m}
             ###
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata is not None:
             file_mds = self.metadata.get(self.container_type, {}).get('files', [])
 
@@ -339,7 +339,13 @@ class EnginePlacer(Placer):
                     file_attrs.update(file_md)
                     break
 
-        self.save_file(field, file_attrs)
+        if self.context.get('job_ticket_id'):
+            job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
+
+            if not job_ticket['success']:
+                file_attrs['from_failed_job'] = True
+
+        self.save_file(file_attrs)
 
     def finalize(self):
         job = None
@@ -433,10 +439,11 @@ class TokenPlacer(Placer):
         # Folder is created because we load the file_processer to use a temp file with the token uuid as a param
         # we only work with temp fs when using token placer
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
 
         self.saved.append(file_attrs)
-        self.paths.append(field.path)
+        #self.paths.append(field.path)
+        self.paths.append(file_attrs['path'])
 
     def finalize(self):
         
@@ -543,9 +550,11 @@ class PackfilePlacer(Placer):
         # self.zip.comment = json.dumps(metadata, default=metadata_encoder)
 
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         # We need to remove the upload file that was saved direclty to the fs from the form post
-        config.local_fs.get_fs().remove(self.folder + '/' + field._uuid)
+        #config.local_fs.get_fs().remove(self.folder + '/' + field._uuid)
+        # TODO I belive we could trust the filepath at this point. This will show up in integration testing
+        config.local_fs.get_fs().remove(self.folder + '/' + file_attrs['name'])
         # Should not be called with any files
         raise Exception('Files must already be uploaded')
 
@@ -570,8 +579,9 @@ class PackfilePlacer(Placer):
             config.local_fs.get_fs().settimes(full_path, self.ziptime, self.ziptime)
 
             # Place file into the zip folder we created before
+            # Prepend the file paths with the label name by business logic decisions
             with config.local_fs.get_fs().open(full_path, 'rb') as f:
-                self.zip_.writestr(path, f.read())
+                self.zip_.writestr(self.dir_ + "/" + path, f.read())
 
             # Report progress
             complete += 1
@@ -599,9 +609,6 @@ class PackfilePlacer(Placer):
                 if not data:
                     break
                 f2.write(data)
-        # I belive these might be automatic inside the with statement
-        f1.close()
-        f2.close()
 
         # Create an anyonmous object in the style of our augmented file fields.
         # Not a great practice. See process_upload() for details.
@@ -736,7 +743,7 @@ class PackfilePlacer(Placer):
         self.id_            = str(acquisition['_id'])
         self.container	    = acquisition
 
-        self.save_file(cgi_field, cgi_attrs)
+        self.save_file(cgi_attrs)
 
         # Set target for session recalc
         self.container_type = 'session'
@@ -766,8 +773,8 @@ class AnalysisPlacer(Placer):
         self.requireMetadata()
         validators.validate_data(self.metadata, 'analysis-legacy.json', 'input', 'POST', optional=True)
 
-    def process_file_field(self, field, file_attrs):
-        self.save_file(field)
+    def process_file_field(self, file_attrs):
+        self.save_file()
         self.saved.append(file_attrs)
 
     def finalize(self):
@@ -792,7 +799,7 @@ class AnalysisJobPlacer(Placer):
         if self.context.get('job_ticket_id'):
             JobTicket.get(self.context.get('job_ticket_id'))
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata is not None:
             file_mds = self.metadata.get('acquisition', {}).get('files', [])
 
@@ -802,7 +809,7 @@ class AnalysisJobPlacer(Placer):
                     break
 
         file_attrs['created'] = file_attrs['modified']
-        self.save_file(field)
+        self.save_file(None)
         self.saved.append(file_attrs)
 
     def finalize(self):
@@ -847,7 +854,7 @@ class GearPlacer(Placer):
     def check(self):
         self.requireMetadata()
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata:
             file_attrs.update(self.metadata)
             proper_hash = file_attrs.get('hash')[3:].replace('-', ':')
@@ -857,7 +864,7 @@ class GearPlacer(Placer):
                                                'rootfs-id': file_attrs['_id']}})
         # self.metadata['hash'] = file_attrs.get('hash')
 
-        self.save_file(field)
+        self.save_file()
         self.saved.append(file_attrs)
         self.saved.append(self.metadata)
 

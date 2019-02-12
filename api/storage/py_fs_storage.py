@@ -2,11 +2,11 @@ from .storage import Storage
 from fs import open_fs
 import hashlib
 import fs
+import six
 from ..util import path_from_uuid, format_hash
-#from ..util import util
 
 DEFAULT_HASH_ALG = 'sha384'
-DEFAULT_BUFFER_SIZE = 65536
+DEFAULT_BUFFER_SIZE = 2 ** 20
 
 class PyFsStorage(Storage):
 
@@ -17,7 +17,7 @@ class PyFsStorage(Storage):
 
         self._default_hash_alg = DEFAULT_HASH_ALG
         self._buffer_size = DEFAULT_BUFFER_SIZE
-    def open(self, id, path_hint, mode, options):
+    def open(self, uuid, path_hint, mode, options):
 
         if 'w' in mode:
             if path_hint:
@@ -35,7 +35,7 @@ class PyFsStorage(Storage):
         return self._has_signed_url
 
     def get_signed_url(self, 
-                       id, 
+                       uuid, 
                        path_hint,
                        purpose='download',
                        filename=None,
@@ -45,7 +45,7 @@ class PyFsStorage(Storage):
         Generate signed URL for upload/download purposes. It makes possible to set the filename when downloading the
         file as an attachment and set the Content-Type header of the response. The latter is useful for example we
         want to show a html file instead of downloading it.
-        :param id: file uuid
+        :param uuid: file uuid
         :param path_hint: File path
         :param purpose: download/upload
         :param filename: Name of the downloaded file, used in the content-disposition header
@@ -61,16 +61,15 @@ class PyFsStorage(Storage):
         # This implementation will require path_hint
         return self._fs.get_signed_url(path_hint, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type) 
 
-    def get_file_hash(self, id, path_hint):
+    def get_file_hash(self, uuid, path_hint):
         
-        # TODO: do we want to allow custom hash algs in this interface?
         hash_alg = self._default_hash_alg
         hasher = hashlib.new(hash_alg)
-
-        if id:
-            filepath = path_from_uuid(id)
-        else:
+        
+        if path_hint:
             filepath = path_hint
+        else:
+            filepath = path_from_uuid(uuid)
 
         if not isinstance(filepath, unicode):
             filepath = six.u(filepath)
@@ -84,13 +83,19 @@ class PyFsStorage(Storage):
 
         return format_hash(hash_alg, hasher.hexdigest())
 
-    def get_file_info(self, id, path_hint):
+    def get_file_info(self, uuid, path_hint):
 
         data = {}
+
         if path_hint:
+            if not self._fs.exists(path_hint):
+                return None
             data['filesize'] = int(self._fs.getsize(path_hint))
         else:
-            size['filesize'] = int(self._fs.getsize(path_from_uuid(id)))
+            path = path_from_uuid(uuid)
+            if not self._fs.exists(path):
+                return None
+            data['filesize'] = int(self._fs.getsize(path))
 
         return data
 

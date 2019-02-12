@@ -3,6 +3,9 @@ import json
 import datetime
 
 from elasticsearch import ElasticsearchException, TransportError, RequestError, helpers
+from ..files import FileProcessor
+from ..placer import TargetedMultiPlacer
+from .. import util, upload
 
 from ..web import base
 from .. import config, validators
@@ -694,8 +697,8 @@ class DataExplorerHandler(base.RequestHandler):
         file_processor = FileProcessor(config.storage)
         
         # Create a new file with a new uuid
-        path, fileobj = file_processor.create_new_file(None, None)
-
+        _, fileobj = file_processor.create_new_file(None, None)
+        fileobj.write(json.dumps(formatted_search_results))
         #This seems to be empty on file create but verify this is correct
         metadata = None
         timestamp = datetime.datetime.utcnow()
@@ -711,14 +714,14 @@ class DataExplorerHandler(base.RequestHandler):
             'path': fileobj.path,
             'size': fileobj.size,
             'hash': fileobj.hash,
-            '_uuid': fileobj.filename,
+            'uuid': fileobj.filename,
             'mimetype': util.guess_mimetype(output_filename),
             'modified': timestamp
         })
-        file_attrs = upload.make_file_attrs(cgi_field, origin)
+        file_attrs = upload.make_file_attrs(cgi_field, self.origin)
 
         # Place the file
-        placer.process_file_field(cgi_field, file_attrs)
+        placer.process_file_field(file_attrs)
 
         # Process file calcs
         return placer.finalize()
