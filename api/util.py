@@ -171,13 +171,14 @@ def download_ticket(ip, origin, type_, target, filename, size, projects = None):
     }
 
 
-def upload_ticket(ip, origin, tempdir, filenames, metadata):
+def upload_ticket(ip, origin, tempdir, filenames, metadata, filedata):
     return {
         '_id': str(uuid.uuid4()),
         'timestamp': datetime.datetime.utcnow(),
         'ip': ip,
         'tempdir': tempdir,
-        'filenames': filenames, # is a dictionary indexing filename to flywheel uuid and signed_url tuple
+        'filenames': filenames, # just a filename to signed_url dict. Is the origial version left for backwards compatability
+        'filedata': filedata, # is a dictionary indexing filename to the file data like uuid and signed url
         'metadata': metadata,
         'origin': origin
     }

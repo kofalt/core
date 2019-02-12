@@ -356,17 +356,21 @@ class FileListHandler(ListHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
-        tempdir = str(uuid.uuid4())
-        # Upload into a temp folder, so we will be able to cleanup
+        #These upload directly to final location
         signed_urls = {}
+        filedata = {}
+
         for filename in filenames:
             newUuid = str(uuid.uuid4())
-            signed_urls[filename] = {
-                    'url': config.storage.get_signed_url(None, tempdir + '/' + newUuid, purpose='upload'),
-                    'uuid': newUuid
+            signed_url = config.storage.get_signed_url(newUuid, util.path_from_uuid(newUuid), purpose='upload')
+            
+            signed_urls[filename] = signed_url
+            filedata[filename] = {
+                'url': signed_url,
+                'uuid': newUuid,
             }
 
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, signed_urls, metadata)
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filenames, metadata, filedata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
 
@@ -452,7 +456,7 @@ class FileListHandler(ListHandler):
         elif self.get_param('member') is not None:
             zip_member = self.get_param('member')
             try:
-                with file_system.open(None, file_path, 'rb', None) as f:
+                with file_system.open(fileinfo.get('_id'), file_path, 'rb', None) as f:
                     with zipfile.ZipFile(f) as zf:
                         self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                         self.response.write(zf.open(zip_member).read())
@@ -476,12 +480,13 @@ class FileListHandler(ListHandler):
             signed_url = None
             if config.storage.is_signed_url():
                 try:
-                    signed_url = config.storage.get_signed_url(None, file_path,
+                    signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
-                except fs.errors.ResourceNotFound as e:
-                    pass
+                except fs.errors.ResourceNotFound:
+                    self.log('Error getting signed_url on non existing file')
+            
             if signed_url:
                 self.redirect(signed_url)
             else:
@@ -505,7 +510,8 @@ class FileListHandler(ListHandler):
                     else:
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
-                    self.response.body_file = file_system.open(None, file_path, 'rb', None)
+                        
+                    self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb', None)
                     self.response.content_length = fileinfo['size']
                 else:
                     self.response.status = 206
@@ -517,7 +523,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
 
 
-                    with file_system.open(None, file_path, 'rb', None) as f:
+                    with file_system.open(fileinfo.get('_id'), file_path, 'rb', None) as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
                             if first < 0:
@@ -609,18 +615,21 @@ class FileListHandler(ListHandler):
                 self.origin = ticket.get('origin')
 
             file_fields = []
-            for filename, values in ticket['filenames'].items():
+            for filename, values in ticket['filedata'].items():
                 file_fields.append(
                     util.dotdict({
                         'filename': filename,
-                        '_uuid': values.uuid
+                        'uuid': values['uuid']
                     })
                 )
-            #In this flow the file is stored to the tempdir location via fieldStorge and then added to the final zip afterwards.
+            # In this flow files are stored to the storage location via the signed url directly
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                          container_type=containerutil.singularize(cont_name),
-                                         id_=_id, file_fields=file_fields, tempdir=ticket['tempdir'])
+                                         id_=_id, file_fields=file_fields, 
+                                         tempdir=None) 
+                                         #tempdir=ticket['tempdir'])
         else:
+            #In this flow files are stored to local storage directly via assigned uuid
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, container_type=containerutil.singularize(cont_name), id_=_id, origin=self.origin)
 
     @validators.verify_payload_exists

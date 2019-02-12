@@ -6,8 +6,6 @@ import pymongo
 import datetime
 import elasticsearch
 
-from fs import open_fs
-#from .storage import create_flywheel_fs
 from .storage.py_fs_storage import PyFsStorage
 
 from . import util
@@ -276,7 +274,7 @@ def get_public_config():
     features = {
         'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,      #  Job queue /jobs/ask route.
-        'signed_url': hasattr(fs, 'get_signed_url'),
+        'signed_url': hasattr(storage, 'get_signed_url'),
     }
 
     return {
@@ -321,7 +319,6 @@ def get_release_version():
 
 # Storage configuration
 storage = PyFsStorage(__config['persistent']['fs_url'])
-#local_fs = open_fs('osfs://' + __config['persistent']['data_path'])
 local_fs = PyFsStorage('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']
 
@@ -332,7 +329,6 @@ support_legacy_fs = __config['persistent']['support_legacy_fs']
 data_path2 = __config['persistent']['data_path'] + '/v1'
 if os.path.exists(data_path2):
     log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-    #local_fs2 = open_fs('osfs://' + data_path2)
     local_fs2 = PyFsStorage('osfs://' + data_path2)
 
 else:

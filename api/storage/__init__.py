@@ -1,2 +1,3 @@
-def create_flywheel_fs(url):
-    return FlywheelFs(url)
+def create_flywheel_fs():
+    pass
+    #return storage(url)

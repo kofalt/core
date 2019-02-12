@@ -10,6 +10,7 @@ import bson
 import zipfile
 import datetime
 import os
+import fs
 from abc import ABCMeta, abstractproperty
 
 from .. import config, files, upload, util, validators
@@ -374,7 +375,7 @@ class AnalysesHandler(RefererHandler):
                 elif self.get_param('member') is not None:
                     zip_member = self.get_param('member')
                     try:
-                        with file_system.open(None, file_path, 'rb', None) as f:
+                        with file_system.open(fileinfo.get('_id'), file_path, 'rb', None) as f:
                             with zipfile.ZipFile(f) as zf:
                                 self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                                 self.response.write(zf.open(zip_member).read())
@@ -399,13 +400,13 @@ class AnalysesHandler(RefererHandler):
                     signed_url = None
                     if config.storage.is_signed_url():
                         try:
-                            signed_url = config.storage.get_signed_url(None, file_path,
+                            signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(
                                                           fileinfo.get('mimetype', 'application/octet-stream')))
-                        except fs.errors.ResourceNotFound as e:
-                            pass
+                        except fs.errors.ResourceNotFound:
+                            self.log.error('Error getting signed url for non existing file')
                     if signed_url:
                         self.redirect(signed_url)
 
@@ -433,7 +434,7 @@ class AnalysesHandler(RefererHandler):
                                 self.response.headers['Content-Type'] = 'application/octet-stream'
                                 self.response.headers['Content-Disposition'] = 'attachment; filename="' \
                                                                                + str(filename) + '"'
-                            self.response.body_file = file_system.open(None, file_path, 'rb', None)
+                            self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb', None)
                             self.response.content_length = fileinfo['size']
                         else:
                             self.response.status = 206
@@ -448,7 +449,7 @@ class AnalysesHandler(RefererHandler):
                                                                                                          fileinfo[
                                                                                                              'size'])
 
-                            with file_system.open(None, file_path, 'rb', None) as f:
+                            with file_system.open(fileinfo.get('_id'), file_path, 'rb', None) as f:
                                 for first, last in ranges:
                                     mode = os.SEEK_SET
                                     if first < 0:

@@ -1,3 +1,6 @@
+import hashlib
+
+from api.util import format_hash
 from api.storage.py_fs_storage import PyFsStorage
 
 def test_py_fs_storage():
@@ -65,7 +68,19 @@ def test_py_fs_storage():
     assert d == 'Test in a new deeply nested directory'
     d = f.close()
 
-    data = storage.get_file_info(None, 'test.txt')
-    assert filesize in data
+
+    # Test filesize
+    data = storage.get_file_info(None, u'test.txt')
+    assert 'filesize' in data
 
 
+    # Test hashing of uploaded files.
+    hash_alg = storage._default_hash_alg
+    hasher = hashlib.new(hash_alg)
+    hasher.update(u'Test in a new deeply nested directory')
+    hash_val = hasher.hexdigest()
+    print hash_val
+    hash_val = format_hash(hash_alg, hash_val)
+    print hash_val
+
+    assert hash_val == storage.get_file_hash(None, u'new_nested/nested/test.txt')

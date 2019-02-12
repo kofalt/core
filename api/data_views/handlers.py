@@ -227,7 +227,7 @@ class DataViewHandler(base.RequestHandler):
                     'path': path,
                     'size': config.storage.get_file_info(newUuid, path)['filesize'],
                     'hash': config.storage.get_file_hash(newUuid, path),
-                    '_uuid': newUuid,
+                    'uuid': newUuid,
                     'mimetype': util.guess_mimetype(fileobj.filename),
                     'modified': timestamp
                 })
@@ -235,7 +235,7 @@ class DataViewHandler(base.RequestHandler):
                 file_attrs = upload.make_file_attrs(cgi_field, self.origin)
 
                 # Place the file
-                placer.process_file_field(cgi_field, file_attrs)
+                placer.process_file_field(file_attrs)
                 result = placer.finalize()
 
                 # Write final progress

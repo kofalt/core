@@ -12,17 +12,17 @@ from bson.objectid import ObjectId
 
 def move_file_to_legacy(src, dst):
     target_dir = fs.path.dirname(dst)
-    if not config.local_fs._fs.exists(target_dir):
+    if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
     fs.move.move_file(src_fs=config.storage._fs, src_path=src,
                       dst_fs=config.local_fs._fs, dst_path=dst)
 
 def move_file_to_legacy2(src, dst):
     target_dir = fs.path.dirname(dst)
-    if not config.local_fs2._fs.exists(target_dir):
-        config.local_fs2._fs.makedirs(target_dir)
+    if not config.local_fs2.get_fs().exists(target_dir):
+        config.local_fs2.get_fs().makedirs(target_dir)
     fs.move.move_file(src_fs=config.storage._fs, src_path=src,
-                      dst_fs=config.local_fs2._fs, dst_path=dst)
+                      dst_fs=config.local_fs2.get_fs(), dst_path=dst)
 
 @pytest.fixture(scope='function')
 def migrate_storage(mocker):
@@ -73,10 +73,10 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 
     file_path = unicode(util.path_from_hash(file_hash__1))
     target_dir = fs.path.dirname(file_path)
-    if not config.local_fs._fs.exists(target_dir):
-        config.local_fs._fs.makedirs(target_dir)
+    if not config.local_fs.get_fs().exists(target_dir):
+        config.local_fs.get_fs().makedirs(target_dir)
     fs.move.move_file(src_fs=config.storage._fs, src_path=util.path_from_uuid(file_id_1),
-                      dst_fs=config.local_fs._fs, dst_path=file_path)
+                      dst_fs=config.local_fs.get_fs(), dst_path=file_path)
 
     api_db['gears'].find_one_and_update(
         {'_id': ObjectId(gear_id_1)},
@@ -98,7 +98,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 
     file_path = unicode(util.path_from_uuid(file_id_2))
     target_dir = fs.path.dirname(file_path)
-    if not config.local_fs._fs.exists(target_dir):
+    if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
     fs.move.move_file(src_fs=config.storage._fs, src_path=file_path,
                       dst_fs=config.local_fs._fs, dst_path=file_path)
@@ -344,8 +344,8 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
             {'files.name': file_name_2}
         )['files'][1]['_id']
 
-        assert config.storage._fs.exists(util.path_from_uuid(file_1_id))
-        assert config.storage._fs.exists(util.path_from_uuid(file_2_id))
+        assert config.storage.get_file_info(file_1_id, util.path_from_uuid(file_1_id)) is not None
+        assert config.storage.get_file_info(file_2_id, util.path_from_uuid(file_2_id)) is not None
 
     assert any(log.message == 'Probably the following file has been updated during the migration and its hash is changed, cleaning up from the new filesystem' for log in caplog.records)
 

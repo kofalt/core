@@ -27,6 +27,12 @@ class FileProcessor(object):
 
     def create_new_file(self, filename, options=None):
         """ Create a new block storage file with a unique uuid opened for writing
+    
+        :param self: self reference
+        :param string filename: filename for the new file
+        :param options: Not sure if this is a dict or
+        :rtype FileHasherWriter: Returns the special wrapper so extend that interface as needed
+
         """
         newUuid = str(uuid.uuid4())
         if not filename:
@@ -35,9 +41,9 @@ class FileProcessor(object):
         path = util.path_from_uuid(newUuid)
 
         fileobj = self._persistent_fs.open(newUuid, path, 'wb', options)
-        fileobj.filename = filename;
+        fileobj.filename = filename
         
-        return path, fileobj
+        return path, FileHasherWriter(fileobj)
 
     def process_form(self, request, use_filepath=False, tempdir_name=None):
         """
@@ -82,12 +88,9 @@ class FileProcessor(object):
             fp=request.body_file, environ=env, keep_blank_values=True
         )
 
+        form.file = FileHasherWriter(form.file)
+
         return form
-
-
-    @property
-    def temp_fs(self):
-        return self._temp_fs
 
     @property
     def persistent_fs(self):
@@ -101,12 +104,18 @@ class FileProcessor(object):
 
     def close(self):
         # Cleaning up
-        # We need to keep  temp_fs because files will live there between requests
+        # We need to keep storage because files will live there between requests
         # We will require the placer to clean up files as needed when the request flows are finished
         pass
 
 class FileHasherWriter(object):
-    """File wrapper that hashes while writing to a file"""
+    """File wrapper that hashes while writing to a file
+    
+        This file will not be needed with native cloud object storage but will be good to use for local
+        storage files.  Once we have assigned each file to provider type then we can return this special
+        object only for local files and normal file objects in all other cases
+    
+    """
     def __init__(self, fileobj, hash_alg=None):
         """Create a new file hasher/writer
         
@@ -123,6 +132,26 @@ class FileHasherWriter(object):
     def hash(self):
         """Return the formatted hash of the file"""
         return util.format_hash(self.hash_alg, self.hasher.hexdigest())
+
+    @property
+    def filename(self):
+        return self.fileobj.filename
+    
+    @filename.setter
+    def filename(self, filename):
+        self.fileobj.filename = filename
+    
+    @property
+    def filepath(self):
+        return self.fileobj.filepath
+
+    @property
+    def path(self):
+        return self.fileobj.path
+
+    @path.setter
+    def path(self, path):
+        self.fileobj.path = path
 
     def write(self, data):
         self.fileobj.write(data)
@@ -147,13 +176,15 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
 
         bufsize = 2 ** 20
 
-        _uuid = None
-
         def __init__(self, *args, **kwargs):
 
-            self._uuid = str(uuid.uuid4());
+            self._uuid = str(uuid.uuid4())
         
             cgi.FieldStorage.__init__(self, *args, **kwargs) 
+
+        @property
+        def uuid(self):
+            return self._uuid
 
         def make_file(self, binary=None):
 
@@ -165,13 +196,21 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
                 self.filename = util.sanitize_path(self.filename)
             else:
                 self.filename = os.path.basename(self.filename)
+               
+
 
             # we should move this to a utility function and use it in both places.
             # If this is changed it needs to be adjusted in process_upload in upload.py as well
+            # It also needs to be changed in the placers that assume temp dir locations, only PackFile that I am aware of
             if tempdir_name:
-                self.filepath = tempdir_name + '/' + self._uuid
+                #self.filepath = tempdir_name + '/' + self._uuid
+                # If using the tempdir we assume we are going to pack them up with the original filenames??
+                self.filepath = tempdir_name + '/' + self.filename
             else:
                 self.filepath = util.path_from_uuid(self._uuid)
+
+            # Some placers refernce path and others filepath so we use both to make it work for now
+            self.path = self.filepath
 
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
@@ -264,8 +303,8 @@ def get_file_path(file_info):
 def get_fs_by_file_path(file_path):
     """
     @deprecated
-    This method is only intended to suppor the pyfs storage class. 
-    Once new storage class are implemented this should be moved into the specific file storage attributes
+    This method is only intended to support the pyfs storage class. 
+    Once new storage classes are implemented this should be moved into the specific file attributes
 
     Get the filesystem where the file exists by a valid file path.
     Attempt to serve file from current storage in config.
@@ -274,10 +313,10 @@ def get_fs_by_file_path(file_path):
     still supports the legacy storage, attempt to serve from there.
     """
 
-    # For now this deprected method will assume we are using a Py_FS type storage that has the isfile method.
-    # When we add more native stroage types we will have to store the file system type in the file object and
+    # For now this deprecated method will assume we are using a Py_FS type storage that has the isfile method.
+    # When we add more native storage types we will have to store the file system type in the file object and
     # not rely on this method to determine where its physically located
-    if config.storage._fs.isfile(file_path):
+    if config.storage.get_fs().isfile(file_path):
         return config.storage
 
     elif config.support_legacy_fs and config.local_fs.get_fs().isfile(file_path):
