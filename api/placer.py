@@ -19,12 +19,14 @@ from .web import encoder
 from .web.errors import FileFormException
 
 
+CHUNK_SIZE = 1024
+
 class Placer(object):
     """
     Interface for a placer, which knows how to process files and place them where they belong - on disk and database.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
         self.container_type = container_type
         self.container      = container
         self.id_            = id_
@@ -42,8 +44,6 @@ class Placer(object):
 
         # A list of files that have been saved via save_file() usually returned by finalize()
         self.saved          = []
-
-        self.file_processor = file_processor
 
         # A callable that allows the placer to log access information
         self.access_logger  = access_logger
@@ -197,8 +197,8 @@ class UIDPlacer(Placer):
     ignore_hash_replace = False
 
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
-        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
+        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
         self.metadata_for_file = {}
         self.session_id = None
         self.count = 0
@@ -409,8 +409,8 @@ class TokenPlacer(Placer):
     Is the strategy used between packfile-start and packfile-end
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
-        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
+        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
 
         self.paths  =   []
         self.folder =   None
@@ -449,8 +449,10 @@ class PackfilePlacer(Placer):
     A placer that can accept N files, save them into a zip archive, and place the result on an acquisition.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
-        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
+        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
+
+        self._chunk_size = CHUNK_SIZE
 
         # This endpoint is an SSE endpoint
         self.sse            = True
@@ -491,7 +493,7 @@ class PackfilePlacer(Placer):
 
         try:
             #All the temp_fs stuff is the local_storage assigned to the FileProcessor
-            self.file_processor.temp_fs._fs.isdir(self.folder)
+            config.local_fs.get_fs().isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
 
@@ -543,21 +545,21 @@ class PackfilePlacer(Placer):
 
     def process_file_field(self, field, file_attrs):
         # We need to remove the upload file that was saved direclty to the fs from the form post
-        self.file_processor.temp_fs._fs.remove(self.folder + '/' + field._uuid)
+        config.local_fs.get_fs().remove(self.folder + '/' + field._uuid)
         # Should not be called with any files
         raise Exception('Files must already be uploaded')
 
     def finalize(self):
 
         #This is a special case where temp_fs is the local storage assigned to FileProcessor
-        paths = self.file_processor.temp_fs._fs.listdir(self.folder)
+        paths = config.local_fs.get_fs().listdir(self.folder)
         total = len(paths)
 
         # We create the zip file in the temp file location then get attributes and then move it to the final 
         # location. Otherwise in the cloud instances we would be writing files across the network which would 
         # be much slower
         tempZipPath = self.folder + '/' + str(uuid.uuid4())
-        self.zip_ = zipfile.ZipFile(self.file_processor.temp_fs.open(None, tempZipPath, 'wb', None),
+        self.zip_ = zipfile.ZipFile(config.local_fs.get_fs().open(tempZipPath, 'wb'),
                                     'w', zipfile.ZIP_DEFLATED, allowZip64=True)
         # Write all files to zip
         complete = 0
@@ -565,11 +567,10 @@ class PackfilePlacer(Placer):
             full_path = fs.path.join(self.folder, path)
 
             # Set the file's mtime & atime.
-            self.file_processor.temp_fs._fs.settimes(full_path, self.ziptime, self.ziptime)
+            config.local_fs.get_fs().settimes(full_path, self.ziptime, self.ziptime)
 
             # Place file into the zip folder we created before
-            with self.file_processor.temp_fs.open(None, full_path, 'rb', None) as f:
-                #self.zip_.writestr(fs.path.join(self.dir_, path), f.read())
+            with config.local_fs.get_fs().open(full_path, 'rb') as f:
                 self.zip_.writestr(path, f.read())
 
             # Report progress
@@ -591,10 +592,14 @@ class PackfilePlacer(Placer):
 
         # Finaly move the file from the temp fs to the persistent FS. 
         # We could make this faster using a move if we know its a local to local fs move.
-        with self.file_processor.temp_fs.open(None, tempZipPath, 'rb', None) as (f1
-                ), self.file_processor.persistent_fs.open(token, util.path_from_uuid(token), 'wb', None) as f2:
-            for line in f1:
-                f2.write(line)
+        with config.local_fs.get_fs().open(tempZipPath, 'rb') as (f1
+                ), config.storage.open(token, util.path_from_uuid(token), 'wb', None) as f2:
+            while True:
+                data = f1.read(self._chunk_size)
+                if not data:
+                    break
+                f2.write(data)
+        # I belive these might be automatic inside the with statement
         f1.close()
         f2.close()
 
@@ -603,17 +608,16 @@ class PackfilePlacer(Placer):
         cgi_field = util.obj_from_map({
             'filename': self.name,
             'path': util.path_from_uuid(token),
-            'size': int(self.file_processor.temp_fs._fs.getsize(tempZipPath)),
-            'hash': self.file_processor.hash_file_formatted(tempZipPath, self.file_processor.temp_fs._fs),
+            'size': int(config.local_fs.get_fs().getsize(tempZipPath)),
+            'hash': config.local_fs.get_file_hash(None, tempZipPath),
             'uuid': token,
             'mimetype': util.guess_mimetype('lol.zip'),
             'modified': self.timestamp,
             'zip_member_count': complete
         })
 
-
         # Remove the folder created by TokenPlacer after we calc the needed attributes
-        self.file_processor.temp_fs._fs.removetree(self.folder)
+        config.local_fs.get_fs().removetree(self.folder)
  
         # Similarly, create the attributes map that is consumed by helper funcs. Clear duplication :(
         # This could be coalesced into a single map thrown on file fields, for example.

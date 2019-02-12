@@ -15,21 +15,15 @@ from . import config, util
 DEFAULT_HASH_ALG = 'sha384'
 
 class FileProcessor(object):
-    def __init__(self, persistent_fs, local_tmp_fs=None, tempdir_name=None):
+    def __init__(self, persistent_fs):
+        """
+        File processing service layer object. Handles all file IO
 
+        :param self: self reference
+        :Storage persistent_fs: storage layer supported by flywheel storage class 
 
-        # The only time we have local_tmp_fs is when we also need a temporary directory so that should be the only parameter required
-        if local_tmp_fs and not tempdir_name:
-            raise Exception("When using a local tempfs you must also provide a tempdir name")
-
+        """
         self._persistent_fs = persistent_fs
-        self._temp_fs = None
-        self._tempdir_name = tempdir_name
-
-        if local_tmp_fs:
-            self._temp_fs = local_tmp_fs
-            if not self._temp_fs._fs.exists(tempdir_name):
-                self._temp_fs._fs.makedir(tempdir_name)
 
     def create_new_file(self, filename, options=None):
         """ Create a new block storage file with a unique uuid opened for writing
@@ -42,9 +36,10 @@ class FileProcessor(object):
 
         fileobj = self._persistent_fs.open(newUuid, path, 'wb', options)
         fileobj.filename = filename;
+        
         return path, fileobj
 
-    def process_form(self, request, use_filepath=False):
+    def process_form(self, request, use_filepath=False, tempdir_name=None):
         """
         Some workarounds to make webapp2 process forms in an intelligent way.
         Normally webapp2/WebOb Reqest.POST would copy the entire request stream
@@ -75,12 +70,11 @@ class FileProcessor(object):
         env.setdefault('CONTENT_LENGTH', '0')
         env['QUERY_STRING'] = ''
       
-        # field_storage_class = get_single_file_field_storage(self._temp_fs, use_filepath=use_filepath)
-        # We only need the temp fs for Token and Placer strategy and in both those cases we need the file_path specified as well.
-        # If we link these to the tempdir on file_procesor instantaition it limits the checking we need to do
-
-        if self._temp_fs:
-            field_storage_class = get_single_file_field_storage(self._temp_fs, use_filepath=use_filepath, tempdir_name=self._tempdir_name)
+        # We only use the tempdir_name for Token and Placer strategy
+        if tempdir_name:
+            if not config.local_fs.get_fs().exists(tempdir_name):
+                config.local_fs.get_fs().makedir(tempdir_name)
+            field_storage_class = get_single_file_field_storage(config.local_fs, use_filepath=use_filepath, tempdir_name=tempdir_name)
         else:
             field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
         
@@ -90,26 +84,6 @@ class FileProcessor(object):
 
         return form
 
-
-    def hash_file_formatted(self, filepath, f_system, hash_alg=None, buffer_size=65536):
-        """
-        Return the scitran-formatted hash of a file, specified by path.
-        """
-
-        if not isinstance(filepath, unicode):
-            filepath = six.u(filepath)
-
-        hash_alg = hash_alg or DEFAULT_HASH_ALG
-        hasher = hashlib.new(hash_alg)
-
-        with f_system.open(filepath, 'rb') as f:
-            while True:
-                data = f.read(buffer_size)
-                if not data:
-                    break
-                hasher.update(data)
-
-        return util.format_hash(hash_alg, hasher.hexdigest())
 
     @property
     def temp_fs(self):
@@ -195,21 +169,17 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             # we should move this to a utility function and use it in both places.
             # If this is changed it needs to be adjusted in process_upload in upload.py as well
             if tempdir_name:
-                #TODO: we might need to make dirs in the temp dir if the filename has them, or it might error out. Not sure if pyfs does that for you
                 self.filepath = tempdir_name + '/' + self._uuid
             else:
                 self.filepath = util.path_from_uuid(self._uuid)
 
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
-
-            # if  self.filename and os.path.dirname(self.filename) and not file_system.exists(os.path.dirname(self.filename)):
-            #    file_system.makedirs(os.path.dirname(self.filename))
-
+            
             if type(file_system) is fs.tempfs.TempFS:
                 self.open_file = file_system.open(self.filepath, 'wb')
             else:
-                self.open_file = file_system.open(None, self.filepath, 'wb', None)
+                self.open_file = file_system.open(self._uuid, self.filepath, 'wb', None)
           
             return self.open_file
 
@@ -291,20 +261,12 @@ def get_file_path(file_info):
     return file_path
 
 
-def get_signed_url(file_path, file_system, **kwargs):
-    """ 
-    @deprecated
-    Use the file_processor method instead of this method
-    """
-    try:
-        if hasattr(file_system, 'get_signed_url'):
-            return file_system.get_signed_url(None, file_path, **kwargs)
-    except fs.errors.NoURL:
-        return None
-
-
 def get_fs_by_file_path(file_path):
     """
+    @deprecated
+    This method is only intended to suppor the pyfs storage class. 
+    Once new storage class are implemented this should be moved into the specific file storage attributes
+
     Get the filesystem where the file exists by a valid file path.
     Attempt to serve file from current storage in config.
 
@@ -312,15 +274,17 @@ def get_fs_by_file_path(file_path):
     still supports the legacy storage, attempt to serve from there.
     """
 
-    if config.py_fs._fs.isfile(file_path):
-        return config.py_fs
-        #return config.fs
+    # For now this deprected method will assume we are using a Py_FS type storage that has the isfile method.
+    # When we add more native stroage types we will have to store the file system type in the file object and
+    # not rely on this method to determine where its physically located
+    if config.storage._fs.isfile(file_path):
+        return config.storage
 
-    elif config.support_legacy_fs and config.local_fs._fs.isfile(file_path):
+    elif config.support_legacy_fs and config.local_fs.get_fs().isfile(file_path):
         return config.local_fs
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2._fs.isfile(file_path):
+    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_fs().isfile(file_path):
         return config.local_fs2
     ###
 

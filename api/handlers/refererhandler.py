@@ -397,9 +397,9 @@ class AnalysesHandler(RefererHandler):
                     # IMPORTANT: If you modify the below code reflect the code changes in
                     # listhandler.py:FileListHandler's download method
                     signed_url = None
-                    if config.py_fs.is_signed_url():
+                    if config.storage.is_signed_url():
                         try:
-                            signed_url = config.py_fs.get_signed_url(None, file_path,
+                            signed_url = config.storage.get_signed_url(None, file_path,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(

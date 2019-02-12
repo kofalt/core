@@ -14,14 +14,14 @@ def move_file_to_legacy(src, dst):
     target_dir = fs.path.dirname(dst)
     if not config.local_fs._fs.exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.fs._fs, src_path=src,
+    fs.move.move_file(src_fs=config.storage._fs, src_path=src,
                       dst_fs=config.local_fs._fs, dst_path=dst)
 
 def move_file_to_legacy2(src, dst):
     target_dir = fs.path.dirname(dst)
     if not config.local_fs2._fs.exists(target_dir):
         config.local_fs2._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.fs._fs, src_path=src,
+    fs.move.move_file(src_fs=config.storage._fs, src_path=src,
                       dst_fs=config.local_fs2._fs, dst_path=dst)
 
 @pytest.fixture(scope='function')
@@ -75,7 +75,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs._fs.exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.fs._fs, src_path=util.path_from_uuid(file_id_1),
+    fs.move.move_file(src_fs=config.storage._fs, src_path=util.path_from_uuid(file_id_1),
                       dst_fs=config.local_fs._fs, dst_path=file_path)
 
     api_db['gears'].find_one_and_update(
@@ -100,7 +100,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs._fs.exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.fs._fs, src_path=file_path,
+    fs.move.move_file(src_fs=config.storage._fs, src_path=file_path,
                       dst_fs=config.local_fs._fs, dst_path=file_path)
     gears.append((gear_id_2, file_path))
 
@@ -116,7 +116,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 
     for f_path in files_to_delete:
         try:
-            config.fs._fs.remove(f_path)
+            config.storage._fs.remove(f_path)
         except:
             pass
 
@@ -188,7 +188,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     # Delete the files
     for f in files:
         try:
-            config.fs._fs.remove(util.path_from_uuid(f['_id']))
+            config.storage._fs.remove(util.path_from_uuid(f['_id']))
         except:
             pass
 
@@ -344,8 +344,8 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
             {'files.name': file_name_2}
         )['files'][1]['_id']
 
-        assert config.fs._fs.exists(util.path_from_uuid(file_1_id))
-        assert config.fs._fs.exists(util.path_from_uuid(file_2_id))
+        assert config.storage._fs.exists(util.path_from_uuid(file_1_id))
+        assert config.storage._fs.exists(util.path_from_uuid(file_2_id))
 
     assert any(log.message == 'Probably the following file has been updated during the migration and its hash is changed, cleaning up from the new filesystem' for log in caplog.records)
 

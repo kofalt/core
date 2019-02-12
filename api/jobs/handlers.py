@@ -325,7 +325,8 @@ class GearHandler(base.RequestHandler):
         })
         signed_url = None
         if file_system.is_signed_url():
-            signed_url = files.get_signed_url(file_path, file_system, filename='gear.tar', attachment=True, response_type='application/octet-stream')
+            #signed_url = files.get_signed_url(file_path, file_system, filename='gear.tar', attachment=True, response_type='application/octet-stream')
+            signed_url = file_system.get_signed_url(None, file_path)
         if signed_url:
             self.redirect(signed_url)
         else:
