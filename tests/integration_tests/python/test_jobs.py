@@ -111,6 +111,29 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert r.ok
     assert r.json()['logs'] == []
 
+    # get job as admin without permissions to destination
+    admin_id = as_admin.get('/users/self').json()['_id']
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.delete('/projects/' + project + '/permissions/' + admin_id).ok
+
+    r = as_admin.get('/jobs/' + job1_id + '/logs')
+    assert r.ok
+
+    assert as_root.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': admin_id
+    }).ok
+
+    # make sure user with permissions to the project can view it
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    }).ok
+
+    r = as_user.get('/jobs/' + job1_id + '/logs')
+    assert r.ok
+    assert as_admin.delete('/projects/' + project + '/permissions/' + user_id).ok
+
     # try to add job log w/o root
     # needed to use as_user because root = true for as_admin
     job_logs = [{'fd': 1, 'msg': 'Hello'}, {'fd': 2, 'msg': 'World'}]

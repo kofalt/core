@@ -803,7 +803,7 @@ class JobHandler(base.RequestHandler):
             self.abort(404, 'Job not found')
 
         # Permission check
-        if not self.superuser_request:
+        if not self.user_is_admin:
             if job.inputs is not None:
                 for x in job.inputs:
                     if hasattr(job.inputs[x], 'check_access'):
