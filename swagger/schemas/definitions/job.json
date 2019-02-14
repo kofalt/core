@@ -430,8 +430,17 @@
         }
       },
       "additionalProperties":false,
-      "required": [ ],
       "description": "An object describing characteristics to match on gears"
+    },
+    "job-ask-return": {
+      "type": "object",
+      "properties": {
+        "jobs":   { "type": "integer" },
+        "peek":   { "type": "boolean" },
+        "states": { "type": "boolean" }
+      },
+      "additionalProperties":false,
+      "description": "Which sorts of return values to receive from ask"
     },
     "job-ask": {
       "type": "object",
@@ -450,14 +459,7 @@
           "description": "A set of capabilities that must be a superset of matched jobs"
         },
         "return": {
-          "type": "object",
-          "properties": {
-            "jobs":   { "type": "integer" },
-            "peek":   { "type": "boolean" },
-            "states": { "type": "boolean" }
-          },
-          "additionalProperties":false,
-          "required": [ ],
+          "$ref":"#/definitions/job-ask-return",
           "description": "Which sorts of return values to receive from ask"
         }
       },
