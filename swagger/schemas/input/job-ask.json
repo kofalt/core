@@ -1,0 +1,23 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf": [{"$ref": "../definitions/job.json#/definitions/job-ask"}],
+    "example": {
+        "whitelist": {
+            "group": [],
+            "gear-name": [],
+            "tag": []
+        },
+        "blacklist": {
+            "group": [],
+            "gear-name": [],
+            "tag": []
+        },
+        "capabilities": [],
+        "return": {
+            "jobs": 0,
+            "peek": true,
+            "states": true
+        }
+    }
+}

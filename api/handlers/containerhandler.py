@@ -155,7 +155,7 @@ class ContainerHandler(base.RequestHandler):
                         [('analysis', an['_id']) for an in analyses] +
                         [('acquisition', aq['_id']) for aq in acquisitions]
                     ]
-        jobs = Queue.search(cont_refs, states=states, tags=tags)
+        jobs = Queue.search_containers(cont_refs, states=states, tags=tags)
 
         unique_jobs = {}
         gear_ids = set()

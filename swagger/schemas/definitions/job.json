@@ -410,6 +410,61 @@
       },
       "required": ["config", "destination", "inputs"]
     },
+    "job-gear-match": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "A set of groups that are in the hierarchy of an input or destination"
+        },
+        "gear-name": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "A set of gear.name matches"
+        },
+        "tag": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "A set of job.tags matches"
+        }
+      },
+      "additionalProperties":false,
+      "required": [ ],
+      "description": "An object describing characteristics to match on gears"
+    },
+    "job-ask": {
+      "type": "object",
+      "properties": {
+        "whitelist": {
+          "$ref":"#/definitions/job-config-inputs",
+          "description": "Properties that must match against jobs"
+        },
+        "blacklist": {
+          "$ref":"#/definitions/job-config-inputs",
+          "description": "Properties that must NOT match against jobs"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "A set of capabilities that must be a superset of matched jobs"
+        },
+        "return": {
+          "type": "object",
+          "properties": {
+            "jobs":   { "type": "integer" },
+            "peek":   { "type": "boolean" },
+            "states": { "type": "boolean" }
+          },
+          "additionalProperties":false,
+          "required": [ ],
+          "description": "Which sorts of return values to receive from ask"
+        }
+      },
+      "additionalProperties":false,
+      "required": [ "whitelist", "blacklist", "capabilities", "return" ],
+      "description": "Describes how a job should be transitioned after outputs have been uploaded"
+    },
     "job-completion-input": {
       "type": "object",
       "properties": {

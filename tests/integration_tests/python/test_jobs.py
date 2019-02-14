@@ -10,9 +10,6 @@ def test_jobs_access(as_user):
     r = as_user.get('/jobs/stats')
     assert r.status_code == 403
 
-    r = as_user.get('/jobs/pending')
-    assert r.status_code == 403
-
     r = as_user.post('/jobs/reap')
     assert r.status_code == 403
     r = as_user.get('/jobs/test-job')
@@ -445,10 +442,6 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     api_db.jobs.delete_one({"_id": bson.ObjectId("5a007cdb0f352600d94c845f")})
 
     r = as_admin.get('/jobs/stats')
-    assert r.ok
-    r = as_admin.get('/jobs/pending')
-    assert r.ok
-    r = as_admin.get('/jobs/pending', params={'tags': 'auto,unused'})
     assert r.ok
     r = as_admin.get('/jobs/stats', params={'all': '1'})
     assert r.ok

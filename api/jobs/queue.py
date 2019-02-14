@@ -6,6 +6,7 @@ import bson
 import copy
 import pymongo
 import datetime
+import json
 
 from .. import config
 from .jobs import Job, Logs, JobTicket
@@ -81,7 +82,7 @@ class Queue(object):
             if mutation['state'] == 'running':
 
                 # !!!
-                # !!! DUPE WITH Queue.start_job
+                # !!! DUPE WITH Queue.run_jobs_with_query
                 # !!!
 
                 mutation['request'] = job.generate_request(get_gear(job.gear_id))
@@ -176,7 +177,6 @@ class Queue(object):
             log.info('updated batch job list, replacing {} with {}'.format(job.id_, new_id))
 
         return new_id
-
 
     @staticmethod
     def enqueue_job(job_map, origin, perm_check_uid=None):
@@ -361,29 +361,141 @@ class Queue(object):
         return job
 
     @staticmethod
-    def start_job(tags=None, peek=False):
+    def ask(query):
         """
-        Atomically change a 'pending' job to 'running' and returns it. Updates timestamp.
-        Will return None if there are no jobs to offer. Searches for jobs in FIFO order.
+        Ask the queue a question. This can result in starting jobs, statistics, or both.
 
-        Potential jobs must match at least one tag, if provided.
+        {
+            "whitelist": {
+                "group": [],
+                "gear-name": [],
+                "tag": [],
+            },
+            "blacklist": {
+                "group": [],
+                "gear-name": [],
+                "tag": [],
+            },
+            "capabilities": [],
+            "return": {
+                "jobs": int,
+                "peek": true,
+                "states": true,
+            }
+        }
+
+        {
+            "jobs": [],
+            "states": {},
+        }
         """
 
-        if tags is None:
-            tags = []
+        peek  = query['return'].get('peek',   False)
+        jobs  = query['return'].get('jobs',   0)
+        stats = query['return'].get('states', False)
 
-        inclusive_tags = filter(lambda x: not x.startswith('!'), tags)
-        exclusive_tags =  map(lambda x: x[1:], filter(lambda x: x.startswith('!'), tags)) # strip the '!' prefix
+        result = {}
 
-        query = { 'state': 'pending' }
+        if jobs <= 0 and not stats:
+            raise InputValidationException('Not asking for work or stats')
 
-        if len(inclusive_tags) > 0 or len(exclusive_tags) > 0:
-            query['tags'] = {}
+        if jobs > 0:
+            result['jobs'] = Queue.start_jobs(jobs, query['whitelist'], query['blacklist'], query['capabilities'], peek)
+        if stats:
+            result['states'] = Queue.job_states(query['whitelist'], query['blacklist'], query['capabilities'])
 
-        if len(inclusive_tags) > 0:
-            query['tags']['$in']  = inclusive_tags
-        if len(exclusive_tags) > 0:
-            query['tags']['$nin'] = exclusive_tags
+        return result
+
+    @staticmethod
+    def lists_to_query(whitelist, blacklist):
+        """
+        Translate a whitelist and blacklist to job database query.
+        """
+
+        match = {
+            'group': {},
+            'gear-name': {},
+            'tag': {},
+        }
+
+        # Fill out the request
+        for xlist in [whitelist, blacklist]:
+            # Mongo operator
+            modifier = '$in' if xlist is whitelist else '$nin'
+
+            for key in ['group', 'gear-name', 'tag']:
+                if xlist.get(key):
+                    match[key][modifier] = xlist[key]
+
+        query = {}
+
+        # Translate to mongo keys
+        if match['group']:
+            query['parents.group'] = match['group']
+        if match['gear-name']:
+            query['gear_info.name'] = match['gear-name']
+        if match['tag']:
+            query['tags'] = match['tag']
+
+        log.info('Job query is: %s', json.dumps(query))
+        return query
+
+    @staticmethod
+    def start_jobs(max_jobs, whitelist, blacklist, capabilities, peek):
+        """
+        Atomically change up to N jobs from pending to running.
+
+        Will return empty array if there are no jobs to offer. Searches for jobs in FIFO order.
+        """
+
+        if len(capabilities) > 1:
+            raise InputValidationException('Capabilities not supported')
+
+        query = Queue.lists_to_query(whitelist, blacklist)
+        return Queue.run_jobs_with_query(max_jobs, query, peek)
+
+    @staticmethod
+    def job_states(whitelist, blacklist, capabilities):
+        """
+        Return job state count for a given set of parameters.
+        """
+
+        if len(capabilities) > 1:
+            raise InputValidationException('Capabilities not supported')
+
+        query = Queue.lists_to_query(whitelist, blacklist)
+
+        # Pipeline aggregation
+        result = list(config.db.jobs.aggregate([
+            {'$match': query },
+            {'$group': {
+                '_id': '$state',
+                'count': {'$sum': 1}}
+            }
+        ]))
+
+        # Map the mongo result to something useful
+        by_state = {s: 0 for s in JOB_STATES}
+        by_state.update({r['_id']: r['count'] for r in result})
+
+        return by_state
+
+    @staticmethod
+    def run_jobs_with_query(max_jobs, query, peek=False):
+        """
+        Given a database query, transitions up to N jobs from pending to running.
+
+        Will return empty array if there are no jobs to offer. Searches for jobs in FIFO order.
+        """
+
+        if max_jobs > 1:
+            raise InputValidationException('Starting multiple jobs not supported')
+        if max_jobs < 1:
+            raise InputValidationException('Must start at least one job')
+        if peek and max_jobs > 1:
+            raise InputValidationException('Cannot peek more than one job')
+
+        query['state'] = 'pending'
 
         now = datetime.datetime.utcnow()
         modification = { '$set': {
@@ -405,7 +517,7 @@ class Queue(object):
         )
 
         if result is None:
-            return None
+            return []
 
         job = Job.load(result)
 
@@ -414,12 +526,12 @@ class Queue(object):
             for key in gear['gear']['inputs']:
                 if gear['gear']['inputs'][key] == 'api-key':
                     # API-key gears cannot be peeked
-                    return None
+                    return []
 
         # Return if there is a job request already
         if job.request is not None:
             log.info('Job %s already has a request, so not generating', job.id_)
-            return job
+            return [job]
 
         # Create a new request formula
         # !!!
@@ -430,7 +542,7 @@ class Queue(object):
 
         if peek:
             job.request = request
-            return job
+            return [job]
 
         # Save and return
         result = config.db.jobs.find_one_and_update(
@@ -449,10 +561,10 @@ class Queue(object):
         Logs.add_system_logs(job.id_, 'Gear Name: {}, Gear Version: {}\n'.format(gear['gear']['name'], gear['gear']['version']))
         log.info('Starting Job {}. Gear Name: {}, Gear Version: {}'.format(job.id_, gear['gear']['name'], gear['gear']['version']))
 
-        return Job.load(result)
+        return [Job.load(result)]
 
     @staticmethod
-    def search(containers, states=None, tags=None):
+    def search_containers(containers, states=None, tags=None):
         """
         Search the queue for jobs that mention at least one of a set of containers and (optionally) match some set of states or tags.
 
@@ -483,67 +595,6 @@ class Queue(object):
         return config.db.jobs.find(query).sort([
             ('modified', pymongo.DESCENDING)
         ])
-
-    @staticmethod
-    def get_statistics(tags=None, last=None, unique=False, all_flag=False):
-        """
-        Return a variety of interesting information about the job queue.
-        """
-
-        if all_flag:
-            unique = True
-            if last is None:
-                last = 3
-
-        results = { }
-        query = { } # match all jobs
-
-        if tags is None:
-            tags = []
-
-        inclusive_tags = filter(lambda x: not x.startswith('!'), tags)
-        exclusive_tags =  map(lambda x: x[1:], filter(lambda x: x.startswith('!'), tags)) # strip the '!' prefix
-
-        if len(inclusive_tags) > 0 or len(exclusive_tags) > 0:
-            query['tags'] = {}
-
-        if len(inclusive_tags) > 0:
-            query['tags']['$in']  = inclusive_tags
-        if len(exclusive_tags) > 0:
-            query['tags']['$nin'] = exclusive_tags
-
-        # Count jobs by state, mapping the mongo result to a useful object
-        result = list(config.db.jobs.aggregate([{'$match': query }, {'$group': {'_id': '$state', 'count': {'$sum': 1}}}]))
-        by_state = {s: 0 for s in JOB_STATES}
-        by_state.update({r['_id']: r['count'] for r in result})
-        results['states'] = by_state
-
-        # List unique tags
-        if unique:
-            results['unique'] = sorted(config.db.jobs.distinct('tags'))
-
-        # List recently modified jobs for each state
-        if last is not None:
-            results['recent'] = {s: config.db.jobs.find({'$and': [query, {'state': s}]}, {'modified':1}).sort([('modified', pymongo.DESCENDING)]).limit(last) for s in JOB_STATES}
-
-        return results
-
-    @staticmethod
-    def get_pending(tags=None):
-        """
-        Returns the same format as get_statistics, but only the pending number.
-        Designed to be as efficient as possible for frequent polling :(
-        """
-
-        match = { } # match all jobs
-        if tags is not None and len(tags) > 0:
-            match = { 'tags': {'$in': tags } } # match only jobs with given tags
-
-        return {
-            'states': {
-                'pending': config.db.jobs.count({'$and': [match, {'state': 'pending'}]})
-            }
-        }
 
     @staticmethod
     def scan_for_orphans():
@@ -598,3 +649,84 @@ class Queue(object):
                 Logs.add_system_logs(j.id_, 'Retried job as ' + str(new_id) if new_id else 'Job retries exceeded maximum allowed')
 
         return orphaned
+
+    #
+    # Legacy calls, to be removed later
+    #
+
+    @staticmethod
+    def legacy_tag_parse(tags=None):
+        """
+        Translates the old tag  format to the newer whitelist / blacklist format.
+
+        Older job methods used a '!' prefix to denote exclusive (blacklisted) tags.
+        """
+
+        if tags is None:
+            tags = []
+
+        inclusive_tags = filter(lambda x: not x.startswith('!'), tags)
+        exclusive_tags =  map(lambda x: x[1:], filter(lambda x: x.startswith('!'), tags)) # strip the '!' prefix
+
+        whitelist = { }
+        blacklist = { }
+
+        if len(inclusive_tags) > 0:
+            whitelist['tag'] = inclusive_tags
+        if len(exclusive_tags) > 0:
+            blacklist['tag'] = exclusive_tags
+
+        return whitelist, blacklist
+
+    @staticmethod
+    def start_job_parsing_tags(tags=None, peek=False):
+        """
+        Calls start_jobs with only 1 job, parsing the old, !-prefixed variant of tag blacklisting.
+        Will return None if there are no jobs to offer. Searches for jobs in FIFO order.
+        """
+
+        whitelist, blacklist = Queue.legacy_tag_parse(tags)
+        capabilities = []
+
+        result = Queue.start_jobs(1, whitelist, blacklist, capabilities, peek)
+
+        if len(result) == 0:
+            return None
+        elif len(result) != 1:
+            raise Exception('Expected start_jobs with max_jobs 1 to return 0 or 1 jobs')
+        else:
+            return result[0]
+
+    @staticmethod
+    def get_statistics(tags=None, last=None, unique=False, all_flag=False):
+        """
+        Return a variety of interesting information about the job queue.
+        """
+
+        if all_flag:
+            unique = True
+            if last is None:
+                last = 3
+
+        whitelist, blacklist = Queue.legacy_tag_parse(tags)
+        capabilities = []
+
+        results = { }
+        results['states'] = Queue.job_states(whitelist, blacklist, capabilities)
+
+        # List unique tags
+        if unique:
+            results['unique'] = sorted(config.db.jobs.distinct('tags'))
+
+        # List recently modified jobs for each state
+        if last is not None:
+            results['recent'] = {s: config.db.jobs.find({
+                '$and': [
+                    Queue.lists_to_query(whitelist, blacklist),
+                    {'state': s}
+                ]
+                }, {
+                    'modified':1
+                }).sort([('modified', pymongo.DESCENDING)]).limit(last) for s in JOB_STATES}
+
+        return results
