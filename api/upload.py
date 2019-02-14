@@ -87,16 +87,6 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
 
     # The vast majority of this function's wall-clock time is spent here.
-    
-   
-    # Technically temp file necesity could be inferred from the strategy but we need the tempdir anyway
-    #needsTempFile = ['token', 'packfile']
-    #if strategy in needsTempFile:
-    #    local_tmp_fs = config.local_fs
-    #    ##It is now assumed that local_fs is always going to be an OSFS object
-
-
-    # file_processor = files.FileProcessor(config.storage, local_tmp_fs, tempdir_name=tempdir)
     file_processor = files.FileProcessor(config.storage)
 
     if not file_fields:
@@ -149,9 +139,6 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             filePath = field.filepath
             #Some placers need this value. Consistent object would be nice
             field.path = filePath
-        #if not filePath:
-        #    raise Exception('File path was not set')
-
 
         # we can get the size from the file on disk but we need to know which fs its stored on.
         if tempdir:
@@ -223,7 +210,6 @@ class Upload(base.RequestHandler):
             signed_urls[filename] = signed_url[0]
             filedata[filename] = {
                 'url': signed_url[0],
-                #'url': config.storage.get_signed_url(None, tempdir + '/' + newUuid, purpose='upload'),
                 'uuid': newUuid,
                 'filepath': util.path_from_uuid(newUuid)
             }
@@ -271,12 +257,10 @@ class Upload(base.RequestHandler):
                         'filepath': values['filepath']
                     })
                 )
-            # IN this case we saved the files to the uuid location they are assigned on signed url storage
-            # Technically we dont need the tempdir since its not used if we provide file_fields
+            # In this case we saved the files to the uuid location they are assigned on signed url storage
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                   context=context, file_fields=file_fields, 
                                   tempdir=None)
-                                  #tempdir=ticket['tempdir'])
         else:
             # In this case we are going to save the files to direct locations from the reqeust post.
             return process_upload(self.request, strategy, self.log_user_access, origin=self.origin, context=context)
@@ -397,7 +381,7 @@ def make_file_attrs(field, origin):
     # create a file-attribute map commonly used elsewhere in the codebase.
     # Stands in for a dedicated object... for now.
     
-    # Not all placers need the path attribut and if they are using UUID it can be inferred
+    # Not all placers need the path attribute and if they are using UUID it can be inferred
     # Once this get strandardized into a model class we can clean up the specifics
     path = None
     if hasattr(field, 'path'):

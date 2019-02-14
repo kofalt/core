@@ -434,15 +434,12 @@ class TokenPlacer(Placer):
         #
         # It must be kept in sync between each instance.
 
-        #This logic assumes temp files are placed in a directory that is named after the token.
         self.folder = token
-        # Folder is created because we load the file_processer to use a temp file with the token uuid as a param
-        # we only work with temp fs when using token placer
+        # we only work with local fs when using token placer
 
     def process_file_field(self, file_attrs):
 
         self.saved.append(file_attrs)
-        #self.paths.append(field.path)
         self.paths.append(file_attrs['path'])
 
     def finalize(self):
@@ -499,7 +496,7 @@ class PackfilePlacer(Placer):
         self.folder = token
 
         try:
-            #All the temp_fs stuff is the local_storage assigned to the FileProcessor
+            # Always on the local fs to make the pack file
             config.local_fs.get_fs().isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
@@ -551,20 +548,16 @@ class PackfilePlacer(Placer):
 
 
     def process_file_field(self, file_attrs):
-        # We need to remove the upload file that was saved direclty to the fs from the form post
-        #config.local_fs.get_fs().remove(self.folder + '/' + field._uuid)
-        # TODO I belive we could trust the filepath at this point. This will show up in integration testing
+        # Should not be called with any files but if it was then 
+        # remove the upload file that was saved direclty to storage from the form post
         config.local_fs.get_fs().remove(self.folder + '/' + file_attrs['name'])
-        # Should not be called with any files
         raise Exception('Files must already be uploaded')
 
     def finalize(self):
-
-        #This is a special case where temp_fs is the local storage assigned to FileProcessor
         paths = config.local_fs.get_fs().listdir(self.folder)
         total = len(paths)
 
-        # We create the zip file in the temp file location then get attributes and then move it to the final 
+        # We create the zip file in the local storage location then get attributes and then move it to the final 
         # location. Otherwise in the cloud instances we would be writing files across the network which would 
         # be much slower
         tempZipPath = self.folder + '/' + str(uuid.uuid4())
@@ -600,7 +593,7 @@ class PackfilePlacer(Placer):
             'id': uid
         }
 
-        # Finaly move the file from the temp fs to the persistent FS. 
+        # Finaly move the file from the local fs to the persistent FS. 
         # We could make this faster using a move if we know its a local to local fs move.
         with config.local_fs.get_fs().open(tempZipPath, 'rb') as (f1
                 ), config.storage.open(token, util.path_from_uuid(token), 'wb', None) as f2:
@@ -610,19 +603,9 @@ class PackfilePlacer(Placer):
                     break
                 f2.write(data)
 
-        # Create an anyonmous object in the style of our augmented file fields.
-        # Not a great practice. See process_upload() for details.
-        cgi_field = util.obj_from_map({
-            'filename': self.name,
-            'path': util.path_from_uuid(token),
-            'size': int(config.local_fs.get_fs().getsize(tempZipPath)),
-            'hash': config.local_fs.get_file_hash(None, tempZipPath),
-            'uuid': token,
-            'mimetype': util.guess_mimetype('lol.zip'),
-            'modified': self.timestamp,
-            'zip_member_count': complete
-        })
-
+        size = config.local_fs.get_file_info(token, tempZipPath)['filesize']
+        hash_ = config.local_fs.get_file_hash(None, tempZipPath),
+       
         # Remove the folder created by TokenPlacer after we calc the needed attributes
         config.local_fs.get_fs().removetree(self.folder)
  
@@ -630,14 +613,14 @@ class PackfilePlacer(Placer):
         # This could be coalesced into a single map thrown on file fields, for example.
         # Used in the API return.
         cgi_attrs = {
-            '_id': cgi_field.uuid,
-            'name': cgi_field.filename,
-            'modified': cgi_field.modified,
-            'size': cgi_field.size,
+            '_id': token,
+            'name': self.name,
+            'modified': self.timestamp,
+            'path' : util.path_from_uuid(token),
+            'size': size,
             'zip_member_count': complete,
-            'hash': cgi_field.hash,
-            'mimetype': cgi_field.mimetype,
-
+            'hash': hash_,
+            'mimetype': util.guess_mimetype('lol.zip'),
             'type': self.metadata['packfile']['type'],
 
             # OPPORTUNITY: packfile endpoint could be extended someday to take additional metadata.

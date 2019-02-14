@@ -4,6 +4,7 @@ import json
 import six
 import hashlib
 import uuid
+import datetime
 
 import fs.move
 import fs.tempfs
@@ -91,6 +92,29 @@ class FileProcessor(object):
         form.file = FileHasherWriter(form.file)
 
         return form
+
+
+    def create_file_fields(self, filename, filepath, size, hash_, uuid_=None, mimetype=None, modified=None):
+        """
+        Creates a standard object with the required fields for processing via placers.
+        This will be replaced with a standardized file model in the future
+        """
+        if not modified:
+            modified = datetime.datetime.utcnow()
+        if not mimetype:
+            mimetype = util.guess_mimetype(filename)
+        
+        return util.obj_from_map({
+            'uuid': uuid_,
+            'filename': filename,
+            'path': filepath,
+            'filepath': filepath, # Some placers use path others use filepath
+            'size': size,
+            'hash': hash_,
+            'mimetype': mimetype,
+            'modified': modified
+        })
+
 
     @property
     def persistent_fs(self):
@@ -199,17 +223,15 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
                
 
 
-            # we should move this to a utility function and use it in both places.
-            # If this is changed it needs to be adjusted in process_upload in upload.py as well
-            # It also needs to be changed in the placers that assume temp dir locations, only PackFile that I am aware of
+            # move this to a utility function and use it in both places.
+            # It needs to be changed in the placers that assume temp dir locations, only PackFile that I am aware of
             if tempdir_name:
-                #self.filepath = tempdir_name + '/' + self._uuid
-                # If using the tempdir we assume we are going to pack them up with the original filenames??
+                # If using the tempdir we assume we are going to pack them up with the original filenames
                 self.filepath = tempdir_name + '/' + self.filename
             else:
                 self.filepath = util.path_from_uuid(self._uuid)
 
-            # Some placers refernce path and others filepath so we use both to make it work for now
+            # Some placers reference path and others filepath so we use both to make it work for now
             self.path = self.filepath
 
             if not isinstance(self.filepath, unicode):
@@ -313,19 +335,20 @@ def get_fs_by_file_path(file_path):
     still supports the legacy storage, attempt to serve from there.
     """
 
-    # For now this deprecated method will assume we are using a Py_FS type storage that has the isfile method.
     # When we add more native storage types we will have to store the file system type in the file object and
     # not rely on this method to determine where its physically located
-    if config.storage.get_fs().isfile(file_path):
+    if config.storage.get_file_info(None, file_path):
         return config.storage
 
-    elif config.support_legacy_fs and config.local_fs.get_fs().isfile(file_path):
+    elif config.support_legacy_fs and config.local_fs.get_file_info(None, file_path):
         return config.local_fs
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_fs().isfile(file_path):
+    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_file_info(None, file_path):
         return config.local_fs2
     ###
 
     else:
         raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
+
+
