@@ -485,7 +485,7 @@ class FileListHandler(ListHandler):
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
                 except fs.errors.ResourceNotFound:
-                    self.log('Error getting signed_url on non existing file')
+                    self.log.error('Error getting signed_url on non existing file')
             
             if signed_url:
                 self.redirect(signed_url)

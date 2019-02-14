@@ -5,7 +5,7 @@ import datetime
 from elasticsearch import ElasticsearchException, TransportError, RequestError, helpers
 from ..files import FileProcessor
 from ..placer import TargetedMultiPlacer
-from .. import util, upload
+from .. import upload
 
 from ..web import base
 from .. import config, validators
@@ -708,17 +708,9 @@ class DataExplorerHandler(base.RequestHandler):
             metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
         
         fileobj.close()
-        # Not a great practice. See process_upload() for details.
-        cgi_field = util.obj_from_map({
-            'filename': output_filename,
-            'path': fileobj.path,
-            'size': fileobj.size,
-            'hash': fileobj.hash,
-            'uuid': fileobj.filename,
-            'mimetype': util.guess_mimetype(output_filename),
-            'modified': timestamp
-        })
-        file_attrs = upload.make_file_attrs(cgi_field, self.origin)
+
+        file_fields = file_processor.create_file_fields(output_filename, fileobj.path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
+        file_attrs = upload.make_file_attrs(file_fields, self.origin)
 
         # Place the file
         placer.process_file_field(file_attrs)

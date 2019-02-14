@@ -1,6 +1,6 @@
 from ..auth import require_login
 
-from .. import config, validators, util
+from .. import config, validators
 from ..auth import containerauth
 from ..dao import noop
 from ..dao.containerstorage import ContainerStorage
@@ -221,18 +221,17 @@ class DataViewHandler(base.RequestHandler):
                 placer = TargetedMultiPlacer(target_container_type, target_container, target_container['_id'],
                     metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
                 
-                # Not a great practice. See process_upload() for details.
-                cgi_field = util.obj_from_map({
-                    'filename': fileobj.filename,
-                    'path': path,
-                    'size': config.storage.get_file_info(newUuid, path)['filesize'],
-                    'hash': config.storage.get_file_hash(newUuid, path),
-                    'uuid': newUuid,
-                    'mimetype': util.guess_mimetype(fileobj.filename),
-                    'modified': timestamp
-                })
-
-                file_attrs = upload.make_file_attrs(cgi_field, self.origin)
+                file_fields = file_processor.create_file_fields(
+                    fileobj.filename, 
+                    path,
+                    config.storage.get_file_info(newUuid, path)['filesize'],
+                    config.storage.get_file_hash(newUuid, path),
+                    uuid_=newUuid, 
+                    mimetype=None,
+                    modified=timestamp
+                )
+                
+                file_attrs = upload.make_file_attrs(file_fields, self.origin)
 
                 # Place the file
                 placer.process_file_field(file_attrs)
