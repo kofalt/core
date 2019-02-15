@@ -136,13 +136,12 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
         #We can trust the filepath on upload is accurate after form processing
         if hasattr(field, 'filepath'):
-            filePath = field.filepath
             #Some placers need this value. Consistent object would be nice
-            field.path = filePath
+            field.path = field.filepath
 
         # we can get the size from the file on disk but we need to know which fs its stored on.
         if tempdir:
-            field.size = int(config.local_fs.get_fs().getsize(filePath))
+            field.size = int(config.local_fs.get_fs().getsize(field.filepath))
         else:
             field.size = (config.storage.get_file_info(None, util.path_from_uuid(field.uuid)))['filesize']
         
