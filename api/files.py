@@ -35,13 +35,13 @@ class FileProcessor(object):
         :rtype FileHasherWriter: Returns the special wrapper so extend that interface as needed
 
         """
-        newUuid = str(uuid.uuid4())
+        new_uuid = str(uuid.uuid4())
         if not filename:
-            filename = newUuid
+            filename = new_uuid
 
-        path = util.path_from_uuid(newUuid)
+        path = util.path_from_uuid(new_uuid)
 
-        fileobj = self._persistent_fs.open(newUuid, path, 'wb', options)
+        fileobj = self._persistent_fs.open(new_uuid, path, 'wb', options)
         fileobj.filename = filename
         
         return path, FileHasherWriter(fileobj)
