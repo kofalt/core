@@ -46,6 +46,7 @@ CONTAINER_HIERARCHY = [
 CHILD_FROM_PARENT = {p: CONTAINER_HIERARCHY[ind+1] for ind, p in enumerate(CONTAINER_HIERARCHY[:-1] )}
 PARENT_FROM_CHILD = {c: CONTAINER_HIERARCHY[ind]   for ind, c in enumerate(CONTAINER_HIERARCHY[1:]  )}
 
+NON_OBJECT_ID_COLLECTIONS = ['groups', 'users']
 
 def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
     """
@@ -376,9 +377,22 @@ def container_search(query, projection=None, collections=PLURAL_CONT_TYPES, earl
     """
     results = []
 
+    # Create a bson query for non group collections
+    bson_query = copy.deepcopy(query)
+    if bson_query.get('_id') and not isinstance(bson_query['_id'], bson.ObjectId):
+        if len(bson_query['_id']) == 24 and bson.ObjectId.is_valid(bson_query['_id']):
+            bson_query['_id'] = bson.ObjectId(bson_query['_id'])
+        else:
+            bson_query = None
+
+
     for coll_name in collections:
         coll = config.db.get_collection(coll_name)
-        coll_results = list(coll.find(query, projection, **kwargs))
+        coll_results = []
+        if coll_name in NON_OBJECT_ID_COLLECTIONS and query.get('_id'):
+            coll_results = list(coll.find(query, projection, **kwargs))
+        elif bson_query:
+            coll_results = list(coll.find(bson_query, projection, **kwargs))
 
         if coll_results:
             results.append( (coll_name, coll_results) )

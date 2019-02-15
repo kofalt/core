@@ -1669,3 +1669,11 @@ def test_abstract_containers(data_builder, as_admin, file_form):
 
         r = as_admin.get('/containers/' + cont)
         assert r.status_code == 404
+
+    # test 12 char group_ids
+    group_id = 'neuroscience'
+    group = data_builder.create_group(_id=group_id)
+
+    r = as_admin.get('/containers/' + group_id)
+    assert r.ok
+

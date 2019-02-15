@@ -1,4 +1,3 @@
-from bson import ObjectId
 from webapp2 import Request
 
 from ..dao.containerutil import container_search, singularize
@@ -18,9 +17,6 @@ class AbstractContainerHandler(base.RequestHandler):
         For example:
             /containers/x/files --> x is a project ID --> /projects/x/files
         """
-
-        if ObjectId.is_valid(cid):
-            cid = ObjectId(cid)
 
         results = container_search({'_id': cid}, projection={'_id': 1})
         if not results:
