@@ -204,13 +204,13 @@ class Upload(base.RequestHandler):
         signed_urls = {}
         filedata = {}
         for filename in filenames:
-            newUuid = str(uuid.uuid4())
-            signed_url = config.storage.get_signed_url(None, util.path_from_uuid(newUuid), purpose='upload'),
+            new_uuid = str(uuid.uuid4())
+            signed_url = config.storage.get_signed_url(None, util.path_from_uuid(new_uuid), purpose='upload'),
             signed_urls[filename] = signed_url[0]
             filedata[filename] = {
                 'url': signed_url[0],
-                'uuid': newUuid,
-                'filepath': util.path_from_uuid(newUuid)
+                'uuid': new_uuid,
+                'filepath': util.path_from_uuid(new_uuid)
             }
         ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filenames, metadata, filedata)
 
@@ -329,11 +329,13 @@ class Upload(base.RequestHandler):
             'type': 'packfile',
             'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(hours=1)},
         })
-        removed = 0
+        tokens_removed = 0
+        dirs_cleaned = 0
         for token in result:
             # the token id is the folder.
             try:
                 config.local_fs.get_fs().removetree(token['_id'])
+                dirs_cleaned += 1
             except fs.errors.ResourceNotFound:
                 pass
             except IOError:
@@ -344,20 +346,18 @@ class Upload(base.RequestHandler):
             result = config.db['tokens'].delete_one({
                 '_id': token['_id']
             })
-            removed += 1
+            tokens_removed += 1
         
-        cleaned = removed
-        if removed > 0:
-            self.log.info('Removed %s expired packfile tokens', removed)
+        if tokens_removed > 0:
+            self.log.info('Removed %s expired packfile tokens', tokens_removed)
 
         # Because we only create directories after we issue a token and we remove directories 
         # before we delete the token directories should always map to the current tokens in the DB. 
-        cleaned = removed
 
         return {
             'removed': {
-                'tokens': removed,
-                'directories': cleaned,
+                'tokens': tokens_removed,
+                'directories': dirs_cleaned,
             }
         }
 

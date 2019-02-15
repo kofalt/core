@@ -361,13 +361,13 @@ class FileListHandler(ListHandler):
         filedata = {}
 
         for filename in filenames:
-            newUuid = str(uuid.uuid4())
-            signed_url = config.storage.get_signed_url(newUuid, util.path_from_uuid(newUuid), purpose='upload')
+            new_uuid = str(uuid.uuid4())
+            signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             
             signed_urls[filename] = signed_url
             filedata[filename] = {
                 'url': signed_url,
-                'uuid': newUuid,
+                'uuid': new_uuid,
             }
 
         ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filenames, metadata, filedata)

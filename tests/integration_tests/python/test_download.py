@@ -211,10 +211,9 @@ def test_download_k(data_builder, file_form, as_admin, as_root, api_db, legacy_c
 
     tar.close()
 
-    # test missing file hangling
-
-    file_id = api_db.acquisitions.find_one({'_id': ObjectId(acquisition)})['files'][0]['_id']
-    config.storage._fs.remove(util.path_from_uuid(file_id))
+    # test missing file handling
+    api_db.acquisitions.update_one({'_id': ObjectId(acquisition)},
+        {'$set': {'files.0._id': 'not_available'}})
 
     r = as_admin.post('/download', json={
         'optional': False,
