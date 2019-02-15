@@ -237,10 +237,7 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
             
-            if type(file_system) is fs.tempfs.TempFS:
-                self.open_file = file_system.open(self.filepath, 'wb')
-            else:
-                self.open_file = file_system.open(self._uuid, self.filepath, 'wb', None)
+            self.open_file = file_system.open(self._uuid, self.filepath, 'wb', None)
           
             return self.open_file
 
