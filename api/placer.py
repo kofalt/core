@@ -604,8 +604,8 @@ class PackfilePlacer(Placer):
                 f2.write(data)
 
         size = config.local_fs.get_file_info(token, tempZipPath)['filesize']
-        hash_ = config.local_fs.get_file_hash(None, tempZipPath),
-       
+        hash_ = config.local_fs.get_file_hash(None, tempZipPath)
+
         # Remove the folder created by TokenPlacer after we calc the needed attributes
         config.local_fs.get_fs().removetree(self.folder)
  
