@@ -53,8 +53,12 @@ def test_site_settings_validation(as_admin):
     r = as_admin.put('/site/settings', json={'center_gears': [1, 2, 3]})
     assert r.status_code == 400
 
-    # center_gears values
+    # center_gears values (invalid gear name)
     r = as_admin.put('/site/settings', json={'center_gears': ['not_a_gear']})
+    assert r.status_code == 400
+
+    # center_gears values
+    r = as_admin.put('/site/settings', json={'center_gears': ['not-a-gear']})
     assert r.status_code == 422
 
 
