@@ -436,7 +436,7 @@ class FileListHandler(ListHandler):
         hash_ = self.get_param('hash')
         if hash_ and hash_ != fileinfo['hash']:
             self.abort(409, 'file exists, hash mismatch')
-
+        
         file_path, file_system = files.get_valid_file(fileinfo)
 
         # Request for download ticket
@@ -627,7 +627,6 @@ class FileListHandler(ListHandler):
                                          container_type=containerutil.singularize(cont_name),
                                          id_=_id, file_fields=file_fields, 
                                          tempdir=None) 
-                                         #tempdir=ticket['tempdir'])
         else:
             #In this flow files are stored to local storage directly via assigned uuid
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, container_type=containerutil.singularize(cont_name), id_=_id, origin=self.origin)
