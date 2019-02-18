@@ -1,7 +1,7 @@
 import os
 import six
 import tarfile
-import tempfile 
+import tempfile
 import unittest
 
 from sdk_test_case import SdkTestCase
@@ -26,7 +26,7 @@ class DownloadTicketTestCases(SdkTestCase):
 
     def test_acquisition_files(self):
         fw = self.fw
-        
+
         project = fw.get_project(self.project_id)
         session = fw.get_session(self.session_id)
         acquisition = fw.get_acquisition(self.acquisition_id)
@@ -42,7 +42,7 @@ class DownloadTicketTestCases(SdkTestCase):
         node = flywheel.DownloadNode(level='session', id=self.session_id)
         downloadSpec = flywheel.DownloadInput(nodes=[node], optional=True)
 
-        ticket = fw.create_download_ticket(downloadSpec)
+        ticket = fw.create_download_ticket(downloadSpec, prefix='flywheel')
         self.assertIsNotNone(ticket)
         self.assertIsNotNone(ticket.ticket)
         self.assertEqual(2, ticket.file_cnt)
@@ -57,7 +57,7 @@ class DownloadTicketTestCases(SdkTestCase):
         self.assertTrue(os.path.isfile(self.tmpfile))
         self.assertGreater(os.path.getsize(self.tmpfile), 0)
 
-        sess_path = '{}/{}/{}/{}'.format(self.group_id, project['label'], session.get('subject', {}).get('code', 'unknown_subject'), session['label'])
+        sess_path = 'flywheel/{}/{}/{}/{}'.format(self.group_id, project['label'], session.get('subject', {}).get('code', 'unknown_subject'), session['label'])
         sess_file = '{}/{}'.format(sess_path, 'yeats1.txt')
 
         acq_path = '{}/{}'.format(sess_path, acquisition['label'])

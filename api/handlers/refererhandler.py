@@ -319,7 +319,6 @@ class AnalysesHandler(RefererHandler):
         """
         _id = kwargs.get('_id')
         analysis = self.storage.get_container(_id)
-        filegroup = kwargs.get('filegroup')
         filename = kwargs.get('filename')
 
         parent = self.storage.get_parent(_id, cont=analysis)
@@ -336,12 +335,9 @@ class AnalysesHandler(RefererHandler):
             if not self.origin.get('id'):
                 self.origin = ticket.get('origin')
 
-        if filename:
-            # Allow individual file lookups to just specify `files`
-            fileinfo = analysis.get('inputs', []) + analysis.get('files',[])
-            fileinfo = [fi for fi in fileinfo if fi['name'] == filename]
-        else:
-            fileinfo = analysis.get(filegroup, [])
+        # Allow individual file lookups to just specify `files`
+        fileinfo = analysis.get('inputs', []) + analysis.get('files',[])
+        fileinfo = [fi for fi in fileinfo if fi['name'] == filename]
 
         if not fileinfo:
             error_msg = 'No files on analysis {}'.format(_id)
@@ -349,15 +345,9 @@ class AnalysesHandler(RefererHandler):
                 error_msg = 'Could not find file {} on analysis {}'.format(filename, _id)
             raise errors.APINotFoundException(error_msg)
         if ticket_id == '':
-            if filename:
-                total_size = fileinfo[0]['size']
-                file_cnt = 1
-                ticket = util.download_ticket(self.request.client_addr, self.origin, 'file', cid, filename, total_size)
-            else:
-                targets, total_size, file_cnt = self._prepare_batch(filegroup, fileinfo, analysis)
-                label = util.sanitize_string_to_filename(analysis.get('label', 'No Label'))
-                filename = 'analysis_' + label + '.tar'
-                ticket = util.download_ticket(self.request.client_addr, self.origin, 'batch', targets, filename, total_size)
+            total_size = fileinfo[0]['size']
+            file_cnt = 1
+            ticket = util.download_ticket(self.request.client_addr, self.origin, 'file', cid, filename, total_size)
             return {
                 'ticket': config.db.downloads.insert_one(ticket).inserted_id,
                 'size': total_size,
@@ -365,12 +355,7 @@ class AnalysesHandler(RefererHandler):
                 'filename': filename
             }
         else:
-            if not filename:
-                if ticket:
-                    self._send_batch(ticket)
-                else:
-                    raise errors.InputValidationException('batch downloads require a ticket')
-            elif not fileinfo:
+            if not fileinfo:
                 raise errors.APINotFoundException("{} doesn't exist".format(filename))
             else:
                 fileinfo = fileinfo[0]
@@ -504,34 +489,6 @@ class AnalysesHandler(RefererHandler):
             raise errors.APINotFoundException('no such ticket')
         if ticket['ip'] != self.request.client_addr:
             raise errors.InputValidationException('ticket not for this source IP')
-        if not filename:
-            return self._check_ticket_for_batch(ticket)
         if ticket.get('filename') != filename or ticket['target'] != _id:
             raise errors.InputValidationException('ticket not for this resource')
         return ticket
-
-
-    def _check_ticket_for_batch(self, ticket):
-        if ticket.get('type') != 'batch':
-            raise errors.InputValidationException('ticket not for this resource')
-        return ticket
-
-
-    def _prepare_batch(self, filegroup, fileinfo, analysis):
-        ## duplicated code from download.py
-        ## we need a way to avoid this
-        targets = []
-        total_size = total_cnt = 0
-        dirname = 'input' if filegroup == 'inputs' else 'output'
-        for f in fileinfo:
-            file_path, _ = files.get_valid_file(f)
-            targets.append((file_path,
-                            '/'.join([util.sanitize_string_to_filename(analysis['label']), dirname, f['name']]),
-                            'analyses', analysis['_id'], f['size'], f['modified']))
-            total_size += f['size']
-            total_cnt += 1
-        return targets, total_size, total_cnt
-
-
-    def _send_batch(self, ticket):
-        raise errors.InputValidationException('This endpoint does not download files, only returns ticket {} for the download'.format(ticket))

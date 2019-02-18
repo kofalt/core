@@ -1,4 +1,5 @@
 import cStringIO
+import datetime
 import tarfile
 
 import webob.exc
@@ -6,13 +7,77 @@ import webob.exc
 from mock import MagicMock
 from requests import exceptions
 
+from api.data_export.file_filter import file_filter_check, filtered_files
+
+def test_file_filter_check():
+    # null
+    assert file_filter_check({'+': ['null']}, [])
+    assert not file_filter_check({'+': ['null']}, ['foo'])
+
+    # not null
+    assert file_filter_check({'-': ['null']}, [])
+    assert not file_filter_check({'-': ['null']}, ['foo'])
+
+    # includes
+    assert file_filter_check({'+': ['test']}, ['test'])
+    assert file_filter_check({'+': ['test']}, ['foo', 'test'])
+    assert not file_filter_check({'+': ['test']}, ['foo', 'bar'])
+
+    # excludes
+    assert not file_filter_check({'-': ['test']}, ['test'])
+    assert not file_filter_check({'-': ['test']}, ['foo', 'test'])
+    assert file_filter_check({'-': ['test']}, ['foo', 'bar'])
+    assert file_filter_check({'-': ['test']}, [])
+
+    # Combinations
+    assert file_filter_check({'+': ['test'], '-': ['foo']}, ['test'])
+    assert not file_filter_check({'+': ['test'], '-': ['foo']}, ['test', 'foo'])
+
+def test_filtered_files():
+    cont = {
+        'inputs': [
+            {'name': 'test.dcm', 'type': 'dicom'}
+        ],
+        'files': [
+            {'name': 'test.csv', 'type': 'csv', 'tags': ['foo']},
+            {'name': 'test2.csv', 'type': 'csv', 'tags': ['bar']},
+            {'name': 'deleted.csv', 'type': 'csv', 'deleted': datetime.datetime.now()},
+            {'name': 'test.nii', 'type': 'nifti', 'tags': ['foo', 'bar']}
+        ]
+    }
+
+    def filter_files(spec):
+        return set([ (group, f['name']) for group, f in filtered_files(cont, spec) ])
+
+    result = filter_files([{'types': {'+': ['dicom']}}])
+    assert result == set([('input', 'test.dcm')])
+
+    result = filter_files([{'tags': {'-': ['bar']}}])
+    assert result == set([('input', 'test.dcm'), ('output', 'test.csv')])
+
+    result = filter_files([{'types': {'+': ['csv']}}, {'tags': {'+': ['foo']}}])
+    assert result == set([('output', 'test.csv'), ('output', 'test2.csv'), ('output', 'test.nii')])
+
 
 def test_archive_stream(mocker, data_builder, file_form, as_drone):
-    def iter_content_mock():
-        yield 'test'
+    class MockReadInto:
+        def __init__(self):
+            self._read = False
+
+        def __call__(self, b):
+            if not self._read:
+                self._read = True
+                b[0:4] = 'test'
+                return 4
+            return 0
 
     get_return_value = MagicMock()
-    get_return_value.iter_content.return_value = iter_content_mock()
+    get_return_value.readinto = MockReadInto()
+    get_return_value._read = False
+    get_return_value.closed = False
+    get_return_value.status = 200
+    get_return_value.reason = 'OK'
+    get_return_value.readable = lambda: True
     mocked_files = mocker.patch('api.files.get_signed_url')
 
     project = data_builder.create_project(label='project1')
@@ -41,7 +106,7 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
     assert r.ok
     ticket = r.json['ticket']
 
-    with mocker.patch('api.download.requests.Session.get', return_value=get_return_value) as mocked_session:
+    with mocker.patch('urllib3.PoolManager.request', return_value=get_return_value) as mocked_session:
         # Perform the download
         r = as_drone.get('/download?ticket=%s' % ticket)
         assert r.ok
@@ -55,16 +120,16 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
         assert len(tarinfo_list) == 2
 
         assert mocked_files.called
-        assert get_return_value.iter_content.called
-
-    def iter_content_error_mock():
-        yield 'test'
-        raise exceptions.ConnectionError()
+        assert get_return_value.readinto._read
 
     get_return_value = MagicMock()
-    get_return_value.iter_content.return_value = iter_content_error_mock()
+    get_return_value.closed = False
+    get_return_value.status = 200
+    get_return_value.reason = 'OK'
+    get_return_value.readable = lambda: True
+    get_return_value.readinto.side_effect = exceptions.ConnectionError()
 
-    with mocker.patch('api.download.requests.Session.get', return_value=get_return_value) as mocked_session:
+    with mocker.patch('urllib3.PoolManager.request', return_value=get_return_value) as mocked_session:
         r = as_drone.post('/download', json={
             'optional': False,
             'nodes': [

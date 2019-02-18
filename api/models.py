@@ -14,7 +14,7 @@ import collections
 # NOTE: Python3 - str or bytes
 STRING_TYPES = (str, unicode)
 
-class Base(collections.MutableMapping):  # pylint: disable=no-init
+class Base(collections.MutableMapping):
     """Base class for sparse model classes.
 
     This model pattern supports setting and retrieving arbitrary
@@ -24,6 +24,11 @@ class Base(collections.MutableMapping):  # pylint: disable=no-init
     If any attribute is missing from the underlying document,
     None will be returned instead.
     """
+    # pylint complains that we should invoke the non-exisitent MutableMapping.__init__
+    def __init__(self):  # pylint: disable=super-init-not-called
+        """Construct a new model."""
+        pass
+
     @classmethod
     def from_dict(cls, dct):
         """Construct a model instance from a dictionary.

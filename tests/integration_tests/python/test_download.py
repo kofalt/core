@@ -11,10 +11,11 @@ from api import config, util
 
 def test_download_k(data_builder, file_form, as_admin, as_root, api_db, legacy_cas_file):
     project = data_builder.create_project(label='project1')
-    session = data_builder.create_session(label='session1', project=project)
-    session2 = data_builder.create_session(label='session1', project=project)
-    session3 = data_builder.create_session(label='session1', project=project)
-    session4 = data_builder.create_session(label='session/1', project=project)
+    subject = data_builder.create_subject(code='subject1', project=project)
+    session = data_builder.create_session(label='session1', project=project, subject={'_id': subject})
+    session2 = data_builder.create_session(label='session1', project=project, subject={'_id': subject})
+    session3 = data_builder.create_session(label='session1', project=project, subject={'_id': subject})
+    session4 = data_builder.create_session(label='session/1', project=project, subject={'_id': subject})
     acquisition = data_builder.create_acquisition(session=session)
     acquisition2 = data_builder.create_acquisition(session=session2)
     acquisition3 = data_builder.create_acquisition(session=session3)
@@ -165,7 +166,7 @@ def test_download_k(data_builder, file_form, as_admin, as_root, api_db, legacy_c
     # Try to retrieve ticket for bulk download w/ invalid container name
     # (not project|session|acquisition)
     r = as_admin.post('/download', params={'bulk': 'true'}, json={
-        'files': [{'container_name': 'subject', 'container_id': missing_object_id, 'filename': 'nosuch.csv'}]
+        'files': [{'container_name': 'collection', 'container_id': missing_object_id, 'filename': 'nosuch.csv'}]
     })
     assert r.status_code == 400
 
@@ -530,24 +531,9 @@ def test_analysis_download(data_builder, file_form, as_admin, as_drone, default_
     assert r.status_code == 404
 
     # get analysis batch download ticket for all inputs
+    # Endpoint should no longer exist
     r = as_admin.get(analysis_inputs, params={'ticket': ''}, json={"optional":True,"nodes":[{"level":"analysis","_id":analysis}]})
-    assert r.ok
-    ticket = r.json()['ticket']
-
-    # filename is analysis_<label> not analysis_<_id>
-    assert r.json()['filename'] == 'analysis_test.tar'
-
-    # batch download analysis inputs w/ ticket from wrong endpoint
-    r = as_admin.get(analysis_inputs, params={'ticket': ticket})
-    assert r.status_code == 400
-
-    # batch download analysis inputs w/ ticket from correct endpoint
-    r = as_admin.get('/download', params={'ticket': ticket})
-    assert r.ok
-
-    # Check to make sure outputs are in tar
-    with tarfile.open(mode='r', fileobj=cStringIO.StringIO(r.content)) as tar:
-        assert [m.name for m in tar.getmembers()] == ['test/input/one.csv']
+    assert r.status_code == 404
 
     ### Using '/download' endpoint only - for analysis outputs only! ###
     # try to download analysis outputs w/ non-existent ticket

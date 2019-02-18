@@ -1,7 +1,6 @@
 import webapp2
 import webapp2_extras.routes
 
-from .download                          import Download
 from .handlers.abstractcontainerhandler import AbstractContainerHandler
 from .handlers.collectionshandler       import CollectionsHandler
 from .handlers.confighandler            import Config, Version
@@ -20,6 +19,7 @@ from .jobs.handlers                     import BatchHandler, JobsHandler, JobHan
 from .metrics.handler                   import MetricsHandler
 from .upload                            import Upload
 from .reports.handler                   import ReportHandler
+from .data_export.handlers              import DownloadHandler
 from .data_views.handlers               import DataViewHandler
 from .web.base                          import RequestHandler
 from . import config
@@ -91,11 +91,11 @@ endpoints = [
 
         # General-purpose upload & download
 
-        route('/download',                                      Download, h='download',              m=['GET', 'POST']),
-        route('/download/summary',                              Download, h='summary',               m=['POST']),
-        route('/upload/<strategy:label|uid|uid-match|reaper>',  Upload,   h='upload',                m=['POST']),
-        route('/clean-packfiles',                               Upload,   h='clean_packfile_tokens', m=['POST']),
-        route('/engine',                                        Upload,   h='engine',                m=['POST']),
+        route('/download',                                      DownloadHandler, h='download',              m=['GET', 'POST']),
+        route('/download/summary',                              DownloadHandler, h='summary',               m=['POST']),
+        route('/upload/<strategy:label|uid|uid-match|reaper>',  Upload,          h='upload',                m=['POST']),
+        route('/clean-packfiles',                               Upload,          h='clean_packfile_tokens', m=['POST']),
+        route('/engine',                                        Upload,          h='engine',                m=['POST']),
 
 
         # Top-level endpoints
@@ -310,7 +310,6 @@ endpoints = [
         route( '/analyses/<_id:{oid}>',                      AnalysesHandler,  m=['GET']),
         prefix('/analyses/<_id:{oid}>', [
             route('/files',                                       AnalysesHandler, h='upload',      m=['POST']),
-            route('/<filegroup:inputs|files>',                    AnalysesHandler, h='download',    m=['GET']),
             route('/<filegroup:inputs|files>/<filename:{fname}>', AnalysesHandler, h='download',    m=['GET']),
             route('/info',                                        AnalysesHandler, h='modify_info', m=['POST']),
         ]),
@@ -350,7 +349,6 @@ endpoints = [
                 prefix('/analyses', [
                     route('/<_id:{oid}>',                                             AnalysesHandler,               m=['GET', 'PUT', 'DELETE']),
                     route('/<_id:{oid}>/files',                                       AnalysesHandler, h='upload',   m=['POST']),
-                    route('/<_id:{oid}>/<filegroup:inputs|files>',                    AnalysesHandler, h='download', m=['GET']),
                     route('/<_id:{oid}>/<filegroup:inputs|files>/<filename:{fname}>', AnalysesHandler, h='download', m=['GET']),
                 ]),
 

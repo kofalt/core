@@ -329,6 +329,10 @@ class RequestHandler(webapp2.RequestHandler):
     def is_true(self, param):
         return self.request.GET.get(param, '').lower() in ('1', 'true')
 
+    def get_params(self):
+        """Returns all query parameters for this request, as a dictionary"""
+        return self.request.GET
+
     def get_param(self, param, default=None):
         return self.request.GET.get(param, default)
 

@@ -379,15 +379,19 @@ def check_files(as_admin, analysis_id, filegroup, *filenames):
     assert set(f['name'] for f in analysis.get(filegroup, [])) == set(filenames)
     assert all('size' in f for f in analysis.get(filegroup, []))
 
-    # Verify that filegroup download works
-    r = as_admin.get('/analyses/' + analysis_id + '/' + filegroup, params={'ticket': ''})
+    # Get download ticket for analysis via /download
+    r = as_admin.get('/download', params={'ticket': ''}, json={'optional': True, 'nodes': [{'level':'analysis','_id': analysis_id}]})
     assert r.ok
     ticket = r.json()['ticket']
+
+    # Verify that download includes files from filegroup
     r = as_admin.get('/download', params={'ticket': ticket})
     assert r.ok
     dirname = 'input' if filegroup == 'inputs' else 'output'
     with tarfile.open(mode='r', fileobj=cStringIO.StringIO(r.content)) as tar:
-        assert set(m.name for m in tar.getmembers()) == set('/'.join([analysis['label'], dirname, fn]) for fn in filenames)
+        actual = set(m.name for m in tar.getmembers())
+        expected = set('/'.join([analysis['label'], dirname, fn]) for fn in filenames)
+        assert actual.intersection(expected) == expected
 
 
 def test_moving_session_moves_analyses(data_builder, as_admin):
