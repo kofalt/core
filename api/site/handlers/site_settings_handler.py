@@ -11,8 +11,7 @@ class SiteSettingsHandler(base.RequestHandler):
     @require_login
     def get(self):
         """Return site settings"""
-        settings = get_site_settings()
-        return settings.to_dict()
+        return get_site_settings()
 
     @require_admin
     @validators.verify_payload_exists
