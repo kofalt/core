@@ -16,6 +16,7 @@ class ComputeProvider(object):
         Args:
             config (dict): The configuration object
         """
+
         self.config = config
 
     @abstractmethod
