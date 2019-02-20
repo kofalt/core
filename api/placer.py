@@ -339,12 +339,6 @@ class EnginePlacer(Placer):
                     file_attrs.update(file_md)
                     break
 
-        if self.context.get('job_ticket_id'):
-            job_ticket = JobTicket.get(self.context.get('job_ticket_id'))
-
-            if not job_ticket['success']:
-                file_attrs['from_failed_job'] = True
-
         self.save_file(file_attrs)
 
     def finalize(self):
@@ -443,7 +437,7 @@ class TokenPlacer(Placer):
         self.paths.append(file_attrs['path'])
 
     def finalize(self):
-        
+
         self.recalc_session_compliance()
         return self.saved
 
@@ -492,7 +486,7 @@ class PackfilePlacer(Placer):
         #   upload.clean_packfile_tokens
         #
         # It must be kept in sync between each instance.
- 
+
         self.folder = token
 
         try:
@@ -548,7 +542,7 @@ class PackfilePlacer(Placer):
 
 
     def process_file_field(self, file_attrs):
-        # Should not be called with any files but if it was then 
+        # Should not be called with any files but if it was then
         # remove the upload file that was saved direclty to storage from the form post
         config.local_fs.get_fs().remove(self.folder + '/' + file_attrs['name'])
         raise Exception('Files must already be uploaded')
@@ -557,8 +551,8 @@ class PackfilePlacer(Placer):
         paths = config.local_fs.get_fs().listdir(self.folder)
         total = len(paths)
 
-        # We create the zip file in the local storage location then get attributes and then move it to the final 
-        # location. Otherwise in the cloud instances we would be writing files across the network which would 
+        # We create the zip file in the local storage location then get attributes and then move it to the final
+        # location. Otherwise in the cloud instances we would be writing files across the network which would
         # be much slower
         tempZipPath = self.folder + '/' + str(uuid.uuid4())
         self.zip_ = zipfile.ZipFile(config.local_fs.get_fs().open(tempZipPath, 'wb'),
@@ -593,7 +587,7 @@ class PackfilePlacer(Placer):
             'id': uid
         }
 
-        # Finaly move the file from the local fs to the persistent FS. 
+        # Finaly move the file from the local fs to the persistent FS.
         # We could make this faster using a move if we know its a local to local fs move.
         with config.local_fs.get_fs().open(tempZipPath, 'rb') as (f1
                 ), config.storage.open(token, util.path_from_uuid(token), 'wb', None) as f2:
@@ -608,7 +602,7 @@ class PackfilePlacer(Placer):
 
         # Remove the folder created by TokenPlacer after we calc the needed attributes
         config.local_fs.get_fs().removetree(self.folder)
- 
+
         # Similarly, create the attributes map that is consumed by helper funcs. Clear duplication :(
         # This could be coalesced into a single map thrown on file fields, for example.
         # Used in the API return.
