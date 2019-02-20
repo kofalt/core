@@ -19,6 +19,9 @@ def test_jobs_access(as_user):
     assert r.status_code == 403
 
 def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_root, api_db, file_form):
+    """
+    Can be removed in favor of test_jobs_ask when /jobs/next is retired.
+    """
 
     # Dupe of test_queue.py
     gear_doc = default_payload['gear']['gear']
@@ -448,6 +451,518 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     r = as_admin.get('/jobs/stats', params={'tags': 'auto,unused', 'last': '2'})
     assert r.ok
 
+def question(struct):
+	"""
+	Create a question with required values filled out.
+	"""
+
+	empty_question = {
+	    "whitelist": { },
+	    "blacklist": { },
+	    "capabilities": [],
+	    "return": { },
+	}
+
+	question = copy.deepcopy(empty_question)
+
+	for x in struct:
+		question[x] = struct[x]
+
+	import json
+	print(json.dumps(question, indent=4, sort_keys=True))
+
+	return question
+
+def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, as_root, api_db, file_form):
+    """
+    This can replace test_jobs when /jobs/next is retired.
+    """
+
+    # Dupe of test_queue.py
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    invalid_gear = data_builder.create_gear(gear={'custom': {'flywheel': {'invalid': True}}})
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Create ad-hoc analysis
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'offline',
+        'inputs': [{'type': 'acquisition', 'id': acquisition, 'name': 'test.zip'}]
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+    # Manually upload outputs
+    r = as_admin.post('/analyses/' + analysis + '/files', files=file_form('output1.csv', 'output2.csv', meta=[
+        {'name': 'output1.csv', 'info': {'foo': 'foo'}},
+        {'name': 'output2.csv', 'info': {'bar': 'bar'}},
+    ]))
+    assert r.ok
+
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    # try to add job with analysis as explicit destination
+    job_data['destination'] = {
+        'type': 'analysis',
+        'id': analysis
+    }
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 400
+
+
+    job_data['destination'] = {
+        'type': 'acquisition',
+        'id': acquisition
+    }
+
+    # try to add job w/ non-existent gear
+    job0 = copy.deepcopy(job_data)
+    job0['gear_id'] = '000000000000000000000000'
+    r = as_admin.post('/jobs/add', json=job0)
+    assert r.status_code == 404
+
+    # try to add job without login
+    r = as_public.post('/jobs/add', json=job_data)
+    assert r.status_code == 403
+
+    # add job with explicit destination
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job1_id = r.json()['_id']
+
+    # get job
+    r = as_root.get('/jobs/' + job1_id)
+    assert r.ok
+
+    job = r.json()
+    assert job['gear_info']['name']
+    assert job['gear_info']['version'] == '0.0.1'
+
+    # get job log (empty)
+    r = as_admin.get('/jobs/' + job1_id + '/logs')
+    assert r.ok
+    assert r.json()['logs'] == []
+
+    # get job as admin without permissions to destination
+    admin_id = as_admin.get('/users/self').json()['_id']
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.delete('/projects/' + project + '/permissions/' + admin_id).ok
+
+    r = as_admin.get('/jobs/' + job1_id + '/logs')
+    assert r.ok
+
+    assert as_root.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': admin_id
+    }).ok
+
+    # make sure user with permissions to the project can view it
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    }).ok
+
+    r = as_user.get('/jobs/' + job1_id + '/logs')
+    assert r.ok
+    assert as_admin.delete('/projects/' + project + '/permissions/' + user_id).ok
+
+    # try to add job log w/o root
+    # needed to use as_user because root = true for as_admin
+    job_logs = [{'fd': 1, 'msg': 'Hello'}, {'fd': 2, 'msg': 'World'}]
+    r = as_user.post('/jobs/' + job1_id + '/logs', json=job_logs)
+    assert r.status_code == 403
+
+    # try to add job log to non-existent job
+    r = as_root.post('/jobs/000000000000000000000000/logs', json=job_logs)
+    assert r.status_code == 404
+
+    # get job log as text w/o logs
+    r = as_admin.get('/jobs/' + job1_id + '/logs/text')
+    assert r.ok
+    assert r.text == '<span class="fd--1">No logs were found for this job.</span>'
+
+    # get job log as html w/o logs
+    r = as_admin.get('/jobs/' + job1_id + '/logs/html')
+    assert r.ok
+    assert r.text == '<span class="fd--1">No logs were found for this job.</span>'
+
+    # start job (Adds logs)
+    r = as_root.post('/jobs/ask', json=question({
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    result = r.json()
+    started_job = result['jobs'][0]
+    assert started_job['transitions']['running'] == started_job['modified']
+    assert started_job['parents']['group'] == group
+    assert started_job['parents']['project'] == project
+    assert started_job['parents']['session'] == session
+    assert started_job['parents']['acquisition'] == acquisition
+    assert started_job['profile']
+    assert started_job['profile']['total_input_files'] == 1
+    assert started_job['profile']['total_input_size_bytes'] > 1
+
+    assert group in started_job['related_container_ids']
+    assert project in started_job['related_container_ids']
+    assert session in started_job['related_container_ids']
+    assert acquisition in started_job['related_container_ids']
+
+    assert started_job['id'] == job1_id
+
+    # Must be admin to update job profile
+    r = as_user.put('/jobs/' + job1_id + '/profile', json={
+        'versions': {
+            'engine': '1'
+        }
+    })
+    assert r.status_code == 403
+
+    # Test job exists
+    r = as_admin.put('/jobs/5be1bcf6df0b1e3424a3b7ee/profile', json={
+        'versions': {
+            'engine': '9a12c5921a1d9206c2d82c0d1a60ebed3d55a338'
+        }
+    })
+    assert r.status_code == 404
+
+    # Test validation
+    r = as_admin.put('/jobs/' + job1_id + '/profile', json={
+        'widgets_consumed': 100
+    })
+    assert r.status_code == 400
+
+    # Update job profile info
+    r = as_admin.put('/jobs/' + job1_id + '/profile', json={
+        'versions': {
+            'engine': '9a12c5921a1d9206c2d82c0d1a60ebed3d55a338'
+        },
+        'executor': {
+            'name': 'engine-625490',
+            'host': '127.0.0.1',
+            'instance_type': 'n1-standard-4',
+            'cpu_cores': 4,
+            'gpu': False,
+            'memory_bytes': 15728640,
+            'disk_bytes': 104857600,
+            'swap_bytes': 31457280
+        }
+    })
+    assert r.ok
+
+    r = as_root.get('/jobs/' + job1_id)
+    assert r.ok
+    updated_job = r.json()
+    assert updated_job['profile']['versions']['engine'] == '9a12c5921a1d9206c2d82c0d1a60ebed3d55a338'
+
+    assert updated_job['profile']['executor']['name'] == 'engine-625490'
+    assert updated_job['profile']['executor']['host'] == '127.0.0.1'
+    assert updated_job['profile']['executor']['instance_type'] == 'n1-standard-4'
+    assert updated_job['profile']['executor']['cpu_cores'] == 4
+    assert updated_job['profile']['executor']['gpu'] == False
+    assert updated_job['profile']['executor']['memory_bytes'] == 15728640
+    assert updated_job['profile']['executor']['disk_bytes'] == 104857600
+    assert updated_job['profile']['executor']['swap_bytes'] == 31457280
+
+    # add job log
+    r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
+    assert r.ok
+
+    # try to get job log of non-existent job
+    r = as_admin.get('/jobs/000000000000000000000000/logs')
+    assert r.status_code == 404
+
+    # get job log (non-empty)
+    r = as_admin.get('/jobs/' + job1_id + '/logs')
+    assert r.ok
+    assert len(r.json()['logs']) == 3
+
+    # add same logs again (for testing text/html logs)
+    r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
+    assert r.ok
+
+    expected_job_logs = [{'fd': -1, 'msg': 'Gear Name: {}, Gear Version: {}\n'.format(job['gear_info']['name'], job['gear_info']['version'])}] + \
+                        2 * job_logs
+
+    # get job log as text
+    r = as_admin.get('/jobs/' + job1_id + '/logs/text')
+    assert r.ok
+    assert r.text == ''.join(log['msg'] for log in expected_job_logs)
+
+    # get job log as html
+    r = as_admin.get('/jobs/' + job1_id + '/logs/html')
+    assert r.ok
+    assert r.text == ''.join('<span class="fd-{fd}">{msg}</span>\n'.format(fd=log.get('fd'), msg=log.get('msg').replace('\n', '<br/>\n')) for log in expected_job_logs)
+
+    # get job config
+    r = as_root.get('/jobs/' + job1_id + '/config.json')
+    assert r.ok
+
+    # try to cancel job w/o permission (different user)
+    r = as_user.put('/jobs/' + job1_id, json={'state': 'cancelled'})
+    assert r.status_code == 403
+
+    # try to update job (user may only cancel)
+    api_db.jobs.update_one({'_id': bson.ObjectId(job1_id)}, {'$set': {'origin.id': 'user@user.com'}})
+    r = as_user.put('/jobs/' + job1_id, json={'test': 'invalid'})
+    assert r.status_code == 403
+
+    # try to add job whos implicit destination is an analysis
+    analyis_input_job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'analysis',
+                'id': analysis,
+                'name': 'output1.csv'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'tags': [ 'test-tag' ]
+    }
+    r = as_admin.post('/jobs/add', json=analyis_input_job_data)
+    assert r.status_code == 400
+
+    # add job with implicit destination
+    job2 = copy.deepcopy(job_data)
+    del job2['destination']
+    r = as_admin.post('/jobs/add', json=job2)
+    assert r.ok
+
+    # add job with invalid gear
+    job3 = copy.deepcopy(job_data)
+    job3['gear_id'] = invalid_gear
+
+    r = as_admin.post('/jobs/add', json=job3)
+    assert r.status_code == 400
+
+    # get next job - with nonexistent tag
+    r = as_root.post('/jobs/ask', json=question({
+        'whitelist': {
+            'tag': ['fake-tag'],
+        },
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    assert len(r.json()['jobs']) == 0
+
+    # get next job - with excluding tag
+    r = as_root.post('/jobs/ask', json=question({
+        'blacklist': {
+            'tag': ['test-tag'],
+        },
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    assert len(r.json()['jobs']) == 0
+
+    # get next job - with excluding tag overlap
+    r = as_root.post('/jobs/ask', json=question({
+        'whitelist': {
+            'tag': ['test-tag'],
+        },
+        'blacklist': {
+            'tag': ['test-tag'],
+        },
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    assert len(r.json()['jobs']) == 0
+
+    # get next job with peek
+    r = as_root.post('/jobs/ask', json=question({
+        'whitelist': {
+            'tag': ['test-tag']
+        },
+        'return': {
+            'jobs': 1,
+            'peek': True,
+        },
+    }))
+    assert r.ok
+    next_job_id_peek = r.json()['jobs'][0]['id']
+
+    # get next job
+    r = as_root.post('/jobs/ask', json=question({
+        'whitelist': {
+            'tag': ['test-tag'],
+        },
+        'blacklist': {
+            'tag': ['fake-tag'],
+        },
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    next_job_id = r.json()['jobs'][0]['id']
+    assert next_job_id == next_job_id_peek
+
+    # set next job to failed
+    r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed', 'failure_reason': 'gear_failure'})
+    assert r.ok
+
+    # Get job and verify the 'failure' timestamp
+    r = as_root.get('/jobs/' + next_job_id)
+    assert r.ok
+    failed_job = r.json()
+    assert failed_job['transitions']['failed'] == failed_job['modified']
+    assert failed_job['failure_reason'] == 'gear_failure'
+    assert failed_job['profile']
+    assert 'total_time_ms' in failed_job['profile']
+
+    # set as_user perms to ro
+    r = as_user.get('/users/self')
+    assert r.ok
+    uid = r.json()['_id']
+
+    r = as_admin.post('/projects/' + project + '/permissions', json={
+        '_id': uid,
+        'access': 'ro'
+    })
+    assert r.ok
+
+    # try to add job without rw
+    r = as_user.post('/jobs/add', json=job_data)
+    assert r.status_code == 403
+
+    # set as_user perms to rw
+    r = as_admin.put('/projects/' + project + '/permissions/' + uid, json={
+        'access': 'rw'
+    })
+    assert r.ok
+
+    # add job with rw
+    r = as_user.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_rw_id = r.json()['_id']
+
+    # get next job as admin
+    r = as_admin.post('/jobs/ask', json=question({
+        'whitelist': {
+            'tag': ['test-tag'],
+        },
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    job_rw_id = r.json()['jobs'][0]['id']
+
+    # try to add job with no inputs and no destination
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {}
+    gear2 = data_builder.create_gear(gear=gear_doc)
+
+    job5 = copy.deepcopy(job_data)
+    job5['gear_id'] = gear2
+    job5.pop('inputs')
+    job5.pop('destination')
+
+    r = as_admin.post('/jobs/add', json=job5)
+    assert r.status_code == 400
+
+    # try to add job with input type that is not file nor api-key
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'made-up'
+        }
+    }
+    gear3 = str(api_db.gears.insert(gear_doc))
+
+    job6 = copy.deepcopy(job_data)
+    job6['gear_id'] = gear3
+
+    r = as_admin.post('/jobs/add', json=job6)
+    assert r.status_code == 500
+
+    assert as_root.delete('/gears/' + gear3).ok
+
+    # Attempt to set a malformed file reference as input
+    job7 = copy.deepcopy(job_data)
+    job7['inputs'] = {
+        'dicom': {
+                # missing type
+                'id': acquisition,
+                'name': 'test.zip'
+        }
+    }
+    r = as_admin.post('/jobs/add', json=job7)
+    assert r.status_code == 400
+
+    # Insert non-running job into database
+    job_instance = {
+        "_id" : bson.ObjectId("5a007cdb0f352600d94c845f"),
+        "inputs" : [{
+            "input": 'dicom',
+            'type': 'acquisition',
+            'id': acquisition,
+            'name': 'test.zip'
+        }],
+        # Set attempt to 5 so that job isn't retried, throwing off the usage report tests
+        "attempt" : 5,
+        "tags" : [
+            "ad-hoc"
+        ],
+        "destination" : {
+            "type" : "acquisition",
+            "id" : acquisition
+        },
+        "modified" : datetime.datetime(1980, 1, 1),
+        "created" : datetime.datetime(1980, 1, 1),
+        "produced_metadata" : {},
+        "saved_files" : [],
+        "state" : "running",
+        "gear_id" : gear3,
+        "batch" : None,
+    }
+    api_db.jobs.insert_one(job_instance)
+    r = as_root.post('/jobs/reap')
+    assert r.ok
+    assert r.json().get('orphaned') == 1
+    r = as_admin.get('/jobs/'+str(job_instance['_id'])+'/logs')
+    assert r.ok
+    assert "The job did not report in for a long time and was canceled. " in [log["msg"] for log in r.json()['logs']]
+    api_db.jobs.delete_one({"_id": bson.ObjectId("5a007cdb0f352600d94c845f")})
+
+    r = as_admin.get('/jobs/stats')
+    assert r.ok
+    r = as_admin.get('/jobs/stats', params={'all': '1'})
+    assert r.ok
+    r = as_admin.get('/jobs/stats', params={'tags': 'auto,unused', 'last': '2'})
+    assert r.ok
+
 def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form):
     # create gear
     gear_doc = default_payload['gear']['gear']
@@ -580,7 +1095,6 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     r = as_admin.get('/jobs/' + job + '/logs')
     assert r.ok
     assert r.json()['logs'] == expected_job_logs
-
 
 def test_job_state_transition_from_complete(data_builder, default_payload, as_admin, as_drone, api_db, file_form):
     # create gear
