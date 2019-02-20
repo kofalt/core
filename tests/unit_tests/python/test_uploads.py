@@ -27,6 +27,7 @@ def test_signed_url_reaper_upload(as_drone, mocker):
 
     assert r.status_code == 405
 
+
     mock_fs = mocker.patch('api.upload.config.storage')
     mock_fs.get_signed_url.return_value = 'url'
     mock_fs.get_file_info.return_value = {'filesize': 100}

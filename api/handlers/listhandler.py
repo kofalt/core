@@ -363,7 +363,6 @@ class FileListHandler(ListHandler):
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
             signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
-            
             signed_urls[filename] = signed_url
             filedata[filename] = {
                 'url': signed_url,
@@ -436,7 +435,7 @@ class FileListHandler(ListHandler):
         hash_ = self.get_param('hash')
         if hash_ and hash_ != fileinfo['hash']:
             self.abort(409, 'file exists, hash mismatch')
-        
+
         file_path, file_system = files.get_valid_file(fileinfo)
 
         # Request for download ticket
@@ -486,7 +485,7 @@ class FileListHandler(ListHandler):
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
                 except fs.errors.ResourceNotFound:
                     self.log.error('Error getting signed_url on non existing file')
-            
+
             if signed_url:
                 self.redirect(signed_url)
             else:
@@ -510,7 +509,7 @@ class FileListHandler(ListHandler):
                     else:
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
-                        
+
                     self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb', None)
                     self.response.content_length = fileinfo['size']
                 else:
@@ -625,8 +624,8 @@ class FileListHandler(ListHandler):
             # In this flow files are stored to the storage location via the signed url directly
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                          container_type=containerutil.singularize(cont_name),
-                                         id_=_id, file_fields=file_fields, 
-                                         tempdir=None) 
+                                         id_=_id, file_fields=file_fields,
+                                         tempdir=None)
         else:
             #In this flow files are stored to local storage directly via assigned uuid
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, container_type=containerutil.singularize(cont_name), id_=_id, origin=self.origin)

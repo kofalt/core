@@ -205,10 +205,10 @@ class Upload(base.RequestHandler):
         filedata = {}
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.storage.get_signed_url(None, util.path_from_uuid(new_uuid), purpose='upload'),
-            signed_urls[filename] = signed_url[0]
+            signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_urls[filename] = signed_url
             filedata[filename] = {
-                'url': signed_url[0],
+                'url': signed_url,
                 'uuid': new_uuid,
                 'filepath': util.path_from_uuid(new_uuid)
             }
