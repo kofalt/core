@@ -120,6 +120,8 @@ class QueueTestCases(unittest.TestCase):
             whitelist = case[0]
             blacklist = case[1]
             expected  = case[2]
+            capabilities = []
 
-            result = Queue.lists_to_query(whitelist, blacklist)
+            result = Queue.lists_to_query(whitelist, blacklist, capabilities)
+            del result['gear_info.capabilities']
             self.deep_equal(result, expected)

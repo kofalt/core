@@ -452,33 +452,33 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, as_ro
     assert r.ok
 
 def question(struct):
-	"""
-	Create a question with required values filled out.
-	"""
+    """
+    Create a question with required values filled out.
+    """
 
-	empty_question = {
-	    "whitelist": { },
-	    "blacklist": { },
-	    "capabilities": [],
-	    "return": { },
-	}
+    empty_question = {
+        "whitelist": { },
+        "blacklist": { },
+        # https://github.com/flywheel-io/gears/tree/master/spec#capabilities
+        "capabilities": [ "networking" ],
+        "return": { },
+    }
 
-	question = copy.deepcopy(empty_question)
+    question = copy.deepcopy(empty_question)
 
-	for x in struct:
-		question[x] = struct[x]
+    for x in struct:
+        question[x] = struct[x]
 
-	import json
-	print(json.dumps(question, indent=4, sort_keys=True))
+    import json
+    print(json.dumps(question, indent=4, sort_keys=True))
 
-	return question
+    return question
 
 def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, as_root, api_db, file_form):
     """
     This can replace test_jobs when /jobs/next is retired.
     """
 
-    # Dupe of test_queue.py
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
         'dicom': {
@@ -962,6 +962,82 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert r.ok
     r = as_admin.get('/jobs/stats', params={'tags': 'auto,unused', 'last': '2'})
     assert r.ok
+
+def test_jobs_capabilities(data_builder, default_payload, as_public, as_user, as_admin, as_root, api_db, file_form):
+
+    # Test capabilities subset
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'whatever': {
+            'base': 'file'
+        }
+    }
+    gear_doc["capabilities"] = [ "networking", "extra" ]
+
+    gear = data_builder.create_gear(gear=gear_doc)
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'whatever': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    # Check capabilities
+    r = as_root.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['gear_info']['capabilities'] == [ "networking", "extra" ]
+
+    # Insufficient capabilities
+    r = as_root.post('/jobs/ask', json=question({
+        'capabilities': [ ],
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    assert len(r.json()['jobs']) == 0
+
+    # Insufficient capabilities
+    r = as_root.post('/jobs/ask', json=question({
+        'capabilities': [ 'networking' ],
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    assert len(r.json()['jobs']) == 0
+
+    # Sufficient capabilities
+    r = as_root.post('/jobs/ask', json=question({
+        'capabilities': [ 'networking', 'extra', 'a' ],
+        'return': {
+            'jobs': 1,
+        },
+    }))
+    assert r.ok
+    result = r.json()
+    assert len(result['jobs']) == 1
+    assert result['jobs'][0]['id'] == job_id
 
 def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form):
     # create gear

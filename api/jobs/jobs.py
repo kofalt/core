@@ -14,6 +14,7 @@ from ..dao.containerutil import create_filereference_from_dictionary, create_con
 from .. import config
 from ..web.errors import APINotFoundException
 
+log = config.log
 
 class Job(object):
     def __init__(self, gear, inputs, destination=None, tags=None,
@@ -105,8 +106,9 @@ class Job(object):
         # Partial join of gear info at time of execution
         gear_info = {
             'category': gear.get('category'),
-            'name': gear['gear'].get('name'),
-            'version': gear['gear'].get('version')
+            'name': gear['gear']['name'],
+            'version': gear['gear']['version'],
+            'capabilities': gear['gear'].get('capabilities', [])
         }
 
         self.gear_id            = gear_id
@@ -155,7 +157,6 @@ class Job(object):
         else:
             return False
 
-
     @classmethod
     def load(cls, e):
         # TODO: validate
@@ -186,7 +187,8 @@ class Job(object):
             'category': gear_info.get('category'),
             'gear': {
                 'name': gear_info.get('name'),
-                'version': gear_info.get('version')
+                'version': gear_info.get('version'),
+                'capabilities': gear_info.get('capabilities', []),
             }
         }
 
@@ -470,7 +472,6 @@ class JobTicket(object):
     def remove(_id):
         """Remove a single ticket by id"""
         config.db.job_tickets.remove({'_id': bson.ObjectId(_id)})
-
 
 class Logs(object):
 

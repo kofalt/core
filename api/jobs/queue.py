@@ -16,7 +16,7 @@ from ..dao.containerutil import (
     create_containerreference_from_filereference, FileReference
 )
 from .job_util import resolve_context_inputs
-from ..web.errors import InputValidationException
+from ..web.errors import InputValidationException, APIValidationException
 
 
 log = config.log
@@ -397,7 +397,7 @@ class Queue(object):
         result = {}
 
         if jobs <= 0 and not stats:
-            raise InputValidationException('Not asking for work or stats')
+            raise APIValidationException('Not asking for work or stats')
 
         if jobs > 0:
             result['jobs'] = Queue.start_jobs(jobs, query['whitelist'], query['blacklist'], query['capabilities'], peek)
@@ -407,7 +407,7 @@ class Queue(object):
         return result
 
     @staticmethod
-    def lists_to_query(whitelist, blacklist):
+    def lists_to_query(whitelist, blacklist, capabilities):
         """
         Translate a whitelist and blacklist to job database query.
         """
@@ -437,7 +437,17 @@ class Queue(object):
         if match['tag']:
             query['tags'] = match['tag']
 
-        log.info('Job query is: %s', json.dumps(query))
+        # Bit unintuitive: match documents that do NOT, have an ELEMENT, that is NOT, in the capabilities.
+        # Or, translated:  match documents whose capabilities are a subset of the query.
+        query['gear_info.capabilities'] = {
+            '$not': {
+                '$elemMatch': {
+                    '$nin': capabilities
+                }
+            }
+        }
+
+        log.debug('Job query is: %s', json.dumps(query))
         return query
 
     @staticmethod
@@ -448,10 +458,7 @@ class Queue(object):
         Will return empty array if there are no jobs to offer. Searches for jobs in FIFO order.
         """
 
-        if len(capabilities) > 1:
-            raise InputValidationException('Capabilities not supported')
-
-        query = Queue.lists_to_query(whitelist, blacklist)
+        query = Queue.lists_to_query(whitelist, blacklist, capabilities)
         return Queue.run_jobs_with_query(max_jobs, query, peek)
 
     @staticmethod
@@ -460,10 +467,7 @@ class Queue(object):
         Return job state count for a given set of parameters.
         """
 
-        if len(capabilities) > 1:
-            raise InputValidationException('Capabilities not supported')
-
-        query = Queue.lists_to_query(whitelist, blacklist)
+        query = Queue.lists_to_query(whitelist, blacklist, capabilities)
 
         # Pipeline aggregation
         result = list(config.db.jobs.aggregate([
@@ -722,7 +726,7 @@ class Queue(object):
         if last is not None:
             results['recent'] = {s: config.db.jobs.find({
                 '$and': [
-                    Queue.lists_to_query(whitelist, blacklist),
+                    Queue.lists_to_query(whitelist, blacklist, capabilities),
                     {'state': s}
                 ]
                 }, {
