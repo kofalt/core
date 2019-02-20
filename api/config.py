@@ -272,7 +272,8 @@ def get_public_config():
 
     # Start publishing features as a boolean map
     features = {
-        'job_tickets': True,  #  Support for modern job-ticket workflow
+        'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
+        'job_ask': True,      #  Job queue /jobs/ask route.
         'signed_url': hasattr(fs, 'get_signed_url'),
     }
 

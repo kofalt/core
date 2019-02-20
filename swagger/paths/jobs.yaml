@@ -41,6 +41,24 @@
         examples:
           response:
             _id: 573cb66b135d87002660597c
+
+/jobs/ask:
+  post:
+    summary: Ask the queue a question
+    description: Ask the queue a question, recieving work or statistics in return.
+    operationId: ask_jobs
+    tags:
+    - jobs
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/job-ask.json
+    responses:
+      '200':
+        description: ''
+
 /jobs/next:
   get:
     summary: Get the next job in the queue

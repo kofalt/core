@@ -148,9 +148,9 @@ endpoints = [
 
         route( '/jobs',                             JobsHandler),
         prefix('/jobs', [
+            route('/ask',                           JobsHandler, h='ask',                  m=['POST']),
             route('/next',                          JobsHandler, h='next',                 m=['GET']),
             route('/stats',                         JobsHandler, h='stats',                m=['GET']),
-            route('/pending',                       JobsHandler, h='pending',              m=['GET']),
             route('/reap',                          JobsHandler, h='reap_stale',           m=['POST']),
             route('/add',                           JobsHandler, h='add',                  m=['POST']),
             route('/<:[^/]+>',                      JobHandler),

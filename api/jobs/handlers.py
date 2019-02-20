@@ -539,16 +539,6 @@ class JobsHandler(base.RequestHandler):
         return Queue.get_statistics(tags=tags, last=last, unique=unique, all_flag=all_flag)
 
     @require_admin
-    def pending(self):
-        tags = self.request.GET.getall('tags')
-
-        # Allow for tags to be specified multiple times, or just comma-deliminated
-        if len(tags) == 1:
-            tags = tags[0].split(',')
-
-        return Queue.get_pending(tags=tags)
-
-    @require_admin
     def next(self):
         peek = self.is_true('peek')
         tags = self.request.GET.getall('tags')
@@ -557,12 +547,23 @@ class JobsHandler(base.RequestHandler):
         if len(tags) == 1:
             tags = tags[0].split(',')
 
-        job = Queue.start_job(tags=tags, peek=peek)
+        job = Queue.start_job_parsing_tags(tags=tags, peek=peek)
 
         if job is None:
             raise InputValidationException('No jobs to process')
         else:
             return job
+
+    @require_admin
+    def ask(self):
+        """
+        Ask for job work or statistics. An upgrade over next & stats that unifies request format.
+        """
+
+        payload = self.request.json
+        validate_data(payload, 'job-ask.json', 'input', 'PUT')
+
+        return Queue.ask(payload)
 
     @require_admin
     def reap_stale(self):
@@ -920,7 +921,6 @@ class JobHandler(base.RequestHandler):
         ticket_id = self.get_param('job_ticket_id')
         if ticket_id:
             JobTicket.remove(ticket_id)
-
 
 class BatchHandler(base.RequestHandler):
 

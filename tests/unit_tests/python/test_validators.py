@@ -77,9 +77,9 @@ def test_file_output_invalid():
     schema, resolver = validators._resolve_schema(schema_uri)
     with pytest.raises(jsonschema.exceptions.ValidationError):
         validators._validate_json(payload, schema, resolver)
-    
+
 def test_jsonschema_validate_enum_with_null():
-    schema = { 
+    schema = {
         'oneOf': [
             { 'type': 'null' },
             { 'type': 'string', 'enum': ['true', 'false'] }
@@ -100,7 +100,7 @@ def test_example_payload_valid(schema_type, schema_name):
         schema_uri = validators.schema_uri(schema_type, '{0}.json'.format(schema_name))
         schema, resolver = validators._resolve_schema(schema_uri)
         validators._validate_json(example_data, schema, resolver)
-    
+
 # Generate unit tests for all schema files
 # These tests will fail if examples are missing
 def pytest_generate_tests(metafunc):
@@ -114,12 +114,12 @@ def pytest_generate_tests(metafunc):
         for filename in files:
             if fnmatch.fnmatch(filename, '*.json'):
                 path = os.path.join(root, filename)
-                relpath = path[len(SCHEMAS_PATH):]     
+                relpath = path[len(SCHEMAS_PATH):]
                 if relpath not in IGNORED_SCHEMAS:
                     schema_files.append( relpath )
 
     test_args = []
-    for relpath in schema_files:        
+    for relpath in schema_files:
         # Get schema path, and test name
         schema_type, schema_name = os.path.split(relpath)
         if schema_type == 'input' or schema_type == 'output':
