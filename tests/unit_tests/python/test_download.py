@@ -60,24 +60,22 @@ def test_filtered_files():
 
 
 def test_archive_stream(mocker, data_builder, file_form, as_drone):
-    class MockReadInto:
+    class MockRead:
         def __init__(self):
             self._read = False
 
         def __call__(self, b):
             if not self._read:
                 self._read = True
-                b[0:4] = 'test'
-                return 4
-            return 0
+                return 'test'
+            return ''
 
     get_return_value = MagicMock()
-    get_return_value.readinto = MockReadInto()
-    get_return_value._read = False
+    get_return_value.read = MockRead()
     get_return_value.closed = False
     get_return_value.status = 200
     get_return_value.reason = 'OK'
-    get_return_value.readable = lambda: True
+    get_return_value.readable.return_value = True
     mocked_files = mocker.patch('api.files.get_signed_url')
 
     project = data_builder.create_project(label='project1')
@@ -120,14 +118,14 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
         assert len(tarinfo_list) == 2
 
         assert mocked_files.called
-        assert get_return_value.readinto._read
+        assert get_return_value.read._read
 
     get_return_value = MagicMock()
     get_return_value.closed = False
     get_return_value.status = 200
     get_return_value.reason = 'OK'
-    get_return_value.readable = lambda: True
-    get_return_value.readinto.side_effect = exceptions.ConnectionError()
+    get_return_value.readable.return_value = True
+    get_return_value.read.side_effect = exceptions.ConnectionError()
 
     with mocker.patch('urllib3.PoolManager.request', return_value=get_return_value) as mocked_session:
         r = as_drone.post('/download', json={
