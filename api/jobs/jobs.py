@@ -14,8 +14,6 @@ from ..dao.containerutil import create_filereference_from_dictionary, create_con
 from .. import config
 from ..web.errors import APINotFoundException
 
-log = config.log
-
 class Job(object):
     def __init__(self, gear, inputs, destination=None, tags=None,
                  attempt=1, previous_job_id=None, created=None,
