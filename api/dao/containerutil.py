@@ -140,6 +140,20 @@ def extract_subject(session, project):
     return subject
 
 
+def get_resolvable_groups(uid):
+    pipeline = [
+        {
+            '$match': {'permissions._id': uid}
+        },
+        {
+            '$group': {
+                '_id': '$group'
+            }
+        }
+    ]
+    return [doc['_id'] for doc in config.db.projects.aggregate(pipeline)]
+
+
 def get_stats(cont, cont_type):
     """
     Add a session, subject, non-compliant session and attachment count to a project or collection
