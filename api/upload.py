@@ -91,7 +91,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
     if not file_fields:
 
-        # The only time we need the tempdir_name is when we use token and packfile. 
+        # The only time we need the tempdir_name is when we use token and packfile.
         form = file_processor.process_form(request, use_filepath=filename_path, tempdir_name=tempdir)
 
         # Non-file form fields may have an empty string as filename, check for 'falsy' values
@@ -144,7 +144,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             field.size = int(config.local_fs.get_fs().getsize(field.filepath))
         else:
             field.size = (config.storage.get_file_info(None, util.path_from_uuid(field.uuid)))['filesize']
-        
+
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 
@@ -258,7 +258,7 @@ class Upload(base.RequestHandler):
                 )
             # In this case we saved the files to the uuid location they are assigned on signed url storage
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
-                                  context=context, file_fields=file_fields, 
+                                  context=context, file_fields=file_fields,
                                   tempdir=None)
         else:
             # In this case we are going to save the files to direct locations from the reqeust post.
@@ -347,12 +347,12 @@ class Upload(base.RequestHandler):
                 '_id': token['_id']
             })
             tokens_removed += 1
-        
+
         if tokens_removed > 0:
             self.log.info('Removed %s expired packfile tokens', tokens_removed)
 
-        # Because we only create directories after we issue a token and we remove directories 
-        # before we delete the token directories should always map to the current tokens in the DB. 
+        # Because we only create directories after we issue a token and we remove directories
+        # before we delete the token directories should always map to the current tokens in the DB.
 
         return {
             'removed': {
@@ -379,7 +379,7 @@ def extract_file_fields(form):
 def make_file_attrs(field, origin):
     # create a file-attribute map commonly used elsewhere in the codebase.
     # Stands in for a dedicated object... for now.
-    
+
     # Not all placers need the path attribute and if they are using UUID it can be inferred
     # Once this get strandardized into a model class we can clean up the specifics
     path = None

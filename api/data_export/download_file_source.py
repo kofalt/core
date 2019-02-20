@@ -79,17 +79,19 @@ class DownloadFileSource(object):
         """Open the given download 'file' target"""
         # TODO: For now, this is an optimization - directly accessing the signed url
         # can speed up transfer. Shouldn't open for reading basically do this?
-        try:
-            signed_url = config.storage.get_signed_url(None, target.src_path)
-        except fs.errors.ResourceNotFound:
-            signed_url = None
+        signed_url = None
+        if config.storage.is_signed_url():
+            try:
+                signed_url = config.storage.get_signed_url(target.file_id, target.src_path)
+            except fs.errors.ResourceNotFound:
+                pass
 
         try:
             if signed_url:
                 return io.URLFileWrapper(signed_url, self._http)
             else:
                 file_system = files.get_fs_by_file_path(target.src_path)
-                return file_system.open(None, target.src_path, 'rb', None)
+                return file_system.open(target.file_id, target.src_path, 'rb', None)
         except (fs.errors.ResourceNotFound,
                 fs.errors.OperationFailed,
                 IOError) as err:
