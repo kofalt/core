@@ -202,17 +202,18 @@ class Upload(base.RequestHandler):
             self.abort(400, 'metadata and at least one filename are required')
 
         signed_urls = {}
-        filedata = {}
+        filedata = []
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
             signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             signed_urls[filename] = signed_url
-            filedata[filename] = {
+            filedata.append({
+                'filename': filename,
                 'url': signed_url,
                 'uuid': new_uuid,
                 'filepath': util.path_from_uuid(new_uuid)
-            }
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filenames, metadata, filedata)
+            })
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filedata, metadata)
 
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
@@ -247,15 +248,7 @@ class Upload(base.RequestHandler):
         ticket_id = self.get_param('ticket')
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
-            file_fields = []
-            for filename, values in ticket['filedata'].items():
-                file_fields.append(
-                    util.dotdict({
-                        'filename': filename,
-                        'uuid': values['uuid'],
-                        'filepath': values['filepath']
-                    })
-                )
+            file_fields = [util.dotdict(file_field) for file_field in ticket['filedata']]
             # In this case we saved the files to the uuid location they are assigned on signed url storage
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                   context=context, file_fields=file_fields,
@@ -294,15 +287,7 @@ class Upload(base.RequestHandler):
         ticket_id = self.get_param('upload_ticket')
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
-            file_fields = []
-            for filename, values in ticket['filedata'].items():
-                file_fields.append(
-                    util.dotdict({
-                        'filename': filename,
-                        'uuid': values['uuid'],
-                        'filepath': values['filepath']
-                    })
-                )
+            file_fields = [util.dotdict(file_field) for file_field in ticket['filedata']]
 
             strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
