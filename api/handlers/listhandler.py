@@ -358,18 +358,19 @@ class FileListHandler(ListHandler):
 
         #These upload directly to final location
         signed_urls = {}
-        filedata = {}
+        filedata = []
 
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
             signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             signed_urls[filename] = signed_url
-            filedata[filename] = {
+            filedata.append({
+                'filename': filename,
                 'url': signed_url,
                 'uuid': new_uuid,
-            }
+            })
 
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filenames, metadata, filedata)
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filedata, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
 
@@ -613,14 +614,7 @@ class FileListHandler(ListHandler):
                 # If we don't have an origin with this request, use the ticket's origin
                 self.origin = ticket.get('origin')
 
-            file_fields = []
-            for filename, values in ticket['filedata'].items():
-                file_fields.append(
-                    util.dotdict({
-                        'filename': filename,
-                        'uuid': values['uuid']
-                    })
-                )
+            file_fields = [util.dotdict(file_field) for file_field in ticket['filedata']]
             # In this flow files are stored to the storage location via the signed url directly
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                          container_type=containerutil.singularize(cont_name),
