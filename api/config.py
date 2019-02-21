@@ -274,7 +274,7 @@ def get_public_config():
     features = {
         'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,      #  Job queue /jobs/ask route.
-        'signed_url': hasattr(storage, 'get_signed_url'),
+        'signed_url': storage.is_signed_url(),
     }
 
     return {
