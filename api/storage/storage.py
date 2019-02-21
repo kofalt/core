@@ -33,7 +33,7 @@ class Storage(object):
         :returns boolean:
         """
         raise NotImplementedError()
-    
+
     @abstractmethod
     def get_signed_url(self, uuid, path_hint, purpose, filename, attachment=True, response_type=None):
         """
@@ -52,7 +52,7 @@ class Storage(object):
 
         """
         raise NotImplementedError()
-    
+
     @abstractmethod
     def get_file_hash(self, uuid, path_hint):
         """
@@ -79,7 +79,7 @@ class Storage(object):
                 'filesize': int,
             }
         :rtype: Dict | None
-        
+
         """
         raise NotImplementedError()
 

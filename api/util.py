@@ -15,7 +15,7 @@ import fs.path
 import fs.errors
 import pymongo
 
-from .web.errors import InputValidationException
+from .web import errors
 
 
 BYTE_RANGE_RE = re.compile(r'^(?P<first>\d+)-(?P<last>\d+)?$')
@@ -82,7 +82,7 @@ def mongo_sanitize_fields(d):
         d = d.replace('.', '_')
         d = d.replace('$', '-')
         if d is '':
-            raise InputValidationException("'' not allowed as Mongo key name")
+            raise errors.InputValidationException("'' not allowed as Mongo key name")
         return d
     else:
         return d
@@ -216,20 +216,55 @@ def obj_from_map(_map):
 
     return type('',(object,),_map)()
 
-def set_for_download(response, stream=None, filename=None, length=None):
+def set_for_download(response, stream=None, filename=None, length=None,
+        content_type='application/octet-stream'):
     """Takes a self.response, and various download options."""
 
     # If an app_iter is to be set, it MUST be before these other headers are set.
     if stream is not None:
         response.app_iter = stream
 
-    response.headers['Content-Type'] = 'application/octet-stream'
+    response.headers['Content-Type'] = content_type
 
     if filename is not None:
         response.headers['Content-Disposition'] = 'attachment; filename="' + filename + '"'
 
     if length is not None:
         response.headers['Content-Length'] = str(length)
+
+def send_or_redirect_file(request, storage, file_id, file_path, filename,
+        content_type='application/octet-stream'):
+    """Serve a file on the response object.
+
+    This is done either by redirecting (if supported, via signed-urls) or serving the
+    file directly. file_id is required for v1 or later files, file_path is required for
+    older files. At least one of file_id or file_path MUST be set.
+
+    Args:
+        request: The request object
+        storage: The storage provider that the file belongs to
+        file_id (str): The uuid of the file, if known
+        file_path (str): The path to the file
+        filename (str): The name of the file (for the content-disposition header)
+        content_type (str): The optional content type (default is application/octet-stream)
+
+    Raises:
+        APINotFoundException: If the file could not be found
+    """
+    signed_url = None
+    try:
+        if storage.is_signed_url():
+            signed_url = storage.get_signed_url(file_id, file_path, 'download', filename,
+                attachment=bool(filename), response_type=content_type)
+
+        if signed_url:
+            request.redirect(signed_url)
+        else:
+            stream = storage.open(file_id, file_path, 'rb', None)
+            set_for_download(request.response, stream=stream, filename=filename,
+                content_type=content_type)
+    except fs.errors.ResourceNotFound as e:
+        raise errors.APINotFoundException(str(e))
 
 def format_hash(hash_alg, hash_):
     """
