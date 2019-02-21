@@ -105,6 +105,7 @@ class AbstractDownloadStrategy(object):
         for target in self.identify_targets(spec, uid, summary=True):
             if target.filetype not in totals:
                 totals[target.filetype] = {
+                    '_id': target.filetype,
                     'count': 0,
                     'mb_total': 0
                 }

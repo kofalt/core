@@ -869,6 +869,7 @@ def test_summary(data_builder, as_admin, file_form):
     r = as_admin.post('/download/summary', json=[{"level":"acquisition", "_id":acquisition},{"level":"acquisition", "_id":acquisition2}])
     assert r.ok
     assert len(r.json()) == 1
+    assert r.json().get("csv", {}).get("_id") == "csv"
     assert r.json().get("csv", {}).get("count",0) == 2
 
     r = as_admin.post('/download/summary', json=[{"level":"group", "_id":missing_object_id}])
