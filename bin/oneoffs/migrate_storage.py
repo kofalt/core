@@ -338,7 +338,7 @@ def migrate_gear_files(f):
 
         log.debug('    copy file to target storage')
 
-        old_file = src_fs.open(None, f_old_path, 'rb', None)
+        old_file = local_fs.open(None, f_old_path, 'rb', None)
         new_file = target_fs.open(file_id, f_new_path, 'wb', None)
         buffer_copy(old_file, new_file, CHUNK_SIZE)
         old_file.close()
