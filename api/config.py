@@ -6,6 +6,7 @@ import pymongo
 import datetime
 import elasticsearch
 
+from storage import create_flywheel_fs
 from .storage.py_fs_storage import PyFsStorage
 
 from . import util
@@ -318,7 +319,9 @@ def get_release_version():
     return release_version
 
 # Storage configuration
-storage = PyFsStorage(__config['persistent']['fs_url'])
+
+storage = create_flywheel_fs(__config['persistent']['fs_url'])
+# local_fs must be PyFS with osfs for using the local get_fs functions for file manipulation
 local_fs = PyFsStorage('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']
 
