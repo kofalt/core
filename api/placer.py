@@ -412,8 +412,8 @@ class TokenPlacer(Placer):
     def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
         super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
 
-        self.paths  =   []
-        self.folder =   None
+        self.paths = []
+        self.folder = None
 
     def check(self):
         token = self.context['token']
@@ -426,9 +426,9 @@ class TokenPlacer(Placer):
         #   PackfilePlacer.check
         #   upload.clean_packfile_tokens
         #
-        # It must be kept in sync between each instance.
-
-        self.folder = token
+        # It must be kept in sync between each instance and also with the FileListHander tempdir.
+        self.folder = fs.path.join('tokens', 'packfile', token)
+        util.mkdir_p(self.folder, config.local_fs.get_fs())
         # we only work with local fs when using token placer
 
     def process_file_field(self, file_attrs):
@@ -485,9 +485,8 @@ class PackfilePlacer(Placer):
         #   PackfilePlacer.check
         #   upload.clean_packfile_tokens
         #
-        # It must be kept in sync between each instance.
-
-        self.folder = token
+        # It must be kept in sync between each instance and also the FileListHandler tempdir.
+        self.folder = fs.path.join('tokens', 'packfile', token)	
 
         try:
             # Always on the local fs to make the pack file
