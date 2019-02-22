@@ -139,7 +139,11 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             #Some placers need this value. Consistent object would be nice
             field.path = field.filepath
 
-        field.size = (config.storage.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+        if tempdir:
+            field.size = (config.local_fs.get_file_info(None, field.filepath))['filesize']
+        else:
+            field.size = (config.storage.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 

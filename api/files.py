@@ -80,7 +80,7 @@ class FileProcessor(object):
         # We only use the tempdir_name for Token and Placer strategy
         if tempdir_name:
             if not config.local_fs.get_fs().exists(tempdir_name):
-                config.local_fs.get_fs().makedir(tempdir_name)
+                config.local_fs.get_fs().makedirs(tempdir_name)
             field_storage_class = get_single_file_field_storage(config.local_fs, use_filepath=use_filepath, tempdir_name=tempdir_name)
         else:
             field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
@@ -237,8 +237,11 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
             
-            self.open_file = file_system.open(self._uuid, self.filepath, 'wb', None)
-          
+            if tempdir_name:
+                self.open_file = file_system.open(None, self.filepath, 'wb', None)
+            else:
+                self.open_file = file_system.open(self._uuid, self.filepath, 'wb', None)
+
             return self.open_file
 
         # override private method __write of superclass FieldStorage

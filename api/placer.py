@@ -553,8 +553,10 @@ class PackfilePlacer(Placer):
         # We create the zip file in the local storage location then get attributes and then move it to the final
         # location. Otherwise in the cloud instances we would be writing files across the network which would
         # be much slower
-        tempZipPath = fs.path.join('tokens', 'packfile', 'token', 'token')
-        # tempZipPath = self.folder + '/' + str(uuid.uuid4())
+
+        token = self.context['token']
+
+        tempZipPath = fs.path.join('tokens', 'packfile', token, token)
         self.zip_ = zipfile.ZipFile(config.local_fs.get_fs().open(tempZipPath, 'wb'),
                                     'w', zipfile.ZIP_DEFLATED, allowZip64=True)
         # Write all files to zip
