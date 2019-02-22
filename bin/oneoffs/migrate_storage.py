@@ -14,12 +14,14 @@ import sys
 import pymongo
 from functools import wraps
 
-import fs.move
-import fs.path
-
 from fs import open_fs, errors
 
+
+from api.storage.py_fs_storage import PyFsStorage
 from api import util
+
+
+CHUNK_SIZE = 2 ** 20
 
 log = logging.getLogger('migrate_storage')
 
@@ -43,20 +45,20 @@ def main(*argv):
     log.info('Using mongo URI: %s', db_uri)
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
-    local_fs = open_fs('osfs://' + data_path)
-
+    local_fs = PyFsStorage('osfs://' + data_path)
+    
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
     data_path2 = os.path.join(data_path, 'v1')
     if os.path.exists(data_path2):
         log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-        local_fs2 = open_fs('osfs://' + data_path2)
+        local_fs2 = PyFsStorage('osfs://' + data_path2)
     else:
         local_fs2 = None
     ###
 
     fs_url = os.environ.get('SCITRAN_PERSISTENT_FS_URL', 'osfs://' + os.path.join(data_path, 'v1'))
     log.info('Migrate files from %s to %s', data_path, fs_url)
-    target_fs = open_fs(fs_url)
+    target_fs = PyFsStorage(fs_url)
 
     if fs_url.startswith('gc://'):
         # Late import storage error class and decorate retry
@@ -76,7 +78,7 @@ def main(*argv):
 
         if args.delete_files:
             log.info('Delete legacy files')
-            local_fs.removetree(u'/')
+            local_fs.get_fs().removetree(u'/')
 
         cleanup_empty_folders()
     except MigrationError:
@@ -97,10 +99,10 @@ def parse_args(argv):
 
 
 def get_src_fs_by_file_path(file_path):
-    if local_fs.isfile(file_path):
+    if local_fs.get_file_info(None, file_path):
         return local_fs
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif local_fs2 and local_fs2.isfile(file_path):
+    elif local_fs2 and local_fs2.get_file_into(None, file_path):
         return local_fs2
     ###
     else:
@@ -207,14 +209,16 @@ def migrate_file(f):
     file_id = f['fileinfo'].get('_id', '')
     if file_id:
         file_path = util.path_from_uuid(file_id)
-        if not target_fs.isfile(file_path):
+        if not target_fs.get_file_info(file_id, file_path):
             log.debug('    file aready has id field, just copy to target storage')
             src_fs = get_src_fs_by_file_path(file_path)
             log.debug('    file found in %s' % src_fs)
 
-            dst_dir = fs.path.dirname(file_path)
-            target_fs.makedirs(dst_dir, recreate=True)
-            fs.move.copy_file(src_fs=src_fs, src_path=file_path, dst_fs=target_fs, dst_path=file_path)
+            old_file = src_fs.open(file_id, file_path, 'rb', None)
+            new_file = target_fs.open(file_id, file_path, 'wb', None)
+            buffer_copy(old_file, new_file, CHUNK_SIZE)
+            old_file.close()
+            new_file.close()
         else:
             log.debug('    file is aready present in target storage, skipping')
     else:
@@ -226,9 +230,11 @@ def migrate_file(f):
         log.debug('    file new path: %s', f_new_path)
 
         log.debug('    copy file to target storage')
-        dst_dir = fs.path.dirname(f_new_path)
-        target_fs.makedirs(dst_dir, recreate=True)
-        fs.move.copy_file(src_fs=local_fs, src_path=f_old_path, dst_fs=target_fs, dst_path=f_new_path)
+        old_file = src_fs.open(None, f_old_path, 'rb', None)
+        new_file = target_fs.open(file_id, f_new_path, 'wb', None)
+        buffer_copy(old_file, new_file, CHUNK_SIZE)
+        old_file.close()
+        new_file.close()
 
         update_set = {
             f['prefix'] + '.$.modified': datetime.datetime.utcnow(),
@@ -246,7 +252,8 @@ def migrate_file(f):
         if not updated_doc:
             log.info('Probably the following file has been updated during the migration '
                      'and its hash is changed, cleaning up from the new filesystem')
-            target_fs.remove(f_new_path)
+            # We dont support delete at this time so we should check the hash before we save the file if we dont extra files lying around
+            # target_fs.remove(f_new_path)
 
 
 def migrate_analysis_file(f, migrated_files):
@@ -309,14 +316,16 @@ def migrate_gear_files(f):
     file_id = f['exchange'].get('rootfs-id', '')
     if file_id:
         file_path = util.path_from_uuid(file_id)
-        if not target_fs.isfile(file_path):
+        if not target_fs.get_file_info(file_id, file_path):
             log.debug('    file aready has id field, just copy to target storage')
             src_fs = get_src_fs_by_file_path(file_path)
             log.debug('    file found in %s' % src_fs)
 
-            dst_dir = fs.path.dirname(file_path)
-            target_fs.makedirs(dst_dir, recreate=True)
-            fs.move.copy_file(src_fs=src_fs, src_path=file_path, dst_fs=target_fs, dst_path=file_path)
+            old_file = src_fs.open(file_id, file_path, 'rb', None)
+            new_file = target_fs.open(file_id, file_path, 'wb', None)
+            buffer_copy(old_file, new_file, CHUNK_SIZE)
+            old_file.close()
+            new_file.close()
         else:
             log.debug('    file is aready present in target storage, skipping')
     else:
@@ -329,9 +338,11 @@ def migrate_gear_files(f):
 
         log.debug('    copy file to target storage')
 
-        dst_dir = fs.path.dirname(f_new_path)
-        target_fs.makedirs(dst_dir, recreate=True)
-        fs.move.copy_file(src_fs=local_fs, src_path=f_old_path, dst_fs=target_fs, dst_path=f_new_path)
+        old_file = src_fs.open(None, f_old_path, 'rb', None)
+        new_file = target_fs.open(file_id, f_new_path, 'wb', None)
+        buffer_copy(old_file, new_file, CHUNK_SIZE)
+        old_file.close()
+        new_file.close()
 
         update_set = {
             'modified': datetime.datetime.utcnow(),
@@ -355,6 +366,14 @@ def migrate_gears():
         migrate_gear_files(f)
         show_progress(i + 1, len(_files))
 
+
+def buffer_copy(src, dest, length):
+
+    while True:
+        chunk = src.read(length)
+        if not chunk:
+            break
+        dest.write(chunk)
 
 class MigrationError(Exception):
     pass

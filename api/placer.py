@@ -3,7 +3,6 @@ import copy
 import datetime
 import dateutil
 import pymongo
-import uuid
 import zipfile
 
 import fs.path
