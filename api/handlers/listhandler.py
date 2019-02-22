@@ -16,7 +16,7 @@ from ..dao import noop
 from ..dao import liststorage
 from ..dao import containerutil
 from ..dao import containerstorage
-from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
+from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable, APINotFoundException
 from ..web.request import AccessType
 
 
@@ -392,11 +392,11 @@ class FileListHandler(ListHandler):
         return ticket
 
     @staticmethod
-    def build_zip_info(file_path, file_system):
+    def build_zip_info(file_uuid, file_path, file_system):
         """
         Builds a json response containing member and comment info for a zipfile
         """
-        with file_system.open(None, file_path, 'rb', None) as f:
+        with file_system.open(file_uuid, file_path, 'rb', None) as f:
             with zipfile.ZipFile(f) as zf:
                 info = {
                     'comment': zf.comment,
@@ -447,7 +447,7 @@ class FileListHandler(ListHandler):
         # Request for info about zipfile
         elif self.is_true('info'):
             try:
-                info = self.build_zip_info(file_path, file_system)
+                info = self.build_zip_info(fileinfo.get('_id'), file_path, file_system)
                 return info
             except zipfile.BadZipfile:
                 self.abort(400, 'not a zip file')
@@ -486,6 +486,7 @@ class FileListHandler(ListHandler):
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
                 except fs.errors.ResourceNotFound:
                     self.log.error('Error getting signed_url on non existing file')
+                    raise errors.APINotFoundException('Error getting signed_url on non existing fle')
 
             if signed_url:
                 self.redirect(signed_url)
@@ -744,7 +745,7 @@ class FileListHandler(ListHandler):
         token_id = self.request.GET.get('token')
         self._check_packfile_token(project_id, token_id)
 
-        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id}, tempdir=token_id)
+        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id}, tempdir=fs.path.join('tokens', 'packfile', token_id))
 
     def packfile_end(self, **kwargs):
         """
