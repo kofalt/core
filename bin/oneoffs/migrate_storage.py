@@ -14,7 +14,7 @@ import sys
 import pymongo
 from functools import wraps
 
-from fs import open_fs, errors
+from fs import errors
 
 
 from api.storage.py_fs_storage import PyFsStorage
@@ -102,7 +102,7 @@ def get_src_fs_by_file_path(file_path):
     if local_fs.get_file_info(None, file_path):
         return local_fs
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif local_fs2 and local_fs2.get_file_into(None, file_path):
+    elif local_fs2 and local_fs2.get_file_info(None, file_path):
         return local_fs2
     ###
     else:
