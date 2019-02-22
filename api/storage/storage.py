@@ -5,7 +5,7 @@ class Storage(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def open(self, uuid, path_hint, mode, options):
+    def open(self, uuid, path_hint, mode, **kwargs):
         """
         Open a file like object
 
@@ -13,16 +13,15 @@ class Storage(object):
         :param uid: internal id of file reference
         :param path_hint: local relative path for file location
         :param mode: Mode to open file
-        :param options: Options list to pass to underlying storage layer
+        :param kwargs: Options list to pass to underlying storage layer
         :type uid: string
         :type path_hint: string
         :type mode: string
-        :type options: list
+        :type kwargs: dict
         :returns: An object implemeting a file like interface
         :rtype: File
 
         """
-        raise NotImplementedError()
 
     @abstractmethod
     def is_signed_url(self):
@@ -32,7 +31,6 @@ class Storage(object):
         :param self: self reference
         :returns boolean:
         """
-        raise NotImplementedError()
 
     @abstractmethod
     def get_signed_url(self, uuid, path_hint, purpose, filename, attachment=True, response_type=None):
@@ -51,7 +49,6 @@ class Storage(object):
         :rtype: string
 
         """
-        raise NotImplementedError()
 
     @abstractmethod
     def get_file_hash(self, uuid, path_hint):
@@ -64,9 +61,8 @@ class Storage(object):
         :returns: The hash value of the curreent file contents
         :rtype: string
         """
-        raise NotImplementedError()
 
-    #abstractmethod
+    @abstractmethod
     def get_file_info(self, uuid, path_hint):
         """
         Returns basic file info about the referenced file object, None if the file does not exist
@@ -81,5 +77,4 @@ class Storage(object):
         :rtype: Dict | None
 
         """
-        raise NotImplementedError()
 

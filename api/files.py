@@ -21,17 +21,17 @@ class FileProcessor(object):
         File processing service layer object. Handles all file IO
 
         :param self: self reference
-        :Storage persistent_fs: storage layer supported by flywheel storage class 
+        :Storage persistent_fs: storage layer supported by flywheel storage class
 
         """
         self._persistent_fs = persistent_fs
 
-    def create_new_file(self, filename, options=None):
+    def create_new_file(self, filename, **kwargs):
         """ Create a new block storage file with a unique uuid opened for writing
-    
+
         :param self: self reference
         :param string filename: filename for the new file
-        :param options: Not sure if this is a dict or
+        :param kwargs: Additional args to pass to open
         :rtype FileHasherWriter: Returns the special wrapper so extend that interface as needed
 
         """
@@ -41,9 +41,9 @@ class FileProcessor(object):
 
         path = util.path_from_uuid(new_uuid)
 
-        fileobj = self._persistent_fs.open(new_uuid, path, 'wb', options)
+        fileobj = self._persistent_fs.open(new_uuid, path, 'wb', **kwargs)
         fileobj.filename = filename
-        
+
         return path, FileHasherWriter(fileobj)
 
     def process_form(self, request, use_filepath=False, tempdir_name=None):
@@ -65,7 +65,7 @@ class FileProcessor(object):
 
         Keep tempdir in scope until you don't need it anymore; it will be deleted on GC.
         """
-        
+
         # If chunked encoding, indicate that the input will be terminated via EOF
         # before getting the request body
         if request.headers.get('Transfer-Encoding', None) == 'chunked':
@@ -76,7 +76,7 @@ class FileProcessor(object):
         env = request.environ.copy()
         env.setdefault('CONTENT_LENGTH', '0')
         env['QUERY_STRING'] = ''
-      
+
         # We only use the tempdir_name for Token and Placer strategy
         if tempdir_name:
             if not config.local_fs.get_fs().exists(tempdir_name):
@@ -84,7 +84,7 @@ class FileProcessor(object):
             field_storage_class = get_single_file_field_storage(config.local_fs, use_filepath=use_filepath, tempdir_name=tempdir_name)
         else:
             field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
-        
+
         form = field_storage_class(
             fp=request.body_file, environ=env, keep_blank_values=True
         )
@@ -103,7 +103,7 @@ class FileProcessor(object):
             modified = datetime.datetime.utcnow()
         if not mimetype:
             mimetype = util.guess_mimetype(filename)
-        
+
         return util.obj_from_map({
             'uuid': uuid_,
             'filename': filename,
@@ -134,15 +134,15 @@ class FileProcessor(object):
 
 class FileHasherWriter(object):
     """File wrapper that hashes while writing to a file
-    
+
         This file will not be needed with native cloud object storage but will be good to use for local
         storage files.  Once we have assigned each file to provider type then we can return this special
         object only for local files and normal file objects in all other cases
-    
+
     """
     def __init__(self, fileobj, hash_alg=None):
         """Create a new file hasher/writer
-        
+
         Arguments:
             fileobj (file): The wrapped file object
             hash_alg (str): The hash algorithm, or None to use default
@@ -160,11 +160,11 @@ class FileHasherWriter(object):
     @property
     def filename(self):
         return self.fileobj.filename
-    
+
     @filename.setter
     def filename(self, filename):
         self.fileobj.filename = filename
-    
+
     @property
     def filepath(self):
         return self.fileobj.filepath
@@ -203,8 +203,8 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
         def __init__(self, *args, **kwargs):
 
             self._uuid = str(uuid.uuid4())
-        
-            cgi.FieldStorage.__init__(self, *args, **kwargs) 
+
+            cgi.FieldStorage.__init__(self, *args, **kwargs)
 
         @property
         def uuid(self):
@@ -214,13 +214,13 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
 
             self.hasher = hashlib.new(DEFAULT_HASH_ALG)
             # Sanitize form's filename (read: prevent malicious escapes, bad characters, etc)
-            # dont overwrite filename so we have it easily for metadata 
+            # dont overwrite filename so we have it easily for metadata
             # TODO: This should be abstracted out so that its the same method used in in process_upload when no files are added but metadata is given, as it is in here
             if use_filepath:
                 self.filename = util.sanitize_path(self.filename)
             else:
                 self.filename = os.path.basename(self.filename)
-               
+
 
 
             # move this to a utility function and use it in both places.
@@ -236,11 +236,8 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
 
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
-            
-            if tempdir_name:
-                self.open_file = file_system.open(None, self.filepath, 'wb', None)
-            else:
-                self.open_file = file_system.open(self._uuid, self.filepath, 'wb', None)
+
+            self.open_file = file_system.open(self._uuid, self.filepath, 'wb')
 
             return self.open_file
 
@@ -325,7 +322,7 @@ def get_file_path(file_info):
 def get_fs_by_file_path(file_path):
     """
     @deprecated
-    This method is only intended to support the pyfs storage class. 
+    This method is only intended to support the pyfs storage class.
     Once new storage classes are implemented this should be moved into the specific file attributes
 
     Get the filesystem where the file exists by a valid file path.

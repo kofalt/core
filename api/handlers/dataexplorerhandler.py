@@ -695,9 +695,9 @@ class DataExplorerHandler(base.RequestHandler):
 
         # Saved directly to persistent storage.
         file_processor = FileProcessor(config.storage)
-        
+
         # Create a new file with a new uuid
-        _, fileobj = file_processor.create_new_file(None, None)
+        _, fileobj = file_processor.create_new_file(None)
         fileobj.write(json.dumps(formatted_search_results))
         #This seems to be empty on file create but verify this is correct
         metadata = None
@@ -706,7 +706,7 @@ class DataExplorerHandler(base.RequestHandler):
         # Create our targeted placer
         placer = TargetedMultiPlacer(output['type'], output_container, output['id'],
             metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
-        
+
         fileobj.close()
 
         file_fields = file_processor.create_file_fields(output_filename, fileobj.path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)

@@ -91,7 +91,7 @@ class DownloadFileSource(object):
                 return io.URLFileWrapper(signed_url, self._http)
             else:
                 file_system = files.get_fs_by_file_path(target.src_path)
-                return file_system.open(target.file_id, target.src_path, 'rb', None)
+                return file_system.open(target.file_id, target.src_path, 'rb')
         except (fs.errors.ResourceNotFound,
                 fs.errors.OperationFailed,
                 IOError) as err:

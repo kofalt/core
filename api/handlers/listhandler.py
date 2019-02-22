@@ -396,7 +396,7 @@ class FileListHandler(ListHandler):
         """
         Builds a json response containing member and comment info for a zipfile
         """
-        with file_system.open(file_uuid, file_path, 'rb', None) as f:
+        with file_system.open(file_uuid, file_path, 'rb') as f:
             with zipfile.ZipFile(f) as zf:
                 info = {
                     'comment': zf.comment,
@@ -456,7 +456,7 @@ class FileListHandler(ListHandler):
         elif self.get_param('member') is not None:
             zip_member = self.get_param('member')
             try:
-                with file_system.open(fileinfo.get('_id'), file_path, 'rb', None) as f:
+                with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
                     with zipfile.ZipFile(f) as zf:
                         self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                         self.response.write(zf.open(zip_member).read())
@@ -512,7 +512,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
 
-                    self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb', None)
+                    self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb')
                     self.response.content_length = fileinfo['size']
                 else:
                     self.response.status = 206
@@ -524,7 +524,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
 
 
-                    with file_system.open(fileinfo.get('_id'), file_path, 'rb', None) as f:
+                    with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
                             if first < 0:
