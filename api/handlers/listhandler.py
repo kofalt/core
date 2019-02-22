@@ -16,7 +16,7 @@ from ..dao import noop
 from ..dao import liststorage
 from ..dao import containerutil
 from ..dao import containerstorage
-from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable, APINotFoundException
+from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
 from ..web.request import AccessType
 
 
