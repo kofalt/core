@@ -486,7 +486,7 @@ class FileListHandler(ListHandler):
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
                 except fs.errors.ResourceNotFound:
                     self.log.error('Error getting signed_url on non existing file')
-                    raise errors.APINotFoundException('Error getting signed_url on non existing fle')
+                    # raise APINotFoundException('Error getting signed_url on non existing fle' + filename)
 
             if signed_url:
                 self.redirect(signed_url)
@@ -759,4 +759,5 @@ class FileListHandler(ListHandler):
         # Because this is an SSE endpoint, there is no form-post. Instead, read JSON data from request param
         metadata = json.loads(self.request.GET.get('metadata'))
 
-        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id}, response=self.response, metadata=metadata, tempdir=token_id)
+        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id}, 
+                response=self.response, metadata=metadata, tempdir=fs.path.join('tokens', 'packfile', token_id))

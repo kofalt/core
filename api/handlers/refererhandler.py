@@ -366,7 +366,7 @@ class AnalysesHandler(RefererHandler):
                 # Request for info about zipfile
                 if self.is_true('info'):
                     try:
-                        info = FileListHandler.build_zip_info(file_path, file_system)
+                        info = FileListHandler.build_zip_info(fileinfo.get('_id'), file_path, file_system)
                         return info
                     except zipfile.BadZipfile:
                         raise errors.InputValidationException('not a zip file')
