@@ -485,7 +485,7 @@ class PackfilePlacer(Placer):
         #   upload.clean_packfile_tokens
         #
         # It must be kept in sync between each instance and also the FileListHandler tempdir.
-        self.folder = fs.path.join('tokens', 'packfile', token)	
+        self.folder = fs.path.join('tokens', 'packfile', token)
 
         try:
             # Always on the local fs to make the pack file
@@ -591,7 +591,7 @@ class PackfilePlacer(Placer):
         # Finaly move the file from the local fs to the persistent FS.
         # We could make this faster using a move if we know its a local to local fs move.
         with config.local_fs.get_fs().open(tempZipPath, 'rb') as (f1
-                ), config.storage.open(token, util.path_from_uuid(token), 'wb', None) as f2:
+                ), config.storage.open(token, util.path_from_uuid(token), 'wb') as f2:
             while True:
                 data = f1.read(self._chunk_size)
                 if not data:

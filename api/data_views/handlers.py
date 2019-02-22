@@ -49,7 +49,7 @@ class DataViewHandler(base.RequestHandler):
         """Create a new view on the parent container"""
         parent_container = self.storage.find_parent_by_id(parent, projection=self.parent_projection)
         self.permcheck('POST', parent_container=parent_container)
-        
+
         # Validate payload
         payload = self.request.json
         validators.validate_data(payload, 'data-view-new.json', 'input', 'POST')
@@ -92,7 +92,7 @@ class DataViewHandler(base.RequestHandler):
         """Update the view identified by _id"""
         parent_container = self.storage.get_parent(_id, projection=self.parent_projection)
         self.permcheck('PUT', parent_container=parent_container)
-        
+
         # Validate payload
         payload = self.request.json
         validators.validate_data(payload, 'data-view-update.json', 'input', 'POST')
@@ -161,7 +161,7 @@ class DataViewHandler(base.RequestHandler):
 
     def do_execute_view(self, view_spec, target_container=None, target_container_type=None, target_filename=None):
         """ Complete view execution for the given view definition """
-        # Find destination container and validate permissions 
+        # Find destination container and validate permissions
         container_id = self.request.GET.get('containerId')
         data_format = self.request.GET.get('format', 'json')
 
@@ -184,7 +184,7 @@ class DataViewHandler(base.RequestHandler):
 
                 # Saved directly to persistent storage.
                 file_processor = FileProcessor(config.storage)
-                
+
                 # If we're saving to container, start SSE event,
                 # and write the data to a temp file
                 write_progress = start_response('200 OK', [
@@ -193,11 +193,11 @@ class DataViewHandler(base.RequestHandler):
                 ])
 
                 # Create a new file with a new uuid
-                path, fileobj = file_processor.create_new_file(None, None)
+                path, fileobj = file_processor.create_new_file(None)
                 new_uuid = fileobj.filename
                 if target_filename:
                     fileobj.filename = target_filename
-                write = fileobj.write 
+                write = fileobj.write
 
                 # Construct the file metadata list
                 metadata = []
@@ -216,13 +216,13 @@ class DataViewHandler(base.RequestHandler):
             if target_container:
                 # Process file calcs but close the file first to flush the buffer
                 fileobj.close()
-                
+
                 # Create our targeted placer
                 placer = TargetedMultiPlacer(target_container_type, target_container, target_container['_id'],
                     metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
-                
+
                 file_fields = file_processor.create_file_fields(
-                    fileobj.filename, 
+                    fileobj.filename,
                     path,
                     config.storage.get_file_info(new_uuid, path)['filesize'],
                     config.storage.get_file_hash(new_uuid, path),
@@ -230,7 +230,7 @@ class DataViewHandler(base.RequestHandler):
                     mimetype=None,
                     modified=timestamp
                 )
-                
+
                 file_attrs = upload.make_file_attrs(file_fields, self.origin)
 
                 # Place the file
@@ -246,11 +246,11 @@ class DataViewHandler(base.RequestHandler):
 
             return ''
 
-        return response_handler 
+        return response_handler
 
     def permcheck(self, method, container=None, parent_container=None):
         """Perform permission check for data view storage operations
-        
+
         Arguments:
             container (dict): The optional data view
             parent_container (dict,str): The parent container, one of "site", user, group or container

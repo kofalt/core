@@ -54,7 +54,7 @@ class FileOpener(object):
         try:
             # Open the file using file_system
             file_path, file_system = files.get_valid_file(self.file_entry)
-            self._system_fd = file_system.open(self.file_entry.get('_id'), file_path, open_mode, None)
+            self._system_fd = file_system.open(self.file_entry.get('_id'), file_path, open_mode)
 
             if self.zip_filter:
                 # Open zipfile
@@ -68,8 +68,8 @@ class FileOpener(object):
                         'timestamp': time.mktime(zipinf.date_time + (0, 0, -1))
                     })
 
-                self._zip_entries = filtered_container_list(zip_entries, [('path', self.zip_filter)], 
-                        match_type=self.match_type, date_key='timestamp') 
+                self._zip_entries = filtered_container_list(zip_entries, [('path', self.zip_filter)],
+                        match_type=self.match_type, date_key='timestamp')
 
                 if not self._zip_entries:
                     raise RuntimeError('Could not find matching zip entry in zip file: {}'.format(self.file_entry['name']))

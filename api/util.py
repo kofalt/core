@@ -259,7 +259,7 @@ def send_or_redirect_file(request, storage, file_id, file_path, filename,
         if signed_url:
             request.redirect(signed_url)
         else:
-            stream = storage.open(file_id, file_path, 'rb', None)
+            stream = storage.open(file_id, file_path, 'rb')
             set_for_download(request.response, stream=stream, filename=filename,
                 content_type=content_type)
     except fs.errors.ResourceNotFound as e:

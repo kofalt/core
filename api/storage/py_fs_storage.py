@@ -17,7 +17,8 @@ class PyFsStorage(Storage):
 
         self._default_hash_alg = DEFAULT_HASH_ALG
         self._buffer_size = DEFAULT_BUFFER_SIZE
-    def open(self, uuid, path_hint, mode, options):
+
+    def open(self, uuid, path_hint, mode, **kwargs):
 
         if 'w' in mode:
             if path_hint:
@@ -34,8 +35,8 @@ class PyFsStorage(Storage):
     def is_signed_url(self):
         return self._has_signed_url
 
-    def get_signed_url(self, 
-                       uuid, 
+    def get_signed_url(self,
+                       uuid,
                        path_hint,
                        purpose='download',
                        filename=None,
@@ -54,18 +55,18 @@ class PyFsStorage(Storage):
         :return: string, Signed URL
         :raises: ResourceNotFound, FileExpected, NoURL
         """
-    
+
         if not self._has_signed_url:
             raise OSError('Current FS does not support signed URLs')
 
         # This implementation will require path_hint
-        return self._fs.get_signed_url(path_hint, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type) 
+        return self._fs.get_signed_url(path_hint, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type)
 
     def get_file_hash(self, uuid, path_hint):
-        
+
         hash_alg = self._default_hash_alg
         hasher = hashlib.new(hash_alg)
-        
+
         if path_hint:
             filepath = path_hint
         else:
