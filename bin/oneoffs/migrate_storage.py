@@ -214,8 +214,8 @@ def migrate_file(f):
             src_fs = get_src_fs_by_file_path(file_path)
             log.debug('    file found in %s' % src_fs)
 
-            old_file = src_fs.open(file_id, file_path, 'rb', None)
-            new_file = target_fs.open(file_id, file_path, 'wb', None)
+            old_file = src_fs.open(file_id, file_path, 'rb')
+            new_file = target_fs.open(file_id, file_path, 'wb')
             buffer_copy(old_file, new_file, CHUNK_SIZE)
             old_file.close()
             new_file.close()
@@ -230,8 +230,8 @@ def migrate_file(f):
         log.debug('    file new path: %s', f_new_path)
 
         log.debug('    copy file to target storage')
-        old_file = local_fs.open(None, f_old_path, 'rb', None)
-        new_file = target_fs.open(file_id, f_new_path, 'wb', None)
+        old_file = local_fs.open(None, f_old_path, 'rb')
+        new_file = target_fs.open(file_id, f_new_path, 'wb')
         buffer_copy(old_file, new_file, CHUNK_SIZE)
         old_file.close()
         new_file.close()
@@ -321,8 +321,8 @@ def migrate_gear_files(f):
             src_fs = get_src_fs_by_file_path(file_path)
             log.debug('    file found in %s' % src_fs)
 
-            old_file = src_fs.open(file_id, file_path, 'rb', None)
-            new_file = target_fs.open(file_id, file_path, 'wb', None)
+            old_file = src_fs.open(file_id, file_path, 'rb')
+            new_file = target_fs.open(file_id, file_path, 'wb')
             buffer_copy(old_file, new_file, CHUNK_SIZE)
             old_file.close()
             new_file.close()
@@ -338,8 +338,8 @@ def migrate_gear_files(f):
 
         log.debug('    copy file to target storage')
 
-        old_file = local_fs.open(None, f_old_path, 'rb', None)
-        new_file = target_fs.open(file_id, f_new_path, 'wb', None)
+        old_file = local_fs.open(None, f_old_path, 'rb')
+        new_file = target_fs.open(file_id, f_new_path, 'wb')
         buffer_copy(old_file, new_file, CHUNK_SIZE)
         old_file.close()
         new_file.close()
