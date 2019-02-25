@@ -6,8 +6,7 @@ import pymongo
 import datetime
 import elasticsearch
 
-from storage import create_flywheel_fs
-from .storage.py_fs_storage import PyFsStorage
+from .storage import create_flywheel_fs
 
 from . import util
 from . import logutil
