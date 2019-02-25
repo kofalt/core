@@ -322,7 +322,7 @@ def get_release_version():
 
 storage = create_flywheel_fs(__config['persistent']['fs_url'])
 # local_fs must be PyFS with osfs for using the local get_fs functions for file manipulation
-local_fs = PyFsStorage('osfs://' + __config['persistent']['data_path'])
+local_fs = create_flwheel_fs('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']
 
 ### Temp fix for 3-way split storages, where files exist in
@@ -332,7 +332,7 @@ support_legacy_fs = __config['persistent']['support_legacy_fs']
 data_path2 = __config['persistent']['data_path'] + '/v1'
 if os.path.exists(data_path2):
     log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-    local_fs2 = PyFsStorage('osfs://' + data_path2)
+    local_fs2 = create_flywheel_fs('osfs://' + data_path2)
 
 else:
     local_fs2 = None
