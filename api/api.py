@@ -21,6 +21,7 @@ from .upload                            import Upload
 from .reports.handler                   import ReportHandler
 from .data_export.handlers              import DownloadHandler
 from .data_views.handlers               import DataViewHandler
+from .container.handlers                import TreeHandler
 from .web.base                          import RequestHandler
 from . import config
 
@@ -363,6 +364,10 @@ endpoints = [
         # Data views
         route('/views/data', DataViewHandler, h='execute_adhoc', m=['POST']),
         route('/views/columns', DataViewHandler, h='get_columns', m=['GET']),
+
+        # Tree-based retrieval
+        route('/tree',       TreeHandler,                m=['POST']),
+        route('/tree/graph', TreeHandler, h='get_graph', m=['GET']),
 
         # Misc (to be cleaned up later)
 

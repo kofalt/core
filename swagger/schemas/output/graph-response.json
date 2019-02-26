@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf":[{"$ref":"../definitions/tree.json#/definitions/tree-graph"}],
+    "example": {
+        "projects": {
+            "connections": {
+                "group": {
+                    "local": "group",
+                    "foreign": "_id",
+                    "collection": "groups",
+                    "order": "1"
+                },
+                "subjects": {
+                    "foreign": "project"
+                }
+            }
+        }
+    }
+}

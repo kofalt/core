@@ -1,0 +1,73 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "definitions": {
+        "container-request-spec": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "The list of fields to include"
+                },
+                "filter": {
+                    "type": "string",
+                    "description": "The optional, comma-separated filter string"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "The optional maximum number of children to include"
+                },
+                "sort": {
+                    "type": "string",
+                    "description": "The optional, comma-separated, sort specification"
+                }
+            },
+            "required": ["fields"],
+            "additionalProperties": {"$ref": "#/definitions/container-request-spec"}
+        },
+        "tree-request": {
+            "type": "object",
+            "properties": {
+                "groups": {"$ref":"#/definitions/container-request-spec"},
+                "projects": {"$ref":"#/definitions/container-request-spec"},
+                "subjects": {"$ref":"#/definitions/container-request-spec"},
+                "sessions": {"$ref":"#/definitions/container-request-spec"},
+                "acquisitions": {"$ref":"#/definitions/container-request-spec"},
+                "analyses": {"$ref":"#/definitions/container-request-spec"},
+                "jobs": {"$ref":"#/definitions/container-request-spec"}
+            },
+            "additionalProperties": false
+        },
+        "tree-response-item": {
+            "type": "object",
+            "description": "Response varies based on selected container and fields"
+        },
+        "graph-connection": {
+            "type": "object",
+            "properties": {
+                "local": { "type": "string" },
+                "foreign": { "type": "string" },
+                "collection": { "type": "string" },
+                "order": { "type": "string" }
+            },
+            "required": ["foreign"],
+            "additionalProperties": false
+        },
+        "graph-connections": {
+            "type": "object",
+            "additionalProperties": {"$ref":"#/definitions/graph-connection"}
+        },
+        "graph-node": {
+            "type": "object",
+            "properties": {
+                "connections": {"$ref":"#/definitions/graph-connections"}
+            },
+            "required": ["connections"],
+            "additionalProperties": false
+        },
+        "tree-graph": {
+            "type": "object",
+            "additionalProperties": {"$ref":"#/definitions/graph-node"}
+        }
+    }
+}

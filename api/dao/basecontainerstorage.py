@@ -369,6 +369,9 @@ class ContainerStorage(object):
                 query['permissions'] = {'$elemMatch': user}
         query['deleted'] = {'$exists': False}
 
+        # Allow opting-out of joining subjects
+        join_subjects = kwargs.pop('join_subjects', True)
+
         # if projection includes info/files.info, add new key `info_exists` and allow only reserved info keys through
         if projection and ('info' in projection or 'files.info' in projection):
             projection = copy.deepcopy(projection)
@@ -387,7 +390,7 @@ class ContainerStorage(object):
         page = dbutil.paginate_find(self.dbc, kwargs, pagination)
         results = page['results']
 
-        if self.cont_name == 'sessions':
+        if self.cont_name == 'sessions' and join_subjects:
             ContainerStorage.join_subjects(results)
 
         for cont in results:
