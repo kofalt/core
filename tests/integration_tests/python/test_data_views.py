@@ -967,6 +967,25 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
     assert {'filename':'values2.csv'} in rows
     assert {'filename':'values3.csv'} in rows
 
+    # Execute data view, no match
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeIds': False,
+        'includeLabels': False,
+        'columns': [
+            {'src': 'file.name'}
+        ],
+        'fileSpec': {
+            'container': 'session',
+            'filter': {'value': '*.csv'},
+            'analysisFilter': {'label': {'value': 'invalid-match'}},
+        }
+    })
+
+    assert r.ok
+    rows = r.json()['data']
+    assert len(rows) == 1
+    assert {'file.name': None} in rows
+
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis1)})
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis2)})
 
