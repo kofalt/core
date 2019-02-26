@@ -34,12 +34,12 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
     include_analyses = True
 
     # The projection map for each container type,
-    # no need to include info, permissions, deleted, parents or files
+    # no need to include info, deleted, parents or files
     projection_map = {
-        'project': {'group': 1, 'label': 1},
-        'subject': {'project': 1, 'code': 1},
-        'session': {'subject': 1, 'label': 1, 'uid': 1, 'timestamp': 1, 'timezone': 1},
-        'acquisition': {'session': 1, 'label': 1, 'uid': 1, 'timestamp': 1, 'timezone': 1},
+        'project': {'group': 1, 'label': 1, 'permissions': 1},
+        'subject': {'project': 1, 'code': 1, 'permissions': 1},
+        'session': {'subject': 1, 'label': 1, 'uid': 1, 'timestamp': 1, 'timezone': 1, 'permissions': 1},
+        'acquisition': {'session': 1, 'label': 1, 'uid': 1, 'timestamp': 1, 'timezone': 1, 'permissions': 1},
         'analysis': {'parent': 1, 'label': 1, 'inputs': 1, 'uid': 1, 'timestamp': 1},
     }
 
@@ -93,21 +93,26 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
         # Two stages of retrieval:
         # First stage is retrieve every specified node and its children
         visit_tree = self._create_visit_tree(spec.get('nodes', []))
-        self._retrieve_nodes(base_query, visit_tree)
+        self._retrieve_nodes(base_query, visit_tree, summary)
 
         # Second stage is to retrieve any parents that have not been resolved
         # This is only required if producing actual paths for the download
-        if not summary:
-            self._retrieve_nodes(base_query, self._parent_visit_tree, parents=True)
+        self._retrieve_nodes(base_query, self._parent_visit_tree, summary, parents=True)
 
         # Final pass is visiting each container and file
         while self.visit_nodes:
             container_type, container = self.visit_nodes.pop()
 
-            if summary:
+            if summary and container_type != 'analysis':
                 parents = {}
             else:
                 parents = self._resolve_parents(container)
+
+            if container_type == 'analysis' and uid:
+                parent = parents.get(container['parent']['type'])
+                if not parent:
+                    # if the parent was not found with the right permissions, user doesn't have access to the node
+                    continue
 
             # Determine if there are any files that need to be visited
             files = filtered_files(container, filters)
@@ -196,7 +201,7 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
 
         return result
 
-    def _retrieve_nodes(self, base_query, visit_tree, parents=False):
+    def _retrieve_nodes(self, base_query, visit_tree, summary, parents=False):
         """Retrieve nodes of container_type, based on _id or parent id.
 
         Args:
@@ -235,6 +240,10 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
             if container_type == 'acquisition' and self.collection_id:
                 query['collections'] = bson.ObjectId(self.collection_id)
 
+            if container_type == 'analysis':
+                # Use parent permissions instead
+                query.pop('permissions._id', None)
+
             if not ids and not parent_keys:
                 continue
 
@@ -262,12 +271,12 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
 
                 # Add parent retrieval
                 if container_type == 'analysis':
-                    # Retrieve analysis parent
+                    # Always retrieve analysis parents (for summary or permissions check)
                     parent_id = container['parent']['id']
                     if parent_id not in self.container_id_map:
                         parent_type = container['parent']['type']
                         self._parent_visit_tree[parent_type].append(ContainerNode(container_id=parent_id))
-                elif parent_container_type != 'group':
+                elif not summary and parent_container_type != 'group':
                     parent_id = container[parent_container_type]
                     if parent_id not in self.container_id_map:
                         self._parent_visit_tree[parent_container_type].append(ContainerNode(container_id=parent_id))
