@@ -478,7 +478,7 @@ def question(struct):
 
     return question
 
-def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, as_root, api_db, file_form):
+def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
     """
     This can replace test_jobs when /jobs/next is retired.
     """
@@ -558,7 +558,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     job1_id = r.json()['_id']
 
     # get job
-    r = as_root.get('/jobs/' + job1_id)
+    r = as_admin.get('/jobs/' + job1_id)
     assert r.ok
 
     job = r.json()
@@ -578,7 +578,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     r = as_admin.get('/jobs/' + job1_id + '/logs')
     assert r.ok
 
-    assert as_root.post('/projects/' + project + '/permissions', json={
+    assert as_admin.post('/projects/' + project + '/permissions', json={
         'access': 'admin',
         '_id': admin_id
     }).ok
@@ -600,7 +600,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert r.status_code == 403
 
     # try to add job log to non-existent job
-    r = as_root.post('/jobs/000000000000000000000000/logs', json=job_logs)
+    r = as_admin.post('/jobs/000000000000000000000000/logs', json=job_logs)
     assert r.status_code == 404
 
     # get job log as text w/o logs
@@ -614,7 +614,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert r.text == '<span class="fd--1">No logs were found for this job.</span>'
 
     # start job (Adds logs)
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'return': {
             'jobs': 1,
         },
@@ -678,7 +678,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     })
     assert r.ok
 
-    r = as_root.get('/jobs/' + job1_id)
+    r = as_admin.get('/jobs/' + job1_id)
     assert r.ok
     updated_job = r.json()
     assert updated_job['profile']['versions']['engine'] == '9a12c5921a1d9206c2d82c0d1a60ebed3d55a338'
@@ -693,7 +693,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert updated_job['profile']['executor']['swap_bytes'] == 31457280
 
     # add job log
-    r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
+    r = as_admin.post('/jobs/' + job1_id + '/logs', json=job_logs)
     assert r.ok
 
     # try to get job log of non-existent job
@@ -706,7 +706,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert len(r.json()['logs']) == 3
 
     # add same logs again (for testing text/html logs)
-    r = as_root.post('/jobs/' + job1_id + '/logs', json=job_logs)
+    r = as_admin.post('/jobs/' + job1_id + '/logs', json=job_logs)
     assert r.ok
 
     expected_job_logs = [{'fd': -1, 'msg': 'Gear Name: {}, Gear Version: {}\n'.format(job['gear_info']['name'], job['gear_info']['version'])}] + \
@@ -723,7 +723,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert r.text == ''.join('<span class="fd-{fd}">{msg}</span>\n'.format(fd=log.get('fd'), msg=log.get('msg').replace('\n', '<br/>\n')) for log in expected_job_logs)
 
     # get job config
-    r = as_root.get('/jobs/' + job1_id + '/config.json')
+    r = as_admin.get('/jobs/' + job1_id + '/config.json')
     assert r.ok
 
     # try to cancel job w/o permission (different user)
@@ -765,7 +765,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert r.status_code == 400
 
     # get next job - with nonexistent tag
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'whitelist': {
             'tag': ['fake-tag'],
         },
@@ -777,7 +777,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert len(r.json()['jobs']) == 0
 
     # get next job - with excluding tag
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'blacklist': {
             'tag': ['test-tag'],
         },
@@ -789,7 +789,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert len(r.json()['jobs']) == 0
 
     # get next job - with excluding tag overlap
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'whitelist': {
             'tag': ['test-tag'],
         },
@@ -804,7 +804,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert len(r.json()['jobs']) == 0
 
     # get next job with peek
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'whitelist': {
             'tag': ['test-tag']
         },
@@ -817,7 +817,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     next_job_id_peek = r.json()['jobs'][0]['id']
 
     # get next job
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'whitelist': {
             'tag': ['test-tag'],
         },
@@ -833,11 +833,11 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     assert next_job_id == next_job_id_peek
 
     # set next job to failed
-    r = as_root.put('/jobs/' + next_job_id, json={'state': 'failed', 'failure_reason': 'gear_failure'})
+    r = as_admin.put('/jobs/' + next_job_id, json={'state': 'failed', 'failure_reason': 'gear_failure'})
     assert r.ok
 
     # Get job and verify the 'failure' timestamp
-    r = as_root.get('/jobs/' + next_job_id)
+    r = as_admin.get('/jobs/' + next_job_id)
     assert r.ok
     failed_job = r.json()
     assert failed_job['transitions']['failed'] == failed_job['modified']
@@ -911,7 +911,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     r = as_admin.post('/jobs/add', json=job6)
     assert r.status_code == 500
 
-    assert as_root.delete('/gears/' + gear3).ok
+    assert as_admin.delete('/gears/' + gear3).ok
 
     # Attempt to set a malformed file reference as input
     job7 = copy.deepcopy(job_data)
@@ -952,7 +952,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
         "batch" : None,
     }
     api_db.jobs.insert_one(job_instance)
-    r = as_root.post('/jobs/reap')
+    r = as_admin.post('/jobs/reap')
     assert r.ok
     assert r.json().get('orphaned') == 1
     r = as_admin.get('/jobs/'+str(job_instance['_id'])+'/logs')
@@ -967,7 +967,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     r = as_admin.get('/jobs/stats', params={'tags': 'auto,unused', 'last': '2'})
     assert r.ok
 
-def test_jobs_capabilities(data_builder, default_payload, as_public, as_user, as_admin, as_root, api_db, file_form):
+def test_jobs_capabilities(data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
 
     # Test capabilities subset
     gear_doc = default_payload['gear']['gear']
@@ -1007,12 +1007,12 @@ def test_jobs_capabilities(data_builder, default_payload, as_public, as_user, as
     job_id = r.json()['_id']
 
     # Check capabilities
-    r = as_root.get('/jobs/' + job_id)
+    r = as_admin.get('/jobs/' + job_id)
     assert r.ok
     assert r.json()['gear_info']['capabilities'] == [ "networking", "extra" ]
 
     # Insufficient capabilities
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'capabilities': [ ],
         'return': {
             'jobs': 1,
@@ -1022,7 +1022,7 @@ def test_jobs_capabilities(data_builder, default_payload, as_public, as_user, as
     assert len(r.json()['jobs']) == 0
 
     # Insufficient capabilities
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'capabilities': [ 'networking' ],
         'return': {
             'jobs': 1,
@@ -1032,7 +1032,7 @@ def test_jobs_capabilities(data_builder, default_payload, as_public, as_user, as
     assert len(r.json()['jobs']) == 0
 
     # Sufficient capabilities
-    r = as_root.post('/jobs/ask', json=question({
+    r = as_admin.post('/jobs/ask', json=question({
         'capabilities': [ 'networking', 'extra', 'a' ],
         'return': {
             'jobs': 1,
