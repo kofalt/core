@@ -5,7 +5,7 @@ def create_flywheel_fs(url):
     """
     This loads the storage provider based on the url provided
     """
-    if url.startswith('gc::/'):
+    if url.startswith('gc://'):
         return PyFsStorage(url)
     if url.startswith('osfs://'):
         return PyFsStorage(url)
