@@ -4,7 +4,7 @@
 1. Follow commit message guidelines.
 1. Use `git rebase [-i]` to clean up your contribution and resolve pending merge conflicts.
 1. Submit a pull request and ensure that CI passes.
-
+1. Test Update
 
 ## Upgrading Python Packages
 
