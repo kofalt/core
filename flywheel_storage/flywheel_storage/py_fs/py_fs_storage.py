@@ -1,17 +1,21 @@
-from .storage import Storage
+#from ..storage import Storage
 from fs import open_fs
 import hashlib
 import fs
 import six
-from ..util import path_from_uuid, format_hash
+
+from flywheel_common import storage
+#from util import path_from_uuid, format_hash
+from flywheel_common.storage import path_from_uuid, format_hash
+from flywheel_common.storage import Interface
 
 DEFAULT_HASH_ALG = 'sha384'
 DEFAULT_BUFFER_SIZE = 2 ** 20
 
-class PyFsStorage(Storage):
+class PyFsStorage(Interface):
 
     def __init__(self, url):
-        super (PyFsStorage, self).__init__()
+        super(PyFsStorage, self).__init__()
         self._fs = open_fs(url)
         self._has_signed_url = hasattr(self._fs, 'get_signed_url')
 
@@ -118,4 +122,3 @@ class PyFsStorage(Storage):
             Returns the local file system OSFS object for local file maniulation/processing
         """
         return self._fs
-

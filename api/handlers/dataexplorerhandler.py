@@ -693,7 +693,7 @@ class DataExplorerHandler(base.RequestHandler):
         }
 
         # Saved directly to persistent storage.
-        file_processor = FileProcessor(config.storage)
+        file_processor = FileProcessor(config.PRIMARY_STORAGE)
 
         # Create a new file with a new uuid
         _, fileobj = file_processor.create_new_file(None)

@@ -6,7 +6,8 @@ import pymongo
 import datetime
 import elasticsearch
 
-from .storage import create_flywheel_fs
+#from flywheel_common import logging
+from flywheel_common import storage
 
 from . import util
 from . import logutil
@@ -275,7 +276,7 @@ def get_public_config():
     features = {
         'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,      #  Job queue /jobs/ask route.
-        'signed_url': storage.is_signed_url(),
+        'signed_url': PRIMARY_STORAGE.is_signed_url(),
     }
 
     return {
@@ -322,10 +323,9 @@ def get_release_version():
     return release_version
 
 # Storage configuration
-
-storage = create_flywheel_fs(__config['persistent']['fs_url'])
+PRIMARY_STORAGE = storage.create_flywheel_fs(__config['persistent']['fs_url'])
 # local_fs must be PyFS with osfs for using the local get_fs functions for file manipulation
-local_fs = create_flywheel_fs('osfs://' + __config['persistent']['data_path'])
+local_fs = storage.create_flywheel_fs('osfs://' + __config['persistent']['data_path'])
 support_legacy_fs = __config['persistent']['support_legacy_fs']
 
 ### Temp fix for 3-way split storages, where files exist in
@@ -335,7 +335,7 @@ support_legacy_fs = __config['persistent']['support_legacy_fs']
 data_path2 = __config['persistent']['data_path'] + '/v1'
 if os.path.exists(data_path2):
     log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-    local_fs2 = create_flywheel_fs('osfs://' + data_path2)
+    local_fs2 = storage.create_flywheel_fs('osfs://' + data_path2)
 
 else:
     local_fs2 = None

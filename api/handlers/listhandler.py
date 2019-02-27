@@ -346,7 +346,7 @@ class FileListHandler(ListHandler):
     """
 
     def _create_upload_ticket(self):
-        if not config.storage.is_signed_url():
+        if not config.PRIMARY_STORAGE.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -362,7 +362,7 @@ class FileListHandler(ListHandler):
 
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_url = config.PRIMARY_STORAGE.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             signed_urls[filename] = signed_url
             filedata.append({
                 'filename': filename,
@@ -480,7 +480,7 @@ class FileListHandler(ListHandler):
             signed_url = None
             if config.storage.is_signed_url() and config.storage.can_redirect_request(self.request.headers):
                 try:
-                    signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
+                    signed_url = config.PRIMARY_STORAGE.get_signed_url(fileinfo.get('_id'), file_path,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))

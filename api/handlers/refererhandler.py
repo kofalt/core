@@ -400,7 +400,7 @@ class AnalysesHandler(RefererHandler):
                     signed_url = None
                     if config.storage.is_signed_url() and config.storage.can_redirect_request(self.request.headers):
                         try:
-                            signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
+                            signed_url = config.PRIMARY_STORAGE.get_signed_url(fileinfo.get('_id'), file_path,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(
