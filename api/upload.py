@@ -87,7 +87,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
 
     # The vast majority of this function's wall-clock time is spent here.
-    file_processor = files.FileProcessor(config.storage)
+    file_processor = files.FileProcessor(config.PRIMARY_STORAGE)
 
     if not file_fields:
 
@@ -142,7 +142,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         if tempdir:
             field.size = (config.local_fs.get_file_info(None, field.filepath))['filesize']
         else:
-            field.size = (config.storage.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+            field.size = (config.PRIMARY_STORAGE.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
 
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
@@ -190,7 +190,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 class Upload(base.RequestHandler):
 
     def _create_upload_ticket(self):
-        if not config.storage.is_signed_url():
+        if not config.PRIMARY_STORAGE.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -204,7 +204,7 @@ class Upload(base.RequestHandler):
         filedata = []
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_url = config.PRIMARY_STORAGE.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             signed_urls[filename] = signed_url
             filedata.append({
                 'filename': filename,
