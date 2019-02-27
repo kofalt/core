@@ -335,8 +335,8 @@ def get_fs_by_file_path(file_id, file_path):
 
     # When we add more native storage types we will have to store the file system type in the file object and
     # not rely on this method to determine where its physically located
-    if config.storage.get_file_info(file_id, file_path):
-        return config.storage
+    if config.PRIMARY_STORAGE.get_file_info(file_id, file_path):
+        return config.PRIMARY_STORAGE
 
     elif config.support_legacy_fs and config.local_fs.get_file_info(file_id, file_path):
         return config.local_fs
