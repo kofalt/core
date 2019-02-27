@@ -878,7 +878,7 @@ def test_summary(data_builder, as_user, as_admin, file_form):
     # add user to project
     user_id = as_user.get('/users/self').json()['_id']
     assert as_admin.post('/projects/' + project + '/permissions', json={
-        'access': 'ro',
+        'access': 'admin',
         '_id': user_id
     }).ok
 
