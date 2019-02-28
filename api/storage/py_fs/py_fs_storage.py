@@ -1,8 +1,11 @@
+#from ..storage import Storage
 from fs import open_fs
 import hashlib
 import fs
 import six
 
+from flywheel_common import storage
+#from util import path_from_uuid, format_hash
 from flywheel_common.storage import path_from_uuid, format_hash
 from flywheel_common.storage import Interface
 
@@ -34,7 +37,6 @@ class PyFsStorage(Interface):
         return self._fs.open(path_hint, mode)
 
     def remove_file(self, uuid, path_hint):
-        #pylint: disable=unused-argument
         if path_hint:
             self._fs.remove(path_hint)
         else:
