@@ -327,4 +327,3 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
     assert not api_db.sessions.find_one({'parents.project': ObjectId(project_id)})
     assert not api_db.acquisitions.find_one({'parents.project': ObjectId(project_id)})
     assert not api_db.analyses.find_one({'parents.project': ObjectId(project_id)})
-

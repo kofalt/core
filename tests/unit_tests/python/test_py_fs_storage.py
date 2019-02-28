@@ -1,5 +1,6 @@
 import hashlib
 
+from api.util import format_hash
 from flywheel_common import storage
 
 def test_py_fs_storage():
