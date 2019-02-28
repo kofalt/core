@@ -231,7 +231,7 @@ def set_for_download(response, stream=None, filename=None, length=None,
     if length is not None:
         response.headers['Content-Length'] = str(length)
 
-def send_or_redirect_file(request, storage, file_id, file_path, filename,
+def send_or_redirect_file(handler, storage, file_id, file_path, filename,
         content_type='application/octet-stream'):
     """Serve a file on the response object.
 
@@ -240,7 +240,7 @@ def send_or_redirect_file(request, storage, file_id, file_path, filename,
     older files. At least one of file_id or file_path MUST be set.
 
     Args:
-        request: The request object
+        handler: The request handler object
         storage: The storage provider that the file belongs to
         file_id (str): The uuid of the file, if known
         file_path (str): The path to the file
@@ -252,15 +252,15 @@ def send_or_redirect_file(request, storage, file_id, file_path, filename,
     """
     signed_url = None
     try:
-        if storage.is_signed_url() and storage.can_redirect_request(request.headers):
+        if storage.is_signed_url() and storage.can_redirect_handler(handler.request.headers):
             signed_url = storage.get_signed_url(file_id, file_path, 'download', filename,
                 attachment=bool(filename), response_type=content_type)
 
         if signed_url:
-            request.redirect(signed_url)
+            handler.redirect(signed_url)
         else:
             stream = storage.open(file_id, file_path, 'rb')
-            set_for_download(request.response, stream=stream, filename=filename,
+            set_for_download(handler.response, stream=stream, filename=filename,
                 content_type=content_type)
     except fs.errors.ResourceNotFound as e:
         raise errors.APINotFoundException(str(e))
