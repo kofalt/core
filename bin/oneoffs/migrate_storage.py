@@ -46,7 +46,7 @@ def main(*argv):
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
     local_fs = PyFsStorage('osfs://' + data_path)
-    
+
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
     data_path2 = os.path.join(data_path, 'v1')
     if os.path.exists(data_path2):
