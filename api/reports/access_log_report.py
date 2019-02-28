@@ -112,10 +112,8 @@ class AccessLogReport(Report):
 
     def user_can_generate(self, uid):
         """
-        User generating report must be superuser
+        User generating report must be site admin
         """
-        if config.db.users.count({'_id': uid, 'root': True}) > 0:
-            return True
         return False
 
     def build(self):
