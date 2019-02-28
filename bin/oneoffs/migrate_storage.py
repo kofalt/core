@@ -18,6 +18,7 @@ from fs import errors
 
 
 from flywheel_common import storage
+from api.storage.py_fs.py_fs_storage import PyFsStorage
 from api import util
 
 
