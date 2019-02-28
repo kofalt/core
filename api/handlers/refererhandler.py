@@ -398,7 +398,7 @@ class AnalysesHandler(RefererHandler):
                     # IMPORTANT: If you modify the below code reflect the code changes in
                     # listhandler.py:FileListHandler's download method
                     signed_url = None
-                    if config.storage.is_signed_url():
+                    if config.storage.is_signed_url() and config.storage.can_redirect_request(self.request.headers):
                         try:
                             signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
                                                       filename=filename,
@@ -407,6 +407,7 @@ class AnalysesHandler(RefererHandler):
                                                           fileinfo.get('mimetype', 'application/octet-stream')))
                         except fs.errors.ResourceNotFound:
                             self.log.error('Error getting signed url for non existing file')
+
                     if signed_url:
                         self.redirect(signed_url)
 

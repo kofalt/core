@@ -1,0 +1,15 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf":[{"$ref":"../definitions/tree.json#/definitions/tree-request"}],
+    "example": {
+        "subjects": {
+            "fields": ["label"],
+            "sessions": {
+                "fields": ["label", "timestamp"],
+                "limit": 5,
+                "sort": "timestamp:asc"
+            }
+        }
+    }
+}

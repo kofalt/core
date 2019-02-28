@@ -293,8 +293,9 @@ def get_valid_file(file_info):
     :return: (<file's path>, <filesystem>)
     """
 
+    file_id = file_info.get('_id', '')
     file_path = get_file_path(file_info)
-    return file_path, get_fs_by_file_path(file_path)
+    return file_path, get_fs_by_file_path(file_id, file_path)
 
 
 def get_file_path(file_info):
@@ -319,7 +320,7 @@ def get_file_path(file_info):
     return file_path
 
 
-def get_fs_by_file_path(file_path):
+def get_fs_by_file_path(file_id, file_path):
     """
     @deprecated
     This method is only intended to support the pyfs storage class.
@@ -334,14 +335,14 @@ def get_fs_by_file_path(file_path):
 
     # When we add more native storage types we will have to store the file system type in the file object and
     # not rely on this method to determine where its physically located
-    if config.storage.get_file_info(None, file_path):
+    if config.storage.get_file_info(file_id, file_path):
         return config.storage
 
-    elif config.support_legacy_fs and config.local_fs.get_file_info(None, file_path):
+    elif config.support_legacy_fs and config.local_fs.get_file_info(file_id, file_path):
         return config.local_fs
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_file_info(None, file_path):
+    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_file_info(file_id, file_path):
         return config.local_fs2
     ###
 

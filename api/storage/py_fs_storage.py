@@ -62,6 +62,11 @@ class PyFsStorage(Storage):
         # This implementation will require path_hint
         return self._fs.get_signed_url(path_hint, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type)
 
+    def can_redirect_request(self, headers):
+        # Legacy implementation is just GC storage, which can redirect
+        # regardless of headers
+        return self._has_signed_url
+
     def get_file_hash(self, uuid, path_hint):
 
         hash_alg = self._default_hash_alg

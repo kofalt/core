@@ -82,6 +82,7 @@ paths:
     - paths/resolver.yaml
     - paths/data-views.yaml
     - paths/containers.yaml
+    - paths/tree.yaml
 
 securityDefinitions:
   ApiKey:

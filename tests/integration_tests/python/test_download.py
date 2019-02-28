@@ -499,12 +499,19 @@ def test_filelist_advanced_range_download(data_builder, as_admin, file_form):
                         'Content-Range: bytes 3-4/9\n\n' \
                         '45\n'.format(boundary)
 
-def test_analysis_download(data_builder, file_form, as_admin, as_drone, default_payload):
+def test_analysis_download(data_builder, file_form, as_admin, as_drone, as_user, default_payload):
+    project = data_builder.create_project()
     session = data_builder.create_session()
     zip_cont = cStringIO.StringIO()
     with zipfile.ZipFile(zip_cont, 'w') as zip_file:
         zip_file.writestr('two.csv', 'sample\ndata\n')
     zip_cont.seek(0)
+
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    }).ok
 
     # create (legacy) analysis for testing the download functionality
     r = as_admin.post('/sessions/' + session + '/analyses', files=file_form('one.csv', ('two.zip', zip_cont), meta={
@@ -540,12 +547,23 @@ def test_analysis_download(data_builder, file_form, as_admin, as_drone, default_
     assert r.status_code == 404
 
     # get analysis batch download ticket for all outputs
-    r = as_admin.get('/download', params={'ticket': ''}, json={"optional":True,"nodes":[{"level":"analysis","_id":analysis}]})
+    r = as_user.get('/download', params={'ticket': ''}, json={"optional":True,"nodes":[{"level":"analysis","_id":analysis}]})
     assert r.ok
     ticket = r.json()['ticket']
 
     # filename is analysis_<label> not analysis_<_id>
     assert r.json()['filename'] == 'analysis_test.tar'
+
+    # make sure user without permissions can't download
+    assert as_admin.delete('/projects/' + project +'/permissions/' + user_id).ok
+    r = as_user.get('/download', params={'ticket': ''}, json={"optional":True,"nodes":[{"level":"analysis","_id":analysis}]})
+    assert r.status_code == 404
+
+    # add user back to project
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    }).ok
 
     # batch download analysis outputs w/ ticket
     r = as_admin.get('/download', params={'ticket': ticket})
@@ -823,12 +841,19 @@ def test_filters(data_builder, file_form, as_admin):
     assert r.ok
     assert r.json()['file_cnt'] == 1
 
-def test_summary(data_builder, as_admin, file_form):
+def test_summary(data_builder, as_user, as_admin, file_form):
     project = data_builder.create_project(label='project1')
     session = data_builder.create_session(label='session1')
     session2 = data_builder.create_session(label='session1')
     acquisition = data_builder.create_acquisition(session=session)
     acquisition2 = data_builder.create_acquisition(session=session2)
+
+    # add user to project
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'ro',
+        '_id': user_id
+    }).ok
 
     # upload the same file to each container created and use different tags to
     # facilitate download filter tests:
@@ -879,10 +904,15 @@ def test_summary(data_builder, as_admin, file_form):
     assert r.ok
     analysis = r.json()['_id']
 
-    r = as_admin.post('/download/summary', json=[{"level":"analysis", "_id":analysis}])
+    r = as_user.post('/download/summary', json=[{"level":"analysis", "_id":analysis}])
     assert r.ok
     assert len(r.json()) == 1
     assert r.json().get("tabular data", {}).get("count",0) == 1
+
+    assert as_admin.delete('/projects/' + project + '/permissions/' + user_id).ok
+    r = as_user.post('/download/summary', json=[{"level":"analysis", "_id":analysis}])
+    assert r.ok
+    assert len(r.json()) == 0
 
 
 def test_subject_download(data_builder, as_admin, file_form):

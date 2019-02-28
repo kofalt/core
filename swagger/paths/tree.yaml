@@ -1,0 +1,50 @@
+/tree:
+  post:
+    summary: Query a portion of the flywheel hierarchy, returning only the requested fields.
+    description: |
+      This is a build-your-own request endpoint that can fetch from anywhere in the hierarchy,
+      returning just the fields that you care about.
+
+      # Fields
+      Each fetch-level described must include a list of fields to return. These fields
+      can be anything on the container (except info), and will be included in the response
+      if they are present in the container.
+
+      # Joins
+      Children or parents can be joined as part of this request, by specifying an additional
+      subdocument of the given name. Check /tree/graph for a list of containers and their
+      connections.
+
+      # Filter
+      Joined documents can be further filtered (with the exception of inputs & files) by
+      passing a filter in the subdocument. Filtering follows the same convention as top-level
+      pagination.
+
+      # Sort
+      Joined documents can be sorted as well, following the convention as top-level pagination.
+
+      # Limit
+      Joins can be limited to a the first N documents by specifying a limit in the subdocument.
+    operationId: fetch_tree
+    x-fw-pagination: true
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/tree-request.json
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/tree-response.json
+
+/tree/graph:
+  get:
+    summary: Get a description of the flywheel hiearchy
+    operationId: get_tree_graph
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/graph-response.json

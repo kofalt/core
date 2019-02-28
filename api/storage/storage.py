@@ -33,7 +33,7 @@ class Storage(object):
         """
 
     @abstractmethod
-    def get_signed_url(self, uuid, path_hint, purpose, filename, attachment=True, response_type=None):
+    def get_signed_url(self, uuid, path_hint, purpose='download', filename=None, attachment=True, response_type=None):
         """
         Returns the signed url location of the file reference
 
@@ -48,6 +48,16 @@ class Storage(object):
         :raises: ResourceNotFound, FileExpected, NoURL
         :rtype: string
 
+        """
+
+    @abstractmethod
+    def can_redirect_request(self, headers):
+        """
+        Tests whether or not the given request could be redirected to a signed url.
+
+        :param dict headers: The request headers
+        :return: Whether or not the request can be redirected to a signed url.
+        :rtype: boolean
         """
 
     @abstractmethod
