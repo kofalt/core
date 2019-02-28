@@ -21,4 +21,10 @@ setup(
     dependency_links = dependency_links,
     install_requires = install_requires,
     tests_require = tests_require,
+    entry_points={
+        'flywheel.storage': [
+            'osfs = api.storage.py_fs.py_fs_storage:PyFsStorage',
+            'gc = api.storage.py_fs.py_fs_storage:PyFsStorage',
+        ]
+    },
 )
