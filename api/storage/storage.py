@@ -37,7 +37,7 @@ class Storage(object):
         :returns: Boolean indicating success
         :rtype: boolean
         """
-    
+
     @abstractmethod
     def is_signed_url(self):
         """

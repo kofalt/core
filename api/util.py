@@ -252,7 +252,7 @@ def send_or_redirect_file(handler, storage, file_id, file_path, filename,
     """
     signed_url = None
     try:
-        if storage.is_signed_url() and storage.can_redirect_handler(handler.request.headers):
+        if storage.is_signed_url() and storage.can_redirect_request(handler.request.headers):
             signed_url = storage.get_signed_url(file_id, file_path, 'download', filename,
                 attachment=bool(filename), response_type=content_type)
 
