@@ -17,7 +17,7 @@ from functools import wraps
 from fs import errors
 
 
-from api.storage.py_fs_storage import PyFsStorage
+from api.storage.py_fs.py_fs_storage import PyFsStorage
 from api import util
 
 
