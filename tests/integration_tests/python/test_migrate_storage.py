@@ -14,14 +14,14 @@ def move_file_to_legacy(src, dst):
     target_dir = fs.path.dirname(dst)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=src,
+    fs.move.move_file(src_fs=config.PRIMARY_STORAGE._fs, src_path=src,
                       dst_fs=config.local_fs._fs, dst_path=dst)
 
 def move_file_to_legacy2(src, dst):
     target_dir = fs.path.dirname(dst)
     if not config.local_fs2.get_fs().exists(target_dir):
         config.local_fs2.get_fs().makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=src,
+    fs.move.move_file(src_fs=config.PRIMARY_STORAGE._fs, src_path=src,
                       dst_fs=config.local_fs2.get_fs(), dst_path=dst)
 
 @pytest.fixture(scope='function')
@@ -75,7 +75,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs.get_fs().makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=util.path_from_uuid(file_id_1),
+    fs.move.move_file(src_fs=config.PRIMARY_STORAGE._fs, src_path=util.path_from_uuid(file_id_1),
                       dst_fs=config.local_fs.get_fs(), dst_path=file_path)
 
     api_db['gears'].find_one_and_update(
@@ -100,7 +100,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=file_path,
+    fs.move.move_file(src_fs=config.PRIMARY_STORAGE._fs, src_path=file_path,
                       dst_fs=config.local_fs._fs, dst_path=file_path)
     gears.append((gear_id_2, file_path))
 
@@ -116,7 +116,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 
     for f_path in files_to_delete:
         try:
-            config.storage._fs.remove(f_path)
+            config.PRIMARY_STORAGE.remove_file(None, f_path)
         except:
             pass
 
@@ -188,7 +188,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     # Delete the files
     for f in files:
         try:
-            config.storage._fs.remove(util.path_from_uuid(f['_id']))
+            config.PRIMARY_STORAGE.remove_file(f['_id'], util.path_from_uuid(f['_id']))
         except:
             pass
 
@@ -228,9 +228,9 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage):
     migrate_storage.main('--containers')
 
     # delete files from the legacy storage
-    config.local_fs._fs.remove(file_path_1)
-    config.local_fs._fs.remove(file_path_2)
-    config.local_fs2._fs.remove(file_path_3)
+    config.local_fs.remove_file(None, file_path_1)
+    config.local_fs.remove_file(None, file_path_2)
+    config.local_fs2.remove_file(None, file_path_3)
 
     # get the files from the new filesystem
     # get the ticket
@@ -264,13 +264,13 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage):
     (_, _, _, file_path_2) = files_to_migrate[1]
 
     # delete the file
-    config.local_fs._fs.remove(file_path_1)
+    config.local_fs.remove(None, file_path_1)
 
     with pytest.raises(Exception):
         migrate_storage.main('--containers')
 
     # clean up
-    config.local_fs._fs.remove(file_path_2)
+    config.local_fs.remove(None, file_path_2)
 
 
 def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
@@ -287,8 +287,8 @@ def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
     migrate_storage.main('--gears')
 
     # delete files from the legacy storage
-    config.local_fs._fs.remove(gear_file_path_1)
-    config.local_fs._fs.remove(gear_file_path_2)
+    config.local_fs.remove_file(None, gear_file_path_1)
+    config.local_fs.remove_file(None, gear_file_path_2)
 
     # get the files from the new filesystem
     assert as_admin.get('/gears/temp/' + gear_id_1).ok
@@ -304,13 +304,13 @@ def test_migrate_gears_error(gears_to_migrate, migrate_storage):
     (_, gear_file_path_2) = gears_to_migrate[1]
 
     # delete the file
-    config.local_fs._fs.remove(gear_file_path_1)
+    config.local_fs.remove_file(None, gear_file_path_1)
 
     with pytest.raises(Exception):
         migrate_storage.main('--gears')
 
     # clean up
-    config.local_fs._fs.remove(gear_file_path_2)
+    config.local_fs.remove_file(None, gear_file_path_2)
 
 
 def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, file_form, api_db, mocker, caplog):
@@ -344,8 +344,8 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
             {'files.name': file_name_2}
         )['files'][1]['_id']
 
-        assert config.storage.get_file_info(file_1_id, util.path_from_uuid(file_1_id)) is not None
-        assert config.storage.get_file_info(file_2_id, util.path_from_uuid(file_2_id)) is not None
+        assert config.PRIMARY_STORAGE.get_file_info(file_1_id, util.path_from_uuid(file_1_id)) is not None
+        assert config.PRIMARY_STORAGE.get_file_info(file_2_id, util.path_from_uuid(file_2_id)) is not None
 
     assert any(log.message == 'Probably the following file has been updated during the migration and its hash is changed, cleaning up from the new filesystem' for log in caplog.records)
 
@@ -392,8 +392,8 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     migrate_storage.main('--containers')
 
     # delete files from the legacy storage
-    config.local_fs._fs.remove(file_path_1)
-    config.local_fs._fs.remove(file_path_2)
+    config.local_fs.remove_file(None, file_path_1)
+    config.local_fs.remove_file(None, file_path_2)
 
     # get the files from the new filesystem
     # get the ticket
