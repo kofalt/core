@@ -129,7 +129,7 @@ def cleanup_files(remove_all, origins):
                     uuid_path = util.path_from_uuid(f['_id'])
                     if fs.get_file_info(f['_id'], uuid_path):
                         log.debug('    removing from %s', fs)
-                        fs.remove(f['_id'], uuid_path)
+                        fs.remove_file(f['_id'], uuid_path)
 
                     log.debug('    removing from database')
                     updated_doc = db.get_collection(container).update({'_id': document['_id']},
