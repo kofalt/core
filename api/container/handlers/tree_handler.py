@@ -12,15 +12,6 @@ class TreeHandler(base.RequestHandler):
         """Return the flywheel hierarchy graph (informational)"""
         return GRAPH
 
-    # TODO: Remove this property once native support in no-root lands
-    @property
-    def complete_list(self):
-        if self.is_true('root') or self.is_true('exhaustive'):
-            if self.user_is_admin:
-                return True
-            raise errors.APIPermissionException('User {} is not authorized to request complete lists'.format(self.uid))
-        return False
-
     @validators.verify_payload_exists
     @auth.require_login
     def post(self):
