@@ -264,13 +264,13 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage):
     (_, _, _, file_path_2) = files_to_migrate[1]
 
     # delete the file
-    config.local_fs.remove(None, file_path_1)
+    config.local_fs.remove_file(None, file_path_1)
 
     with pytest.raises(Exception):
         migrate_storage.main('--containers')
 
     # clean up
-    config.local_fs.remove(None, file_path_2)
+    config.local_fs.remove_file(None, file_path_2)
 
 
 def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
