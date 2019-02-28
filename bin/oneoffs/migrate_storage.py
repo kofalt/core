@@ -252,8 +252,7 @@ def migrate_file(f):
         if not updated_doc:
             log.info('Probably the following file has been updated during the migration '
                      'and its hash is changed, cleaning up from the new filesystem')
-            # We dont support delete at this time so we should check the hash before we save the file if we dont extra files lying around
-            # target_fs.remove(f_new_path)
+            target_fs.remove(f_new_path)
 
 
 def migrate_analysis_file(f, migrated_files):
