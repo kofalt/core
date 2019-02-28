@@ -11,7 +11,7 @@ import sys
 
 import pymongo
 
-from fs import open_fs
+from api.storage.py_fs_storage import PyFsStorage
 
 from api import util
 
@@ -40,7 +40,7 @@ def main(*argv):
     data_path = os.environ['SCITRAN_PERSISTENT_DATA_PATH']
     db = pymongo.MongoClient(db_uri).get_default_database()
     fs_url = os.environ['SCITRAN_PERSISTENT_FS_URL']
-    fs = open_fs(fs_url)
+    fs = PyFsStorage(fs_url)
 
     log.info('Using mongo URI: %s', db_uri)
     log.info('Using data path: %s', data_path)
@@ -127,9 +127,9 @@ def cleanup_files(remove_all, origins):
 
                 if f.get('_id'):
                     uuid_path = util.path_from_uuid(f['_id'])
-                    if fs.exists(uuid_path):
+                    if fs.get_file_info(f['_id'], uuid_path):
                         log.debug('    removing from %s', fs)
-                        fs.remove(uuid_path)
+                        fs.remove(f['_id'], uuid_path)
 
                     log.debug('    removing from database')
                     updated_doc = db.get_collection(container).update({'_id': document['_id']},

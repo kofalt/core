@@ -24,6 +24,21 @@ class Storage(object):
         """
 
     @abstractmethod
+    def remove_file(self, uuid, path_hint):
+        """
+        Removes file from storage
+
+        :param self: self reference
+        :param uuid: internal id of file reference
+        :param path_hint: local relative path for file location
+        :type uuid: string
+        :type path_hint: string
+        :raises ResourceNotFound: If the file could not be found
+        :returns: Boolean indicating success
+        :rtype: boolean
+        """
+    
+    @abstractmethod
     def is_signed_url(self):
         """
         Return boolean if signed url is possible for this file type

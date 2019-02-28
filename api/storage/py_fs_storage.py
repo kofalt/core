@@ -32,6 +32,14 @@ class PyFsStorage(Storage):
         # Allow error to bubble up
         return self._fs.open(path_hint, mode)
 
+    def remove_file(self, uuid, path_hint):
+        if path_hint:
+            self._fs.remove(path_hint)
+        else:
+            pass
+
+        return True
+
     def is_signed_url(self):
         return self._has_signed_url
 
