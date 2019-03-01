@@ -190,6 +190,7 @@ def initialize_db():
     db.jobs.create_index([('state', 1), ('now', 1), ('modified', 1)], **kwargs)
     db.jobs.create_index('related_container_ids', **kwargs)
     db.jobs.create_index('created', **kwargs)
+    db.jobs.create_index('modified', **kwargs)
     db.jobs.create_index('parents', **kwargs)
     db.jobs.create_index('tags', **kwargs)
     db.jobs.create_index([('destination.type', 1), ('destination.id', 1)], **kwargs)
