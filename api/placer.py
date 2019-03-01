@@ -3,7 +3,6 @@ import copy
 import datetime
 import dateutil
 import pymongo
-import uuid
 import zipfile
 
 import fs.path
@@ -19,12 +18,14 @@ from .web import encoder
 from .web.errors import FileFormException
 
 
+CHUNK_SIZE = 1048576
+
 class Placer(object):
     """
     Interface for a placer, which knows how to process files and place them where they belong - on disk and database.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
         self.container_type = container_type
         self.container      = container
         self.id_            = id_
@@ -42,8 +43,6 @@ class Placer(object):
 
         # A list of files that have been saved via save_file() usually returned by finalize()
         self.saved          = []
-
-        self.file_processor = file_processor
 
         # A callable that allows the placer to log access information
         self.access_logger  = access_logger
@@ -64,7 +63,7 @@ class Placer(object):
         """
         raise NotImplementedError() # pragma: no cover
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         """"
         Process a single file field.
         """
@@ -90,16 +89,16 @@ class Placer(object):
         if self.metadata == None:
             raise FileFormException('Metadata required')
 
-    def save_file(self, field=None, file_attrs=None, ignore_hash_replace=False):
+    def save_file(self, file_attrs=None, ignore_hash_replace=False):
         """
         Helper function that moves a file saved via a form field into our CAS.
         May trigger jobs, if applicable, so this should only be called once we're ready for that.
 
         Requires an augmented file field; see process_upload() for details.
         """
+
         # Save file
-        if field is not None and self.file_processor is not None:
-            self.file_processor.store_temp_file(field.path, util.path_from_uuid(field.uuid))
+        # We already have the file in the final location on persistent storage so we dont to do anything anymore
 
         # Update the DB
         if file_attrs is not None:
@@ -158,10 +157,10 @@ class TargetedPlacer(Placer):
         self.requireTarget()
         validators.validate_data(self.metadata, 'file.json', 'input', 'POST', optional=True)
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata:
             file_attrs.update(self.metadata)
-        self.save_file(field, file_attrs)
+        self.save_file(file_attrs)
 
 
     def finalize(self):
@@ -178,12 +177,12 @@ class TargetedMultiPlacer(TargetedPlacer):
         self.requireTarget()
         validators.validate_data(self.metadata, 'file-list.json', 'input', 'POST', optional=True)
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata:
             for fileinfo in self.metadata:
                 if fileinfo['name'] == file_attrs['name']:
                     file_attrs.update(fileinfo)
-        self.save_file(field, file_attrs)
+        self.save_file(file_attrs)
 
 class UIDPlacer(Placer):
     """
@@ -197,8 +196,8 @@ class UIDPlacer(Placer):
     ignore_hash_replace = False
 
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
-        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
+        super(UIDPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
         self.metadata_for_file = {}
         self.session_id = None
         self.count = 0
@@ -212,7 +211,7 @@ class UIDPlacer(Placer):
 
 
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         # Only create the hierarchy once
         if self.count == 0:
             # If not a superuser request, pass uid of user making the upload request
@@ -231,7 +230,7 @@ class UIDPlacer(Placer):
         self.count += 1
 
         # For the file, given self.targets, choose a target
-        name        = field.filename
+        name        = file_attrs['name']
         target      = self.metadata_for_file.get(name)
 
         # if the file was not included in the metadata skip it
@@ -244,7 +243,7 @@ class UIDPlacer(Placer):
         self.container_type = container.level
         self.id_            = container.id_
         self.container      = container.container
-        self.save_file(field, file_attrs, ignore_hash_replace=self.ignore_hash_replace)
+        self.save_file(file_attrs, ignore_hash_replace=self.ignore_hash_replace)
 
     def finalize(self):
         # Check that there is at least one file being uploaded
@@ -330,7 +329,7 @@ class EnginePlacer(Placer):
                         f['classification'] = {'Custom': m}
             ###
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata is not None:
             file_mds = self.metadata.get(self.container_type, {}).get('files', [])
 
@@ -339,7 +338,7 @@ class EnginePlacer(Placer):
                     file_attrs.update(file_md)
                     break
 
-        self.save_file(field, file_attrs)
+        self.save_file(file_attrs)
 
     def finalize(self):
         job = None
@@ -406,13 +405,14 @@ class TokenPlacer(Placer):
     """
     A placer that can accept N files and save them to a persistent directory across multiple requests.
     Intended for use with a token that tracks where the files will be stored.
+    Is the strategy used between packfile-start and packfile-end
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
-        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
+        super(TokenPlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
 
-        self.paths  =   []
-        self.folder =   None
+        self.paths = []
+        self.folder = None
 
     def check(self):
         token = self.context['token']
@@ -425,19 +425,18 @@ class TokenPlacer(Placer):
         #   PackfilePlacer.check
         #   upload.clean_packfile_tokens
         #
-        # It must be kept in sync between each instance.
+        # It must be kept in sync between each instance and also with the FileListHander tempdir.
         self.folder = fs.path.join('tokens', 'packfile', token)
+        util.mkdir_p(self.folder, config.local_fs.get_fs())
+        # we only work with local fs when using token placer
 
-        util.mkdir_p(self.folder, config.local_fs)
+    def process_file_field(self, file_attrs):
 
-    def process_file_field(self, field, file_attrs):
         self.saved.append(file_attrs)
-        self.paths.append(field.path)
+        self.paths.append(file_attrs['path'])
 
     def finalize(self):
-        for path in self.paths:
-            dest = fs.path.join(self.folder, path)
-            self.file_processor.store_temp_file(path, dest, dst_fs=config.local_fs)
+
         self.recalc_session_compliance()
         return self.saved
 
@@ -447,8 +446,10 @@ class PackfilePlacer(Placer):
     A placer that can accept N files, save them into a zip archive, and place the result on an acquisition.
     """
 
-    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=config.log):
-        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=logger)
+    def __init__(self, container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=config.log):
+        super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
+
+        self._chunk_size = CHUNK_SIZE
 
         # This endpoint is an SSE endpoint
         self.sse            = True
@@ -483,11 +484,12 @@ class PackfilePlacer(Placer):
         #   PackfilePlacer.check
         #   upload.clean_packfile_tokens
         #
-        # It must be kept in sync between each instance.
+        # It must be kept in sync between each instance and also the FileListHandler tempdir.
         self.folder = fs.path.join('tokens', 'packfile', token)
 
         try:
-            config.local_fs.isdir(self.folder)
+            # Always on the local fs to make the pack file
+            config.local_fs.get_fs().isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
 
@@ -529,38 +531,45 @@ class PackfilePlacer(Placer):
         self.ziptime = dateutil.parser.parse(stamp)
 
         # The zipfile is a santizied acquisition label
+        # But the dir is only ever used for human naming it seems
         self.dir_ = util.sanitize_string_to_filename(self.a_label)
         self.name = self.dir_ + '.zip'
-
-        # Create a zip in the tempdir that later gets moved into the CAS.
-        self.path = u'temp.zip'
-        self.zip_ = zipfile.ZipFile(self.file_processor.temp_fs.open(self.path, 'wb'),
-                                    'w', zipfile.ZIP_DEFLATED, allowZip64=True)
 
         # OPPORTUNITY: add zip comment
         # self.zip.comment = json.dumps(metadata, default=metadata_encoder)
 
 
-    def process_file_field(self, field, file_attrs):
-        # Should not be called with any files
+    def process_file_field(self, file_attrs):
+        # Should not be called with any files but if it was then
+        # remove the upload file that was saved direclty to storage from the form post
+        config.local_fs.get_fs().remove(self.folder + '/' + file_attrs['name'])
         raise Exception('Files must already be uploaded')
 
     def finalize(self):
-
-        paths = config.local_fs.listdir(self.folder)
+        paths = config.local_fs.get_fs().listdir(self.folder)
         total = len(paths)
 
+        # We create the zip file in the local storage location then get attributes and then move it to the final
+        # location. Otherwise in the cloud instances we would be writing files across the network which would
+        # be much slower
+
+        token = self.context['token']
+
+        tempZipPath = fs.path.join('tokens', 'packfile', token, token)
+        self.zip_ = zipfile.ZipFile(config.local_fs.get_fs().open(tempZipPath, 'wb'),
+                                    'w', zipfile.ZIP_DEFLATED, allowZip64=True)
         # Write all files to zip
         complete = 0
         for path in paths:
             full_path = fs.path.join(self.folder, path)
 
             # Set the file's mtime & atime.
-            config.local_fs.settimes(full_path, self.ziptime, self.ziptime)
+            config.local_fs.get_fs().settimes(full_path, self.ziptime, self.ziptime)
 
             # Place file into the zip folder we created before
-            with config.local_fs.open(full_path, 'rb') as f:
-                self.zip_.writestr(fs.path.join(self.dir_, path), f.read())
+            # Prepend the file paths with the label name by business logic decisions
+            with config.local_fs.get_fs().open(full_path, 'rb') as f:
+                self.zip_.writestr(self.dir_ + "/" + path, f.read())
 
             # Report progress
             complete += 1
@@ -571,9 +580,6 @@ class PackfilePlacer(Placer):
 
         self.zip_.close()
 
-        # Remove the folder created by TokenPlacer
-        config.local_fs.removetree(self.folder)
-
         # Lookup uid on token
         token  = self.context['token']
         uid = config.db['tokens'].find_one({ '_id': token }).get('user')
@@ -582,32 +588,34 @@ class PackfilePlacer(Placer):
             'id': uid
         }
 
+        # Finaly move the file from the local fs to the persistent FS.
+        # We could make this faster using a move if we know its a local to local fs move.
+        with config.local_fs.get_fs().open(tempZipPath, 'rb') as (f1
+                ), config.storage.open(token, util.path_from_uuid(token), 'wb') as f2:
+            while True:
+                data = f1.read(self._chunk_size)
+                if not data:
+                    break
+                f2.write(data)
 
-        # Create an anyonmous object in the style of our augmented file fields.
-        # Not a great practice. See process_upload() for details.
-        cgi_field = util.obj_from_map({
-            'filename': self.name,
-            'path': self.path,
-            'size': int(self.file_processor.temp_fs.getsize(self.path)),
-            'hash': self.file_processor.hash_file_formatted(self.path, self.file_processor.temp_fs),
-            'uuid': str(uuid.uuid4()),
-            'mimetype': util.guess_mimetype('lol.zip'),
-            'modified': self.timestamp,
-            'zip_member_count': complete
-        })
+        size = config.local_fs.get_file_info(token, tempZipPath)['filesize']
+        hash_ = config.local_fs.get_file_hash(None, tempZipPath)
+
+        # Remove the folder created by TokenPlacer after we calc the needed attributes
+        config.local_fs.get_fs().removetree(self.folder)
 
         # Similarly, create the attributes map that is consumed by helper funcs. Clear duplication :(
         # This could be coalesced into a single map thrown on file fields, for example.
         # Used in the API return.
         cgi_attrs = {
-            '_id': cgi_field.uuid,
-            'name': cgi_field.filename,
-            'modified': cgi_field.modified,
-            'size': cgi_field.size,
+            '_id': token,
+            'name': self.name,
+            'modified': self.timestamp,
+            'path' : util.path_from_uuid(token),
+            'size': size,
             'zip_member_count': complete,
-            'hash': cgi_field.hash,
-            'mimetype': cgi_field.mimetype,
-
+            'hash': hash_,
+            'mimetype': util.guess_mimetype('lol.zip'),
             'type': self.metadata['packfile']['type'],
 
             # OPPORTUNITY: packfile endpoint could be extended someday to take additional metadata.
@@ -713,7 +721,7 @@ class PackfilePlacer(Placer):
         self.id_            = str(acquisition['_id'])
         self.container	    = acquisition
 
-        self.save_file(cgi_field, cgi_attrs)
+        self.save_file(cgi_attrs)
 
         # Set target for session recalc
         self.container_type = 'session'
@@ -743,8 +751,8 @@ class AnalysisPlacer(Placer):
         self.requireMetadata()
         validators.validate_data(self.metadata, 'analysis-legacy.json', 'input', 'POST', optional=True)
 
-    def process_file_field(self, field, file_attrs):
-        self.save_file(field)
+    def process_file_field(self, file_attrs):
+        self.save_file()
         self.saved.append(file_attrs)
 
     def finalize(self):
@@ -769,7 +777,7 @@ class AnalysisJobPlacer(Placer):
         if self.context.get('job_ticket_id'):
             JobTicket.get(self.context.get('job_ticket_id'))
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata is not None:
             file_mds = self.metadata.get('acquisition', {}).get('files', [])
 
@@ -779,7 +787,7 @@ class AnalysisJobPlacer(Placer):
                     break
 
         file_attrs['created'] = file_attrs['modified']
-        self.save_file(field)
+        self.save_file(None)
         self.saved.append(file_attrs)
 
     def finalize(self):
@@ -824,7 +832,7 @@ class GearPlacer(Placer):
     def check(self):
         self.requireMetadata()
 
-    def process_file_field(self, field, file_attrs):
+    def process_file_field(self, file_attrs):
         if self.metadata:
             file_attrs.update(self.metadata)
             proper_hash = file_attrs.get('hash')[3:].replace('-', ':')
@@ -834,7 +842,7 @@ class GearPlacer(Placer):
                                                'rootfs-id': file_attrs['_id']}})
         # self.metadata['hash'] = file_attrs.get('hash')
 
-        self.save_file(field)
+        self.save_file()
         self.saved.append(file_attrs)
         self.saved.append(self.metadata)
 

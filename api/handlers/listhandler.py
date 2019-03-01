@@ -346,7 +346,7 @@ class FileListHandler(ListHandler):
     """
 
     def _create_upload_ticket(self):
-        if not hasattr(config.fs, 'get_signed_url'):
+        if not config.storage.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -356,15 +356,21 @@ class FileListHandler(ListHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
-        tempdir = str(uuid.uuid4())
-        # Upload into a temp folder, so we will be able to cleanup
+        #These upload directly to final location
         signed_urls = {}
-        for filename in filenames:
-            signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename),
-                                                         config.fs,
-                                                         purpose='upload')
+        filedata = []
 
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filenames, metadata)
+        for filename in filenames:
+            new_uuid = str(uuid.uuid4())
+            signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_urls[filename] = signed_url
+            filedata.append({
+                'filename': filename,
+                'url': signed_url,
+                'uuid': new_uuid,
+            })
+
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filedata, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
 
@@ -386,11 +392,11 @@ class FileListHandler(ListHandler):
         return ticket
 
     @staticmethod
-    def build_zip_info(file_path, file_system):
+    def build_zip_info(file_uuid, file_path, file_system):
         """
         Builds a json response containing member and comment info for a zipfile
         """
-        with file_system.open(file_path, 'rb') as f:
+        with file_system.open(file_uuid, file_path, 'rb') as f:
             with zipfile.ZipFile(f) as zf:
                 info = {
                     'comment': zf.comment,
@@ -441,7 +447,7 @@ class FileListHandler(ListHandler):
         # Request for info about zipfile
         elif self.is_true('info'):
             try:
-                info = self.build_zip_info(file_path, file_system)
+                info = self.build_zip_info(fileinfo.get('_id'), file_path, file_system)
                 return info
             except zipfile.BadZipfile:
                 self.abort(400, 'not a zip file')
@@ -450,7 +456,7 @@ class FileListHandler(ListHandler):
         elif self.get_param('member') is not None:
             zip_member = self.get_param('member')
             try:
-                with file_system.open(file_path, 'rb') as f:
+                with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
                     with zipfile.ZipFile(f) as zf:
                         self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                         self.response.write(zf.open(zip_member).read())
@@ -471,10 +477,16 @@ class FileListHandler(ListHandler):
             # START of duplicated code
             # IMPORTANT: If you modify the below code reflect the code changes in
             # refererhandler.py:AnalysesHandler's download method
-            signed_url = files.get_signed_url(file_path, file_system,
+            signed_url = None
+            if config.storage.is_signed_url() and config.storage.can_redirect_request(self.request.headers):
+                try:
+                    signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
+                except fs.errors.ResourceNotFound:
+                    self.log.error('Error getting signed_url on non existing file')
+
             if signed_url:
                 self.redirect(signed_url)
             else:
@@ -498,7 +510,8 @@ class FileListHandler(ListHandler):
                     else:
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
-                    self.response.body_file = file_system.open(file_path, 'rb')
+
+                    self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb')
                     self.response.content_length = fileinfo['size']
                 else:
                     self.response.status = 206
@@ -510,7 +523,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
 
 
-                    with file_system.open(file_path, 'rb') as f:
+                    with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
                             if first < 0:
@@ -601,18 +614,14 @@ class FileListHandler(ListHandler):
                 # If we don't have an origin with this request, use the ticket's origin
                 self.origin = ticket.get('origin')
 
-            file_fields = []
-            for filename in ticket['filenames']:
-                file_fields.append(
-                    util.dotdict({
-                        'filename': filename
-                    })
-                )
-
+            file_fields = [util.dotdict(file_field) for file_field in ticket['filedata']]
+            # In this flow files are stored to the storage location via the signed url directly
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                          container_type=containerutil.singularize(cont_name),
-                                         id_=_id, file_fields=file_fields, tempdir=ticket['tempdir'])
+                                         id_=_id, file_fields=file_fields,
+                                         tempdir=None)
         else:
+            #In this flow files are stored to local storage directly via assigned uuid
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, container_type=containerutil.singularize(cont_name), id_=_id, origin=self.origin)
 
     @validators.verify_payload_exists
@@ -735,7 +744,7 @@ class FileListHandler(ListHandler):
         token_id = self.request.GET.get('token')
         self._check_packfile_token(project_id, token_id)
 
-        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id})
+        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id}, tempdir=fs.path.join('tokens', 'packfile', token_id))
 
     def packfile_end(self, **kwargs):
         """
@@ -749,4 +758,5 @@ class FileListHandler(ListHandler):
         # Because this is an SSE endpoint, there is no form-post. Instead, read JSON data from request param
         metadata = json.loads(self.request.GET.get('metadata'))
 
-        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id}, response=self.response, metadata=metadata)
+        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id},
+                response=self.response, metadata=metadata, tempdir=fs.path.join('tokens', 'packfile', token_id))

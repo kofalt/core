@@ -366,6 +366,7 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
     acquisition2 = data_builder.create_acquisition(session=session2, label='scout')
 
     file_form1 = file_form(('values.csv', csv_test_data('a1')))
+
     assert as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form1).ok
 
     file_form2 = file_form(('values.csv', csv_test_data('a2')))
@@ -390,6 +391,7 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
             ]
         }
     })
+
 
     assert r.ok
     rows = r.json()['data']
@@ -1488,6 +1490,7 @@ def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user,
     assert r.ok
 
     rows = r.json()['data']
+
     assert len(rows) == 1
 
     assert rows[0]['project.id'] == project

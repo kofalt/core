@@ -1,12 +1,16 @@
 from ..auth import require_login
 
 from .. import config, validators
-from ..create_file import FileCreator
 from ..auth import containerauth
 from ..dao import noop
 from ..dao.containerstorage import ContainerStorage
 from ..web import base, encoder
 from ..web.errors import APIStorageException, InputValidationException
+
+from ..files import FileProcessor
+from .. import upload
+from ..placer import TargetedMultiPlacer
+import datetime
 
 from .data_view import DataView
 from .storage import DataViewStorage
@@ -45,7 +49,7 @@ class DataViewHandler(base.RequestHandler):
         """Create a new view on the parent container"""
         parent_container = self.storage.find_parent_by_id(parent, projection=self.parent_projection)
         self.permcheck('POST', parent_container=parent_container)
-        
+
         # Validate payload
         payload = self.request.json
         validators.validate_data(payload, 'data-view-new.json', 'input', 'POST')
@@ -88,7 +92,7 @@ class DataViewHandler(base.RequestHandler):
         """Update the view identified by _id"""
         parent_container = self.storage.get_parent(_id, projection=self.parent_projection)
         self.permcheck('PUT', parent_container=parent_container)
-        
+
         # Validate payload
         payload = self.request.json
         validators.validate_data(payload, 'data-view-update.json', 'input', 'POST')
@@ -150,13 +154,14 @@ class DataViewHandler(base.RequestHandler):
         """Execute the data view specified in body"""
         # Validate payload
         payload = self.request.json
+
         validators.validate_data(payload, 'data-view-adhoc.json', 'input', 'POST')
 
         return self.do_execute_view(payload)
 
     def do_execute_view(self, view_spec, target_container=None, target_container_type=None, target_filename=None):
         """ Complete view execution for the given view definition """
-        # Find destination container and validate permissions 
+        # Find destination container and validate permissions
         container_id = self.request.GET.get('containerId')
         data_format = self.request.GET.get('format', 'json')
 
@@ -175,43 +180,77 @@ class DataViewHandler(base.RequestHandler):
         def response_handler(environ, start_response): # pylint: disable=unused-argument
             write_progress=None
 
-            with FileCreator(self, target_container_type, target_container) as file_creator:
-                if target_container:
-                    # If we're saving to container, start SSE event,
-                    # and write the data to a temp file
-                    write_progress = start_response('200 OK', [
-                        ('Content-Type', 'text/event-stream; charset=utf-8'),
-                        ('Connection', 'keep-alive')
-                    ])
+            if target_container:
 
-                    fileobj = file_creator.create_file(target_filename)
-                    write = fileobj.write 
-                else:
-                    write = start_response('200 OK', [
-                        ('Content-Type', view.get_content_type()),
-                        ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
-                        ('Connection', 'keep-alive')
-                    ])
+                # Saved directly to persistent storage.
+                file_processor = FileProcessor(config.storage)
 
-                view.execute(self.request, self.origin, write, write_progress_fn=write_progress)
+                # If we're saving to container, start SSE event,
+                # and write the data to a temp file
+                write_progress = start_response('200 OK', [
+                    ('Content-Type', 'text/event-stream; charset=utf-8'),
+                    ('Connection', 'keep-alive')
+                ])
 
-                if target_container:
-                    result = file_creator.finalize()
+                # Create a new file with a new uuid
+                path, fileobj = file_processor.create_new_file(None)
+                new_uuid = fileobj.filename
+                if target_filename:
+                    fileobj.filename = target_filename
+                write = fileobj.write
 
-                    # Write final progress
-                    progress = encoder.json_sse_pack({
-                        'event': 'result',
-                        'data': result,
-                    })
-                    write_progress(progress)
+                # Construct the file metadata list
+                metadata = []
+                metadata.append({'name': fileobj.filename})
+                timestamp = datetime.datetime.utcnow()
+
+            else:
+                write = start_response('200 OK', [
+                    ('Content-Type', view.get_content_type()),
+                    ('Content-Disposition', 'attachment; filename="{}"'.format(view.get_filename('view-data'))),
+                    ('Connection', 'keep-alive')
+                ])
+
+            view.execute(self.request, self.origin, write, write_progress_fn=write_progress)
+
+            if target_container:
+                # Process file calcs but close the file first to flush the buffer
+                fileobj.close()
+
+                # Create our targeted placer
+                placer = TargetedMultiPlacer(target_container_type, target_container, target_container['_id'],
+                    metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
+
+                file_fields = file_processor.create_file_fields(
+                    fileobj.filename,
+                    path,
+                    config.storage.get_file_info(new_uuid, path)['filesize'],
+                    config.storage.get_file_hash(new_uuid, path),
+                    uuid_=new_uuid,
+                    mimetype=None,
+                    modified=timestamp
+                )
+
+                file_attrs = upload.make_file_attrs(file_fields, self.origin)
+
+                # Place the file
+                placer.process_file_field(file_attrs)
+                result = placer.finalize()
+
+                # Write final progress
+                progress = encoder.json_sse_pack({
+                    'event': 'result',
+                    'data': result,
+                })
+                write_progress(progress)
 
             return ''
 
-        return response_handler 
+        return response_handler
 
     def permcheck(self, method, container=None, parent_container=None):
         """Perform permission check for data view storage operations
-        
+
         Arguments:
             container (dict): The optional data view
             parent_container (dict,str): The parent container, one of "site", user, group or container

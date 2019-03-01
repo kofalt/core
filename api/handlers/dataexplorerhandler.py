@@ -3,10 +3,12 @@ import json
 import datetime
 
 from elasticsearch import ElasticsearchException, TransportError, RequestError, helpers
+from ..files import FileProcessor
+from ..placer import TargetedMultiPlacer
+from .. import upload
 
 from ..web import base
 from .. import config, validators
-from ..create_file import FileCreator
 from ..dao import noop, hierarchy
 from ..auth import require_login, groupauth, require_admin
 from ..dao.containerstorage import QueryStorage, ContainerStorage
@@ -690,13 +692,30 @@ class DataExplorerHandler(base.RequestHandler):
             'files': file_results
         }
 
-        # Save the json results to a file on the output
-        with FileCreator(self, output['type'], output_container) as file_creator:
-            fileobj = file_creator.create_file(output_filename)
-            fileobj.write(json.dumps(formatted_search_results))
-            result = file_creator.finalize()
-        return result
+        # Saved directly to persistent storage.
+        file_processor = FileProcessor(config.storage)
 
+        # Create a new file with a new uuid
+        _, fileobj = file_processor.create_new_file(None)
+        fileobj.write(json.dumps(formatted_search_results))
+        #This seems to be empty on file create but verify this is correct
+        metadata = None
+        timestamp = datetime.datetime.utcnow()
+
+        # Create our targeted placer
+        placer = TargetedMultiPlacer(output['type'], output_container, output['id'],
+            metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
+
+        fileobj.close()
+
+        file_fields = file_processor.create_file_fields(output_filename, fileobj.path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
+        file_attrs = upload.make_file_attrs(file_fields, self.origin)
+
+        # Place the file
+        placer.process_file_field(file_attrs)
+
+        # Process file calcs
+        return placer.finalize()
 
 
     ## CONSTRUCTING QUERIES ##

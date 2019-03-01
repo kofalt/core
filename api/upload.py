@@ -3,9 +3,7 @@ import datetime
 import json
 import os
 import uuid
-
 import fs.errors
-import fs.path
 
 from .web import base
 from .web.errors import FileFormException
@@ -81,17 +79,21 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         container = hierarchy.get_container(container_type, id_)
 
     # Check if filename should be basename or full path
-    use_filepath = request.GET.get('filename_path', '').lower() in ('1', 'true')
-    if use_filepath:
+    filename_path = request.GET.get('filename_path', '').lower() in ('1', 'true')
+    if filename_path:
         name_fn = util.sanitize_path
     else:
         name_fn = os.path.basename
 
+
     # The vast majority of this function's wall-clock time is spent here.
-    # Tempdir is deleted off disk once out of scope, so let's hold onto this reference.
-    file_processor = files.FileProcessor(config.fs, local_tmp_fs=(strategy == Strategy.token), tempdir_name=tempdir)
+    file_processor = files.FileProcessor(config.storage)
+
     if not file_fields:
-        form = file_processor.process_form(request, use_filepath=use_filepath)
+
+        # The only time we need the tempdir_name is when we use token and packfile.
+        form = file_processor.process_form(request, use_filepath=filename_path, tempdir_name=tempdir)
+
         # Non-file form fields may have an empty string as filename, check for 'falsy' values
         file_fields = extract_file_fields(form)
 
@@ -108,7 +110,8 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
                     f['name'] = name_fn(f['name'])
 
     placer_class = strategy.value
-    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, file_processor, access_logger, logger=log)
+    placer = placer_class(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=log)
+
     placer.check()
 
     # Browsers, when sending a multipart upload, will send files with field name "file" (if sinuglar)
@@ -130,15 +133,17 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Augment the cgi.FieldStorage with a variety of custom fields.
         # Not the best practice. Open to improvements.
         # These are presumbed to be required by every function later called with field as a parameter.
-        field.path = field.filename
-        if not file_processor.temp_fs.exists(field.path):
-            # tempdir_exists = os.path.exists(tempdir.name)
-            raise Exception("file {} does not exist, files in tmpdir: {}".format(
-                field.path,
-                file_processor.temp_fs.listdir('/'),
-            ))
-        field.size = int(file_processor.temp_fs.getsize(field.path))
-        field.uuid = str(uuid.uuid4())
+
+        #We can trust the filepath on upload is accurate after form processing
+        if hasattr(field, 'filepath'):
+            #Some placers need this value. Consistent object would be nice
+            field.path = field.filepath
+
+        if tempdir:
+            field.size = (config.local_fs.get_file_info(None, field.filepath))['filesize']
+        else:
+            field.size = (config.storage.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 
@@ -146,12 +151,13 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Stands in for a dedicated object... for now.
         file_attrs = make_file_attrs(field, origin)
 
-        placer.process_file_field(field, file_attrs)
+        placer.process_file_field(file_attrs)
 
     # Respond either with Server-Sent Events or a standard json map
     if placer.sse and not response:
         raise Exception("Programmer error: response required")
     elif placer.sse:
+
         # Returning a callable will bypass webapp2 processing and allow
         # full control over the response.
         def sse_handler(environ, start_response): # pylint: disable=unused-argument
@@ -167,6 +173,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             # Right now, in our environment:
             # - Timeouts may result in nginx-created 500 Bad Gateway HTML being added to the response.
             # - Exceptions add some error json to the response, which is not SSE-sanitized.
+
             for item in placer.finalize():
                 try:
                     write(item)
@@ -183,7 +190,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 class Upload(base.RequestHandler):
 
     def _create_upload_ticket(self):
-        if not hasattr(config.fs, 'get_signed_url'):
+        if not config.storage.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
 
         payload = self.request.json_body
@@ -193,15 +200,20 @@ class Upload(base.RequestHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
-        tempdir = str(uuid.uuid4())
-        # Upload into a temp folder, so we will be able to cleanup
         signed_urls = {}
+        filedata = []
         for filename in filenames:
-            signed_urls[filename] = files.get_signed_url(fs.path.join('tmp', tempdir, filename),
-                                                         config.fs,
-                                                         purpose='upload')
+            new_uuid = str(uuid.uuid4())
+            signed_url = config.storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_urls[filename] = signed_url
+            filedata.append({
+                'filename': filename,
+                'url': signed_url,
+                'uuid': new_uuid,
+                'filepath': util.path_from_uuid(new_uuid)
+            })
+        ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filedata, metadata)
 
-        ticket = util.upload_ticket(self.request.client_addr, self.origin, tempdir, filenames, metadata)
         return {'ticket': config.db.uploads.insert_one(ticket).inserted_id,
                 'urls': signed_urls}
 
@@ -235,17 +247,13 @@ class Upload(base.RequestHandler):
         ticket_id = self.get_param('ticket')
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
-            file_fields = []
-            for filename in ticket['filenames']:
-                file_fields.append(
-                    util.dotdict({
-                        'filename': filename
-                    })
-                )
-
+            file_fields = [util.dotdict(file_field) for file_field in ticket['filedata']]
+            # In this case we saved the files to the uuid location they are assigned on signed url storage
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
-                                  context=context, file_fields=file_fields, tempdir=ticket['tempdir'])
+                                  context=context, file_fields=file_fields,
+                                  tempdir=None)
         else:
+            # In this case we are going to save the files to direct locations from the reqeust post.
             return process_upload(self.request, strategy, self.log_user_access, origin=self.origin, context=context)
 
     def engine(self):
@@ -273,17 +281,12 @@ class Upload(base.RequestHandler):
         if self.get_param('upload_ticket') == '':
             return self._create_upload_ticket()
 
+
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('upload_ticket')
         if ticket_id:
             ticket = self._check_upload_ticket(ticket_id)
-            file_fields = []
-            for filename in ticket['filenames']:
-                file_fields.append(
-                    util.dotdict({
-                        'filename': filename
-                    })
-                )
+            file_fields = [util.dotdict(file_field) for file_field in ticket['filedata']]
 
             strategy = Strategy.analysis_job if level == 'analysis' else Strategy.engine
             return process_upload(self.request, strategy, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
@@ -305,55 +308,40 @@ class Upload(base.RequestHandler):
 
         # Race condition: we could delete tokens & directories that are currently processing.
         # For this reason, the modified timeout is long.
-        result = config.db['tokens'].delete_many({
+
+        result = config.db['tokens'].find({
             'type': 'packfile',
             'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(hours=1)},
         })
-
-        removed = result.deleted_count
-        if removed > 0:
-            self.log.info('Removed %s expired packfile tokens', removed)
-
-        # Next, find token directories and remove any that don't map to a token.
-
-        # This logic is used by:
-        #   TokenPlacer.check
-        #   PackfilePlacer.check
-        #   upload.clean_packfile_tokens
-        #
-        # It must be kept in sync between each instance.
-        folder = fs.path.join('tokens', 'packfile')
-
-        util.mkdir_p(folder, config.fs)
-        try:
-            paths = config.fs.listdir(folder)
-        except fs.errors.ResourceNotFound:
-            # Non-local storages are used without 0-blobs for "folders" (mkdir_p is a noop)
-            paths = []
-
-        cleaned = 0
-
-        for token in paths:
-            path = fs.path.join(folder, token)
-
-            result = None
+        tokens_removed = 0
+        dirs_cleaned = 0
+        for token in result:
+            # the token id is the folder.
             try:
-                result = config.db['tokens'].find_one({
-                    '_id': token
-                })
-            except bson.errors.InvalidId:
-                # Folders could be an invalid mongo ID, in which case they're definitely expired :)
+                config.local_fs.get_fs().removetree(token['_id'])
+                dirs_cleaned += 1
+            except fs.errors.ResourceNotFound:
                 pass
+            except IOError:
+                self.log.error('Error removing token directory %s', token['_id'])
+                continue
 
-            if result is None:
-                self.log.info('Cleaning expired token directory %s', token)
-                config.fs.removetree(path)
-                cleaned += 1
+            #We remove the token last so the tokens will always map to current directories
+            result = config.db['tokens'].delete_one({
+                '_id': token['_id']
+            })
+            tokens_removed += 1
+
+        if tokens_removed > 0:
+            self.log.info('Removed %s expired packfile tokens', tokens_removed)
+
+        # Because we only create directories after we issue a token and we remove directories
+        # before we delete the token directories should always map to the current tokens in the DB.
 
         return {
             'removed': {
-                'tokens': removed,
-                'directories': cleaned,
+                'tokens': tokens_removed,
+                'directories': dirs_cleaned,
             }
         }
 
@@ -375,6 +363,13 @@ def extract_file_fields(form):
 def make_file_attrs(field, origin):
     # create a file-attribute map commonly used elsewhere in the codebase.
     # Stands in for a dedicated object... for now.
+
+    # Not all placers need the path attribute and if they are using UUID it can be inferred
+    # Once this get strandardized into a model class we can clean up the specifics
+    path = None
+    if hasattr(field, 'path'):
+        path = field.path
+
     file_attrs = {
         '_id': field.uuid,
         'name': field.filename,
@@ -384,6 +379,7 @@ def make_file_attrs(field, origin):
         'hash': field.hash,
         'origin': origin,
 
+        'path': path,
         'type': None,
         'modality': None,
         'classification': {},

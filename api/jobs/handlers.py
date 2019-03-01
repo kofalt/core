@@ -17,7 +17,7 @@ from ..auth.apikeys import JobApiKey
 from ..dao import dbutil
 from ..dao.containerstorage import ProjectStorage, SessionStorage, SubjectStorage, AcquisitionStorage, AnalysisStorage, cs_factory
 from ..types import Origin
-from ..util import set_for_download, add_container_type, mongo_dict
+from ..util import set_for_download, add_container_type, mongo_dict, send_or_redirect_file
 from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
@@ -319,16 +319,13 @@ class GearHandler(base.RequestHandler):
         """Download gear tarball file"""
         dl_id = kwargs.pop('cid')
         gear = get_gear(dl_id)
-        file_path, file_system = files.get_valid_file({
-            '_id': gear['exchange'].get('rootfs-id', ''),
+
+        file_id = gear['exchange'].get('rootfs-id')
+        file_path, storage = files.get_valid_file({
+            '_id': file_id,
             'hash': 'v0-' + gear['exchange']['rootfs-hash'].replace(':', '-')
         })
-        signed_url = files.get_signed_url(file_path, file_system, filename='gear.tar', attachment=True, response_type='application/octet-stream')
-        if signed_url:
-            self.redirect(signed_url)
-        else:
-            stream = file_system.open(file_path, 'rb')
-            set_for_download(self.response, stream=stream, filename='gear.tar')
+        send_or_redirect_file(self, storage, file_id, file_path, 'gear.tar')
 
     @require_admin
     def post(self, _id):
