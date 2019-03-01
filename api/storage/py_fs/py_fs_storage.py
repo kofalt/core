@@ -4,7 +4,6 @@ import fs
 import six
 import os
 
-from flywheel_common.storage import path_from_uuid
 from flywheel_common.storage import Interface
 
 DEFAULT_HASH_ALG = 'sha384'
@@ -93,7 +92,7 @@ class PyFsStorage(Interface):
         hasher = hashlib.new(hash_alg)
         
         if not file_path:
-            filepath = path_from_uuid(uuid)
+            filepath = self.path_from_uuid(uuid)
 
         if not isinstance(filepath, unicode):
             filepath = six.u(filepath)
