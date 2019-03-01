@@ -32,7 +32,7 @@ def test_py_fs_storage():
     
     #It will be a new directory as long as the first 2 characters are different
     file_id2 = str(uuid.uuid4())
-    while file_id[:2] == file_id2[:2]
+    while file_id[:2] == file_id2[:2]:
         file_id2 = str(uuid.uuid4())
     f = pyfs.open(file_id2, 'w')
     assert f is not None
