@@ -35,6 +35,7 @@ class PyFsStorage(Interface):
         return self._fs.open(path_hint, mode)
 
     def remove_file(self, uuid, path_hint):
+        #pylint: disable=unused-argument
         if path_hint:
             self._fs.remove(path_hint)
         else:
