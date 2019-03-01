@@ -83,7 +83,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
         {'_id': ObjectId(gear_id_1)},
         {'$unset': {'exchange.rootfs-id': ''}})
 
-    gears.append((gear_id_1, file_path))
+    gears.append((gear_id_1, file_path, file_id_1, file_hash_1))
 
     gear_name_2 = randstr()
     file_name = '%s.tar.gz' % randstr()
@@ -101,8 +101,9 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    move_file(file_id_2, config.local_fs, file_path)
-    gears.append((gear_id_2, file_path))
+    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=file_path,
+                      dst_fs=config.local_fs._fs, dst_path=file_path)
+    gears.append((gear_id_2, file_path, file_id_2, None))
 
     yield gears
 
@@ -110,13 +111,17 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     gear_json_1 = api_db['gears'].find_one({'_id': ObjectId(gear_id_1)})
     gear_json_2 = api_db['gears'].find_one({'_id': ObjectId(gear_id_2)})
     files_to_delete = []
-    files_to_delete.append(util.path_from_uuid(gear_json_1['exchange'].get('rootfs-id', '')))
-    files_to_delete.append(util.path_from_uuid(gear_json_1['exchange'].get('rootfs-hash', '')))
-    files_to_delete.append(util.path_from_uuid(gear_json_2['exchange'].get('rootfs-id', '')))
+    #files_to_delete.append(util.path_from_uuid(gear_json_1['exchange'].get('rootfs-id', '')))
+    #files_to_delete.append(util.path_from_uuid(gear_json_1['exchange'].get('rootfs-hash', '')))
+    #files_to_delete.append(util.path_from_uuid(gear_json_2['exchange'].get('rootfs-id', '')))
 
-    for f_path in files_to_delete:
+    files_to_delete.append(gear_json_1['exchange'].get('rootfs-id', ''))
+    files_to_delete.append(gear_json_1['exchange'].get('rootfs-hash', ''))
+    files_to_delete.append(gear_json_2['exchange'].get('rootfs-id', ''))
+
+    for f_uuid in files_to_delete:
         try:
-            config.primary_storage.remove_file(None, f_path)
+            config.primary_storage.remove_file(f_uuid)
         except:
             pass
 
@@ -147,8 +152,8 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
         {'$unset': {'files.$._id': ''}}
     )
 
-    move_file_to_legacy(file_id_1, util.path_from_hash(file_hash_1))
-    files.append((session_id, file_name_1, url_1, util.path_from_hash(file_hash_1)))
+    move_file_to_legacy(util.path_from_uuid(file_id_1), util.path_from_hash(file_hash_1))
+    files.append((session_id, file_name_1, url_1, file_id_1, file_hash_1))
 
     # Create an UUID file
     file_name_2 = '%s.csv' % randstr()
@@ -161,8 +166,8 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_2 = file_info['_id']
     url_2 = '/sessions/' + session_id + '/files/' + file_name_2
 
-    move_file_to_legacy(file_id_2, util.path_from_uuid(file_id_2))
-    files.append((session_id, file_name_2, url_2, util.path_from_uuid(file_id_2)))
+    move_file_to_legacy(util.path_from_uuid(file_id_2), util.path_from_uuid(file_id_2))
+    files.append((session_id, file_name_2, url_2, file_id_2, None))
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
     # Create an UUID file in legacy/v1 for testing 3-way split storage
@@ -175,8 +180,8 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_3 = file_info['_id']
     url_3 = '/sessions/' + session_id + '/files/' + file_name_3
 
-    move_file_to_legacy2(file_id_3, util.path_from_uuid(file_id_3))
-    files.append((session_id, file_name_3, url_3, util.path_from_uuid(file_id_3)))
+    move_file_to_legacy2(util.path_from_uuid(file_id_3), util.path_from_uuid(file_id_3))
+    files.append((session_id, file_name_3, url_3, file_id_3, None))
     ###
 
     yield files
@@ -188,7 +193,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     # Delete the files
     for f in files:
         try:
-            config.primary_storage.remove_file(f['_id'], util.path_from_uuid(f['_id']))
+            config.primary_storage.remove_file(f['_id'])
         except:
             pass
 
@@ -196,11 +201,11 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage):
     """Testing collection migration"""
 
     # get file stored by hash in legacy storage
-    (_, _, url_1, file_path_1) = files_to_migrate[0]
+    (_, _, url_1, file_id_1, file_hash_1) = files_to_migrate[0]
     # get file stored by uuid in legacy storage
-    (_, _,url_2, file_path_2) = files_to_migrate[1]
+    (_, _,url_2, file_id_2, file_hash_2) = files_to_migrate[1]
     # get file stored by uuid in legacy/v1 storage
-    (_, _,url_3, file_path_3) = files_to_migrate[2]
+    (_, _,url_3, file_id_3, file_hash_3) = files_to_migrate[2]
 
     # get the ticket
     r = as_admin.get(url_1, params={'ticket': ''})
@@ -228,9 +233,9 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage):
     migrate_storage.main('--containers')
 
     # delete files from the legacy storage
-    config.local_fs.remove_file(None, file_path_1)
-    config.local_fs.remove_file(None, file_path_2)
-    config.local_fs2.remove_file(None, file_path_3)
+    config.local_fs.remove_file(None, file_hash_1)
+    config.local_fs.remove_file(file_id_2)
+    config.local_fs2.remove_file(file_id_3)
 
     # get the files from the new filesystem
     # get the ticket
@@ -259,25 +264,25 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage):
     """Testing that the migration script throws an exception if it couldn't migrate a file"""
 
     # get file storing by hash in legacy storage
-    (_, _, url, file_path_1) = files_to_migrate[0]
+    (_, _, url, file_id_1, file_hash_1) = files_to_migrate[0]
     # get the other file, so we can clean up
-    (_, _, _, file_path_2) = files_to_migrate[1]
+    (_, _, _, file_id_2) = files_to_migrate[1]
 
     # delete the file
-    config.local_fs.remove_file(None, file_path_1)
+    config.local_fs.remove_file(None, file_hash_1)
 
     with pytest.raises(Exception):
         migrate_storage.main('--containers')
 
     # clean up
-    config.local_fs.remove_file(None, file_path_2)
+    config.local_fs.remove_file(file_id_2)
 
 
 def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
     """Testing collection migration"""
 
-    (gear_id_1, gear_file_path_1) = gears_to_migrate[0]
-    (gear_id_2, gear_file_path_2) = gears_to_migrate[1]
+    (gear_id_1, gear_file_path_1, gear_file_id_1, gear_file_hash_1) = gears_to_migrate[0]
+    (gear_id_2, gear_file_path_2, gear_file_id_2, gear_file_hash_2) = gears_to_migrate[1]
 
     # get gears before migration
     assert as_admin.get('/gears/temp/' + gear_id_1).ok
@@ -287,8 +292,8 @@ def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
     migrate_storage.main('--gears')
 
     # delete files from the legacy storage
-    config.local_fs.remove_file(None, gear_file_path_1)
-    config.local_fs.remove_file(None, gear_file_path_2)
+    config.local_fs.remove_file(None, gear_file_hash_1)
+    config.local_fs.remove_file(gear_file_id_2)
 
     # get the files from the new filesystem
     assert as_admin.get('/gears/temp/' + gear_id_1).ok
@@ -299,18 +304,18 @@ def test_migrate_gears_error(gears_to_migrate, migrate_storage):
     """Testing that the migration script throws an exception if it couldn't migrate a file"""
 
     # get file storing by hash in legacy storage
-    (gear_id, gear_file_path_1) = gears_to_migrate[0]
+    (gear_id, gear_file_path_1, gear_file_id_1, gear_file_hash_1) = gears_to_migrate[0]
     # get the other file, so we can clean up
-    (_, gear_file_path_2) = gears_to_migrate[1]
+    (_, gear_file_path_2, gear_file_id_2, gear_file_hash_2) = gears_to_migrate[1]
 
     # delete the file
-    config.local_fs.remove_file(None, gear_file_path_1)
+    config.local_fs.remove_file(None, gear_file_hash_1)
 
     with pytest.raises(Exception):
         migrate_storage.main('--gears')
 
     # clean up
-    config.local_fs.remove_file(None, gear_file_path_2)
+    config.local_fs.remove_file(gear_file_id_2)
 
 
 def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, file_form, api_db, mocker, caplog):
@@ -354,9 +359,9 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     """Testing analysis migration"""
 
     # get file storing by hash in legacy storage
-    (session_id, file_name_1, url_1, file_path_1) = files_to_migrate[0]
+    (session_id, file_name_1, url_1, file_id_1, file_hash_1) = files_to_migrate[0]
     # get ile storing by uuid in legacy storage
-    (_, _,url_2, file_path_2) = files_to_migrate[1]
+    (_, _,url_2, file_id_2, file_hash_2) = files_to_migrate[1]
 
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -392,8 +397,8 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     migrate_storage.main('--containers')
 
     # delete files from the legacy storage
-    config.local_fs.remove_file(None, file_path_1)
-    config.local_fs.remove_file(None, file_path_2)
+    config.local_fs.remove_file(None, file_hash_1)
+    config.local_fs.remove_file(file_id_2)
 
     # get the files from the new filesystem
     # get the ticket

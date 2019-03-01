@@ -142,9 +142,10 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             field.path = field.filepath
 
         if tempdir:
-            field.size = (config.local_fs.get_file_info(None, field.filepath))['filesize']
+            # Local temp files are a special case with no uuid and no hash path lookup
+            field.size = int(config.local_fs.get_fs().getsize(field.filepath))
         else:
-            field.size = (config.primary_storage.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+            field.size = (config.primary_storage.get_file_info(field.uuid))['filesize']
 
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
@@ -206,7 +207,7 @@ class Upload(base.RequestHandler):
         filedata = []
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.primary_storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_url = config.primary_storage.get_signed_url(new_uuid, purpose='upload')
             signed_urls[filename] = signed_url
             filedata.append({
                 'filename': filename,

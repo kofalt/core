@@ -83,7 +83,10 @@ class DownloadFileSource(object):
         signed_url = None
         if config.primary_storage.is_signed_url():
             try:
-                signed_url = config.primary_storage.get_signed_url(target.file_id, target.src_path)
+                filehash = None
+                if not target.file_id:
+                    filehash = config.primary_storage.get_file_hash(None, target.src_path)
+                signed_url = config.primary_storage.get_signed_url(target.file_id, file_hash=filehash)
             except fs.errors.ResourceNotFound:
                 pass
             except flywheel_common.errors.ResourceNotFound:
@@ -93,7 +96,10 @@ class DownloadFileSource(object):
                 return io.URLFileWrapper(signed_url, self._http)
             else:
                 file_system = files.get_fs_by_file_path(target.file_id, target.src_path)
-                return file_system.open(target.file_id, target.src_path, 'rb')
+                filehash = None
+                if not target.file_id:
+                    filehash = file_system.get_file_hash(None, target.src_path)
+                return file_system.open(target.file_id, 'rb', filehash)
         except (fs.errors.ResourceNotFound,
                 fs.errors.OperationFailed,
                 IOError) as err:

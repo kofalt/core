@@ -224,7 +224,7 @@ class DataViewHandler(base.RequestHandler):
                 file_fields = file_processor.create_file_fields(
                     fileobj.filename,
                     path,
-                    config.primary_storage.get_file_info(new_uuid, path)['filesize'],
+                    config.primary_storage.get_file_info(new_uuid)['filesize'],
                     config.primary_storage.get_file_hash(new_uuid, path),
                     uuid_=new_uuid,
                     mimetype=None,

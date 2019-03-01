@@ -362,7 +362,7 @@ class FileListHandler(ListHandler):
 
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.primary_storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_url = config.primary_storage.get_signed_url(new_uuid, purpose='upload')
             signed_urls[filename] = signed_url
             filedata.append({
                 'filename': filename,
@@ -396,7 +396,12 @@ class FileListHandler(ListHandler):
         """
         Builds a json response containing member and comment info for a zipfile
         """
-        with file_system.open(file_uuid, file_path, 'rb') as f:
+
+        filehash = None
+        if not file_uuid:
+            filehash = file_system.get_file_hash(None, file_path)
+
+        with file_system.open(file_uuid, 'rb', filehash) as f:
             with zipfile.ZipFile(f) as zf:
                 info = {
                     'comment': zf.comment,
@@ -439,6 +444,9 @@ class FileListHandler(ListHandler):
 
         file_path, file_system = files.get_valid_file(fileinfo)
 
+        if not fileinfo.get('_id') and not hash_:
+            hash_ = file_system.get_file_hash(None, file_path)
+
         # Request for download ticket
         if self.get_param('ticket') == '':
             ticket = util.download_ticket(self.request.client_addr, self.origin, 'file', _id, filename, fileinfo['size'])
@@ -456,7 +464,7 @@ class FileListHandler(ListHandler):
         elif self.get_param('member') is not None:
             zip_member = self.get_param('member')
             try:
-                with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
+                with file_system.open(fileinfo.get('_id'), 'rb', hash_) as f:
                     with zipfile.ZipFile(f) as zf:
                         self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                         self.response.write(zf.open(zip_member).read())
@@ -480,10 +488,11 @@ class FileListHandler(ListHandler):
             signed_url = None
             if config.primary_storage.is_signed_url() and config.primary_storage.can_redirect_request(self.request.headers):
                 try:
-                    signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'), file_path,
+                    signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'),
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
-                                              response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
+                                              response_type=str(fileinfo.get('mimetype', 'application/octet-stream')),
+                                              file_hash = hash_)
                 except fs.errors.ResourceNotFound:
                     self.log.error('Error getting signed_url on non existing file')
 
@@ -511,7 +520,7 @@ class FileListHandler(ListHandler):
                         self.response.headers['Content-Type'] = 'application/octet-stream'
                         self.response.headers['Content-Disposition'] = 'attachment; filename="' + str(filename) + '"'
 
-                    self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb')
+                    self.response.body_file = file_system.open(fileinfo.get('_id'), 'rb', hash_)
                     self.response.content_length = fileinfo['size']
                 else:
                     self.response.status = 206
@@ -522,8 +531,7 @@ class FileListHandler(ListHandler):
                             fileinfo.get('mimetype', 'application/octet-stream'))
                         self.response.headers['Content-Range'] = util.build_content_range_header(ranges[0][0], ranges[0][1], fileinfo['size'])
 
-
-                    with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
+                    with file_system.open(fileinfo.get('_id'), 'rb', hash_) as f:
                         for first, last in ranges:
                             mode = os.SEEK_SET
                             if first < 0:

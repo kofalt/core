@@ -98,11 +98,11 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-def get_src_fs_by_file_path(file_path):
-    if local_fs.get_file_info(None, file_path):
+def get_src_fs_by_file_path(file_uuid, file_path):
+    if local_fs.get_file_info(file_uuid):
         return local_fs
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif local_fs2 and local_fs2.get_file_info(None, file_path):
+    elif local_fs2 and local_fs2.get_file_info(file_uuid):
         return local_fs2
     ###
     else:
@@ -209,13 +209,13 @@ def migrate_file(f):
     file_id = f['fileinfo'].get('_id', '')
     if file_id:
         file_path = util.path_from_uuid(file_id)
-        if not target_fs.get_file_info(file_id, file_path):
+        if not target_fs.get_file_info(file_id):
             log.debug('    file aready has id field, just copy to target storage')
-            src_fs = get_src_fs_by_file_path(file_path)
+            src_fs = get_src_fs_by_file_path(file_id, file_path)
             log.debug('    file found in %s' % src_fs)
 
-            old_file = src_fs.open(file_id, file_path, 'rb')
-            new_file = target_fs.open(file_id, file_path, 'wb')
+            old_file = src_fs.open(file_id, 'rb')
+            new_file = target_fs.open(file_id, 'wb')
             buffer_copy(old_file, new_file, CHUNK_SIZE)
             old_file.close()
             new_file.close()
@@ -230,8 +230,8 @@ def migrate_file(f):
         log.debug('    file new path: %s', f_new_path)
 
         log.debug('    copy file to target storage')
-        old_file = local_fs.open(None, f_old_path, 'rb')
-        new_file = target_fs.open(file_id, f_new_path, 'wb')
+        old_file = local_fs.open(None, 'rb', f_old_path)
+        new_file = target_fs.open(file_id, 'wb')
         buffer_copy(old_file, new_file, CHUNK_SIZE)
         old_file.close()
         new_file.close()
@@ -317,11 +317,11 @@ def migrate_gear_files(f):
         file_path = util.path_from_uuid(file_id)
         if not target_fs.get_file_info(file_id, file_path):
             log.debug('    file aready has id field, just copy to target storage')
-            src_fs = get_src_fs_by_file_path(file_path)
+            src_fs = get_src_fs_by_file_path(file_id, file_path)
             log.debug('    file found in %s' % src_fs)
 
-            old_file = src_fs.open(file_id, file_path, 'rb')
-            new_file = target_fs.open(file_id, file_path, 'wb')
+            old_file = src_fs.open(file_id, 'rb')
+            new_file = target_fs.open(file_id, 'wb')
             buffer_copy(old_file, new_file, CHUNK_SIZE)
             old_file.close()
             new_file.close()
@@ -337,8 +337,8 @@ def migrate_gear_files(f):
 
         log.debug('    copy file to target storage')
 
-        old_file = local_fs.open(None, f_old_path, 'rb')
-        new_file = target_fs.open(file_id, f_new_path, 'wb')
+        old_file = local_fs.open(None, 'rb', f_old_path)
+        new_file = target_fs.open(file_id, 'wb')
         buffer_copy(old_file, new_file, CHUNK_SIZE)
         old_file.close()
         new_file.close()

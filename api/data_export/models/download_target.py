@@ -5,7 +5,7 @@ import os.path
 class DownloadTarget(models.Base):
     """Represents a single target for a download summary or retrieval."""
     def __init__(self, download_type, dst_path, container_type, container_id, modified, size,
-            filetype, file_id=None, src_path=None):
+            filetype, file_id=None, src_path=None, file_hash=None):
         """Create a new download target.
 
         Args:
@@ -47,6 +47,9 @@ class DownloadTarget(models.Base):
 
         self.src_path = src_path
         """str: The optional source file path"""
+
+        self.file_hash = file_hash
+        """str: The optional source file hash"""
 
     @property
     def dst_name(self):

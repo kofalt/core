@@ -362,11 +362,14 @@ class AnalysesHandler(RefererHandler):
                 fileinfo = fileinfo[0]
                 file_path, file_system = files.get_valid_file(fileinfo)
                 filename = fileinfo['name']
+                filehash = None
+                if not fileinfo.get('_id'):
+                    filehash = file_system.get_file_hash(None, file_path)
 
                 # Request for info about zipfile
                 if self.is_true('info'):
                     try:
-                        info = FileListHandler.build_zip_info(fileinfo.get('_id'), file_path, file_system)
+                        info = FileListHandler.build_zip_info(fileinfo.get('_id'), filehash, file_system)
                         return info
                     except zipfile.BadZipfile:
                         raise errors.InputValidationException('not a zip file')
@@ -375,7 +378,7 @@ class AnalysesHandler(RefererHandler):
                 elif self.get_param('member') is not None:
                     zip_member = self.get_param('member')
                     try:
-                        with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
+                        with file_system.open(fileinfo.get('_id'), 'rb', filehash) as f:
                             with zipfile.ZipFile(f) as zf:
                                 self.response.headers['Content-Type'] = util.guess_mimetype(zip_member)
                                 self.response.write(zf.open(zip_member).read())
@@ -400,11 +403,12 @@ class AnalysesHandler(RefererHandler):
                     signed_url = None
                     if config.primary_storage.is_signed_url() and config.primary_storage.can_redirect_request(self.request.headers):
                         try:
-                            signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'), file_path,
+                            signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'),
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(
-                                                          fileinfo.get('mimetype', 'application/octet-stream')))
+                                                          fileinfo.get('mimetype', 'application/octet-stream')), 
+                                                      file_hash=filehash)
                         except fs.errors.ResourceNotFound:
                             self.log.error('Error getting signed url for non existing file')
 
@@ -435,7 +439,7 @@ class AnalysesHandler(RefererHandler):
                                 self.response.headers['Content-Type'] = 'application/octet-stream'
                                 self.response.headers['Content-Disposition'] = 'attachment; filename="' \
                                                                                + str(filename) + '"'
-                            self.response.body_file = file_system.open(fileinfo.get('_id'), file_path, 'rb')
+                            self.response.body_file = file_system.open(fileinfo.get('_id'), 'rb', filehash)
                             self.response.content_length = fileinfo['size']
                         else:
                             self.response.status = 206
@@ -450,7 +454,7 @@ class AnalysesHandler(RefererHandler):
                                                                                                          fileinfo[
                                                                                                              'size'])
 
-                            with file_system.open(fileinfo.get('_id'), file_path, 'rb') as f:
+                            with file_system.open(fileinfo.get('_id'), 'rb', filehash) as f:
                                 for first, last in ranges:
                                     mode = os.SEEK_SET
                                     if first < 0:

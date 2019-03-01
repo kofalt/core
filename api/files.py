@@ -14,6 +14,7 @@ import fs.errors
 from flywheel_common import storage
 
 from . import config, util
+from flywheel_common import storage
 
 DEFAULT_HASH_ALG = 'sha384'
 
@@ -41,9 +42,7 @@ class FileProcessor(object):
         if not filename:
             filename = new_uuid
 
-        path = util.path_from_uuid(new_uuid)
-
-        fileobj = self._persistent_fs.open(new_uuid, path, 'wb', **kwargs)
+        fileobj = self._persistent_fs.open(new_uuid, 'wb', None, **kwargs)
         fileobj.filename = filename
 
         return path, FileHasherWriter(fileobj)
@@ -239,7 +238,12 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
 
-            self.open_file = file_system.open(self._uuid, self.filepath, 'wb')
+            # If the optional tempdir_name argument is passed then we need to open that file in the folder location 
+            # So that the zip file is structured correctly, This only happens on local Fs which is pyfs.
+            if tempdir_name:
+                self.open_file = file_system.open(self._uuid, 'wb', None, filepath=self.filepath)
+            else: 
+                self.open_file = file_system.open(self._uuid, 'wb', None)
 
             return self.open_file
 
@@ -313,10 +317,11 @@ def get_file_path(file_info):
     file_hash_path = None
 
     if file_hash:
-        file_hash_path = util.path_from_hash(file_hash)
+        # hash path is static across all storage plugins but only used for legacy CAS
+        file_hash_path = storage.path_from_hash(file_hash)
 
     if file_id:
-        file_uuid_path = util.path_from_uuid(file_id)
+        file_uuid_path = self._persistent_fs.path_from_uuid(file_id)
 
     file_path = file_uuid_path or file_hash_path
     return file_path
@@ -331,21 +336,38 @@ def get_fs_by_file_path(file_id, file_path):
     Get the filesystem where the file exists by a valid file path.
     Attempt to serve file from current storage in config.
 
+    If file_path is given and no file_id then try to locate the file by using the old hash lookup
+
     If file is not found (likely has not migrated yet) and the instance
     still supports the legacy storage, attempt to serve from there.
     """
 
     # When we add more native storage types we will have to store the file system type in the file object and
     # not rely on this method to determine where its physically located
-    if config.primary_storage.get_file_info(file_id, file_path):
+
+    filehash = None
+    if not file_id:
+        filehash = config.primary_storage.get_file_hash(None, file_path)
+
+    if config.primary_storage.get_file_info(file_id, filehash):
         return config.primary_storage
 
-    elif config.support_legacy_fs and config.local_fs.get_file_info(file_id, file_path):
-        return config.local_fs
+    elif config.support_legacy_fs:
+        filehash = None
+        if not file_id:
+            filehash = config.local_fs.get_file_hash(None, file_path)
+
+        if filehash and config.local_fs.get_file_info(None, filehash):
+            return config.local_fs
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_file_info(file_id, file_path):
-        return config.local_fs2
+    elif config.support_legacy_fs and config.local_fs2:
+        filehash = None
+        if not file_id:
+            filehash = config.local_fs2.get_file_hash(None, file_path)
+
+        if filehash and config.local_fs2.get_file_info(file_id, filehash):
+            return config.local_fs2
     ###
 
     else:

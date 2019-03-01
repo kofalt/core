@@ -252,14 +252,16 @@ def send_or_redirect_file(handler, storage, file_id, file_path, filename,
     """
     signed_url = None
     try:
-        if storage.is_signed_url() and storage.can_redirect_request(handler.request.headers):
-            signed_url = storage.get_signed_url(file_id, file_path, 'download', filename,
+        if storage.is_signed_url() and storage.can_redirect_request(handler.headers):
+            signed_url = storage.get_signed_url(file_id, 'download', filename,
                 attachment=bool(filename), response_type=content_type)
 
         if signed_url:
             handler.redirect(signed_url)
         else:
-            stream = storage.open(file_id, file_path, 'rb')
+            if not file_id:
+                file_hash = storage.get_file_hash(file_id, file_path)
+            stream = storage.open(file_id, 'rb', file_hash)
             set_for_download(handler.response, stream=stream, filename=filename,
                 content_type=content_type)
     except fs.errors.ResourceNotFound as e:
@@ -342,6 +344,10 @@ def path_from_uuid(uuid_):
 
 def path_from_hash(hash_):
     """
+    @deprecated
+    use the version in the storage plugin directly
+    This is onnly used in the migrate scripts currently
+
     create a filepath from a hash
     e.g.
     hash_ = v0-sha384-01b395a1cbc0f218
