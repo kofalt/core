@@ -1,10 +1,8 @@
-#from ..storage import Storage
 from fs import open_fs
 import hashlib
 import fs
 import six
 
-from flywheel_common import storage
 #from util import path_from_uuid, format_hash
 from flywheel_common.storage import path_from_uuid, format_hash
 from flywheel_common.storage import Interface
