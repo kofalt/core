@@ -7,11 +7,26 @@
         "_id": {
           "type": "string"
         },
+        "applied_fixes": {
+          "type": "object",
+          "description": "Collection of applied database fixes",
+          "additionalProperties": { "type": "string" }
+        },
+        "cli_version": {
+          "type": "string",
+          "description": "Compatible CLI version for this server as informed by the installation recipe.env"
+        },
         "database": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Core database version"
+        },
+        "flywheel_release": {
+          "type": "string",
+          "description": "Flywheel installer image tag as informed by the installation recipe.env"
         },
         "release": {
-          "type": "string"
+          "type": "string",
+          "description": "Core release version"
         }
       },
       "required": [

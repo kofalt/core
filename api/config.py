@@ -293,6 +293,9 @@ def get_version():
         return version_object
 
     version_object['release'] = get_release_version()
+    version_object['cli_version'] = os.environ.get('CLI_VERSION', '')
+    version_object['flywheel_release'] = os.environ.get('FLYWHEEL_RELEASE', '')
+
     return version_object
 
 

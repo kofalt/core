@@ -7,8 +7,8 @@
         description: ''
         schema:
           $ref: schemas/output/version.json
-        examples: 
+        examples:
           response:
             _id: "version"
             database: 2
-          
+
