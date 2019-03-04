@@ -1,5 +1,6 @@
 import hashlib
 import uuid
+import os
 
 from flywheel_common import storage
 
@@ -29,7 +30,7 @@ def test_py_fs_storage():
     assert d == 'Overwrite an existing file'
     d = f.close()
 
-    
+
     #It will be a new directory as long as the first 2 characters are different
     file_id2 = str(uuid.uuid4())
     while file_id[:2] == file_id2[:2]:
@@ -58,13 +59,18 @@ def test_py_fs_storage():
 
     assert hash_val == pyfs.get_file_hash(file_id)
 
-    # Test opening based on hash value. 
+    # Test opening based on hash value.
     # We create a file on the local fs that would be in the same spot CAS files would have been
     # We have to be sure to write the same contents so the hash will be the same
-    f = py_fs.get_fs().open(py_fs.path_from_hash(hash_val))
-    f.write(u'Overwrite and existing file')
+    path = pyfs.path_from_hash(hash_val)
+    dirname = os.path.dirname(path)
+    if not pyfs.get_fs().isdir(unicode(dirname)):
+        pyfs.get_fs().makedirs(unicode(dirname))
+    f = pyfs.get_fs().open(unicode(path), u'w')
+    f.write(u'Overwrite an existing file')
+    f.close()
 
-    f = pyfs.open(None, 'r', hash_val)
+    f = pyfs.open(None, u'r', hash_val)
     assert f is not None
     d = f.read()
     assert d == 'Overwrite an existing file'

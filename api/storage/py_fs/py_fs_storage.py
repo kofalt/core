@@ -21,20 +21,23 @@ class PyFsStorage(Interface):
 
     def open(self, uuid, mode, file_hash=None, **kwargs):
 
-        if 'w' in mode:
-            if file_hash:
-                file_path = self.path_from_hash(file_hash)
-            else:
-                file_path = self.path_from_uuid(uuid)
+        if file_hash:
+            file_path = self.path_from_hash(file_hash)
+        else:
+            file_path = self.path_from_uuid(uuid)
                 # the legacy PyFs files will always make use of the file_hash when open for writing. Future file types may not
 
+        if not isinstance(file_path, unicode):
+            file_path = six.u(file_path)
+
+        if 'w' in mode:
             dirname = fs.path.dirname(file_path)
             if dirname and not self._fs.isdir(dirname):
                 self._fs.makedirs(fs.path.dirname(file_path))
 
         # Allow error to bubble up
         return self._fs.open(file_path, mode)
-    
+
     def remove_file(self, uuid, file_hash=None):
         if file_hash:
             file_path = self.path_from_hash(file_hash)
@@ -52,7 +55,7 @@ class PyFsStorage(Interface):
                        purpose='download',
                        filename=None,
                        attachment=True,
-                       response_type=None, 
+                       response_type=None,
                        file_hash=None):
         """
         Generate signed URL for upload/download purposes. It makes possible to set the filename when downloading the
@@ -106,7 +109,7 @@ class PyFsStorage(Interface):
 
         return self.format_hash(hash_alg, hasher.hexdigest())
 
-    def get_file_info(self, uuid, file_hash):
+    def get_file_info(self, uuid, file_hash=None):
 
         data = {}
 

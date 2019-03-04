@@ -406,8 +406,7 @@ class AnalysesHandler(RefererHandler):
                             signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'),
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
-                                                      response_type=str(
-                                                          fileinfo.get('mimetype', 'application/octet-stream')), 
+                                                      response_type=str(fileinfo.get('mimetype', 'application/octet-stream')), 
                                                       file_hash=filehash)
                         except fs.errors.ResourceNotFound:
                             self.log.error('Error getting signed url for non existing file')

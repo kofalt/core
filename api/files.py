@@ -304,11 +304,15 @@ def get_valid_file(file_info):
     return file_path, get_fs_by_file_path(file_id, file_path)
 
 
-def get_file_path(file_info):
+def get_file_path(file_info, file_system=None):
     """
     Get the file path. If the file has id then returns path_from_uuid otherwise path_from_hash.
+    As we add more providers the file_path may be different for different providers so going 
+    forward we will need to supply file_system which will be stored with the file meta data in
+    the near future
 
     :param file_info: dict, contains the _id and the hash of the file
+    :Param file_system: file_system reference. Eventually we may have different paths for different provider plugings
     :return: <file's path>
     """
     file_id = file_info.get('_id', '')
@@ -316,12 +320,15 @@ def get_file_path(file_info):
     file_uuid_path = None
     file_hash_path = None
 
+    if not file_system:
+        file_system = config.PRIMARY_STORAGE
+
     if file_hash:
         # hash path is static across all storage plugins but only used for legacy CAS
-        file_hash_path = storage.path_from_hash(file_hash)
+        file_hash_path = file_system.path_from_hash(file_hash)
 
     if file_id:
-        file_uuid_path = self._persistent_fs.path_from_uuid(file_id)
+        file_uuid_path = file_system.path_from_uuid(file_id)
 
     file_path = file_uuid_path or file_hash_path
     return file_path
