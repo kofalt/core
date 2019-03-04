@@ -123,3 +123,19 @@
         description: The device API key was regenerated
         schema:
           $ref: schemas/output/device-regenerate-key.json
+        examples:
+          response:
+            $ref: examples/output/device-regenerate-key.json
+  delete:
+    summary: Disable device API key
+    operationId: disable_key
+    tags:
+    - devices
+    responses:
+      '200':
+        description: The device API key was disabled
+        schema:
+          $ref: schemas/output/device-disable-key.json
+        examples:
+          response:
+            $ref: examples/output/device-disable-key.json
