@@ -62,8 +62,7 @@ class DeviceHandler(base.RequestHandler):
     @staticmethod
     def join_api_key(device):
         api_key = DeviceApiKey.get(device['_id'])
-        if api_key:
-            device['key'] = api_key['_id']
+        device['key'] = api_key['_id'] if api_key else None
 
     @require_admin
     def post(self):
