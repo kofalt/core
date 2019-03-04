@@ -1,6 +1,5 @@
 import hashlib
 
-from api.util import format_hash
 from flywheel_common import storage
 
 def test_py_fs_storage():
@@ -79,6 +78,6 @@ def test_py_fs_storage():
     hasher = hashlib.new(hash_alg)
     hasher.update(u'Test in a new deeply nested directory')
     hash_val = hasher.hexdigest()
-    hash_val = format_hash(hash_alg, hash_val)
+    hash_val = storage.format_hash(hash_alg, hash_val)
 
     assert hash_val == pyfs.get_file_hash(None, u'new_nested/nested/test.txt')

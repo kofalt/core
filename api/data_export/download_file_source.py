@@ -80,9 +80,9 @@ class DownloadFileSource(object):
         # TODO: For now, this is an optimization - directly accessing the signed url
         # can speed up transfer. Shouldn't open for reading basically do this?
         signed_url = None
-        if config.PRIMARY_STORAGE.is_signed_url():
+        if config.primary_storage.is_signed_url():
             try:
-                signed_url = config.PRIMARY_STORAGE.get_signed_url(target.file_id, target.src_path)
+                signed_url = config.primary_storage.get_signed_url(target.file_id, target.src_path)
             except fs.errors.ResourceNotFound:
                 pass
 
