@@ -265,15 +265,6 @@ def send_or_redirect_file(handler, storage, file_id, file_path, filename,
     except fs.errors.ResourceNotFound as e:
         raise errors.APINotFoundException(str(e))
 
-def format_hash(hash_alg, hash_):
-    """
-    @deprecated
-    use the version in flywheel common
-
-    format the hash including version and algorithm
-    """
-    return '-'.join(('v0', hash_alg, hash_))
-
 def create_json_http_exception_response(message, code, request_id, core_status_code=None, custom=None):
     content = {
         'message': message,

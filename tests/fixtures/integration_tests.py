@@ -111,7 +111,7 @@ def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs._fs.exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.PRIMARY_STORAGE._fs, src_path=util.path_from_uuid(file_id), dst_fs=config.local_fs.get_fs(), dst_path=file_path)
+    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=util.path_from_uuid(file_id), dst_fs=config.local_fs.get_fs(), dst_path=file_path)
 
     yield (project, file_name, file_content)
 
