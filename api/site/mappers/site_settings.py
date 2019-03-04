@@ -2,11 +2,11 @@
 import datetime
 
 from ... import config
-from ..models import SiteSettings
+from .. import models
 
 SITE_SINGLETON_ID = 'site'
 
-class SiteSettingsMapper(object):
+class SiteSettings(object):
     """Data mapper for site settings"""
     def __init__(self, db=None):
         self.db = db or config.db
@@ -33,7 +33,7 @@ class SiteSettingsMapper(object):
 
         self.dbc.update_one({'_id': SITE_SINGLETON_ID}, update, upsert=True)
 
-    def find(self):
+    def get(self):
         """Find the current site config.
 
         Returns:
@@ -50,5 +50,5 @@ class SiteSettingsMapper(object):
         # Pop the singleton id field, not required
         doc.pop('_id', None)
 
-        return SiteSettings.from_dict(doc)
+        return models.SiteSettings.from_dict(doc)
 

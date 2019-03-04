@@ -1,5 +1,4 @@
-from .models import SiteSettings
-from .mappers import SiteSettingsMapper
+from . import models, mappers
 from ..jobs import gears
 from ..web import errors
 
@@ -10,8 +9,8 @@ def get_site_settings():
         SiteSettings: The current site settings, or default settings
             if the settings have not yet been created.
     """
-    mapper = SiteSettingsMapper()
-    result = mapper.find()
+    mapper = mappers.SiteSettings()
+    result = mapper.get()
     if result is None:
         result = get_default_site_settings()
     return result
@@ -37,7 +36,7 @@ def update_site_settings(doc):
         if invalid_names:
             raise errors.APIValidationException('The following gear(s) do not exist: {}'.format(', '.join(invalid_names)))
 
-    mapper = SiteSettingsMapper()
+    mapper = mappers.SiteSettings()
     return mapper.patch(doc)
 
 def get_default_site_settings():
@@ -46,4 +45,4 @@ def get_default_site_settings():
     Returns:
         SiteSettings: The default site settings
     """
-    return SiteSettings(center_gears=None)
+    return models.SiteSettings(center_gears=None)
