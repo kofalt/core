@@ -193,7 +193,7 @@ class DataViewHandler(base.RequestHandler):
                 ])
 
                 # Create a new file with a new uuid
-                path, fileobj = file_processor.create_new_file(None)
+                fileobj = file_processor.create_new_file(None)
                 new_uuid = fileobj.filename
                 if target_filename:
                     fileobj.filename = target_filename
@@ -223,9 +223,9 @@ class DataViewHandler(base.RequestHandler):
 
                 file_fields = file_processor.create_file_fields(
                     fileobj.filename,
-                    path,
+                    config.primary_storage.path_from_uuid(new_uuid),
                     config.primary_storage.get_file_info(new_uuid)['filesize'],
-                    config.primary_storage.get_file_hash(new_uuid, path),
+                    config.primary_storage.get_file_hash(new_uuid),
                     uuid_=new_uuid,
                     mimetype=None,
                     modified=timestamp

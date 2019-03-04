@@ -15,10 +15,7 @@ import pymongo
 from functools import wraps
 
 from fs import errors
-
-
-from flywheel_common import storage
-from api import util
+from api.storage.py_fs.py_fs_storage import PyFsStorage
 
 
 CHUNK_SIZE = 2 ** 20
@@ -101,12 +98,16 @@ def parse_args(argv):
 def get_src_fs_by_file_path(file_uuid, file_path):
     if local_fs.get_file_info(file_uuid):
         return local_fs
+    elif local_fs.get_file_info(None, local_fs.get_file_hash(None, file_path)):
+        return local_fs
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
     elif local_fs2 and local_fs2.get_file_info(file_uuid):
         return local_fs2
     ###
+    elif local_fs_2 and local_fs2.get_file_info(None, local_fs2.get_file_hash(None, file_path)):
+        return local_fs2
     else:
-        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
+        raise errors.ResourceNotFound('File not found: %s' % file_path)
 
 
 def get_files_by_prefix(document, prefix):
@@ -208,7 +209,7 @@ def retry(exception_to_check, tries=4, delay=3, backoff=2):
 def migrate_file(f):
     file_id = f['fileinfo'].get('_id', '')
     if file_id:
-        file_path = util.path_from_uuid(file_id)
+        file_path = target_fs.path_from_uuid(file_id)
         if not target_fs.get_file_info(file_id):
             log.debug('    file aready has id field, just copy to target storage')
             src_fs = get_src_fs_by_file_path(file_id, file_path)
@@ -224,13 +225,14 @@ def migrate_file(f):
     else:
         file_id = str(uuid.uuid4())
         log.debug('    generated uuid: %s', file_id)
-        f_old_path = util.path_from_hash(f['fileinfo']['hash'])
+        # Hash path is the same from either storage provider
+        f_old_path = target_fs.path_from_hash(f['fileinfo']['hash'])
         log.debug('    file old path: %s', f_old_path)
-        f_new_path = util.path_from_uuid(file_id)
+        f_new_path = target_fs.path_from_uuid(file_id)
         log.debug('    file new path: %s', f_new_path)
 
         log.debug('    copy file to target storage')
-        old_file = local_fs.open(None, 'rb', f_old_path)
+        old_file = local_fs.open(None, 'rb', f['fileinfo']['hash'])
         new_file = target_fs.open(file_id, 'wb')
         buffer_copy(old_file, new_file, CHUNK_SIZE)
         old_file.close()
@@ -252,7 +254,7 @@ def migrate_file(f):
         if not updated_doc:
             log.info('Probably the following file has been updated during the migration '
                      'and its hash is changed, cleaning up from the new filesystem')
-            target_fs.remove_file(file_id, f_new_path)
+            target_fs.remove_file(file_id)
 
 
 def migrate_analysis_file(f, migrated_files):
@@ -314,12 +316,11 @@ def migrate_containers():
 def migrate_gear_files(f):
     file_id = f['exchange'].get('rootfs-id', '')
     if file_id:
-        file_path = util.path_from_uuid(file_id)
+        file_path = target_fs.path_from_uuid(file_id)
         if not target_fs.get_file_info(file_id, file_path):
             log.debug('    file aready has id field, just copy to target storage')
             src_fs = get_src_fs_by_file_path(file_id, file_path)
             log.debug('    file found in %s' % src_fs)
-
             old_file = src_fs.open(file_id, 'rb')
             new_file = target_fs.open(file_id, 'wb')
             buffer_copy(old_file, new_file, CHUNK_SIZE)
@@ -330,9 +331,11 @@ def migrate_gear_files(f):
     else:
         file_id = str(uuid.uuid4())
         file_hash = 'v0-' + f['exchange']['rootfs-hash'].replace(':', '-')
-        f_old_path = util.path_from_hash(file_hash)
+        f_old_path = target_fs.path_from_hash(file_hash)
+        src_fs = get_src_fs_by_file_path(file_id, f_old_path)
+        # hash path is the same from either storage provider
         log.debug('    file old path: %s', f_old_path)
-        f_new_path = util.path_from_uuid(file_id)
+        f_new_path = target_fs.path_from_uuid(file_id)
         log.debug('    file new path: %s', f_new_path)
 
         log.debug('    copy file to target storage')

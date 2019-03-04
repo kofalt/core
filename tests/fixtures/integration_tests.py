@@ -9,7 +9,7 @@ import pymongo
 import pytest
 import requests
 
-from api import config, files, util
+from api import config, files
 
 # load required envvars w/ the same name
 SCITRAN_PERSISTENT_DB_LOG_URI = os.environ['SCITRAN_PERSISTENT_DB_LOG_URI']
@@ -66,15 +66,11 @@ def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):
         {'$unset': {'files.$._id': ''}}
     )
 
-    file_path = unicode(util.path_from_hash(file_hash))
+    file_path = unicode(config.primary_storage.path_from_hash(file_hash))
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs._fs.exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-
-    with config.primary_storage.open(file_id, util.path_from_uuid(file_id), 'r') as src, config.local_fs.get_fs().open(file_path, 'wb') as dst:
-        shutil.copyfileobj(src, dst)
-
-    config.primary_storage.remove_file(file_id, util.path_from_uuid(file_id))
+    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=config.primary_storage.path_from_uuid(file_id), dst_fs=config.local_fs.get_fs(), dst_path=file_path)
 
     yield (project, file_name, file_content)
 

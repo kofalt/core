@@ -213,7 +213,7 @@ class Upload(base.RequestHandler):
                 'filename': filename,
                 'url': signed_url,
                 'uuid': new_uuid,
-                'filepath': util.path_from_uuid(new_uuid)
+                'filepath': config.PRIMARY_STORAGE.path_from_uuid(new_uuid)
             })
         ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filedata, metadata)
 

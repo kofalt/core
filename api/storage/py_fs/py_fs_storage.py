@@ -4,7 +4,7 @@ import fs
 import six
 import os
 
-from flywheel_common.storage import Interface
+from flywheel_common.storage import Interface, format_hash
 
 DEFAULT_HASH_ALG = 'sha384'
 DEFAULT_BUFFER_SIZE = 2 ** 20
@@ -95,19 +95,19 @@ class PyFsStorage(Interface):
         hasher = hashlib.new(hash_alg)
         
         if not file_path:
-            filepath = self.path_from_uuid(uuid)
+            file_path = self.path_from_uuid(uuid)
 
-        if not isinstance(filepath, unicode):
-            filepath = six.u(filepath)
+        if not isinstance(file_path, unicode):
+            file_path = six.u(file_path)
 
-        with self._fs.open(filepath, 'rb') as f:
+        with self._fs.open(file_path, 'rb') as f:
             while True:
                 data = f.read(self._buffer_size)
                 if not data:
                     break
                 hasher.update(data)
 
-        return self.format_hash(hash_alg, hasher.hexdigest())
+        return format_hash(hash_alg, hasher.hexdigest())
 
     def get_file_info(self, uuid, file_hash=None):
 

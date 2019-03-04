@@ -7,7 +7,7 @@ import fs.path
 import pytest
 import pymongo
 
-from api import config, util
+from api import config
 from bson.objectid import ObjectId
 
 def move_file(src_id, dst_storage, dst_path):
@@ -20,8 +20,13 @@ def move_file(src_id, dst_storage, dst_path):
         shutil.copyfileobj(src_fp, dst_fp)
     config.primary_storage.remove_file(src_id, src_path)
 
-def move_file_to_legacy(src_id, dst_path):
-    move_file(src_id, config.local_fs, dst_path)
+def move_file_to_legacy(src, dst):
+    target_dir = fs.path.dirname(dst)
+    if not config.local_fs.get_fs().exists(target_dir):
+        config.local_fs._fs.makedirs(target_dir)
+
+    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=src,
+                      dst_fs=config.local_fs._fs, dst_path=dst)
 
 def move_file_to_legacy2(src_id, dst_path):
     move_file(src_id, config.local_fs2, dst_path)
@@ -73,17 +78,18 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     file_hash__1 = 'v0-' + gear_json_1['exchange']['rootfs-hash'].replace(':', '-')
     file_id_1 = gear_json_1['exchange']['rootfs-id']
 
-    file_path = unicode(util.path_from_hash(file_hash__1))
+    file_path = unicode(config.primary_storage.path_from_hash(file_hash__1))
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs.get_fs().makedirs(target_dir)
-    move_file(file_id_1, config.local_fs, file_path)
+    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=config.primary_storage.path_from_uuid(file_id_1),
+                      dst_fs=config.local_fs.get_fs(), dst_path=file_path)
 
     api_db['gears'].find_one_and_update(
         {'_id': ObjectId(gear_id_1)},
         {'$unset': {'exchange.rootfs-id': ''}})
 
-    gears.append((gear_id_1, file_path, file_id_1, file_hash_1))
+    gears.append((gear_id_1, file_path, file_id_1, file_hash__1))
 
     gear_name_2 = randstr()
     file_name = '%s.tar.gz' % randstr()
@@ -97,7 +103,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 
     file_id_2 = gear_json_2['exchange']['rootfs-id']
 
-    file_path = unicode(util.path_from_uuid(file_id_2))
+    file_path = unicode(config.primary_storage.path_from_uuid(file_id_2))
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
@@ -145,6 +151,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     )['files'][0]
     file_id_1 = file_info['_id']
     file_hash_1 = file_info['hash']
+
     url_1 = '/sessions/' + session_id + '/files/' + file_name_1
 
     api_db['sessions'].find_one_and_update(
@@ -152,8 +159,8 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
         {'$unset': {'files.$._id': ''}}
     )
 
-    move_file_to_legacy(util.path_from_uuid(file_id_1), util.path_from_hash(file_hash_1))
-    files.append((session_id, file_name_1, url_1, file_id_1, file_hash_1))
+    move_file_to_legacy(config.primary_storage.path_from_uuid(file_id_1), config.primary_storage.path_from_hash(file_hash_1))
+    files.append((session_id, file_name_1, url_1, None, file_hash_1))
 
     # Create an UUID file
     file_name_2 = '%s.csv' % randstr()
@@ -166,7 +173,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_2 = file_info['_id']
     url_2 = '/sessions/' + session_id + '/files/' + file_name_2
 
-    move_file_to_legacy(util.path_from_uuid(file_id_2), util.path_from_uuid(file_id_2))
+    move_file_to_legacy(config.primary_storage.path_from_uuid(file_id_2), config.primary_storage.path_from_uuid(file_id_2))
     files.append((session_id, file_name_2, url_2, file_id_2, None))
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
@@ -180,7 +187,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_3 = file_info['_id']
     url_3 = '/sessions/' + session_id + '/files/' + file_name_3
 
-    move_file_to_legacy2(util.path_from_uuid(file_id_3), util.path_from_uuid(file_id_3))
+    move_file_to_legacy2(config.primary_storage.path_from_uuid(file_id_3), config.primary_storage.path_from_uuid(file_id_3))
     files.append((session_id, file_name_3, url_3, file_id_3, None))
     ###
 
@@ -266,7 +273,7 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage):
     # get file storing by hash in legacy storage
     (_, _, url, file_id_1, file_hash_1) = files_to_migrate[0]
     # get the other file, so we can clean up
-    (_, _, _, file_id_2) = files_to_migrate[1]
+    (_, _, _, file_id_2, _) = files_to_migrate[1]
 
     # delete the file
     config.local_fs.remove_file(None, file_hash_1)
@@ -334,9 +341,9 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
 
     with mocker.mock_module.patch.object(pymongo.collection.Collection, 'find_one_and_update', mocked):
         # get file storing by hash in legacy storage
-        (session_id, file_name_1, url_1, file_path_1) = files_to_migrate[0]
+        (session_id, file_name_1, url_1, file_path_1, _) = files_to_migrate[0]
         # get ile storing by uuid in legacy storage
-        (_, file_name_2, url_2, file_path_2) = files_to_migrate[1]
+        (_, file_name_2, url_2, file_path_2, _) = files_to_migrate[1]
 
         # run the migration
         migrate_storage.main('--containers')
@@ -349,8 +356,8 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
             {'files.name': file_name_2}
         )['files'][1]['_id']
 
-        assert config.primary_storage.get_file_info(file_1_id, util.path_from_uuid(file_1_id)) is not None
-        assert config.primary_storage.get_file_info(file_2_id, util.path_from_uuid(file_2_id)) is not None
+        assert config.primary_storage.get_file_info(file_1_id) is not None
+        assert config.primary_storage.get_file_info(file_2_id) is not None
 
     assert any(log.message == 'Probably the following file has been updated during the migration and its hash is changed, cleaning up from the new filesystem' for log in caplog.records)
 

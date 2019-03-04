@@ -3,7 +3,7 @@ import logging
 import os
 import shutil
 
-from api import util, config
+from api import config
 
 log = logging.getLogger('create_placeholders')
 log.setLevel(logging.INFO)
@@ -48,7 +48,7 @@ def placeholders_for_collections():
 
     base = config.get_item('persistent', 'data_path')
     for i, f in enumerate(_files):
-        f_path = os.path.join(base, util.path_from_hash(f['fileinfo']['hash']))
+        f_path = os.path.join(base, config.PRIMARY_STORAGE.path_from_hash(f['fileinfo']['hash']))
         create_placeholder_file(f_path, f['fileinfo']['size'])
 
         # Show progress
@@ -72,7 +72,7 @@ def placeholders_for_gears():
     base = config.get_item('persistent', 'data_path')
     for i, f in enumerate(_files):
         f_hash = 'v0-' + f['exchange']['rootfs-hash'].replace(':', '-')
-        f_path = os.path.join(base, util.path_from_hash(f_hash))
+        f_path = os.path.join(base, config.PRIMARY_STORAGE.path_from_hash(f_hash))
         create_placeholder_file(f_path, f['gear_name'])
 
         # Show progress

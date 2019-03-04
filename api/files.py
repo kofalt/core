@@ -45,7 +45,7 @@ class FileProcessor(object):
         fileobj = self._persistent_fs.open(new_uuid, 'wb', None, **kwargs)
         fileobj.filename = filename
 
-        return path, FileHasherWriter(fileobj)
+        return FileHasherWriter(fileobj)
 
     def process_form(self, request, use_filepath=False, tempdir_name=None):
         """
@@ -230,7 +230,7 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
                 # If using the tempdir we assume we are going to pack them up with the original filenames
                 self.filepath = tempdir_name + '/' + self.filename
             else:
-                self.filepath = util.path_from_uuid(self._uuid)
+                self.filepath = file_system.path_from_uuid(self._uuid)
 
             # Some placers reference path and others filepath so we use both to make it work for now
             self.path = self.filepath
@@ -300,8 +300,16 @@ def get_valid_file(file_info):
     """
 
     file_id = file_info.get('_id', '')
-    file_path = get_file_path(file_info)
-    return file_path, get_fs_by_file_path(file_id, file_path)
+    file_hash = file_info.get('hash')
+
+    fs = get_fs_by_file_info(file_id, file_hash)
+
+    if file_hash:
+        file_path = fs.path_from_hash(file_hash)
+    if file_id:
+        file_path = fs.path_from_uuid(file_id)
+
+    return file_path, fs
 
 
 def get_file_path(file_info, file_system=None):
@@ -321,20 +329,21 @@ def get_file_path(file_info, file_system=None):
     file_hash_path = None
 
     if not file_system:
-        file_system = config.PRIMARY_STORAGE
-
-    if file_hash:
-        # hash path is static across all storage plugins but only used for legacy CAS
-        file_hash_path = file_system.path_from_hash(file_hash)
+        file_system = config.primary_storage
 
     if file_id:
         file_uuid_path = file_system.path_from_uuid(file_id)
 
+    if file_hash:
+        # hash path is static across all storage plugins but only used for legacy CAS
+        file_hash_path = file_system.path_from_hash(file_hash)
+    
     file_path = file_uuid_path or file_hash_path
+
     return file_path
 
 
-def get_fs_by_file_path(file_id, file_path):
+def get_fs_by_file_info(file_id, file_hash=None):
     """
     @deprecated
     This method is only intended to support the pyfs storage class.
@@ -352,32 +361,24 @@ def get_fs_by_file_path(file_id, file_path):
     # When we add more native storage types we will have to store the file system type in the file object and
     # not rely on this method to determine where its physically located
 
-    filehash = None
-    if not file_id:
-        filehash = config.primary_storage.get_file_hash(None, file_path)
+    if file_id and file_hash:
+        file_hash = None
 
-    if config.primary_storage.get_file_info(file_id, filehash):
+    if config.primary_storage.get_file_info(file_id, file_hash):
         return config.primary_storage
 
-    elif config.support_legacy_fs:
-        filehash = None
-        if not file_id:
-            filehash = config.local_fs.get_file_hash(None, file_path)
-
-        if filehash and config.local_fs.get_file_info(None, filehash):
-            return config.local_fs
+    elif config.support_legacy_fs and config.local_fs.get_file_info(file_id, file_hash): 
+        return config.local_fs
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif config.support_legacy_fs and config.local_fs2:
-        filehash = None
-        if not file_id:
-            filehash = config.local_fs2.get_file_hash(None, file_path)
-
-        if filehash and config.local_fs2.get_file_info(file_id, filehash):
-            return config.local_fs2
+    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_file_info(file_id, file_hash):
+        return config.local_fs2
     ###
 
     else:
-        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
+        print 'we have an error!!!#!#!#!#!#!#!##!##'
+        import sys
+        sys.stdout.flush()
+        raise fs.errors.ResourceNotFound('File not found: %s' % (file_id if file_id else file_hash) )
 
 

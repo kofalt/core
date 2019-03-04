@@ -259,6 +259,7 @@ def send_or_redirect_file(handler, storage, file_id, file_path, filename,
         if signed_url:
             handler.redirect(signed_url)
         else:
+            file_hash = None
             if not file_id:
                 file_hash = storage.get_file_hash(file_id, file_path)
             stream = storage.open(file_id, 'rb', file_hash)
@@ -322,44 +323,6 @@ def create_nonce():
     randrange = random.SystemRandom().randrange
 
     return ''.join([NONCE_CHARS[randrange(x)] for _ in range(NONCE_LENGTH)])
-
-
-def path_from_uuid(uuid_):
-    """
-    @deprecated
-    use the version in flywheel_common
-
-    create a filepath from a UUID
-    e.g.
-    uuid_ = cbb33a87-6754-4dfd-abd3-7466d4463ebc
-    will return
-    cb/b3/cbb33a87-6754-4dfd-abd3-7466d4463ebc
-    """
-    uuid_1 = uuid_.split('-')[0]
-    first_stanza = uuid_1[0:2]
-    second_stanza = uuid_1[2:4]
-    path = (first_stanza, second_stanza, uuid_)
-    return fs.path.join(*path)
-
-
-def path_from_hash(hash_):
-    """
-    @deprecated
-    use the version in the storage plugin directly
-    This is onnly used in the migrate scripts currently
-
-    create a filepath from a hash
-    e.g.
-    hash_ = v0-sha384-01b395a1cbc0f218
-    will return
-    v0/sha384/01/b3/v0-sha384-01b395a1cbc0f218
-    """
-    hash_version, hash_alg, actual_hash = hash_.split('-')
-    first_stanza = actual_hash[0:2]
-    second_stanza = actual_hash[2:4]
-    path = (hash_version, hash_alg, first_stanza, second_stanza, hash_)
-    return os.path.join(*path)
-
 
 class RangeHeaderParseError(ValueError):
     """Exception class representing a string parsing error."""
