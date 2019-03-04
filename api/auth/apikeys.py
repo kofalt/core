@@ -71,6 +71,13 @@ class APIKey(object):
         return api_key['_id']
 
     @classmethod
+    def revoke(cls, uid):
+        """
+        Disassociates an API key from an entity
+        """
+        return config.db.apikeys.delete_many({'origin.id': uid, 'type': cls.key_type})
+
+    @classmethod
     def get(cls, uid):
         return config.db.apikeys.find_one({'origin.id': uid, 'type': cls.key_type})
 
