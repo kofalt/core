@@ -71,11 +71,11 @@ class APIKey(object):
         return api_key['_id']
 
     @classmethod
-    def revoke(cls, uid):
+    def disable(cls, uid):
         """
-        Disassociates an API key from an entity
+        Mark an API key as disabled
         """
-        return config.db.apikeys.delete_many({'origin.id': uid, 'type': cls.key_type})
+        return config.db.apikeys.update_one({'origin.id': uid, 'type': cls.key_type}, {'$set': {'disabled': True}})
 
     @classmethod
     def get(cls, uid):
