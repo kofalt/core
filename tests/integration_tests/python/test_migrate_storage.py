@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 
 import fs.move
@@ -9,20 +10,21 @@ import pymongo
 from api import config, util
 from bson.objectid import ObjectId
 
+def move_file(src_id, dst_storage, dst_path):
+    dst_fs = dst_storage.get_fs()
+    src_path = util.path_from_uuid(src_id)
+    target_dir = fs.path.dirname(dst_path)
+    if not dst_fs.exists(target_dir):
+        dst_fs.makedirs(target_dir)
+    with config.primary_storage.open(src_id, src_path, 'rb') as src_fp, dst_fs.open(dst_path, 'wb') as dst_fp:
+        shutil.copyfileobj(src_fp, dst_fp)
+    config.primary_storage.remove_file(src_id, src_path)
 
-def move_file_to_legacy(src, dst):
-    target_dir = fs.path.dirname(dst)
-    if not config.local_fs.get_fs().exists(target_dir):
-        config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=src,
-                      dst_fs=config.local_fs._fs, dst_path=dst)
+def move_file_to_legacy(src_id, dst_path):
+    move_file(src_id, config.local_fs, dst_path)
 
-def move_file_to_legacy2(src, dst):
-    target_dir = fs.path.dirname(dst)
-    if not config.local_fs2.get_fs().exists(target_dir):
-        config.local_fs2.get_fs().makedirs(target_dir)
-    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=src,
-                      dst_fs=config.local_fs2.get_fs(), dst_path=dst)
+def move_file_to_legacy2(src_id, dst_path):
+    move_file(src_id, config.local_fs2, dst_path)
 
 @pytest.fixture(scope='function')
 def migrate_storage(mocker):
@@ -75,8 +77,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs.get_fs().makedirs(target_dir)
-    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=util.path_from_uuid(file_id_1),
-                      dst_fs=config.local_fs.get_fs(), dst_path=file_path)
+    move_file(file_id_1, config.local_fs, file_path)
 
     api_db['gears'].find_one_and_update(
         {'_id': ObjectId(gear_id_1)},
@@ -100,8 +101,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.primary_storage._fs, src_path=file_path,
-                      dst_fs=config.local_fs._fs, dst_path=file_path)
+    move_file(file_id_2, config.local_fs, file_path)
     gears.append((gear_id_2, file_path))
 
     yield gears
@@ -147,7 +147,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
         {'$unset': {'files.$._id': ''}}
     )
 
-    move_file_to_legacy(util.path_from_uuid(file_id_1), util.path_from_hash(file_hash_1))
+    move_file_to_legacy(file_id_1, util.path_from_hash(file_hash_1))
     files.append((session_id, file_name_1, url_1, util.path_from_hash(file_hash_1)))
 
     # Create an UUID file
@@ -161,7 +161,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_2 = file_info['_id']
     url_2 = '/sessions/' + session_id + '/files/' + file_name_2
 
-    move_file_to_legacy(util.path_from_uuid(file_id_2), util.path_from_uuid(file_id_2))
+    move_file_to_legacy(file_id_2, util.path_from_uuid(file_id_2))
     files.append((session_id, file_name_2, url_2, util.path_from_uuid(file_id_2)))
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
@@ -175,7 +175,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_3 = file_info['_id']
     url_3 = '/sessions/' + session_id + '/files/' + file_name_3
 
-    move_file_to_legacy2(util.path_from_uuid(file_id_3), util.path_from_uuid(file_id_3))
+    move_file_to_legacy2(file_id_3, util.path_from_uuid(file_id_3))
     files.append((session_id, file_name_3, url_3, util.path_from_uuid(file_id_3)))
     ###
 
@@ -206,7 +206,7 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage):
     r = as_admin.get(url_1, params={'ticket': ''})
     assert r.ok
     ticket = r.json()['ticket']
-    
+
     # download the file
     assert as_admin.get(url_1, params={'ticket': ticket}).ok
 
