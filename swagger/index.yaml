@@ -48,6 +48,8 @@ tags:
     description: Data view operations
   - name: containers
     description: Abstract container operations
+  - name: site
+    description: Site level operations
   - name: default
 
 paths:
@@ -62,6 +64,7 @@ paths:
     - paths/engine.yaml
     - paths/config.yaml
     - paths/config-js.yaml
+    - paths/site.yaml
     - paths/version.yaml
     - paths/users.yaml
     - paths/jobs.yaml

@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf":[{"$ref":"../definitions/config.json#/definitions/site-settings"}],
+  "example": {
+    "created": "2016-08-11T13:02:09.055000+00:00",
+    "modified": "2016-08-11T13:02:09.055000+00:00",
+    "center_gears": ["dcm2niix"]
+  }
+}
+
