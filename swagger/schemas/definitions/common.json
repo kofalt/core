@@ -74,6 +74,14 @@
                 }
             },
             "x-sdk-return": "_id"
+        },
+        "key": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                }
+            }
         }
     }
 }
