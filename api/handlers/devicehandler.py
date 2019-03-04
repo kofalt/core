@@ -62,7 +62,10 @@ class DeviceHandler(base.RequestHandler):
     @staticmethod
     def join_api_key(device):
         api_key = DeviceApiKey.get(device['_id'])
-        device['key'] = api_key['_id'] if api_key else None
+        if api_key:
+            device['key'] = None if api_key.get('disabled', False) else api_key['_id']
+        else:
+            device['key'] = DeviceApiKey.generate(device['_id'])
 
     @require_admin
     def post(self):
@@ -96,9 +99,9 @@ class DeviceHandler(base.RequestHandler):
         return {'key': key}
 
     @require_admin
-    def revoke_key(self, device_id):
-        result = DeviceApiKey.revoke(self.storage.format_id(device_id))
-        return {'deleted': result.deleted_count}
+    def disable_key(self, device_id):
+        result = DeviceApiKey.disable(self.storage.format_id(device_id))
+        return {'modified': result.modified_count}
 
     @require_drone
     def put_self(self):
