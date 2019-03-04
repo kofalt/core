@@ -3,7 +3,6 @@ import hashlib
 import fs
 import six
 
-#from util import path_from_uuid, format_hash
 from flywheel_common.storage import path_from_uuid, format_hash
 from flywheel_common.storage import Interface
 
