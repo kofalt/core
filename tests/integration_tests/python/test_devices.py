@@ -17,6 +17,10 @@ def test_devices(as_public, as_user, as_admin, as_drone, api_db):
     drone = r.json()[0]
     drone_id = drone['_id']
 
+    # bw-comp: verify test bootstrapper has api key after first get
+    assert as_admin.get('/devices/' + drone_id).ok
+    assert api_db.apikeys.count({'origin.id': bson.ObjectId(drone_id), 'type': 'device'}) == 1
+
     # verify users don't have access to device keys, but admins do
     assert 'key' not in drone
     r = as_admin.get('/devices?join_keys=true')
