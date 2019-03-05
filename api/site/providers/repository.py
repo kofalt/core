@@ -1,8 +1,7 @@
 """Provides repository-layer functions for loading/saving providers"""
 from ...web import errors
 from .factory import create_provider
-from ..mappers import ProviderMapper
-from ..models import ProviderClass
+from .. import mappers, models
 
 
 COMPUTE_DISPATCHERS = [ 'cloud-scale', 'compute-dispatcher' ]
@@ -24,8 +23,8 @@ def get_provider(provider_id):
     Raises:
         APINotFoundException: If the provider does not exist.
     """
-    mapper = ProviderMapper()
-    result = mapper.find(provider_id)
+    mapper = mappers.Providers()
+    result = mapper.get(provider_id)
     if not result:
         raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
     return _scrub_config(result)
@@ -43,12 +42,12 @@ def get_provider_config(provider_id):
     Raises:
         APINotFoundException: If the provider does not exist.
     """
-    mapper = ProviderMapper()
-    result = mapper.find(provider_id)
+    mapper = mappers.Providers()
+    result = mapper.get(provider_id)
     if not result:
         raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
     # Cannot get provider config this way
-    if result.provider_class != ProviderClass.compute:
+    if result.provider_class != models.ProviderClass.compute:
         raise errors.APIPermissionException()
     return result.config
 
@@ -62,7 +61,7 @@ def get_providers(provider_class=None):
     Yields:
         Provider: The next provider matching the given class
     """
-    mapper = ProviderMapper()
+    mapper = mappers.Providers()
     for provider in mapper.find_all(provider_class):
         yield _scrub_config(provider)
 
@@ -92,7 +91,7 @@ def insert_provider(provider):
         raise errors.APIValidationException(str(e))
 
     # All was good, create the mapper and insert
-    mapper = ProviderMapper()
+    mapper = mappers.Providers()
     return mapper.insert(provider)
 
 
@@ -109,8 +108,8 @@ def update_provider(provider_id, doc):
             configuration, or an invalid field was specified
             (e.g. attempt to change provider type)
     """
-    mapper = ProviderMapper()
-    current_provider = mapper.find(provider_id)
+    mapper = mappers.Providers()
+    current_provider = mapper.get(provider_id)
 
     if not current_provider:
         raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))

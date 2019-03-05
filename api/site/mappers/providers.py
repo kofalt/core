@@ -4,9 +4,9 @@ import datetime
 import bson
 
 from ... import config
-from ..models import Provider, ProviderClass
+from .. import models
 
-class ProviderMapper(object):
+class Providers(object):
     """Data mapper for providers"""
     def __init__(self, db=None):
         self.db = db or config.db
@@ -41,8 +41,8 @@ class ProviderMapper(object):
         update['$set']['modified'] = datetime.datetime.now()
         self.dbc.update_one({'_id': bson.ObjectId(provider_id)}, update)
 
-    def find(self, provider_id):
-        """Find the provider that matches the given id.
+    def get(self, provider_id):
+        """Get the provider that matches the given id.
 
         Args:
             provider_id (str|ObjectId): The id of the provider to find
@@ -63,7 +63,7 @@ class ProviderMapper(object):
             Provider: The next provider matching the given class
         """
         if provider_class:
-            if isinstance(provider_class, ProviderClass):
+            if isinstance(provider_class, models.ProviderClass):
                 provider_class = provider_class.value
             query = {'provider_class': provider_class}
         else:
@@ -88,4 +88,4 @@ class ProviderMapper(object):
         if doc is None:
             return None
 
-        return Provider.from_dict(doc)
+        return models.Provider.from_dict(doc)
