@@ -95,12 +95,14 @@ class DeviceHandler(base.RequestHandler):
 
     @require_admin
     def regenerate_key(self, device_id):
-        key = DeviceApiKey.generate(self.storage.format_id(device_id))
+        device = self.storage.get_container(device_id)
+        key = DeviceApiKey.generate(device['_id'])
         return {'key': key}
 
     @require_admin
     def disable_key(self, device_id):
-        result = DeviceApiKey.disable(self.storage.format_id(device_id))
+        device = self.storage.get_container(device_id)
+        result = DeviceApiKey.disable(device['_id'])
         return {'modified': result.modified_count}
 
     @require_drone
