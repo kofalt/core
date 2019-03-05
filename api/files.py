@@ -14,7 +14,6 @@ import fs.errors
 from flywheel_common import storage
 
 from . import config, util
-from flywheel_common import storage
 
 DEFAULT_HASH_ALG = 'sha384'
 
@@ -302,14 +301,14 @@ def get_valid_file(file_info):
     file_id = file_info.get('_id', '')
     file_hash = file_info.get('hash')
 
-    fs = get_fs_by_file_info(file_id, file_hash)
+    file_system = get_fs_by_file_info(file_id, file_hash)
 
     if file_hash:
-        file_path = fs.path_from_hash(file_hash)
+        file_path = file_system.path_from_hash(file_hash)
     if file_id:
-        file_path = fs.path_from_uuid(file_id)
+        file_path = file_system.path_from_uuid(file_id)
 
-    return file_path, fs
+    return file_path, file_system
 
 
 def get_file_path(file_info, file_system=None):

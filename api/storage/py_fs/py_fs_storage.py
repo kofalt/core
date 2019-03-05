@@ -86,7 +86,7 @@ class PyFsStorage(Interface):
         else:
             file_path = self.path_from_uuid(uuid)
 
-        return self._fs.get_signed_url(file_hash, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type)
+        return self._fs.get_signed_url(file_path, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type)
 
     def can_redirect_request(self, headers):
         # Legacy implementation is just GC storage, which can redirect
