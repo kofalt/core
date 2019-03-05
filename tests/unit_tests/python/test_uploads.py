@@ -29,6 +29,7 @@ def test_signed_url_reaper_upload(as_drone, mocker):
 
 
     mock_fs = mocker.patch('api.upload.config.primary_storage')
+    mock_fs.path_from_uuid.return_value = '10ca3b42-7293-47a9-8328-290270f5b5aa'
     mock_fs.get_signed_url.return_value = 'url'
     mock_fs.get_file_info.return_value = {'filesize': 100}
     r = as_drone.post('/upload/reaper?ticket=',
@@ -69,6 +70,7 @@ def test_signed_url_label_upload(as_drone, data_builder, mocker):
 
     mock_fs = mocker.patch('api.upload.config.primary_storage')
     mock_fs.get_file_info.return_value = {'filesize': 100}
+    mock_fs.path_from_uuid.return_value = '10ca3b42-7293-47a9-8328-290270f5b5aa'
     mock_fs.get_signed_url.return_value = 'url'
     r = as_drone.post('/upload/label?ticket=',
                       json=payload)
@@ -114,6 +116,7 @@ def test_signed_url_engine_upload(as_drone, data_builder, mocker):
 
     mock_fs = mocker.patch('api.upload.config.primary_storage')
     mock_fs.get_signed_url.return_value = 'url'
+    mock_fs.path_from_uuid.return_value = '10ca3b42-7293-47a9-8328-290270f5b5aa'
     mock_fs.get_file_info.return_value = {'filesize': 100}
     r = as_drone.post('/engine?upload_ticket=&level=%s&id=%s' % ('project', project),
                       json=payload)
@@ -159,6 +162,7 @@ def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mo
 
     mock_fs = mocker.patch('api.upload.config.primary_storage')
     mock_fs.get_signed_url.return_value = 'url'
+    mock_fs.path_from_uuid.return_value = '10ca3b42-7293-47a9-8328-290270f5b5aa'
     mock_fs.get_file_info.return_value = {'filesize': 100}
     r = as_drone.post('/engine?upload_ticket=&level=%s&id=%s' % ('analysis', session_analysis),
                       json=payload)
@@ -193,6 +197,7 @@ def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
 
     mock_fs = mocker.patch('api.upload.config.primary_storage')
     mock_fs.get_signed_url.return_value = 'url'
+    mock_fs.path_from_uuid.return_value = '10ca3b42-7293-47a9-8328-290270f5b5aa'
     mock_fs.get_file_info.return_value = {'filesize': 100}
     r = as_drone.post('/projects/' + project + '/files?ticket=', json=payload)
 
