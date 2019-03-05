@@ -56,7 +56,7 @@ DEFAULT_CONFIG = {
     },
     'auth': {
         'google': {
-            "id_endpoint" : "https://www.googleapis.com/plus/v1/people/me/openIdConnect",
+            "id_endpoint" : "https://www.googleapis.com/oauth2/v3/userinfo",
             "client_id" : "979703271380-q85tbsupddmb7996q30244368r7e54lr.apps.googleusercontent.com",
             "token_endpoint" : "https://accounts.google.com/o/oauth2/token",
             "verify_endpoint" : "https://www.googleapis.com/oauth2/v1/tokeninfo",
