@@ -1,5 +1,6 @@
 """Provides provider base-classes"""
 # Import concrete provider classes for registration
+from .base import BaseProvider
 from .static_compute_provider import StaticComputeProvider
 
 from .factory import create_provider

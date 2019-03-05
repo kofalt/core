@@ -1,10 +1,10 @@
 """Provides the StaticComputeProvider class"""
 from ...web import errors
-from .compute_provider import ComputeProvider
+from .base import BaseProvider
 from .factory import ProviderKey
 from ..models import ProviderClass
 
-class StaticComputeProvider(ComputeProvider):
+class StaticComputeProvider(BaseProvider):
     """The static compute provider object."""
 
     # Must set provider_key as (provider_class, provider_type)
@@ -14,3 +14,7 @@ class StaticComputeProvider(ComputeProvider):
         # Only empty configuration is valid
         if self.config:
             raise errors.APIValidationException('Static Compute should have NO configuration!')
+
+    def get_redacted_config(self):
+        # There is no configuration, always return empty
+        return {}

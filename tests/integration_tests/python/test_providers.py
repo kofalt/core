@@ -158,6 +158,8 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
     device_id = None
 
     try:
+        api_db.providers.update({'_id': bson.ObjectId(provider_id)}, {'$set': {'config': {'top': 'secret'}}})
+
         r = as_public.get('/site/providers/' + provider_id + '/config')
         assert r.status_code == 403
 
@@ -165,13 +167,16 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
         assert r.status_code == 403
 
         r = as_admin.get('/site/providers/' + provider_id + '/config')
-        assert r.status_code == 403
+        assert r.ok
+        assert r.json() == {}
 
         r = as_root.get('/site/providers/' + provider_id + '/config')
-        assert r.status_code == 403
+        assert r.ok
+        assert r.json() == {}
 
         r = as_drone.get('/site/providers/' + provider_id + '/config')
-        assert r.status_code == 403
+        assert r.ok
+        assert r.json() == {}
 
         # create device
         r = as_root.post('/devices', json={'type': 'cloud-scale'})
@@ -183,8 +188,6 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
         device_key = r.json()['key']
 
         # Get config as valid device
-        api_db.providers.update({'_id': bson.ObjectId(provider_id)}, {'$set': {'config': {'top': 'secret'}}})
-
         as_device = as_public
         as_device.headers.update({'Authorization': 'scitran-user {}'.format(device_key)})
 

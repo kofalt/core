@@ -5,12 +5,28 @@ import pytest
 
 from api.web import errors
 from api.site import models, mappers, providers
+from api.site.providers.factory import ProviderKey
 
 origin = { 'type': 'user', 'id': 'user@test.com' }
 config = { 'key': 'value' }
 
 def _make_provider(cls=models.ProviderClass.compute):
-    return models.Provider(cls, 'gcloud', 'GCloud Test', origin, config)
+    return models.Provider(cls, 'sample', 'Sample Test', origin, config)
+
+
+class SampleProvider(providers.BaseProvider):
+    # Must set provider_key as (provider_class, provider_type)
+    provider_key = ProviderKey(models.ProviderClass.compute, 'sample')
+
+    def validate_config(self):
+        if 'key' not in self.config:
+            raise errors.APIValidationException('Expected "key" in config!')
+
+    def get_redacted_config(self):
+        result = config.copy()
+        result['key'] = None
+        return result
+
 
 # === Model Tests ===
 def test_provider_delattr():
@@ -42,8 +58,8 @@ def test_provider_mapper_insert(api_db):
         assert isinstance(doc['created'], datetime.datetime)
         assert isinstance(doc['modified'], datetime.datetime)
         assert doc['provider_class'] == 'compute'
-        assert doc['provider_type'] == 'gcloud'
-        assert doc['label'] == 'GCloud Test'
+        assert doc['provider_type'] == 'sample'
+        assert doc['label'] == 'Sample Test'
         assert doc['origin'] == origin
         assert doc['config'] == config
 
@@ -223,8 +239,12 @@ def test_provider_repository_load(api_db):
         assert len(results) == 1
         assert results[0].to_dict() == expected
 
-        # Load just provider config
+        # Load redacted config
         result = providers.get_provider_config(cid)
+        assert result == {'key': None}
+
+        # Load full provider config
+        result = providers.get_provider_config(cid, full=True)
         assert result == compute_provider.config
     finally:
         # Cleanup

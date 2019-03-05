@@ -30,11 +30,12 @@ def get_provider(provider_id):
     return _scrub_config(result)
 
 
-def get_provider_config(provider_id):
+def get_provider_config(provider_id, full=False):
     """Get the provider configuration matching provider_id, or None if not found.
 
     Args:
         provider_id (str): The provider id
+        full (bool): Whether or not to include confidential fields
 
     Returns:
         The provider configuration
@@ -46,10 +47,18 @@ def get_provider_config(provider_id):
     result = mapper.get(provider_id)
     if not result:
         raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
-    # Cannot get provider config this way
-    if result.provider_class != models.ProviderClass.compute:
-        raise errors.APIPermissionException()
-    return result.config
+
+    if full:
+        # Cannot get storage provider config this way
+        if result.provider_class != models.ProviderClass.compute:
+            raise errors.APIPermissionException()
+        return result.config
+
+    # Create provider instance
+    provider_inst = create_provider(result.provider_class,
+        result.provider_type, result.config)
+
+    return provider_inst.get_redacted_config()
 
 
 def get_providers(provider_class=None):

@@ -1,7 +1,7 @@
 """API Handlers for providers"""
 from ... import validators
-from ...web import base, errors
-from ...auth import require_admin, require_login, require_drone
+from ...web import base
+from ...auth import require_admin, require_login
 
 from ..models import Provider
 from ..providers import (get_provider, get_provider_config,
@@ -36,12 +36,15 @@ class ProviderHandler(base.RequestHandler):
         provider = get_provider(_id)
         return provider.to_dict()
 
-    @require_drone
+    @require_admin
     def get_config(self, _id):
-        # Extra authorization: Ensure that device type is a dispatcher
-        if not is_compute_dispatcher(self.device.get('type')):
-            raise errors.APIPermissionException()
-        return get_provider_config(_id)
+        # Extra authorization: Ensure that device type is a dispatcher, before
+        # returning full configuration
+
+        # self.device only exists if this is a device request
+        device = getattr(self, 'device', None)
+        full = device is not None and is_compute_dispatcher(device.get('type'))
+        return get_provider_config(_id, full=full)
 
     @require_admin
     @validators.verify_payload_exists
