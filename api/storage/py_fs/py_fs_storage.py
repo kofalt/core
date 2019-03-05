@@ -85,7 +85,7 @@ class PyFsStorage(Interface):
             file_path = self.path_from_hash(file_hash)
         else:
             file_path = self.path_from_uuid(uuid)
-            
+
         return self._fs.get_signed_url(file_hash, purpose=purpose, filename=filename, attachment=attachment, response_type=response_type)
 
     def can_redirect_request(self, headers):
@@ -98,12 +98,15 @@ class PyFsStorage(Interface):
 
         hash_alg = self._default_hash_alg
         hasher = hashlib.new(hash_alg)
-        
+
         if not file_path:
             file_path = self.path_from_uuid(uuid)
 
         if not isinstance(file_path, unicode):
             file_path = six.u(file_path)
+
+        if not self._fs.exists(file_path):
+            return None
 
         with self._fs.open(file_path, 'rb') as f:
             while True:
@@ -122,10 +125,13 @@ class PyFsStorage(Interface):
             file_path = self.path_from_hash(file_hash)
         else:
             file_path = self.path_from_uuid(uuid)
-        
+
+        if not isinstance(file_path, unicode):
+            file_path = six.u(file_path)
+
         if not self._fs.exists(file_path):
             return None
- 
+
         data['filesize'] = int(self._fs.getsize(file_path))
         return data
 
@@ -157,7 +163,7 @@ class PyFsStorage(Interface):
         second_stanza = actual_hash[2:4]
         path = (hash_version, hash_alg, first_stanza, second_stanza, hash_)
         return os.path.join(*path)
-    
+
     def get_fs(self):
         """
             Returns the local file system OSFS object for local file maniulation/processing

@@ -78,7 +78,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     file_hash__1 = 'v0-' + gear_json_1['exchange']['rootfs-hash'].replace(':', '-')
     file_id_1 = gear_json_1['exchange']['rootfs-id']
 
-    file_path = unicode(config.primary_storage.path_from_hash(file_hash__1))
+    file_path = unicode(config.local_fs.path_from_hash(file_hash__1))
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs.get_fs().makedirs(target_dir)
@@ -89,7 +89,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
         {'_id': ObjectId(gear_id_1)},
         {'$unset': {'exchange.rootfs-id': ''}})
 
-    gears.append((gear_id_1, file_path, file_id_1, file_hash__1))
+    gears.append((gear_id_1, file_path, None, file_hash__1))
 
     gear_name_2 = randstr()
     file_name = '%s.tar.gz' % randstr()
