@@ -241,7 +241,7 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             # If the optional tempdir_name argument is passed then we need to open that file in the folder location 
             # So that the zip file is structured correctly, This only happens on local Fs which is pyfs.
             if tempdir_name:
-                self.open_file = file_system.open(self._uuid, 'wb', None, filepath=self.filepath)
+                self.open_file = file_system.open(self._uuid, 'wb', None, file_path=self.filepath)
             else: 
                 self.open_file = file_system.open(self._uuid, 'wb', None)
 

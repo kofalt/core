@@ -27,6 +27,11 @@ class PyFsStorage(Interface):
             file_path = self.path_from_uuid(uuid)
                 # the legacy PyFs files will always make use of the file_hash when open for writing. Future file types may not
 
+        # local fs is the only provider that takes file_path.
+        # Used when placing packfile in a temp file to maintain directory structure
+        if kwargs.get('file_path'):
+            file_path = kwargs.get('file_path')
+
         if not isinstance(file_path, unicode):
             file_path = six.u(file_path)
 

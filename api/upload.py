@@ -136,7 +136,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
         # Not the best practice. Open to improvements.
         # These are presumbed to be required by every function later called with field as a parameter.
 
-        #We can trust the filepath on upload is accurate after form processing
+        # We can trust the filepath on upload is accurate after form processing
         if hasattr(field, 'filepath'):
             #Some placers need this value. Consistent object would be nice
             field.path = field.filepath
