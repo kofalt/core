@@ -30,8 +30,11 @@ LOG_MESSAGE_COUNT = Counter(prefix + 'log_message_count', 'Observed log statemen
 # DB Version
 DB_VERSION = Gauge(prefix + 'db_version', 'The database version', [], multiprocess_mode='max')
 
+# Api Version
+RELEASE_VERSION = Gauge(prefix + 'release_version', 'The api release version', ['version'], multiprocess_mode='max')
+
 # App Version
-RELEASE_VERSION = Gauge(prefix + 'release_version', 'The app release version', ['version'], multiprocess_mode='max')
+FLYWHEEL_VERSION = Gauge(prefix + 'flywheel_version', 'The app release version', ['version'], multiprocess_mode='max')
 
 # Job Counts (label=state)
 JOBS_BY_STATE = Gauge(prefix + 'jobs', 'Total number of jobs in each state', ['state'], multiprocess_mode='max')
