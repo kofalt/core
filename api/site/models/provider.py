@@ -1,5 +1,4 @@
 """Provide the provider class"""
-import copy
 import datetime
 
 from enum import Enum
