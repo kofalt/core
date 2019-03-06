@@ -40,7 +40,7 @@ def set_env():
     yield set_env
 
     # return to initial state
-    os.environ['FLYWHEEL_RELEASE'] = initial_state['FLYWHEEL_RELEASE']
+    os.environ['FLYWHEEL_RELEASE'] = initial_state.get('FLYWHEEL_RELEASE', '')
 
 
 @pytest.fixture(scope='function')
