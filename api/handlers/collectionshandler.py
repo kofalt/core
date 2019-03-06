@@ -110,7 +110,7 @@ class CollectionsHandler(ContainerHandler):
 
     def get_all(self):
         projection = self.get_list_projection('collections')
-        if self.user_is_admin:
+        if self.complete_list:
             permchecker = always_ok
         elif self.public_request:
             permchecker = containerauth.list_public_request
