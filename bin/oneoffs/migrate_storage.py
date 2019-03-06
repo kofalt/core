@@ -15,7 +15,7 @@ import pymongo
 from functools import wraps
 
 from fs import errors
-from api.storage.py_fs.py_fs_storage import PyFsStorage
+from flywheel_common import storage
 
 
 CHUNK_SIZE = 2 ** 20

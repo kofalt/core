@@ -10,16 +10,6 @@ import pymongo
 from api import config
 from bson.objectid import ObjectId
 
-def move_file(src_id, dst_storage, dst_path):
-    dst_fs = dst_storage.get_fs()
-    src_path = util.path_from_uuid(src_id)
-    target_dir = fs.path.dirname(dst_path)
-    if not dst_fs.exists(target_dir):
-        dst_fs.makedirs(target_dir)
-    with config.primary_storage.open(src_id, src_path, 'rb') as src_fp, dst_fs.open(dst_path, 'wb') as dst_fp:
-        shutil.copyfileobj(src_fp, dst_fp)
-    config.primary_storage.remove_file(src_id, src_path)
-
 def move_file_to_legacy(src, dst):
     target_dir = fs.path.dirname(dst)
     if not config.local_fs.get_fs().exists(target_dir):
@@ -28,8 +18,14 @@ def move_file_to_legacy(src, dst):
     fs.move.move_file(src_fs=config.primary_storage._fs, src_path=src,
                       dst_fs=config.local_fs._fs, dst_path=dst)
 
-def move_file_to_legacy2(src_id, dst_path):
-    move_file(src_id, config.local_fs2, dst_path)
+def move_file_to_legacy2(src_path, dst_path):
+    target_dir = fs.path.dirname(dst_path)
+    if not config.local_fs2.get_fs().exists(target_dir):
+        config.local_fs2.get_fs().makedirs(target_dir)
+
+    fs.move.move_file(src_fs=config.primary_storage._fs, 
+            src_path=src_path, dst_fs=config.local_fs2.get_fs(),
+            dst_path=dst_path)
 
 @pytest.fixture(scope='function')
 def migrate_storage(mocker):
