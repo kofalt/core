@@ -38,6 +38,9 @@ class APIKey(object):
 
         if api_key:
 
+            if api_key.get('disabled', False) is True:
+                raise APIAuthProviderException('Invalid API key')
+
             # Some api keys may have additional requirements that must be met
             try:
                 APIKeyTypes[api_key['type']].check(api_key)
@@ -72,9 +75,7 @@ class APIKey(object):
 
     @classmethod
     def disable(cls, uid):
-        """
-        Mark an API key as disabled
-        """
+        """Mark an API key as disabled"""
         return config.db.apikeys.update_one({'origin.id': uid, 'type': cls.key_type}, {'$set': {'disabled': True}})
 
     @classmethod
