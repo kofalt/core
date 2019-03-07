@@ -111,19 +111,6 @@ def test_devices(as_public, as_user, as_admin, as_drone, api_db):
     assert r.ok
     assert as_user.get('/devices/status').json()[device_id]['status'] == 'error'
 
-    # regenerate key
-    r = as_admin.post('/devices/' + device_id + '/key')
-    assert r.ok
-    assert r.json()['key'] != device_key
-
-    # disable key
-    r = as_admin.delete('/devices/' + device_id + '/key')
-    assert r.ok
-    assert r.json()['modified'] == 1
-    r = as_admin.get('/devices/' + device_id)
-    assert r.ok
-    assert r.json()['key'] == None
-
     # delete device
     r = as_admin.delete('/devices/' + device_id)
     assert r.ok
