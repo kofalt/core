@@ -189,3 +189,7 @@ def test_device_key_management(as_public, as_user, as_admin):
     as_device.headers.update({'Authorization': 'scitran-user {}'.format(device_key_regen)})
     r = as_device.put('/devices/self', json={'interval': 60})
     assert r.ok
+
+    # delete device
+    r = as_admin.delete('/devices/' + device_id)
+    assert r.ok
