@@ -8,6 +8,7 @@ from .gc_compute_provider import GCComputeProvider
 # they are registered In the PROVIDERS array
 from .gc_compute_provider import GCComputeProvider
 from .static_compute_provider import StaticComputeProvider
+from .aws_storage_provider import AWSStorageProvider
 
 from .factory import create_provider
 

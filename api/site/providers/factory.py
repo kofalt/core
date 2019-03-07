@@ -1,6 +1,9 @@
 """Provides registration and factory methods for provider classes"""
 import collections
 
+from ...storage import create_flywheel_fs
+from ..models.provider import ProviderClass
+
 # Lookup key for provider classes
 #     provider_class (ProviderClass): The provider class (compute or storage)
 #     provider_type (str): A provider type string
@@ -31,5 +34,14 @@ def create_provider(provider_class, provider_type, config):
     cls = PROVIDERS.get(key)
     if cls is None:
         raise ValueError('Unknown provider: {}'.format(key))
+
+    provider = cls(config)
+
+    if provider_class == ProviderClass.storage:
+        # TOOO: we have some tight coupling because our storage factory parses the url to determine the type
+        # So we need the url which is constructed in the provider internally.  We should convert the storage
+        # factory to return the plugin based on provider class then the provider will init the plugin with 
+        # the correct url. That will still allow completely decoupled testing 
+        provider.storage_plugin = create_flywheel_fs(provider.storage_url)
 
     return cls(config)
