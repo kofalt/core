@@ -162,6 +162,20 @@ def test_provider_factory_static_compute():
     provider.config = {}
     provider.validate_config()  # Only empty config is valid for static
 
+def test_provider_factory_storage(mocker):
+    # TODO: this needs to work correctly
+    mock_fs = mocker.patch('flywheel_common')
+    mock_fs.create_flywheel_fs.return_value = 'Test'
+    provider = providers.create_provider(ProviderClass.storage, 'gc', config)
+    assert mock_fs.create_flywheel_fs.call_count == 1
+    assert provider is not None
+    
+    # This should be in an integration test
+    # assert isinstance(provider, StorageProvider)
+    # assert provider.config == config
+    # assert provider.storage_plugin is not None
+    # assert isinstance(provider.storage_plugin, GCStorage)
+
 # === Repository Tests ===
 def test_provider_repository_insert_and_update(api_db):
     # Invalid provider type
@@ -356,3 +370,8 @@ def test_get_provider_picker():
         picker = providers.repository._get_provider_picker()
         assert patched_config.is_multiproject_enabled.called
         assert isinstance(picker, FixedProviderPicker)
+
+def test_storage_provider_service():
+    # TODO: put the business logic in here with regard to selecting storage provider
+    pass
+
