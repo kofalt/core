@@ -4,8 +4,21 @@ import os
 
 from flywheel_common import storage
 
+pyfs = storage.create_flywheel_fs(u'osfs:///tmp')
+
+def test_paths():
+
+    uuid_ = 'cbb33a87-6754-4dfd-abd3-7466d4463ebc'
+    path = 'cb/b3/cbb33a87-6754-4dfd-abd3-7466d4463ebc'
+
+    assert pyfs.path_from_uuid(uuid_) == path
+
+    hash_ = 'v0-sha384-01b395a1cbc0f218'
+    path = 'v0/sha384/01/b3/v0-sha384-01b395a1cbc0f218'
+
+    assert pyfs.path_from_hash(hash_) == path
+
 def test_py_fs_storage():
-    pyfs = storage.create_flywheel_fs(u'osfs:///tmp')
     assert pyfs._fs is not None
     assert pyfs.is_signed_url() == False
 
