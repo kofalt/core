@@ -11,6 +11,7 @@ from ..dao import containerstorage, containerutil, noop
 from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
+from ..jobs.job_util import remove_potential_phi_from_job
 from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
@@ -161,9 +162,10 @@ class ContainerHandler(base.RequestHandler):
         gear_ids = set()
         for job in jobs:
             if job['_id'] not in unique_jobs:
-                unique_jobs[job['_id']] = Job.load(job)
-                if job.get('gear_id') and job['gear_id'] not in gear_ids:
-                    gear_ids.add(job['gear_id'])
+                clean_job = remove_potential_phi_from_job(job)
+                unique_jobs[job['_id']] = Job.load(clean_job)
+                if clean_job.get('gear_id') and clean_job['gear_id'] not in gear_ids:
+                    gear_ids.add(clean_job['gear_id'])
 
         response = {'jobs': sorted(unique_jobs.values(), key=lambda job: job.created)}
         if join_gears:

@@ -6,7 +6,9 @@ from .dao.hierarchy import get_parent_tree
 from .web.request import AccessType
 
 
-def log_user_access(request, access_type, cont_name=None, cont_id=None, filename=None, origin=None, download_ticket=None):
+def log_user_access(request, access_type, cont_name=None, cont_id=None,
+                    filename=None, origin=None, download_ticket=None,
+                    job_id=None):
     """Create a single access log entry, populating context automatically.
 
     Only creates one access log entry for multiple downloads of a single file via ticket.
@@ -29,7 +31,11 @@ def log_user_access(request, access_type, cont_name=None, cont_id=None, filename
         return
 
     context = None
-    if access_type not in [AccessType.user_login, AccessType.user_logout]:
+    if access_type in [AccessType.view_job, AccessType.view_job_logs]:
+        if job_id is None:
+            raise Exception('Job information not available')
+        context = {'job': {'id': job_id}}
+    elif access_type not in [AccessType.user_login, AccessType.user_logout]:
         if cont_name is None or cont_id is None:
             raise Exception('Container information not available.')
 

@@ -1,13 +1,33 @@
 """
 Job related utilities.
 """
+import copy
+
 from ..auth import has_access
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
 
+
+def remove_potential_phi_from_job(job_map):
+    """Remove certain fields from jobs to simplify the endpoint, the fields
+    are produced metadata and info objects on config.inputs items
+
+    Args:
+        job_map (dict): A job object to be returned
+    Returns:
+        dict: A copy of the job object with potential phi removed
+    """
+    job_map_copy = copy.deepcopy(job_map)
+    job_map_copy.pop('produced_metadata', None)
+    for config_input in job_map_copy['config'].get('inputs', {}).values():
+        if config_input.get('base') == 'file':
+            config_input['object'].pop('info', None)
+    return job_map_copy
+
+
 def get_context_for_destination(cont_type, cont_id, uid, storage=None, cont=None):
     """ Get gear run context for the given destination container.
-    
+
     Arguments:
         cont_type (str): The destination container type.
         cont_id (str): The destination container id.
@@ -52,7 +72,7 @@ def get_context_for_destination(cont_type, cont_id, uid, storage=None, cont=None
 
 def resolve_context_inputs(config, gear, cont_type, cont_id, uid, context=None):
     """ Resolve input fields with a base of 'context' given a destination and gear spec.
-    
+
     Arguments:
         config (dict): The job configuration to be updated
         gear (dict): The gear spec

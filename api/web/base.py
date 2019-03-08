@@ -443,12 +443,15 @@ class RequestHandler(webapp2.RequestHandler):
 
         util.send_json_http_exception(self.response, message, code, request_id, core_status_code=core_status, custom=custom_errors)
 
-    def log_user_access(self, access_type, cont_name=None, cont_id=None, filename=None, origin_override=None, download_ticket=None):
+    def log_user_access(self, access_type, cont_name=None, cont_id=None,
+                        filename=None, origin_override=None, download_ticket=None,
+                        job_id=None):
         origin = origin_override if origin_override is not None else self.origin
 
         try:
             log_user_access(self.request, access_type, cont_name=cont_name, cont_id=cont_id,
-                    filename=filename, origin=origin, download_ticket=download_ticket)
+                    filename=filename, origin=origin, download_ticket=download_ticket,
+                    job_id=job_id)
         except Exception as e:  # pylint: disable=broad-except
             self.log.exception(e)
             self.abort(500, 'Unable to log access.')

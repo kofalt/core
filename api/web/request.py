@@ -13,6 +13,8 @@ AccessType = util.Enum('AccessType', {
     'view_container':           'view_container',
     'view_subject':             'view_subject',
     'view_file':                'view_file',
+    'view_job':                 'view_job',
+    'view_job_logs':            'view_job_logs',
     'download_file':            'download_file',
     'replace_file':             'replace_file',
     'delete_file':              'delete_file',
@@ -52,8 +54,11 @@ def log_access(access_type, cont_kwarg='cont_name', cont_id_kwarg='cid', filenam
             cont_name = None
             cont_id = None
             filename = None
+            job_id = None
 
-            if access_type not in [AccessType.user_login, AccessType.user_logout]:
+            if access_type in [AccessType.view_job, AccessType.view_job_logs]:
+                job_id = kwargs.get('_id') or args[0]
+            elif access_type not in [AccessType.user_login, AccessType.user_logout]:
 
                 cont_name = kwargs.get(cont_kwarg)
                 if cont_name:
@@ -72,7 +77,8 @@ def log_access(access_type, cont_kwarg='cont_name', cont_id_kwarg='cid', filenam
                     self.log_user_access(AccessType.view_subject, cont_name=cont_name, cont_id=cont_id, filename=filename)
                     return result
 
-            self.log_user_access(access_type, cont_name=cont_name, cont_id=cont_id, filename=filename)
+            self.log_user_access(access_type, cont_name=cont_name, cont_id=cont_id,
+                                 filename=filename, job_id=job_id)
 
             return result
         return log_user_access_from_request

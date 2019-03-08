@@ -8,7 +8,11 @@ from jsonschema import ValidationError
 from urlparse import urlparse
 
 from . import batch
-from .job_util import resolve_context_inputs, get_context_for_destination
+from .job_util import (
+    resolve_context_inputs,
+    get_context_for_destination,
+    remove_potential_phi_from_job
+)
 from .. import config
 from .. import upload
 from .. import files
@@ -23,6 +27,7 @@ from ..dao.containerutil import pluralize, singularize
 from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
+from ..web.request import log_access, AccessType
 
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,
@@ -500,6 +505,12 @@ class JobsHandler(base.RequestHandler):
     def get(self):
         """List all jobs."""
         page = dbutil.paginate_find(config.db.jobs, {}, self.pagination)
+        cleaned_results = []
+        if page.get('results'):
+            for job_map in page.get('results'):
+                cleaned_results.append(remove_potential_phi_from_job(job_map))
+            page['results'] = cleaned_results
+
         return self.format_page(page)
 
     @require_login
@@ -570,9 +581,40 @@ class JobsHandler(base.RequestHandler):
 class JobHandler(base.RequestHandler):
     """Provides /Jobs/<jid> routes."""
 
+    def _log_job_access(self, job):
+        """Log a view_file access for each file input for the job because we
+        are going to return the info object on the inputs
+
+        Args:
+            job (Job): A job object
+        """
+        for config_input in job.config.get('inputs', {}).values():
+            if config_input.get('base') == 'file':
+                file_parent_type = config_input['hierarchy']['type']
+                file_parent_id = config_input['hierarchy']['id']
+                self.log_user_access(AccessType.view_file,
+                                     cont_name=file_parent_type,
+                                     cont_id=file_parent_id,
+                                     filename=config_input['location'].get('name'))
+        if job.produced_metadata:
+            for container_type, metadata in job.produced_metadata.items():
+                if job.parents.get(container_type):
+                    self.log_user_access(AccessType.view_container,
+                                         cont_name=container_type,
+                                         cont_id=job.parents[container_type])
+                if container_type == 'session' and metadata.get('subject'):
+                    if job.parents.get('subject'):
+                        self.log_user_access(AccessType.view_subject,
+                                             cont_name='subject',
+                                             cont_id=job.parents['subject'])
+
+        self.log_user_access(AccessType.view_job, job_id=job.id_)
+
     @require_admin
     def get(self, _id):
-        return Job.get(_id)
+        job = Job.get(_id)
+        self._log_job_access(job)
+        return job
 
     @require_login
     def get_detail(self, _id):
@@ -638,6 +680,9 @@ class JobHandler(base.RequestHandler):
                             ref.type, ref.id, ref.name)
                 else:
                     rec['object'] = cont
+
+        # Log the access of all inputs
+        self._log_job_access(job)
 
         # If we're still not authorized, check the destination
         dest_cont = get_container(job.destination)
@@ -808,12 +853,14 @@ class JobHandler(base.RequestHandler):
                         job.inputs[x].check_access(self.uid, 'ro')
                 # Unlike jobs-add, explicitly not checking write access to destination.
 
+    @log_access(AccessType.view_job_logs)
     def get_logs(self, _id):
         """Get a job's logs"""
 
         self._log_read_check(_id)
         return Logs.get(_id)
 
+    @log_access(AccessType.view_job_logs)
     def get_logs_text(self, _id):
         """Get a job's logs in raw text"""
 
@@ -824,6 +871,7 @@ class JobHandler(base.RequestHandler):
         for output in Logs.get_text_generator(_id):
             self.response.write(output)
 
+    @log_access(AccessType.view_job_logs)
     def get_logs_html(self, _id):
         """Get a job's logs in html"""
 

@@ -67,6 +67,8 @@ class JobsTestCases(SdkTestCase):
         self.assertIsNotNone(jobs.jobs)
         self.assertEqual(1, len(jobs.jobs))
 
+        # job list doesn't info field
+        r_job.config['inputs']['any-file']['object'].pop('info', None)
         self.assertIn(r_job, jobs.jobs)
 
         # Get all jobs
