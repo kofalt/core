@@ -18,6 +18,7 @@ from ..dao import containerutil
 from ..dao import containerstorage
 from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
 from ..web.request import AccessType
+from ..jobs.mappers import RulesMapper
 
 
 def initialize_list_configurations():
@@ -650,6 +651,11 @@ class FileListHandler(ListHandler):
             analysis_ids = [str(a['_id']) for a in analyses]
             raise APIPermissionException('Cannot delete file {} referenced by analyses {}'.format(filename, analysis_ids),
                 errors={'reason': 'analysis_conflict'})
+        rules_mapper = RulesMapper()
+        rules_using_file = rules_mapper.find_all(fixed_input={'name': filename, 'id': _id})
+        for rule in rules_using_file:
+            raise APIPermissionException('File is used as fixed input in rule {} in project {}, please delete the rule to delete the file'.format(rule.name, rule.project_id))
+
 
         self.log_user_access(AccessType.delete_file, cont_name=cont_name, cont_id=_id, filename=filename)
         result = keycheck(storage.exec_op)('DELETE', _id, query_params=kwargs)
