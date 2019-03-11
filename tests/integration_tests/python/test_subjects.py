@@ -106,7 +106,8 @@ def test_subject_endpoints(data_builder, as_admin, as_public, file_form):
     assert as_rw.get('/subjects/' + subject).ok
 
     # PUT /subjects/x
-    r = as_admin.put('/subjects/' + subject, json={'sex': 'female'})
+    r = as_admin.put('/subjects/' + subject, json={'sex': 'female',
+                                                   'label': 'test_2'})
     assert r.ok
 
     # PUT /subjects/x permissions
@@ -119,6 +120,8 @@ def test_subject_endpoints(data_builder, as_admin, as_public, file_form):
     r = as_admin.get('/subjects/' + subject)
     assert r.ok
     assert r.json()['sex'] == 'female'
+    assert r.json()['code'] == 'test_2'
+    assert r.json()['label'] == 'test_2'
 
     # POST /subjects/x/files
     r = as_admin.post('/subjects/' + subject + '/files', files=file_form('test.txt'))

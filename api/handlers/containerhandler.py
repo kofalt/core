@@ -368,6 +368,9 @@ class ContainerHandler(base.RequestHandler):
                 }, None, {'_id': 1}):
                 raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, project_id))
 
+            payload['code'] = subject_code
+            payload['label'] = subject_code
+
 
 
         # Handle embedded subjects for backwards-compatibility
