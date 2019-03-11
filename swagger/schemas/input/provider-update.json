@@ -1,0 +1,10 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type":"object",
+    "allOf":[{"$ref":"../definitions/provider.json#/definitions/provider-input"}],
+    "example": {
+        "label": "Provider 2",
+        "config": {"sample": 2}
+    }
+}
+
