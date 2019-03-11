@@ -4,7 +4,7 @@ import itertools
 
 from .. import config
 from ..types import Origin
-from ..dao.containerutil import FileReference
+from ..dao.containerutil import FileReference, create_containerreference_from_filereference, create_filereference_from_dictionary
 from ..web.errors import APIValidationException, InputValidationException
 
 from . import gears
@@ -149,7 +149,7 @@ def eval_rule(rule, file_, container):
 
     return True
 
-def queue_job_legacy(gear_id, input_):
+def queue_job_legacy(gear_id, input_, fixed_inputs=None):
     """
     Tie together logic used from the no-manifest, single-file era.
     Takes a single FileReference instead of a map.
@@ -157,20 +157,29 @@ def queue_job_legacy(gear_id, input_):
 
     gear = gears.get_gear(gear_id)
     gear = gears.filter_optional_inputs(gear)
+    fixed_input_keys = [fixed_input['input'] for fixed_input in fixed_inputs] if fixed_inputs else []
 
-    if gears.count_file_inputs(gear) != 1:
-        raise Exception("Legacy gear enqueue attempt of " + gear_id + " failed: must have exactly 1 input in manifest")
+    if gears.count_file_inputs(gear) - len(fixed_input_keys) != 1:
+        # This shouldn't happen if the handler is correctly validating the POST and PUT methods for rules
+        log.error("Legacy gear enqueue attempt of " + gear_id + " failed: must have exactly 1 non-fixed input from the manifest, it has {} non-fixed inputs".format(gears.count_file_inputs(gear) - len(fixed_input_keys)))
+        return
 
     for x in gear['gear']['inputs'].keys():
-        if gear['gear']['inputs'][x]['base'] == 'file':
+        if gear['gear']['inputs'][x]['base'] == 'file' and x not in fixed_input_keys:
             input_name = x
 
     inputs = {
         input_name: input_
     }
 
+    if fixed_inputs:
+        for fixed_input in fixed_inputs:
+            inputs[fixed_input['input']] = FileReference(type=fixed_input['type'], id=str(fixed_input['id']),
+                                                         name=fixed_input['name'])
+
     gear_name = gear['gear']['name']
-    job = Job(gear, inputs, tags=['auto', gear_name])
+    destination = create_containerreference_from_filereference(input_)
+    job = Job(gear, inputs, destination=destination, tags=['auto', gear_name])
     return job
 
 def find_type_in_container(container, type_):
@@ -200,23 +209,9 @@ def create_potential_jobs(db, container, container_type, file_, rule_failure_cal
         try:
             if eval_rule(rule, file_, container):
                 gear_id = rule['gear_id']
-                gear = gears.get_gear(gear_id)
-                gear = gears.filter_optional_inputs(gear)
-                gear_name = gear['gear']['name']
 
-                if rule.get('match') is None:
-                    input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
-                    job = queue_job_legacy(gear_id, input_)
-                else:
-                    inputs = { }
-
-                    for input_name, match_type in rule['match'].iteritems():
-                        match = find_type_in_container(container, match_type)
-                        if match is None:
-                            raise Exception("No type " + match_type + " found for alg rule " + gear_name + " that should have been satisfied")
-                        inputs[input_name] = FileReference(type=container_type, id=str(container['_id']), name=match['name'])
-
-                    job = Job(gear, inputs, tags=['auto', gear_name])
+                input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
+                job = queue_job_legacy(gear_id, input_, fixed_inputs=rule.get('fixed_inputs'))
 
                 if 'config' in rule:
                     job.config = rule['config']
@@ -355,9 +350,11 @@ def validate_regexes(rule):
         )
 
 
-def validate_auto_update(rule_config, gear_id, update_gear_is_latest, current_gear_is_latest):
+def validate_auto_update(rule_config, gear_id, update_gear_is_latest, current_gear_is_latest, fixed_inputs):
     if rule_config:
         raise InputValidationException("Gear rule cannot be auto-updated with a config")
+    if fixed_inputs:
+        raise InputValidationException("Gear rule cannot be auto-updated with fixed inputs")
     # Can only change gear_id to latest id
     # (Really only happens if updating auto_update and gear_id at once)
     elif gear_id:
@@ -365,3 +362,22 @@ def validate_auto_update(rule_config, gear_id, update_gear_is_latest, current_ge
             raise InputValidationException("Cannot manually change gear version of gear rule that is auto-updated")
     elif not current_gear_is_latest:
         raise InputValidationException("Gear rule cannot be auto-updated unless it is uses the latest version of the gear")
+
+
+def validate_fixed_inputs(geardoc, fixed_inputs):
+    """
+    Validates the fixed inputs for a rule given a gear doc
+    The fixed inputs must:
+        - add up to one less than the number of required gear inputs
+        - all be valid inputs for the gear
+        - exist
+    """
+    fixed_inputs = fixed_inputs if fixed_inputs else []
+    if gears.count_file_inputs(gears.filter_optional_inputs(geardoc)) - len(fixed_inputs) != 1:
+        raise InputValidationException("Rule must have exactly 1 non-fixed gear value")
+    for fixed_input in fixed_inputs:
+        if not geardoc['gear']['inputs'].get(fixed_input['input']):
+            raise InputValidationException("Unrecognized gear input cannot be fixed for the rule")
+        # Check to see that each fixed input actually exists
+        create_filereference_from_dictionary(fixed_input).get_file()
+

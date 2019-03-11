@@ -39,7 +39,7 @@ from .gears import (
 from .jobs import Job, JobTicket, Logs
 from .batch import check_state, update
 from .queue import Queue
-from .rules import validate_regexes, validate_auto_update
+from .rules import validate_regexes, validate_auto_update, validate_fixed_inputs
 
 log = config.log
 
@@ -384,9 +384,14 @@ class RulesHandler(base.RequestHandler):
 
         payload = self.request.json
 
+
         validate_data(payload, 'rule-new.json', 'input', 'POST', optional=True)
         validate_regexes(payload)
-        validate_gear_config(get_gear(payload['gear_id']), payload.get('config'))
+
+
+        gear = get_gear(payload['gear_id'])
+        validate_gear_config(gear, payload.get('config'))
+        validate_fixed_inputs(gear, payload.get('fixed_inputs'))
 
         # Check that the rule has at least one rule-item
         if not (payload.get('any') or payload.get('all') or payload.get('all')):
@@ -394,6 +399,10 @@ class RulesHandler(base.RequestHandler):
 
         if requires_read_write_key(get_gear(payload['gear_id'])):
             raise InputValidationException("Cannot create rule with a gear that requires a read-write api-key.")
+
+        # Site rules can't have fixed_inputs
+        if payload.get('fixed_inputs') and cid == 'site':
+            raise InputValidationException("Cannot create a site rule with a fixed input.")
 
         if payload.get('auto_update'):
             gear_name = get_gear(payload['gear_id'])['gear']['name']
@@ -404,7 +413,7 @@ class RulesHandler(base.RequestHandler):
 
             rule_config = payload.get('config')
 
-            validate_auto_update(rule_config, gear_id, update_gear_is_latest, True)
+            validate_auto_update(rule_config, gear_id, update_gear_is_latest, True, payload.get('fixed_inputs'))
 
         payload['project_id'] = cid
 
@@ -467,14 +476,18 @@ class RuleHandler(base.RequestHandler):
             current_gear_is_latest = doc['gear_id'] == gear_id_latest_version
 
             rule_config = updates.get('config')
+            rule_fixed_inputs = updates.get('fixed_inputs')
 
-            validate_auto_update(rule_config, update_gear_id, update_gear_is_latest, current_gear_is_latest)
+            validate_auto_update(rule_config, update_gear_id, update_gear_is_latest, current_gear_is_latest, rule_fixed_inputs)
             updates['config'] = {}
 
         validate_regexes(updates)
         gear_id = updates.get('gear_id', doc['gear_id'])
         config_ = updates.get('config', doc.get('config'))
-        validate_gear_config(get_gear(gear_id), config_)
+        fixed_inputs = updates.get('fixed_inputs', doc.get('fixed_inputs'))
+        gear = get_gear(gear_id)
+        validate_gear_config(gear, config_)
+        validate_fixed_inputs(gear, fixed_inputs)
         if requires_read_write_key(get_gear(gear_id)):
             raise InputValidationException("Rule cannot use a gear that requires a read-write api-key.")
 
