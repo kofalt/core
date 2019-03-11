@@ -79,6 +79,8 @@
       description: The ID of the provider
   get:
     summary: Return the configuration for provider identified by ProviderId
+    description: The returned configuration will be redacted, with any privileged values
+      replaced with null.
     operationId: get_provider_config
     tags:
     - site
