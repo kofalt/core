@@ -208,9 +208,8 @@ endpoints = [
         prefix('/devices', [
             route('/status',            DeviceHandler, h='get_status', m=['GET']),
             route('/self',              DeviceHandler, h='put_self',   m=['PUT']),
-            route('/<device_id:{oid}>', DeviceHandler,                 m=['GET', 'DELETE']),
+            route('/<device_id:{oid}>', DeviceHandler,                 m=['GET', 'PUT', 'DELETE']),
             route('/<device_id:{oid}>/key', DeviceHandler, h='regenerate_key', m=['POST']),
-            route('/<device_id:{oid}>/key', DeviceHandler, h='disable_key',    m=['DELETE']),
             route('/logging/<filename:{fname}>', DeviceHandler, h='serve_logging_credentials', m=['GET']),
         ]),
 
