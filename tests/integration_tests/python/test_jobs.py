@@ -2670,3 +2670,162 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     assert r.ok
     assert r.json()['logs'] == expected_job_logs
 
+def test_job_providers(site_providers, data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['name'] = data_builder.randstr()
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear_id = data_builder.create_gear(gear=gear_doc)
+    group = data_builder.create_group(providers={})  # Create group without providers
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Ensure that user is a project admin
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    }).ok
+
+    site_provider = site_providers['compute']
+    override_provider = data_builder.create_compute_provider()
+
+    job_data_orig = {
+        'gear_id': gear_id,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    # === Non-center gear ===
+    # Cannot create job
+    job_data = copy.deepcopy(job_data_orig)
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 412
+
+    # Cannot override provider_id on job (if not admin)
+    job_data['compute_provider_id'] = override_provider
+    r = as_user.post('/jobs/add', json=job_data)
+    assert r.status_code == 403
+
+    # Can override provider_id on job (if admin)
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == override_provider
+
+    # Cannot create analysis
+    job_data = copy.deepcopy(job_data_orig)
+    del job_data['destination']
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'online-1',
+        'job': job_data
+    })
+    assert r.status_code == 412
+
+    # Can override provider_id on analysis (if admin)
+    job_data['compute_provider_id'] = override_provider
+    r = as_user.post('/sessions/' + session + '/analyses', json={
+        'label': 'online-2',
+        'job': job_data
+    })
+    assert r.status_code == 403
+
+    # Can override provider_id on job (if admin)
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'online-3',
+        'job': job_data
+    })
+    assert r.ok
+    analysis_id = r.json()['_id']
+
+    r = as_admin.get('/analyses/' + analysis_id)
+    assert r.ok
+    job_id = r.json()['job']
+
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == override_provider
+
+    # === Center gear ===
+    r = as_admin.put('/site/settings', json={'center_gears': [gear_doc['name']]})
+    assert r.ok
+
+    # Cannot create job (no device origin)
+    job_data = copy.deepcopy(job_data_orig)
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 412
+
+    # Can create job (device origin)
+    api_db.acquisitions.update_one({'_id': bson.ObjectId(acquisition)}, {'$set': {'files.0.origin.type': 'device'}})
+
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == site_provider
+
+    # Can override provider_id on job (if admin)
+    job_data['compute_provider_id'] = override_provider
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == override_provider
+
+    # Can create analyses
+    job_data = copy.deepcopy(job_data_orig)
+    del job_data['destination']
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'online-4',
+        'job': job_data
+    })
+    assert r.ok
+    analysis_id = r.json()['_id']
+
+    r = as_admin.get('/analyses/' + analysis_id)
+    assert r.ok
+    job_id = r.json()['job']
+
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == site_provider
+
+    # Can override provider_id on analysis (if admin)
+    job_data['compute_provider_id'] = override_provider
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'online-5',
+        'job': job_data
+    })
+    assert r.ok
+    analysis_id = r.json()['_id']
+
+    r = as_admin.get('/analyses/' + analysis_id)
+    assert r.ok
+    job_id = r.json()['job']
+
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == override_provider

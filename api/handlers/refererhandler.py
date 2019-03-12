@@ -81,6 +81,9 @@ class AnalysesHandler(RefererHandler):
             # Legacy analysis - accept direct file uploads (inputs and outputs)
             analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin)
 
+        if 'compute_provider_id' in analysis.get('job', {}) and not self.user_is_admin:
+            raise errors.APIPermissionException('Only admin can override job provider!')
+
         uid = None if self.user_is_admin else self.uid
         result = self.storage.create_el(analysis, cont_name, cid, self.origin, uid)
         return {'_id': result.inserted_id}

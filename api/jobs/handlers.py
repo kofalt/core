@@ -534,6 +534,9 @@ class JobsHandler(base.RequestHandler):
         if payload.get('destination') and payload['destination']['type'] == 'analysis':
             raise InputValidationException('Cannot use analysis as destination for a job')
 
+        if payload.get('compute_provider_id') and not self.user_is_admin:
+            raise APIPermissionException('Only admin can override job provider!')
+
         uid = None
         if not self.user_is_admin:
             uid = self.uid

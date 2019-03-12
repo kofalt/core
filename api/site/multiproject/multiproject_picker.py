@@ -3,8 +3,8 @@ from .provider_picker import ProviderPicker
 from .. import mappers, models
 
 from ... import config
-from ...dao import containerstorage
 from ...web import errors
+from ...dao import containerutil, containerstorage
 
 class MultiprojectProviderPicker(ProviderPicker):
     """Multiproject picker strategy for providers"""
