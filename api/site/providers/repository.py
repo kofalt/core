@@ -203,7 +203,7 @@ def validate_provider_updates(container, provider_ids, is_admin):
                 storage_provider.provider_class))
 
 
-def get_provider_id_for_container(container, provider_class):
+def get_provider_id_for_container(container, provider_class, site_settings=None):
     """Get the effective provider of type provider_class for the given container.
 
     Walks up the tree, as needed, stopping at site to determine the provider.
@@ -211,19 +211,19 @@ def get_provider_id_for_container(container, provider_class):
     Args:
         container (dict): The container under question.
         provider_class (ProviderClass|str): The class of provider to retrieve.
+        site_settings (SiteSettings): Optional site_settings, if preloaded
 
     Returns:
-        ObjectId: The provider id, if found, otherwise None
+        (bool, ObjectId): True if this is a site provider, and the provider id, if found, otherwise None
     """
-    # Walk up, stopping at site provider
     if isinstance(provider_class, models.ProviderClass):
         provider_key = provider_class.value
     else:
         provider_key = provider_class
 
-    # In case we started with group/project
-    parents = None
+    # In case we started with group or project
     result = container.get('providers', {}).get(provider_key)
+    is_site = False
 
     if result is None:
         # Search stack (project then group)
@@ -247,12 +247,59 @@ def get_provider_id_for_container(container, provider_class):
 
     # Load site config
     if result is None:
-        site_mapper = mappers.SiteSettings()
-        site_settings = site_mapper.get()
+        if site_settings is None:
+            site_mapper = mappers.SiteSettings()
+            site_settings = site_mapper.get()
         if site_settings:
-            result = site_settings.get('providers', {}).get(provider_key)
+            providers = site_settings.providers or {}
+            result = providers.get(provider_key)
+            is_site = bool(result)
 
-    return result
+    return is_site, result
+
+
+def get_compute_provider_id_for_job(gear, destination, inputs):
+    """Determine the compute provider for the given job profile.
+
+    Args:
+        gear (dict): The resolved gear document
+        destination (dict): The destination container
+        inputs (list(dict)): The list of input containers, with origins
+
+    Returns:
+        ObjectId: The id of the provider, or None if no applicable provider was found.
+
+    Raises:
+        APIValidationException: If invalid args were passed
+    """
+    gear_name = gear.get('gear', {}).get('name')
+    if gear_name is None:
+        raise errors.APIValidationException('Gear {} has no name!'.format(gear.get('_id')))
+
+    site_mapper = mappers.SiteSettings()
+    site_settings = site_mapper.get() or models.SiteSettings(None, None)
+
+    is_center_gear = gear_name in (site_settings.center_gears or [])
+
+    if is_center_gear:
+        # Check inputs to see if there are any device origins
+        center_pays = False
+        for inp in inputs:
+            origin_type = inp.get('origin', {}).get('type')
+            if origin_type == 'device':
+                center_pays = True
+                break
+
+        if center_pays:
+            return site_settings.get('providers', {}).get('compute')
+
+    # Otherwise lookup effective provider id
+    is_site, provider_id = get_provider_id_for_container(destination, 'compute', site_settings=site_settings)
+    if is_site:
+        config.log.info('Rejecting job for gear_name=%s, destination=%s because there is no valid provider',
+            gear_name, destination['_id'])
+        return None
+    return provider_id
 
 
 def _scrub_config(provider):
