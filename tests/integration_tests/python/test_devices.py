@@ -163,6 +163,7 @@ def test_device_key_management(as_public, as_user, as_admin, api_db):
     # disabled device key is not regenerated
     r = as_admin.get('/devices/' + device_id)
     assert r.ok
+    assert r.json()['disabled'] is True
     assert 'key' not in r.json()
 
     # disabled device key is not accepted
@@ -170,6 +171,15 @@ def test_device_key_management(as_public, as_user, as_admin, api_db):
     as_device.headers.update({'Authorization': 'scitran-user {}'.format(device_key)})
     r = as_device.put('/devices/self', json={'interval': 60})
     assert r.status_code == 401
+
+    # reenable device
+    r = as_admin.put('/devices/' + device_id, json={'disabled': False})
+    assert r.ok
+    r = as_admin.get('/devices/' + device_id)
+    assert r.ok
+    assert r.json()['disabled'] is False
+    device_key_enabled = r.json()['key']
+    assert device_key_enabled != device_key
 
     # public and users cannot regenerate device keys
     r = as_public.post('/devices/' + device_id + '/key')
@@ -185,7 +195,7 @@ def test_device_key_management(as_public, as_user, as_admin, api_db):
     r = as_admin.post('/devices/' + device_id + '/key')
     assert r.ok
     device_key_regen = r.json()['key']
-    assert device_key_regen != device_key
+    assert device_key_regen not in (device_key_enabled, device_key)
 
     # regenerated key is accepted
     as_device = as_public
