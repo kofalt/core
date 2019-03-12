@@ -109,9 +109,6 @@
         description: Device updated
         schema:
           $ref: schemas/output/device-admin-update.json
-        examples:
-          response:
-            $ref: examples/output/device-admin-update.json
 /devices/{DeviceId}/key:
   parameters:
     - required: true
@@ -128,6 +125,3 @@
         description: The device API key was regenerated
         schema:
           $ref: schemas/output/device-regenerate-key.json
-        examples:
-          response:
-            $ref: examples/output/device-regenerate-key.json
