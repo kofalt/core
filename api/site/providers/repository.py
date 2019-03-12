@@ -1,7 +1,9 @@
 """Provides repository-layer functions for loading/saving providers"""
 import bson
 
+from ... import config
 from ...web import errors
+from ...dao import containerstorage
 from .factory import create_provider
 from .. import mappers, models
 
@@ -199,6 +201,58 @@ def validate_provider_updates(container, provider_ids, is_admin):
         if storage_provider.provider_class != models.ProviderClass(provider_class):
             raise errors.APIValidationException('Invalid storage provider class: {}'.format(
                 storage_provider.provider_class))
+
+
+def get_provider_id_for_container(container, provider_class):
+    """Get the effective provider of type provider_class for the given container.
+
+    Walks up the tree, as needed, stopping at site to determine the provider.
+
+    Args:
+        container (dict): The container under question.
+        provider_class (ProviderClass|str): The class of provider to retrieve.
+
+    Returns:
+        ObjectId: The provider id, if found, otherwise None
+    """
+    # Walk up, stopping at site provider
+    if isinstance(provider_class, models.ProviderClass):
+        provider_key = provider_class.value
+    else:
+        provider_key = provider_class
+
+    # In case we started with group/project
+    parents = None
+    result = container.get('providers', {}).get(provider_key)
+
+    if result is None:
+        # Search stack (project then group)
+        next_levels = ['group', 'project']
+        parents = container.get('parents', {})
+
+        while next_levels and result is None:
+            parent_type = next_levels.pop()
+            if parent_type not in parents:
+                continue
+
+            parent_storage = containerstorage.cs_factory(parent_type)
+            parent = parent_storage.get_el(parents[parent_type])
+
+            if not parent:
+                config.log.warn('Could not find %s for container: %s',
+                        parent_type, container.get('_id'))
+                continue
+
+            result = parent.get('providers', {}).get(provider_key)
+
+    # Load site config
+    if result is None:
+        site_mapper = mappers.SiteSettings()
+        site_settings = site_mapper.get()
+        if site_settings:
+            result = site_settings.get('providers', {}).get(provider_key)
+
+    return result
 
 
 def _scrub_config(provider):

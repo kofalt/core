@@ -1,5 +1,7 @@
 import datetime
 
+from mock import patch, Mock
+
 import bson
 import pytest
 
@@ -334,3 +336,57 @@ def test_validate_provider_updates(api_db):
         # Cleanup
         api_db.providers.remove({'_id': cid})
         api_db.providers.remove({'_id': sid})
+
+
+@patch('api.site.providers.repository.mappers.SiteSettings')
+@patch('api.site.providers.repository.containerstorage.cs_factory')
+def test_get_provider_id_for_container(mock_cs_factory, MockSiteSettingsCls):
+    cls = models.ProviderClass.compute
+
+    site_provider_id = bson.ObjectId()
+    group_provider_id = bson.ObjectId()
+    project_provider_id = bson.ObjectId()
+
+    container = {
+        '_id': 'test',
+        'parents': {
+            'group': bson.ObjectId(),
+            'project': bson.ObjectId()
+        }
+    }
+
+    # Mock site settings & container storage
+    MockSiteSettings = Mock()
+    MockSiteSettingsCls.return_value = MockSiteSettings
+    MockContainerStorage = Mock()
+    mock_cs_factory.return_value = MockContainerStorage
+
+    # == No providers configured ==
+    MockSiteSettings.get.return_value = None
+    MockContainerStorage.get_el.side_effect = (
+        {'_id': 'project'},
+        {'_id': 'group'}
+    )
+    assert providers.get_provider_id_for_container(container, cls) is None
+
+    # == Site only ==
+    MockSiteSettings.get.return_value = models.SiteSettings(center_gears=[], providers={'compute': site_provider_id})
+    MockContainerStorage.get_el.side_effect = (
+        {'_id': 'project'},
+        {'_id': 'group'}
+    )
+    assert providers.get_provider_id_for_container(container, cls) is site_provider_id
+
+    # == Group ==
+    MockContainerStorage.get_el.side_effect = (
+        {'_id': 'project'},
+        {'_id': 'group', 'providers': {'compute': group_provider_id}}
+    )
+    assert providers.get_provider_id_for_container(container, cls) is group_provider_id
+
+    # == Project ==
+    MockContainerStorage.get_el.side_effect = (
+        {'_id': 'project', 'providers': {'compute': project_provider_id}},
+        {'_id': 'group', 'providers': {'compute': group_provider_id}}
+    )
+    assert providers.get_provider_id_for_container(container, 'compute') is project_provider_id
