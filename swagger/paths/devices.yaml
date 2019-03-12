@@ -93,6 +93,25 @@
             $ref: examples/output/device.json
       '404':
         description: DeviceId not found
+  put:
+    summary: Update a device
+    operationId: modify_device
+    tags:
+    - devices
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/device-admin-update.json
+    responses:
+      '200':
+        description: Device updated
+        schema:
+          $ref: schemas/output/device-admin-update.json
+        examples:
+          response:
+            $ref: examples/output/device-admin-update.json
 /devices/{DeviceId}/key:
   parameters:
     - required: true
@@ -112,16 +131,3 @@
         examples:
           response:
             $ref: examples/output/device-regenerate-key.json
-  delete:
-    summary: Disable device API key
-    operationId: disable_key
-    tags:
-    - devices
-    responses:
-      '200':
-        description: The device API key was disabled
-        schema:
-          $ref: schemas/output/device-disable-key.json
-        examples:
-          response:
-            $ref: examples/output/device-disable-key.json
