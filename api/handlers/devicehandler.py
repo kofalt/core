@@ -62,10 +62,7 @@ class DeviceHandler(base.RequestHandler):
     @staticmethod
     def join_api_key(device):
         api_key = DeviceApiKey.get(device['_id'])
-        if api_key:
-            device['key'] = None if api_key.get('disabled', False) else api_key['_id']
-        else:
-            device['key'] = DeviceApiKey.generate(device['_id'])
+        device['key'] = api_key['_id'] if api_key else DeviceApiKey.generate(device['_id'])
 
     @require_admin
     def post(self):
@@ -83,6 +80,27 @@ class DeviceHandler(base.RequestHandler):
         return {'_id': result.inserted_id, 'key': key}
 
     @require_admin
+    def put(self, device_id):
+        payload = self.request.json_body if self.request.body else {}
+
+        validate_data(payload, 'device-admin-update.json', 'input', 'PUT')
+        device = self.storage.get_container(device_id)
+        # Accept only a subset of device properties for update
+        update_payload = {prop: payload[prop] for prop in {'disabled'} if prop in payload}
+        if len(update_payload) > 0:
+            result = self.storage.update_el(device_id, update_payload)
+
+            is_disabled = update_payload.get('disabled', False)
+            if is_disabled is True:
+                DeviceApiKey.revoke(device['_id'])
+            elif is_disabled is False and device.get('disabled', False) is True:
+                DeviceApiKey.generate(device['_id'])
+
+            return {'modified': result.modified_count}
+        else:
+            return {'modified': 0}
+
+    @require_admin
     def delete(self, device_id):
         result = self.storage.delete_el(device_id)
         if result.deleted_count != 1:
@@ -98,12 +116,6 @@ class DeviceHandler(base.RequestHandler):
         device = self.storage.get_container(device_id)
         key = DeviceApiKey.generate(device['_id'])
         return {'key': key}
-
-    @require_admin
-    def disable_key(self, device_id):
-        device = self.storage.get_container(device_id)
-        result = DeviceApiKey.disable(device['_id'])
-        return {'modified': result.modified_count}
 
     @require_drone
     def put_self(self):
