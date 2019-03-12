@@ -62,7 +62,8 @@ class DeviceHandler(base.RequestHandler):
     @staticmethod
     def join_api_key(device):
         api_key = DeviceApiKey.get(device['_id'])
-        device['key'] = api_key['_id'] if api_key else DeviceApiKey.generate(device['_id'])
+        if device.get('disabled', False) is False:
+            device['key'] = api_key['_id'] if api_key else DeviceApiKey.generate(device['_id'])
 
     @require_admin
     def post(self):
