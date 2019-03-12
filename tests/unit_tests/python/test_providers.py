@@ -1,12 +1,12 @@
 import datetime
 
-from mock import patch, Mock
+from mock import patch
 
 import bson
 import pytest
 
 from api.web import errors
-from api.site import models, mappers, providers
+from api.site import models, mappers, providers, multiproject
 from api.site.providers.factory import ProviderKey
 
 origin = { 'type': 'user', 'id': 'user@test.com' }
@@ -337,165 +337,12 @@ def test_validate_provider_updates(api_db):
         api_db.providers.remove({'_id': cid})
         api_db.providers.remove({'_id': sid})
 
+def test_get_provider_picker():
+    picker = providers.repository._get_provider_picker()
+    assert isinstance(picker, multiproject.MultiprojectProviderPicker)
 
-@patch('api.site.providers.repository.mappers.SiteSettings')
-@patch('api.site.providers.repository.containerstorage.cs_factory')
-def test_get_provider_id_for_container(mock_cs_factory, MockSiteSettingsCls):
-    cls = models.ProviderClass.compute
+    with patch('api.site.providers.repository.config') as patched_config:
+        patched_config.get_config.return_value = {'core': {'_disable_multiproject': True}}
 
-    site_provider_id = bson.ObjectId()
-    group_provider_id = bson.ObjectId()
-    project_provider_id = bson.ObjectId()
-
-    container = {
-        '_id': 'test',
-        'parents': {
-            'group': bson.ObjectId(),
-            'project': bson.ObjectId()
-        }
-    }
-
-    # Mock site settings & container storage
-    MockSiteSettings = Mock()
-    MockSiteSettingsCls.return_value = MockSiteSettings
-    MockContainerStorage = Mock()
-    mock_cs_factory.return_value = MockContainerStorage
-
-    # == No providers configured ==
-    MockSiteSettings.get.return_value = None
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    is_site, provider_id = providers.get_provider_id_for_container(container, cls)
-    assert is_site == False
-    assert provider_id is None
-
-    # == Site only ==
-    MockSiteSettings.get.return_value = models.SiteSettings(center_gears=[], providers={'compute': site_provider_id})
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    is_site, provider_id = providers.get_provider_id_for_container(container, cls)
-    assert is_site == True
-    assert provider_id == site_provider_id
-
-    # == Group ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group', 'providers': {'compute': group_provider_id}}
-    )
-    is_site, provider_id = providers.get_provider_id_for_container(container, cls)
-    assert is_site == False
-    assert provider_id == group_provider_id
-
-    # == Project ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project', 'providers': {'compute': project_provider_id}},
-        {'_id': 'group', 'providers': {'compute': group_provider_id}}
-    )
-    is_site, provider_id = providers.get_provider_id_for_container(container, cls)
-    assert is_site == False
-    assert provider_id == project_provider_id
-
-
-@patch('api.site.providers.repository.mappers.SiteSettings')
-@patch('api.site.providers.repository.containerstorage.cs_factory')
-def test_get_compute_provider_id_for_job(mock_cs_factory, MockSiteSettingsCls):
-    cls = models.ProviderClass.compute
-
-    site_provider_id = bson.ObjectId()
-    group_provider_id = bson.ObjectId()
-
-    gear = {'gear': {'name': 'demo-gear'}}
-    destination = {
-        '_id': 'test',
-        'parents': {
-            'group': bson.ObjectId(),
-            'project': bson.ObjectId()
-        }
-    }
-    inputs = [{}, {
-        'origin': {'type': 'device'}
-    }]
-
-    # Mock site settings & container storage
-    MockSiteSettings = Mock()
-    MockSiteSettingsCls.return_value = MockSiteSettings
-    MockContainerStorage = Mock()
-    mock_cs_factory.return_value = MockContainerStorage
-
-    MockSiteSettings.get.return_value = None
-    # == Invalid gear doc ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    with pytest.raises(errors.APIValidationException):
-        providers.get_compute_provider_id_for_job({}, destination, [])
-
-    # == Nothing configured ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, []) == None
-
-    MockSiteSettings.get.return_value = models.SiteSettings(center_gears=None, providers={'compute': site_provider_id})
-    # == Non-Center Gear, No Device, No Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, []) == None
-
-    # == Non-Center Gear, With Device, No Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, inputs) == None
-
-    # == Non-Center Gear, No Device, With Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group', 'providers':{'compute': group_provider_id}}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, []) == group_provider_id
-
-    # == Non-Center Gear, With Device, With Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group', 'providers':{'compute': group_provider_id}}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, inputs) == group_provider_id
-
-    MockSiteSettings.get.return_value = models.SiteSettings(center_gears=['demo-gear'], providers={'compute': site_provider_id})
-    # == Center Gear, No Device, No Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, []) == None
-
-    # == Center Gear, With Device, No Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group'}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, inputs) == site_provider_id
-
-    # == Center Gear, No Device, With Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group', 'providers':{'compute': group_provider_id}}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, []) == group_provider_id
-
-    # == Center Gear, With Device, With Group Provider ==
-    MockContainerStorage.get_el.side_effect = (
-        {'_id': 'project'},
-        {'_id': 'group', 'providers':{'compute': group_provider_id}}
-    )
-    assert providers.get_compute_provider_id_for_job(gear, destination, inputs) == site_provider_id
+        picker = providers.repository._get_provider_picker()
+        assert isinstance(picker, multiproject.FixedProviderPicker)

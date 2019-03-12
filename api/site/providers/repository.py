@@ -3,9 +3,8 @@ import bson
 
 from ... import config
 from ...web import errors
-from ...dao import containerstorage
 from .factory import create_provider
-from .. import mappers, models
+from .. import mappers, models, multiproject
 
 
 COMPUTE_DISPATCHERS = [ 'cloud-scale', 'compute-dispatcher' ]
@@ -216,46 +215,8 @@ def get_provider_id_for_container(container, provider_class, site_settings=None)
     Returns:
         (bool, ObjectId): True if this is a site provider, and the provider id, if found, otherwise None
     """
-    if isinstance(provider_class, models.ProviderClass):
-        provider_key = provider_class.value
-    else:
-        provider_key = provider_class
-
-    # In case we started with group or project
-    result = container.get('providers', {}).get(provider_key)
-    is_site = False
-
-    if result is None:
-        # Search stack (project then group)
-        next_levels = ['group', 'project']
-        parents = container.get('parents', {})
-
-        while next_levels and result is None:
-            parent_type = next_levels.pop()
-            if parent_type not in parents:
-                continue
-
-            parent_storage = containerstorage.cs_factory(parent_type)
-            parent = parent_storage.get_el(parents[parent_type])
-
-            if not parent:
-                config.log.warn('Could not find %s for container: %s',
-                        parent_type, container.get('_id'))
-                continue
-
-            result = parent.get('providers', {}).get(provider_key)
-
-    # Load site config
-    if result is None:
-        if site_settings is None:
-            site_mapper = mappers.SiteSettings()
-            site_settings = site_mapper.get()
-        if site_settings:
-            providers = site_settings.providers or {}
-            result = providers.get(provider_key)
-            is_site = bool(result)
-
-    return is_site, result
+    picker = _get_provider_picker()
+    return picker.get_provider_id_for_container(container, provider_class, site_settings=site_settings)
 
 
 def get_compute_provider_id_for_job(gear, destination, inputs):
@@ -272,34 +233,17 @@ def get_compute_provider_id_for_job(gear, destination, inputs):
     Raises:
         APIValidationException: If invalid args were passed
     """
-    gear_name = gear.get('gear', {}).get('name')
-    if gear_name is None:
-        raise errors.APIValidationException('Gear {} has no name!'.format(gear.get('_id')))
+    picker = _get_provider_picker()
+    return picker.get_compute_provider_id_for_job(gear, destination, inputs)
 
-    site_mapper = mappers.SiteSettings()
-    site_settings = site_mapper.get() or models.SiteSettings(None, None)
 
-    is_center_gear = gear_name in (site_settings.center_gears or [])
-
-    if is_center_gear:
-        # Check inputs to see if there are any device origins
-        center_pays = False
-        for inp in inputs:
-            origin_type = inp.get('origin', {}).get('type')
-            if origin_type == 'device':
-                center_pays = True
-                break
-
-        if center_pays:
-            return site_settings.get('providers', {}).get('compute')
-
-    # Otherwise lookup effective provider id
-    is_site, provider_id = get_provider_id_for_container(destination, 'compute', site_settings=site_settings)
-    if is_site:
-        config.log.info('Rejecting job for gear_name=%s, destination=%s because there is no valid provider',
-            gear_name, destination['_id'])
-        return None
-    return provider_id
+def _get_provider_picker():
+    """Get the configured provider picker"""
+    cfg = config.get_config()
+    # Super secret back door to disable multiproject billing on a site
+    if cfg.get('core', {}).get('_disable_multiproject', False):
+        return multiproject.FixedProviderPicker()
+    return multiproject.MultiprojectProviderPicker()
 
 
 def _scrub_config(provider):
