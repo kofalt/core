@@ -38,9 +38,6 @@ class APIKey(object):
 
         if api_key:
 
-            if api_key.get('disabled', False) is True:
-                raise APIAuthProviderException('Invalid API key')
-
             # Some api keys may have additional requirements that must be met
             try:
                 APIKeyTypes[api_key['type']].check(api_key)
