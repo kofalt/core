@@ -28,13 +28,16 @@ class TarDownloadWriter(object):
         """
         for target in file_source:
             try:
-                with file_source.open(target) as fileobj:
+                fileobj = file_source.open(target)
+                try:
                     tarinfo = tarfile.TarInfo()
                     tarinfo.name = target.dst_path.lstrip('/')
                     tarinfo.size = target.size
                     tarinfo.mtime = datetime_to_epoch(target.modified)
 
                     self._addfile(tarinfo, fileobj)
+                finally:
+                    fileobj.close()
             except OSError:
                 msg = ("Error happened during sending file content in archive stream, file path: %s, "
                     "container: %s/%s, archive path: %s" % (target.src_path, target.container_type,

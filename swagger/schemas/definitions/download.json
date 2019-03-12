@@ -12,7 +12,7 @@
             "x-sdk-ignore-properties": ["+", "-"],
             "additionalProperties": false
         },
-        "filter-items": {            
+        "filter-items": {
 			"type": "array",
             "minItems": 1,
             "items": {
@@ -59,7 +59,7 @@
                     "items": {"$ref": "#/definitions/download-filter"}
                 }
             },
-            "required": ["optional", "nodes"],
+            "required": ["nodes"],
             "additionalProperties": false,
             "description": "Specifies a set of files to download"
         },
