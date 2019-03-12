@@ -15,6 +15,7 @@
         "tags": {},
         "info": {},
         "description": {},
+        "providers": {},
 
         "group": {"type": "string"}
     },

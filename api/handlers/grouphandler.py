@@ -5,6 +5,7 @@ from .. import util
 from .. import validators
 from ..auth import groupauth, require_admin
 from ..dao import containerstorage
+from ..site import providers
 
 
 GROUP_ID_BLACKLIST = [ 'unknown', 'site' ]
@@ -72,6 +73,10 @@ class GroupHandler(base.RequestHandler):
         payload_schema_uri = validators.schema_uri('input', 'group-update.json')
         payload_validator = validators.from_schema_path(payload_schema_uri)
         payload_validator(payload, 'PUT')
+
+        # Validate any changes to storage providers
+        providers.validate_provider_updates(group, payload.get('providers'), self.user_is_admin)
+
         payload['modified'] = datetime.datetime.utcnow()
         result = mongo_validator(permchecker(self.storage.exec_op))('PUT', _id=_id, payload=payload)
         if result.modified_count == 1:
@@ -91,6 +96,8 @@ class GroupHandler(base.RequestHandler):
             self.abort(400, 'The group "{}" can\'t be created as it is integral within the API'.format(payload['_id']))
         payload['created'] = payload['modified'] = datetime.datetime.utcnow()
         payload['permissions'] = [{'_id': self.uid, 'access': 'admin'}] if self.uid else []
+        # Validate any providers (for new group)
+        providers.validate_provider_updates({}, payload.get('providers'), self.user_is_admin)
         result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload)
         if result.acknowledged:
             if result.upserted_id:

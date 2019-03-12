@@ -15,6 +15,7 @@ from ..jobs.job_util import remove_potential_phi_from_job
 from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
+from ..site import providers
 
 PROJECT_BLACKLIST = ['Unknown', 'Unsorted']
 
@@ -319,6 +320,10 @@ class ContainerHandler(base.RequestHandler):
             payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
         permchecker = self._get_permchecker(parent_container=parent_container)
 
+        if cont_name == 'projects':
+            # Validate any changes to storage providers
+            providers.validate_provider_updates({}, payload.get('providers'), self.user_is_admin)
+
         # Handle embedded subjects for backwards-compatibility
         if cont_name == 'sessions':
             self._handle_embedded_subject(payload, parent_container)
@@ -350,6 +355,11 @@ class ContainerHandler(base.RequestHandler):
             rec = True
             for key in prop_keys:
                 r_payload[key] = payload[key]
+
+        if cont_name == 'projects':
+            # Validate any changes to storage providers
+            providers.validate_provider_updates(container, payload.get('providers'), self.user_is_admin)
+
 
         if cont_name == 'subjects':
             # Check for code collision if changing code/label or moving to a new project

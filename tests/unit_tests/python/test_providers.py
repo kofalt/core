@@ -250,3 +250,87 @@ def test_provider_repository_load(api_db):
         # Cleanup
         api_db.providers.remove({'_id': cid})
         api_db.providers.remove({'_id': sid})
+
+def test_validate_provider_updates(api_db):
+    compute_provider = _make_provider()
+    storage_provider = _make_provider(cls=models.ProviderClass.storage)
+
+    mapper = mappers.Providers()
+    cid = mapper.insert(compute_provider)
+    sid = mapper.insert(storage_provider)
+
+    try:
+        # Starting from empty container
+        container = {}
+
+        # No providers
+        updates = None
+        providers.validate_provider_updates(container, updates, False)
+        providers.validate_provider_updates(container, updates, True)
+
+        # Empty providers
+        updates = {}
+        providers.validate_provider_updates(container, updates, False)
+        providers.validate_provider_updates(container, updates, True)
+
+        # Validate compute provider id
+        updates = {'compute': bson.ObjectId()}
+        with pytest.raises(errors.APINotFoundException):
+            providers.validate_provider_updates(container, updates, True)
+
+        # Validate storage provider id
+        updates = {'storage': bson.ObjectId()}
+        with pytest.raises(errors.APINotFoundException):
+            providers.validate_provider_updates(container, updates, True)
+
+        # String id for compute provider
+        updates = {'compute': str(cid)}
+        providers.validate_provider_updates(container, updates, True)
+        assert isinstance(updates['compute'], bson.ObjectId)
+
+        # Changing without admin is a permission error
+        with pytest.raises(errors.APIPermissionException):
+            providers.validate_provider_updates(container, updates, False)
+
+        # No-change is OK
+        container = {'providers': {'compute': cid}}
+        providers.validate_provider_updates(container, updates, False)
+
+        # String id for compute provider
+        container = {}
+        updates = {'storage': str(sid)}
+        providers.validate_provider_updates(container, updates, True)
+        assert isinstance(updates['storage'], bson.ObjectId)
+
+        # Changing without admin is a permission error
+        with pytest.raises(errors.APIPermissionException):
+            providers.validate_provider_updates(container, updates, False)
+
+        # No-change is OK
+        container = {'providers': {'storage': sid}}
+        providers.validate_provider_updates(container, updates, False)
+
+        # Cannot change after set
+        container = {'providers': {'storage': bson.ObjectId()}}
+        with pytest.raises(errors.APIValidationException):
+            providers.validate_provider_updates(container, updates, True)
+
+        updates = {'compute': str(cid)}
+        container = {'providers': {'compute': bson.ObjectId()}}
+        with pytest.raises(errors.APIValidationException):
+            providers.validate_provider_updates(container, updates, True)
+
+        # Invalid provider type tests
+        updates = {'storage': cid}
+        container = {}
+        with pytest.raises(errors.APIValidationException):
+            providers.validate_provider_updates(container, updates, True)
+
+        updates = {'compute': sid}
+        container = {}
+        with pytest.raises(errors.APIValidationException):
+            providers.validate_provider_updates(container, updates, True)
+    finally:
+        # Cleanup
+        api_db.providers.remove({'_id': cid})
+        api_db.providers.remove({'_id': sid})

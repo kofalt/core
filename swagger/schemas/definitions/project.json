@@ -8,7 +8,8 @@
                 "label":        {"$ref":"common.json#/definitions/label"},
                 "info":         {"$ref":"container.json#/definitions/info"},
                 "description":  {"$ref":"common.json#/definitions/description"},
-                "group":        {"$ref":"common.json#/definitions/lowercase-string-id"}
+                "group":        {"$ref":"common.json#/definitions/lowercase-string-id"},
+                "providers":    {"$ref":"provider.json#/definitions/provider-links"}
             },
             "additionalProperties": false,
             "x-sdk-model": "project",
@@ -54,7 +55,8 @@
                 "analyses":{
                     "type":"array",
                     "items":{"$ref":"analysis.json#/definitions/analysis-output"}
-                }
+                },
+                "providers":{"$ref":"provider.json#/definitions/provider-links"}
             },
             "additionalProperties": false,
             "x-sdk-model": "project",

@@ -67,8 +67,11 @@ main() {
     done
 
     log "INFO: Cleaning pyc and previous coverage results ..."
-    find . -type d -name __pycache__ -exec rm -rf {} \; || true
-    find . -type f -name '*.pyc' -delete || true
+    for code_dir in api bin tests
+    do
+        find $code_dir -type d -name __pycache__ -exec rm -rf {} \; || true
+        find $code_dir -type f -name '*.pyc' -delete || true
+    done
     rm -rf .coverage htmlcov tests/artifacts
 
     if [ "$LINT_TOGGLE" != true ]; then

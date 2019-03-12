@@ -22,4 +22,4 @@ class SiteSettingsHandler(base.RequestHandler):
         validators.validate_data(payload, 'site-settings.json', 'input', 'PUT')
 
         # Update/upsert
-        update_site_settings(payload)
+        update_site_settings(payload, self.log)

@@ -206,3 +206,142 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
         # delete device
         if device_id is not None:
             assert as_root.delete('/devices/' + device_id).ok
+
+def test_site_providers(api_db, data_builder, as_user, as_admin):
+    # Create a static compute provider
+    r = as_admin.post('/site/providers', json=VALID_PROVIDER)
+    assert r.ok
+    provider_id = r.json()['_id']
+
+    # Reset site settings
+    current = api_db.singletons.find_one({'_id': 'site'})
+    api_db.singletons.remove({'_id': 'site'})
+
+    try:
+        # Create a new group
+        group = data_builder.create_group()
+
+        # Set the compute provider
+        r = as_user.get('/users/self')
+        assert r.ok
+        user = r.json()
+
+        # Can set providers as site admin
+        update = {'providers': {'compute': provider_id}}
+        r = as_admin.put('/site/settings', json=update)
+        assert r.ok
+
+        # NOOP:
+        r = as_admin.put('/site/settings', json=update)
+        assert r.ok
+
+        # Get the group
+        r = as_admin.get('/site/settings')
+        assert r.ok
+        assert r.json()['providers'] == {'compute': provider_id}
+    finally:
+        api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
+
+        # Reset database
+        if current:
+            api_db.singletons.update({'_id': 'site'}, current)
+        else:
+            api_db.singletons.remove({'_id': 'site'})
+
+def test_group_providers(api_db, data_builder, as_user, as_admin):
+    # Create a static compute provider
+    r = as_admin.post('/site/providers', json=VALID_PROVIDER)
+    assert r.ok
+    provider_id = r.json()['_id']
+
+    try:
+        # NOTE: Exhaustive validation is done in unit testing
+        # of validate_provider_links
+
+        # Create a new group
+        group = data_builder.create_group()
+
+        # Set the compute provider
+        r = as_user.get('/users/self')
+        assert r.ok
+        user = r.json()
+
+        # Add an permission to the group
+        user = {'access': 'admin', '_id': user['_id']}
+        r = as_admin.post('/groups/' + group + '/permissions', json=user)
+        assert r.ok
+
+        # Try to set provider as group admin user (should 403)
+        update = {'providers': {'compute': provider_id}}
+        r = as_user.put('/groups/' + group, json=update)
+        assert r.status_code == 403
+
+        # Can set providers as site admin
+        r = as_admin.put('/groups/' + group, json=update)
+        assert r.ok
+
+        # Get the group
+        r = as_admin.get('/groups/' + group)
+        assert r.ok
+        assert r.json()['providers'] == {'compute': provider_id}
+
+        # Now create a group with initial providers
+        group2 = data_builder.create_group(providers={'compute': provider_id})
+        r = as_admin.get('/groups/' + group2)
+        assert r.ok
+        assert r.json()['providers'] == {'compute': provider_id}
+
+    finally:
+        api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
+
+def test_project_providers(api_db, data_builder, as_user, as_admin):
+    # Create a static compute provider
+    r = as_admin.post('/site/providers', json=VALID_PROVIDER)
+    assert r.ok
+    provider_id = r.json()['_id']
+
+    try:
+        # NOTE: Exhaustive validation is done in unit testing
+        # of validate_provider_links
+
+        # Create a new project
+        project = data_builder.create_project()
+
+        # Set the compute provider
+        r = as_user.get('/users/self')
+        assert r.ok
+        user = r.json()
+
+        # Add an permission to the project
+        user = {'access': 'admin', '_id': user['_id']}
+        r = as_admin.post('/projects/' + project + '/permissions', json=user)
+        assert r.ok
+
+        # Try to set provider as project admin user (should 403)
+        update = {'providers': {'compute': provider_id}}
+        r = as_user.put('/projects/' + project, json=update)
+        assert r.status_code == 403
+
+        # Can set providers as site admin
+        r = as_admin.put('/projects/' + project, json=update)
+        assert r.ok
+
+        # Get the project
+        r = as_admin.get('/projects/' + project)
+        assert r.ok
+        assert r.json()['providers'] == {'compute': provider_id}
+
+        # Now create a project with initial providers
+        project2 = data_builder.create_project(providers={'compute': provider_id})
+        r = as_admin.get('/projects/' + project2)
+        assert r.ok
+        assert r.json()['providers'] == {'compute': provider_id}
+
+        # Can't set provider on subject/session
+        r = as_admin.post('/subjects', json={'project': project, 'code': 'subject2', 'providers': {'compute': provider_id}})
+        assert r.status_code == 400
+        r = as_admin.post('/sessions', json={'project': project, 'label': 'session2', 'providers': {'compute': provider_id}})
+        assert r.status_code == 400
+
+    finally:
+        api_db.providers.remove({'_id': bson.ObjectId(provider_id)})

@@ -1,4 +1,6 @@
 """Provides repository-layer functions for loading/saving providers"""
+import bson
+
 from ...web import errors
 from .factory import create_provider
 from .. import mappers, models
@@ -137,6 +139,66 @@ def update_provider(provider_id, doc):
         provider_inst.validate_config()
 
     mapper.patch(provider_id, doc)
+
+
+def validate_provider_updates(container, provider_ids, is_admin):
+    """Validate an update (or setting) of provider ids.
+
+    Allows setting or changing a compute provider on the container as long
+    as the user is an admin and the provider exists.
+
+    Allows setting the storage provider on the container as long as:
+    1. The user is admin
+    2. The provider exists
+    3. A storage provider isn't already set
+
+    Setting either provider to the current value is a no-op and doesn't
+    trigger authorization errors.
+
+    Side-effect: This will convert any IDs in the provider_ids parameter to ObjectIds.
+
+    Args:
+        container (dict): The current container (or empty if it doesn't exist)
+        provider_ids (dict): The provider ids to update.
+        is_admin (bool): Whether or not the user is a site administrator
+
+    Raises:
+        APIPermissionException: If the user is unautorized to make the change.
+        APIValidationException: If the user attempted an invalid transition.
+        APINotFoundException: If the given storage provider does not exist.
+    """
+    # Early return for empty provider_ids object
+    if not provider_ids:
+        return
+
+    # First check if this is a change
+    updates = {}
+    current_provider_ids = container.get('providers') or {}
+
+    for provider_class in ('compute', 'storage'):
+        updates[provider_class] = False
+        if provider_class in provider_ids:
+            # Ensure ObjectId
+            provider_ids[provider_class] = bson.ObjectId(provider_ids[provider_class])
+            current_id = current_provider_ids.get(provider_class)
+            if current_id != provider_ids[provider_class]:
+                if current_id:
+                    raise errors.APIValidationException('Cannot change {} provider once set!'.format(provider_class))
+
+                updates[provider_class] = True
+
+    # Verify that the user is admin
+    if (updates['storage'] or updates['compute']) and not is_admin:
+        raise errors.APIPermissionException('Changing providers requires site-admin!')
+
+    # Verify that provider exists and is the correct type
+    for provider_class in ('compute', 'storage'):
+        if not updates[provider_class]:
+            continue
+        storage_provider = get_provider(provider_ids[provider_class])
+        if storage_provider.provider_class != models.ProviderClass(provider_class):
+            raise errors.APIValidationException('Invalid storage provider class: {}'.format(
+                storage_provider.provider_class))
 
 
 def _scrub_config(provider):
