@@ -115,6 +115,3 @@
         description: The device API key was regenerated
         schema:
           $ref: schemas/output/device-regenerate-key.json
-        examples:
-          response:
-            $ref: examples/output/device-regenerate-key.json
