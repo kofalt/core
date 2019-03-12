@@ -134,7 +134,7 @@ def test_device_logging(as_drone, as_root):
     assert r.status_code == 200
 
 
-def test_device_key_management(as_public, as_user, as_admin):
+def test_device_key_management(as_public, as_user, as_admin, api_db):
 
     # create device
     r = as_admin.post('/devices', json={'type': 'test'})
@@ -144,25 +144,28 @@ def test_device_key_management(as_public, as_user, as_admin):
     assert r.ok
     device_key = r.json()['key']
 
-    # public and users cannot disable device keys
-    r = as_public.delete('/devices/' + device_id + '/key')
+    # public and users cannot disable devices
+    r = as_public.put('/devices/' + device_id, json={'disabled': True})
     assert r.status_code == 403
-    r = as_user.delete('/devices/' + device_id + '/key')
+    r = as_user.put('/devices/' + device_id, json={'disabled': True})
     assert r.status_code == 403
 
-    # disabling the key of an unknown device results in not found
-    r = as_admin.delete('/devices/unknowndevice/key')
+    # disabling an unknown device results in not found
+    r = as_admin.put('/devices/unknowndevice', json={'disabled': True})
     assert r.status_code == 404
 
-    # disable key
-    r = as_admin.delete('/devices/' + device_id + '/key')
+    # disable device
+    r = as_admin.put('/devices/' + device_id, json={'disabled': True})
     assert r.ok
     assert r.json()['modified'] == 1
+    assert api_db.apikeys.count({'origin.id': bson.ObjectId(device_id), 'type': 'device'}) == 0
+
+    # disabled device key is not regenerated
     r = as_admin.get('/devices/' + device_id)
     assert r.ok
-    assert r.json()['key'] == None
+    assert 'key' not in r.json()
 
-    # disabled key is not accepted
+    # disabled device key is not accepted
     as_device = as_public
     as_device.headers.update({'Authorization': 'scitran-user {}'.format(device_key)})
     r = as_device.put('/devices/self', json={'interval': 60})
