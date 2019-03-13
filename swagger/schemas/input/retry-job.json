@@ -1,0 +1,8 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf": [{"$ref": "../definitions/job.json#/definitions/job-retry"}],
+    "example": {
+        "compute_provider_id": "5c894b8257690704203abf87"
+    }
+}

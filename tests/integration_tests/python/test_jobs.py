@@ -2671,8 +2671,9 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     assert r.json()['logs'] == expected_job_logs
 
 def test_job_providers(site_providers, data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
+    gear_name = data_builder.randstr()
     gear_doc = default_payload['gear']['gear']
-    gear_doc['name'] = data_builder.randstr()
+    gear_doc['name'] = gear_name
     gear_doc['inputs'] = {
         'dicom': {
             'base': 'file'
@@ -2737,6 +2738,45 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     assert r.ok
     assert r.json()['compute_provider_id'] == override_provider
 
+    # Retried job should have the original provider id by default
+    r = as_admin.post('/jobs/ask', json=question({
+        'whitelist': {'gear-name': [gear_name]},
+        'return': {'jobs': 1},
+    }))
+    assert r.ok
+    assert r.json()['jobs'][0]['id'] == job_id
+
+    assert as_admin.put('/jobs/' + job_id, json={'state': 'failed'}).ok
+
+    r = as_admin.post('/jobs/' + job_id + '/retry')
+    assert r.ok
+    retried_job_id = r.json()['_id']
+
+    r = as_admin.get('/jobs/' + retried_job_id)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == override_provider
+
+    # Override provider on retried job
+    r = as_admin.post('/jobs/ask', json=question({
+        'whitelist': {'gear-name': [gear_name]},
+        'return': {'jobs': 1},
+    }))
+    assert r.ok
+    assert r.json()['jobs'][0]['id'] == retried_job_id
+    assert as_admin.put('/jobs/' + retried_job_id, json={'state': 'failed'}).ok
+
+    # Retry validates provider
+    r = as_admin.post('/jobs/' + retried_job_id + '/retry', json={'compute_provider_id': str(bson.ObjectId())})
+    assert r.status_code == 422
+
+    r = as_admin.post('/jobs/' + retried_job_id + '/retry', json={'compute_provider_id': site_provider})
+    assert r.ok
+    retried_job_id2 = r.json()['_id']
+
+    r = as_admin.get('/jobs/' + retried_job_id2)
+    assert r.ok
+    assert r.json()['compute_provider_id'] == site_provider
+
     # Cannot create analysis
     job_data = copy.deepcopy(job_data_orig)
     del job_data['destination']
@@ -2771,7 +2811,7 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     assert r.json()['compute_provider_id'] == override_provider
 
     # === Center gear ===
-    assert as_admin.put('/site/settings', json={'center_gears': [gear_doc['name']]}).ok
+    assert as_admin.put('/site/settings', json={'center_gears': [gear_name]}).ok
 
     # Cannot create job (no device origin)
     job_data = copy.deepcopy(job_data_orig)

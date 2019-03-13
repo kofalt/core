@@ -206,6 +206,10 @@
     tags:
     - jobs
     parameters:
+      - name: body
+        in: body
+        schema:
+          $ref: schemas/input/retry-job.json
       - name: ignoreState
         in: query
         required: false

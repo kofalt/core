@@ -937,6 +937,15 @@ class JobHandler(base.RequestHandler):
                 if not self.user_is_admin and self.uid != j.origin['id']:
                     raise APIPermissionException('Only original scheduler or root user can retry a gear requiring an api key input')
 
+        if self.request.content_length:
+            payload = self.request.json
+            validate_data(payload, 'retry-job.json', 'input', 'POST', optional=True)
+            if payload:
+                # Check and raise if non-admin user attempts to override compute provider
+                compute_provider_id = validate_job_compute_provider(payload, self)
+                if compute_provider_id:
+                    j.compute_provider_id = compute_provider_id
+
         new_id = Queue.retry(j, force=True, only_failed=not self.is_true('ignoreState'))
         return { "_id": new_id }
 
