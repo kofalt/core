@@ -27,16 +27,22 @@
         "rule-input": {
             "type": "object",
             "properties": {
-                "project_id":   { "type": "string" },
-                "gear_id":      { "type": "string" },
-                "name":         { "type": "string" },
-                "config":       { "type": "object" },
-                "fixed_inputs": { "$ref": "job.json#/definitions/inputs-array" },
-                "auto_update":  { "type": "boolean" },
-                "any":          { "$ref": "#/definitions/rule-items" },
-                "all":          { "$ref": "#/definitions/rule-items" },
-                "not":          { "$ref": "#/definitions/rule-items" },
-                "disabled":     { "type": "boolean" }
+                "project_id":          { "type": "string" },
+                "gear_id":             { "type": "string" },
+                "name":                { "type": "string" },
+                "config":              { "type": "object" },
+                "fixed_inputs":        { "$ref": "job.json#/definitions/inputs-array" },
+                "auto_update":         { "type": "boolean" },
+                "any":                 { "$ref": "#/definitions/rule-items" },
+                "all":                 { "$ref": "#/definitions/rule-items" },
+                "not":                 { "$ref": "#/definitions/rule-items" },
+                "disabled":            { "type": "boolean" },
+                "compute_provider_id": {
+                    "oneOf":[
+                        {"$ref":"common.json#/definitions/objectid"},
+                        {"type":"null"}
+                    ]
+                }
             },
             "additionalProperties": false,
             "x-sdk-model": "rule"
@@ -45,16 +51,22 @@
         "rule-output": {
             "type": "object",
             "properties": {
-                "_id":          { "type": "string" },
-                "gear_id":      { "type": "string" },
-                "name":         { "type": "string" },
-                "config":       { "type": "object" },
-                "fixed_inputs": { "$ref": "job.json#/definitions/inputs-array" },
-                "auto_update":  { "type": "boolean" },
-                "any":          { "$ref": "#/definitions/rule-items" },
-                "all":          { "$ref": "#/definitions/rule-items" },
-                "not":          { "$ref": "#/definitions/rule-items" },
-                "disabled":     { "type": "boolean" }
+                "_id":                 { "type": "string" },
+                "gear_id":             { "type": "string" },
+                "name":                { "type": "string" },
+                "config":              { "type": "object" },
+                "fixed_inputs":        { "$ref": "job.json#/definitions/inputs-array" },
+                "auto_update":         { "type": "boolean" },
+                "any":                 { "$ref": "#/definitions/rule-items" },
+                "all":                 { "$ref": "#/definitions/rule-items" },
+                "not":                 { "$ref": "#/definitions/rule-items" },
+                "disabled":            { "type": "boolean" },
+                "compute_provider_id": {
+                    "oneOf":[
+                        {"$ref":"common.json#/definitions/objectid"},
+                        {"type":"null"}
+                    ]
+                }
             },
             "x-sdk-model": "rule"
         }

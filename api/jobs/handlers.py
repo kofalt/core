@@ -389,7 +389,6 @@ class RulesHandler(base.RequestHandler):
         validate_data(payload, 'rule-new.json', 'input', 'POST', optional=True)
         validate_regexes(payload)
 
-
         gear = get_gear(payload['gear_id'])
         validate_gear_config(gear, payload.get('config'))
         validate_fixed_inputs(gear, payload.get('fixed_inputs'))
@@ -415,6 +414,9 @@ class RulesHandler(base.RequestHandler):
             rule_config = payload.get('config')
 
             validate_auto_update(rule_config, gear_id, update_gear_is_latest, True, payload.get('fixed_inputs'))
+
+        # Check and raise if non-admin user attempts to override compute provider
+        validate_job_compute_provider(payload, self, validate_provider=True)
 
         payload['project_id'] = cid
 
@@ -491,6 +493,9 @@ class RuleHandler(base.RequestHandler):
         validate_fixed_inputs(gear, fixed_inputs)
         if requires_read_write_key(get_gear(gear_id)):
             raise InputValidationException("Rule cannot use a gear that requires a read-write api-key.")
+
+        # Check and raise if non-admin user attempts to override compute provider
+        validate_job_compute_provider(updates, self, validate_provider=True)
 
         doc.update(updates)
         if not (doc.get('any') or doc.get('all') or doc.get('all')):

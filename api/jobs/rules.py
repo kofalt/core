@@ -5,7 +5,7 @@ import itertools
 from .. import config
 from ..types import Origin
 from ..dao.containerutil import FileReference, create_containerreference_from_filereference, create_filereference_from_dictionary
-from ..web.errors import APIValidationException, InputValidationException
+from ..web.errors import APIValidationException, InputValidationException, APIPreconditionFailed
 
 from . import gears
 from .jobs import Job
@@ -216,6 +216,9 @@ def create_potential_jobs(db, container, container_type, file_, rule_failure_cal
                 if 'config' in rule:
                     job.config = rule['config']
 
+                if 'compute_provider_id' in rule:
+                    job.compute_provider_id = rule['compute_provider_id']
+
                 potential_jobs.append({
                     'job': job,
                     'rule': rule
@@ -290,10 +293,16 @@ def create_jobs(db, container_before, container_after, container_type, replaced_
 
     for pj in potential_jobs:
         job_map = pj['job'].map()
-        job = Queue.enqueue_job(job_map, origin)
-        job.insert()
-
-        spawned_jobs.append(pj['rule']['gear_id'])
+        try:
+            # This can raise if we somehow ended up with an invalid provider
+            job = Queue.enqueue_job(job_map, origin)
+            job.insert()
+            spawned_jobs.append(pj['rule']['gear_id'])
+        except Exception as exc_val:  # pylint: disable=broad-except
+            rule = pj.get('rule', {})
+            log.exception('Unable to evaluate rule %s(name=%s)', rule.get('_id'), rule.get('name'))
+            if rule_failure_callback:
+                rule_failure_callback(rule, exc_val)
 
     return spawned_jobs
 

@@ -1,3 +1,5 @@
+import copy
+
 import bson
 
 
@@ -364,6 +366,8 @@ def test_project_rules(randstr, data_builder, file_form, as_root, as_admin, with
 
     # add project rule w/ proper gear id
     # NOTE this is a legacy rule
+    from pprint import pprint
+    pprint(rule_json)
     r = as_admin.post('/projects/' + project + '/rules', json=rule_json)
     assert r.ok
     rule = r.json()['_id']
@@ -1307,3 +1311,100 @@ def test_multi_input_rules(default_payload, data_builder, as_admin, as_root, fil
     r = as_admin.delete('/acquisitions/' + acquisition + '/files/test.csv')
     assert r.status_code == 403
 
+def test_project_rule_providers(site_providers, data_builder, file_form, as_root, as_admin, as_user, as_drone, api_db):
+    # create versioned gear to cover code selecting latest gear
+    gear_name = data_builder.randstr()
+    gear_config = {'param': {'type': 'string', 'pattern': '^default|custom$', 'default': 'default'}}
+    gear = data_builder.create_gear(gear={'name': gear_name, 'version': '0.0.1', 'config': gear_config})
+
+    group = data_builder.create_group(providers={})
+    project = data_builder.create_project()
+
+    site_provider = site_providers['compute']
+    override_provider = data_builder.create_compute_provider()
+    group_provider = data_builder.create_compute_provider()
+
+    def check_job_provider(provider_id):
+        gear_jobs = list(api_db.jobs.find({'gear_id': gear}))
+        assert len(gear_jobs) == 1
+        assert gear_jobs[0]['compute_provider_id'] == bson.ObjectId(provider_id)
+        api_db.jobs.remove({'gear_id': gear})
+
+    # Make sure user is admin on project
+    uid = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions',
+        json={'_id': uid, 'access': 'admin'}).ok
+
+    # User cannot set compute_provider_id
+    rule_orig = {
+        'all': [{'type': 'file.type', 'value': 'tabular data'}],
+        'any': [],
+        'gear_id': gear,
+        'name': 'csv-job-trigger-rule',
+        'not': []
+    }
+
+    rule_json = copy.deepcopy(rule_orig)
+    rule_json['compute_provider_id'] = override_provider
+    r = as_user.post('/projects/' + project + '/rules', json=rule_json)
+    assert r.status_code == 403  # Not permitted
+
+    # Admin cannot set invalid compute_provider_id
+    rule_json['compute_provider_id'] = str(bson.ObjectId())
+    r = as_admin.post('/projects/' + project + '/rules', json=rule_json)
+    assert r.status_code == 422
+
+    # successfully create rules
+    r = as_user.post('/projects/' + project + '/rules', json=rule_orig)
+    rule_id = r.json()['_id']
+
+    # upload file that matches rule
+    r = as_admin.post('/projects/' + project + '/files', files=file_form('test.csv'))
+    assert r.ok
+
+    # Cannot create a job because this is not a center pays gear
+    gear_jobs = list(api_db.jobs.find({'gear_id': gear}))
+    assert len(gear_jobs) == 0
+
+    # User cannot update compute_provider_id
+    r = as_user.put('/projects/' + project + '/rules/' + rule_id, json={'compute_provider_id': override_provider})
+    assert r.status_code == 403
+
+    # Admin cannot update compute_provider_id to invalid value
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={'compute_provider_id': str(bson.ObjectId())})
+    assert r.status_code == 422
+
+    # Update compute_provider_id
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={'compute_provider_id': override_provider})
+    assert r.ok
+
+    # Create job with compute_provider_id override
+    r = as_admin.post('/projects/' + project + '/files', files=file_form('test.csv'))
+    assert r.ok
+
+    check_job_provider(override_provider)
+
+    # Add the gear to the center_gears, test that we still use override provider
+    assert as_admin.put('/site/settings', json={'center_gears': [gear_name]}).ok
+
+    r = as_drone.post('/projects/' + project + '/files', files=file_form('test2.csv'))
+    assert r.ok
+
+    check_job_provider(override_provider)
+
+    # Remove override, test that we use site provider for a device-provided gear
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={'compute_provider_id': None})
+    assert r.ok
+
+    assert as_drone.post('/projects/' + project + '/files', files=file_form('test2.csv')).ok
+
+    check_job_provider(site_provider)
+
+    # Test with group provider
+    assert as_admin.put('/groups/' + group, json={'providers': {'compute': group_provider}}).ok
+
+    assert as_user.post('/projects/' + project + '/files', files=file_form('test3.csv')).ok
+    check_job_provider(group_provider)
+
+    assert as_drone.post('/projects/' + project + '/files', files=file_form('test4.csv')).ok
+    check_job_provider(site_provider)
