@@ -351,6 +351,9 @@ class Queue(object):
             if compute_provider_id is None:
                 raise errors.APIPreconditionFailed('Cannot determine compute provider for job. '
                     'gear={}, destination.id={}'.format(gear['_id'], destination.id))
+        else:
+            # Validate the provided compute provider
+            providers.validate_provider_class(compute_provider_id, 'compute')
 
         # Initialize profile
         profile = {

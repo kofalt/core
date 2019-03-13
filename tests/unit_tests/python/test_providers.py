@@ -338,11 +338,14 @@ def test_validate_provider_updates(api_db):
         api_db.providers.remove({'_id': sid})
 
 def test_get_provider_picker():
+    from api.site.multiproject.fixed_picker import FixedProviderPicker
+    from api.site.multiproject.multiproject_picker import MultiprojectProviderPicker
+
     picker = providers.repository._get_provider_picker()
-    assert isinstance(picker, multiproject.MultiprojectProviderPicker)
+    assert isinstance(picker, MultiprojectProviderPicker)
 
     with patch('api.site.providers.repository.config') as patched_config:
         patched_config.get_config.return_value = {'core': {'_disable_multiproject': True}}
 
         picker = providers.repository._get_provider_picker()
-        assert isinstance(picker, multiproject.FixedProviderPicker)
+        assert isinstance(picker, FixedProviderPicker)

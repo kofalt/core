@@ -2718,6 +2718,11 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.status_code == 412
 
+    # Validate overridden provider_id
+    job_data['compute_provider_id'] = str(bson.ObjectId())
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.status_code == 422
+
     # Cannot override provider_id on job (if not admin)
     job_data['compute_provider_id'] = override_provider
     r = as_user.post('/jobs/add', json=job_data)
@@ -2766,8 +2771,7 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     assert r.json()['compute_provider_id'] == override_provider
 
     # === Center gear ===
-    r = as_admin.put('/site/settings', json={'center_gears': [gear_doc['name']]})
-    assert r.ok
+    assert as_admin.put('/site/settings', json={'center_gears': [gear_doc['name']]}).ok
 
     # Cannot create job (no device origin)
     job_data = copy.deepcopy(job_data_orig)

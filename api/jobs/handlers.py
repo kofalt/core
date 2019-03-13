@@ -11,7 +11,8 @@ from . import batch
 from .job_util import (
     resolve_context_inputs,
     get_context_for_destination,
-    remove_potential_phi_from_job
+    remove_potential_phi_from_job,
+    validate_job_compute_provider
 )
 from .. import config
 from .. import upload
@@ -534,8 +535,8 @@ class JobsHandler(base.RequestHandler):
         if payload.get('destination') and payload['destination']['type'] == 'analysis':
             raise InputValidationException('Cannot use analysis as destination for a job')
 
-        if payload.get('compute_provider_id') and not self.user_is_admin:
-            raise APIPermissionException('Only admin can override job provider!')
+        # Check and raise if non-admin user attempts to override compute provider
+        validate_job_compute_provider(payload, self)
 
         uid = None
         if not self.user_is_admin:
@@ -1042,6 +1043,9 @@ class BatchHandler(base.RequestHandler):
             self.abort(400, 'Gear has optional inputs but no policy on optional inputs was given, will not run!')
         validate_gear_config(gear, config_)
 
+        # Ensure that user is admin if compute_provider_id is set
+        compute_provider_id = validate_job_compute_provider(payload, self, validate_provider=True)
+
         container_ids = []
         container_type = None
 
@@ -1149,6 +1153,11 @@ class BatchHandler(base.RequestHandler):
                         'destination': { 'id': str(match['_id']), 'type': 'acquisition' }
                     })
 
+            # Override compute_provider_id if provided
+            if compute_provider_id is not None:
+                for job_map in batch_proposal['proposal']['jobs']:
+                    job_map['compute_provider_id'] = compute_provider_id
+
             batch.insert(batch_proposal)
             batch_proposal.pop('proposal')
 
@@ -1174,11 +1183,19 @@ class BatchHandler(base.RequestHandler):
         if not self.user_is_admin:
             uid = self.uid
 
+        batch_id = bson.ObjectId()
+
         for job_number, job_ in enumerate(jobs_):
             try:
+                # Ensure that user is admin if compute_provider_id is set
+                validate_job_compute_provider(job_, self)
+
+                job_['batch'] = str(batch_id)
                 Queue.enqueue_job(job_, self.origin, perm_check_uid=uid)
             except InputValidationException as e:
                 raise InputValidationException("Job {}: {}".format(job_number, str(e)))
+            except APIPermissionException as e:
+                raise APIPermissionException("Job {}: {}".format(job_number, str(e)))
 
         batch_proposal = {
             'proposal': {
@@ -1186,7 +1203,7 @@ class BatchHandler(base.RequestHandler):
             },
             'origin': self.origin,
             'state': 'pending',
-            '_id': bson.ObjectId()
+            '_id': batch_id
         }
         batch.insert(batch_proposal)
 

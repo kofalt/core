@@ -259,7 +259,7 @@ def test_group_providers(api_db, data_builder, as_user, as_admin):
         # of validate_provider_links
 
         # Create a new group
-        group = data_builder.create_group()
+        group = data_builder.create_group(providers={})
 
         # Set the compute provider
         r = as_user.get('/users/self')

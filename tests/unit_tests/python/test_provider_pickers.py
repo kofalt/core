@@ -8,7 +8,7 @@ from api.site import models, mappers, multiproject
 
 
 @patch('api.site.multiproject.multiproject_picker.mappers.SiteSettings')
-@patch('api.site.multiproject.multiproject_picker.cs_factory')
+@patch('api.site.multiproject.multiproject_picker.containerstorage.cs_factory')
 def test_multiproject_get_provider_id_for_container(mock_cs_factory, MockSiteSettingsCls):
     cls = models.ProviderClass.compute
 
@@ -30,7 +30,7 @@ def test_multiproject_get_provider_id_for_container(mock_cs_factory, MockSiteSet
     MockContainerStorage = Mock()
     mock_cs_factory.return_value = MockContainerStorage
 
-    picker = multiproject.MultiprojectProviderPicker()
+    picker = multiproject.create_provider_picker(True)
 
     # == No providers configured ==
     MockSiteSettings.get.return_value = None
@@ -72,7 +72,7 @@ def test_multiproject_get_provider_id_for_container(mock_cs_factory, MockSiteSet
 
 
 @patch('api.site.multiproject.multiproject_picker.mappers.SiteSettings')
-@patch('api.site.multiproject.multiproject_picker.cs_factory')
+@patch('api.site.multiproject.multiproject_picker.containerstorage.cs_factory')
 def test_multiproject_get_compute_provider_id_for_job(mock_cs_factory, MockSiteSettingsCls):
     cls = models.ProviderClass.compute
 
@@ -97,7 +97,7 @@ def test_multiproject_get_compute_provider_id_for_job(mock_cs_factory, MockSiteS
     MockContainerStorage = Mock()
     mock_cs_factory.return_value = MockContainerStorage
 
-    picker = multiproject.MultiprojectProviderPicker()
+    picker = multiproject.create_provider_picker(True)
 
     MockSiteSettings.get.return_value = None
     # == Invalid gear doc ==
@@ -189,7 +189,7 @@ def test_fixed_provider_picker(MockSiteSettingsCls):
     MockSiteSettings = Mock()
     MockSiteSettingsCls.return_value = MockSiteSettings
 
-    picker = multiproject.FixedProviderPicker()
+    picker = multiproject.create_provider_picker(False)
 
     # == No providers configured ==
     MockSiteSettings.get.return_value = None

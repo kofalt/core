@@ -133,7 +133,7 @@ class Job(object):
         self.transitions        = transitions
         self.related_container_ids = related_container_ids
         self.label              = label
-        self.compute_provider_id = compute_provider_id
+        self.compute_provider_id = bson.ObjectId(compute_provider_id) if compute_provider_id else None
 
     def intention_equals(self, other_job):
         """

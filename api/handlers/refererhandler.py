@@ -21,6 +21,7 @@ from ..dao.containerutil import singularize, CONTAINER_HIERARCHY
 from ..web import base
 from ..web import errors
 from ..web.request import log_access, AccessType
+from ..jobs import job_util
 from .listhandler import FileListHandler
 
 
@@ -81,8 +82,8 @@ class AnalysesHandler(RefererHandler):
             # Legacy analysis - accept direct file uploads (inputs and outputs)
             analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin)
 
-        if 'compute_provider_id' in analysis.get('job', {}) and not self.user_is_admin:
-            raise errors.APIPermissionException('Only admin can override job provider!')
+        # Check and raise if non-admin user attempts to override compute provider
+        job_util.validate_job_compute_provider(analysis.get('job', {}), self)
 
         uid = None if self.user_is_admin else self.uid
         result = self.storage.create_el(analysis, cont_name, cid, self.origin, uid)

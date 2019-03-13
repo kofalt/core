@@ -33,6 +33,27 @@ def get_provider(provider_id):
     return _scrub_config(result)
 
 
+def validate_provider_class(provider_id, provider_class):
+    """Validate that the given provider exists, and has the given class.
+
+    Args:
+        provider_id (str): The provider id
+        provider_class (str|ProviderClass): The provider class
+
+    Raises:
+        APIValidationException: If the provider either doesn't exist or is not of the specified class.
+    """
+    provider_class = models.ProviderClass(provider_class)
+    mapper = mappers.Providers()
+    result = mapper.get(provider_id)
+
+    if not result:
+        raise errors.APIValidationException('Provider {} does not exist'.format(provider_id))
+    if result.provider_class != provider_class:
+        raise errors.APIValidationException('Provider {} is not a {} provider!'.format(
+            provider_id, provider_class.value))
+
+
 def get_provider_config(provider_id, full=False):
     """Get the provider configuration matching provider_id, or None if not found.
 

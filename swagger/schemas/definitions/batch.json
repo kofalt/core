@@ -70,6 +70,7 @@
         "tags": {"$ref":"tag.json#/definitions/tag-list"},
         "optional_input_policy": {"$ref": "#/definitions/optional_input_policy"},
         "analysis": {"$ref": "analysis.json#/definitions/analysis-input-job"},
+        "compute_provider_id": {"$ref":"common.json#/definitions/objectid"},
         "targets": {
           "type": "array",
           "items": {"$ref":"container.json#/definitions/container-reference"}

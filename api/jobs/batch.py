@@ -199,6 +199,9 @@ def run(batch_job):
                 raise APIStorageException('Destination is required for all proposed jobs')
             job_map['destination'] = proposed_job['destination']
 
+            if 'compute_provider_id' in proposed_job:
+                job_map['compute_provider_id'] = proposed_job['compute_provider_id']
+
             if gear.get('category') == 'analysis':
                 analysis = copy.deepcopy(analysis_base)
 
