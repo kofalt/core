@@ -5,7 +5,7 @@ import itertools
 from .. import config
 from ..types import Origin
 from ..dao.containerutil import FileReference, create_containerreference_from_filereference, create_filereference_from_dictionary
-from ..web.errors import APIValidationException, InputValidationException, APIPreconditionFailed
+from ..web.errors import APIValidationException, InputValidationException
 
 from . import gears
 from .jobs import Job
