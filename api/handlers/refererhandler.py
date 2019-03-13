@@ -22,6 +22,7 @@ from ..jobs import job_util
 from ..web import base
 from ..web import errors
 from ..web.request import log_access, AccessType
+from ..jobs import job_util
 from .listhandler import FileListHandler
 
 

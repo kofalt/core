@@ -342,6 +342,9 @@ def test_get_provider_picker():
     from api.site.multiproject.fixed_picker import FixedProviderPicker
     from api.site.multiproject.multiproject_picker import MultiprojectProviderPicker
 
+    picker = providers.repository._get_provider_picker()
+    assert isinstance(picker, MultiprojectProviderPicker)
+
     with patch('api.site.providers.repository.config') as patched_config:
         patched_config.is_multiproject_enabled.return_value = True
 
