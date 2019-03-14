@@ -86,20 +86,14 @@ class DeviceHandler(base.RequestHandler):
 
         validate_data(payload, 'device-admin-update.json', 'input', 'PUT')
         device = self.storage.get_container(device_id)
-        # Accept only a subset of device properties for update
-        update_payload = {prop: payload[prop] for prop in {'disabled'} if prop in payload}
-        if len(update_payload) > 0:
-            result = self.storage.update_el(device_id, update_payload)
 
-            is_disabled = update_payload.get('disabled', False)
-            if is_disabled is True:
-                DeviceApiKey.revoke(device['_id'])
-            elif is_disabled is False and device.get('disabled', False) is True:
-                DeviceApiKey.generate(device['_id'])
+        result = self.storage.update_el(device_id, payload)
 
-            return {'modified': result.modified_count}
-        else:
-            return {'modified': 0}
+        is_disabled = payload['disabled']
+        if is_disabled:
+            DeviceApiKey.revoke(device['_id'])
+        elif not is_disabled and device.get('disabled', False):
+            DeviceApiKey.generate(device['_id'])
 
     @require_admin
     def delete(self, device_id):
