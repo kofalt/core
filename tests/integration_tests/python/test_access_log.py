@@ -1,4 +1,5 @@
 import time
+import bson
 import pytest
 
 from api.web.request import AccessType
@@ -503,4 +504,206 @@ def test_bulk_access(data_builder, as_admin, log_db):
     assert log2['request_path'] == '/test/bulk_log_access'
     assert log2['context']['file']['name'] == 'example.csv'
 
+def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
+                    file_form, api_db):
+
+    from pprint import pprint
+
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+
+    project = data_builder.create_project()
+    session = data_builder.create_session(project=project)
+    subject = str(api_db.subjects.find_one({'project': bson.ObjectId(project)})['_id'])
+    acquisition = data_builder.create_acquisition(session=session)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Add info to file
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/test.zip/info', json={
+        'replace': {'a': 'b'}
+    })
+    assert r.ok
+    r = as_admin.get('/acquisitions/' + acquisition + '/files/test.zip/info')
+    assert r.ok
+    assert r.json()['info']['a'] == 'b'
+
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+
+    # add job with explicit destination
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    # get job
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+
+    most_recent_logs = log_db.access_log.find({}).sort([('timestamp', -1)]).limit(2)
+    pprint(most_recent_logs)
+    if most_recent_logs[0]['access_type'] == 'view_file':
+        input_log = most_recent_logs[0]
+        job_log = most_recent_logs[1]
+    else:
+        input_log = most_recent_logs[1]
+        job_log = most_recent_logs[0]
+
+    assert input_log['access_type'] == AccessType.view_file.value
+    assert input_log['origin']['id'] == 'admin@user.com'
+    assert input_log['request_method'] == 'GET'
+    assert input_log['context']['file']['name'] == 'test.zip'
+
+    assert job_log['access_type'] == AccessType.view_job.value
+    assert job_log['origin']['id'] == 'admin@user.com'
+    assert job_log['request_method'] == 'GET'
+    assert job_log['context']['job']['id'] == job_id
+
+    r = as_drone.get('/jobs/next')
+    assert r.ok
+
+    # prepare completion (send success status before engine upload)
+    r = as_drone.post('/jobs/' + job_id + '/prepare-complete')
+    assert r.ok
+
+    # verify that job ticket has been created
+    job_ticket = api_db.job_tickets.find_one({'job': job_id})
+
+    # upload metadata
+    produced_metadata = {
+        'session': {
+            'label': 'engine session',
+            'subject': {'sex': 'male', 'age': 86400},
+            'info': {'test': 's'}
+        }
+    }
+
+    # engine upload
+    r = as_drone.post('/engine',
+        params={
+            'level': 'acquisition',
+            'id': acquisition, 'job': job_id,
+            'job_ticket': job_ticket['_id']
+        },
+        files=file_form(meta=produced_metadata)
+    )
+    assert r.ok
+
+    # Post complete
+    r = as_drone.post('/jobs/' + job_id + '/complete', json={
+        'success': True,
+        'profile': {
+            'elapsed_time_ms': 36501,
+            'preparation_time_ms': 2515,
+            'upload_time_ms': 1017
+        }
+    })
+    assert r.ok
+
+    # Get the job
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    job = r.json()
+
+    # Verify that produced metadata is preserved
+    assert job['produced_metadata'] == produced_metadata
+
+    # Verify that info on config.input.dicom exists
+    assert job['config']['inputs']['dicom']['object']['info']['a'] == 'b'
+
+    # Confirm that we logged the produced_metadata view subject and vie container for the
+    # produced_metadata
+    most_recent_logs = log_db.access_log.find({}).sort([('timestamp', -1)]).limit(4)
+    pprint(most_recent_logs)
+
+    logs_tested = 0
+    for log in most_recent_logs:
+        if log['access_type'] == 'view_subject':
+            logs_tested += 1
+            assert log['context']['subject']['id'] == subject
+            assert log['origin']['id'] == 'admin@user.com'
+        if log['access_type'] == 'view_container':
+            logs_tested += 1
+            assert log['context']['subject']['id'] == subject
+            assert log['context']['session']['id'] == session
+            assert not log['context'].get('acquisition')
+    assert logs_tested == 2
+
+    # Check number of logs
+    log_count = log_db.access_log.find({}).count()
+
+    # Verify that produced metadata and info don't appear on a list endpoint
+    r = as_admin.get('/jobs', params={'filter': '_id={}'.format(job_id)})
+    assert r.ok
+    assert r.json()[0].get('produced_metadata') is None
+    assert r.json()[0]['config']['inputs']['dicom']['object'].get('info') is None
+
+    # Make sure number of logs is the same
+    assert log_count == log_db.access_log.find({}).count()
+
+    # Verify that produced metadata and info don't appear on a list endpoint
+    r = as_admin.get('/sessions/' + session + '/jobs',
+                     params={'filter': '_id={}'.format(job_id)})
+    assert r.ok
+    assert not r.json()['jobs'][0].get('produced_metadata')
+    assert not r.json()['jobs'][0]['config']['inputs']['dicom']['object'].get('info')
+
+    # Make sure number of logs is the same
+    assert log_count == log_db.access_log.find({}).count()
+    # Access the logs for the job
+    r = as_admin.get('/jobs/' + job_id + '/logs')
+    assert r.ok
+
+    # Check number of logs
+    assert log_count + 1 == log_db.access_log.find({}).count()
+    log_count = log_db.access_log.find({}).count()
+
+    most_recent_log = log_db.access_log.find({}).sort([('timestamp', -1)]).limit(1)[0]
+    assert most_recent_log['access_type'] == 'view_job_logs'
+    assert most_recent_log['context']['job']['id'] == job_id
+    assert most_recent_log['origin']['id'] == 'admin@user.com'
+
+    # Access the logs for the job as text
+    r = as_admin.get('/jobs/' + job_id + '/logs/text')
+    assert r.ok
+
+    # Check number of logs
+    assert log_count + 1 == log_db.access_log.find({}).count()
+    log_count = log_db.access_log.find({}).count()
+
+    most_recent_log = log_db.access_log.find({}).sort([('timestamp', -1)]).limit(1)[0]
+    assert most_recent_log['access_type'] == 'view_job_logs'
+    assert most_recent_log['context']['job']['id'] == job_id
+    assert most_recent_log['origin']['id'] == 'admin@user.com'
+
+    # Access the logs for the job as html
+    r = as_admin.get('/jobs/' + job_id + '/logs/html')
+    assert r.ok
+
+    # Check number of logs
+    assert log_count + 1 == log_db.access_log.find({}).count()
+    log_count = log_db.access_log.find({}).count()
+
+    most_recent_log = log_db.access_log.find({}).sort([('timestamp', -1)]).limit(1)[0]
+    assert most_recent_log['access_type'] == 'view_job_logs'
+    assert most_recent_log['context']['job']['id'] == job_id
+    assert most_recent_log['origin']['id'] == 'admin@user.com'
 

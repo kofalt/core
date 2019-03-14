@@ -1,0 +1,91 @@
+/site/providers:
+  get:
+    summary: Return a list of all providers on the site
+    operationId: get_providers
+    tags:
+    - site
+    parameters:
+      - name: class
+        in: query
+        type: string
+        enum:
+          - storage
+          - compute
+        description: Limit the response to the given provider class
+    responses:
+      '200':
+        description: 'The list of providers'
+        schema:
+          $ref: schemas/output/provider-list.json
+  post:
+    summary: Add a new provider
+    operationId: add_provider
+    tags:
+    - site
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/provider.json
+    responses:
+      '200':
+        description: 'The provider was created sucessfully'
+        schema:
+          $ref: schemas/output/collection-new.json
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+
+/site/providers/{ProviderId}:
+  parameters:
+    - name: ProviderId
+      in: path
+      type: string
+      required: true
+      description: The ID of the provider
+  get:
+    summary: Return the provider identified by ProviderId
+    operationId: get_provider
+    tags:
+    - site
+    responses:
+      '200':
+        description: 'The provider identified by ProviderId'
+        schema:
+          $ref: schemas/output/provider.json
+  put:
+    summary: Update the provider identified by ProviderId
+    operationId: modify_provider
+    tags:
+    - site
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/provider-update.json
+    responses:
+      '200':
+        description: 'The provider was updated successfully'
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+
+/site/providers/{ProviderId}/config:
+  parameters:
+    - name: ProviderId
+      in: path
+      type: string
+      required: true
+      description: The ID of the provider
+  get:
+    summary: Return the configuration for provider identified by ProviderId
+    description: The returned configuration will be redacted, with any privileged values
+      replaced with null.
+    operationId: get_provider_config
+    tags:
+    - site
+    responses:
+      '200':
+        description: 'The provider identified by ProviderId'
+        schema:
+          type: object

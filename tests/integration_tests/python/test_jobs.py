@@ -2669,3 +2669,4 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     r = as_admin.get('/jobs/' + job + '/logs')
     assert r.ok
     assert r.json()['logs'] == expected_job_logs
+

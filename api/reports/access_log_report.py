@@ -54,6 +54,7 @@ class AccessLogReport(Report):
         "context.collection.label",
         "context.file.name",
         "context.ticket_id",
+        "context.job.id",
         "request_method",
         "request_path"
     ]

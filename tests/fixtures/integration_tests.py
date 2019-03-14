@@ -32,6 +32,32 @@ def api_db():
 
 
 @pytest.fixture(scope='session')
+def set_env():
+    """Set environment variables for the duration of a session"""
+    initial_state = os.environ.copy()
+    # set desired environment
+    os.environ['FLYWHEEL_RELEASE'] = 'emerald.x.y.z'
+
+    yield set_env
+
+    # return to initial state
+    os.environ['FLYWHEEL_RELEASE'] = initial_state.get('FLYWHEEL_RELEASE', '')
+
+
+@pytest.fixture(scope='function')
+def ensure_version_singleton(api_db):
+    original = api_db.singletons.find_one({'_id': 'version'})
+    api_db.singletons.update({'_id': 'version'}, {'db_version': 1}, upsert=True)
+
+    yield ensure_version_singleton
+
+    if original is not None:
+        api_db.singletons.update({'_id': 'version'}, original)
+    else:
+        api_db.singletons.remove({'_id': 'version'})
+
+
+@pytest.fixture(scope='session')
 def log_db():
     """Return mongo client for the log db"""
     return pymongo.MongoClient(SCITRAN_PERSISTENT_DB_LOG_URI).get_database()

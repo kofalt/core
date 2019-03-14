@@ -9,7 +9,7 @@ import string
 from urlparse import urlparse
 
 from ..types import Origin
-from ..dao.containerutil import create_filereference_from_dictionary, create_containerreference_from_dictionary, create_containerreference_from_filereference
+from ..dao.containerutil import create_filereference_from_dictionary, create_containerreference_from_dictionary
 
 from .. import config
 from ..web.errors import APINotFoundException
@@ -85,11 +85,6 @@ class Job(object):
         if profile is None:
             profile = {}
 
-        if destination is None and inputs is not None:
-            # Grab an arbitrary input's container
-            key = inputs.keys()[0]
-            fr = inputs[key]
-            destination = create_containerreference_from_filereference(fr)
 
         # Trim tags array to unique members...
         tags = list(set(tags))

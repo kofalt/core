@@ -15,6 +15,16 @@ def test_collections(data_builder, as_admin, as_user, as_public):
     assert r.ok
     collection = r.json()['_id']
 
+    # Make sure admin can't see without exhaustive or permissions
+    r = as_admin.get('/collections')
+    assert r.ok
+    assert len(r.json()) == 0
+
+    # With exhaustive flag, the collection is returned
+    r = as_admin.get('/collections', params={'exhaustive': True})
+    assert r.ok
+    assert len(r.json()) == 1
+
     r = as_user.delete('/collections/' + collection)
     assert r.ok
 

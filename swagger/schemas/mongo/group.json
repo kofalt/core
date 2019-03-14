@@ -16,7 +16,8 @@
                           "title": "Permissions",
                           "default": [],
                           "uniqueItems": true
-                        }
+                        },
+    "providers":        {}
   },
   "additionalProperties": false,
   "required": ["_id", "created", "modified"]

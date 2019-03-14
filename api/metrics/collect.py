@@ -34,6 +34,9 @@ def collect_db_metrics():
             release = version_info.get('release', 'UNKNOWN')
             values.RELEASE_VERSION.labels(release).set(1)
 
+            flywheel_version = version_info.get('flywheel_release', 'UNKNOWN')
+            values.FLYWHEEL_VERSION.labels(flywheel_version).set(1)
+
         # Get jobs info
         for entry in config.db.jobs.aggregate(JOBS_BY_STATE_QUERY):
             values.JOBS_BY_STATE.labels(entry['_id']).set(entry['count'])

@@ -18,6 +18,16 @@ class ContainerNode(object):
         self.container_id = container_id
         self.parent_id = parent_id
 
+# Map a container name to a level in the hierarchy
+# These are runtime values
+CONTAINER_LEVELS = {
+    'project': 1,
+    'subject': 2,
+    'session': 3,
+    'acquisition': 4,
+    'analysis': 5
+}
+
 class HierarchyDownloadStrategy(AbstractDownloadStrategy):
     """Abstract hierarchy-based download strategy.
 
@@ -32,6 +42,9 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
 
     # Whether or not to include analyses
     include_analyses = True
+
+    # Whether or not to visit non-leaf parent containers
+    include_parents = False
 
     # The projection map for each container type,
     # no need to include info, deleted, parents or files
@@ -53,7 +66,10 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
         self.container_id_map = {}
 
         # Stores each fetched container for later traversal
-        self.visit_nodes = collections.deque()
+        self.visit_nodes = []
+
+        # Store a set of IDs of containers that have file leaf nodes
+        self.populated_nodes = set()
 
         # Store collection id, if provided
         self.collection_id = params.get('collection')
@@ -99,14 +115,19 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
         # This is only required if producing actual paths for the download
         self._retrieve_nodes(base_query, self._parent_visit_tree, summary, parents=True)
 
+        # Sort visit nodes by container level, descending
+        # (i.e. visit acquisitions first)
+        self.visit_nodes.sort(key=lambda node: node[0])
+
         # Final pass is visiting each container and file
         while self.visit_nodes:
-            container_type, container = self.visit_nodes.pop()
+            _, container_type, container = self.visit_nodes.pop()
+            container_id = container['_id']
 
             if summary and container_type != 'analysis':
                 parents = {}
             else:
-                parents = self._resolve_parents(container)
+                parents = self._resolve_parents(container_type, container)
 
             if container_type == 'analysis' and uid:
                 parent = parents.get(container['parent']['type'])
@@ -117,15 +138,19 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
             # Determine if there are any files that need to be visited
             files = filtered_files(container, filters)
 
-            # Don't visit the container if no files matched
-            if not files:
+            # Don't visit the container if no files matched anywhere in the down-tree
+            if not files and not container_id in self.populated_nodes:
                 continue
+
+            # Mark all parents as having leaf nodes
+            for _, parent in parents.items():
+                if parent is not None:
+                    self.populated_nodes.add(parent['_id'])
 
             for target in self.visit_container(parents, container_type, container, summary):
                 yield target
 
             # Add this container to the parents and visit each file
-            parents[container_type] = container
             for file_group, file_entry in files:
                 for target in self.visit_file(parents, container_type, file_group,
                         file_entry, summary):
@@ -182,6 +207,7 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
             if self.require_info:
                 result['info'] = 1
             result['parents'] = 1
+            result['modified'] = 1
         return result
 
     def _create_visit_tree(self, nodes):
@@ -216,6 +242,9 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
         for container_type, nodes in items:
             if not nodes:
                 continue
+
+            # container level
+            container_level = CONTAINER_LEVELS[container_type]
 
             # Get storage container
             storage = containerstorage.cs_factory(container_type)
@@ -286,21 +315,23 @@ class HierarchyDownloadStrategy(AbstractDownloadStrategy):
                     if child_container_type:
                         visit_tree[child_container_type].append(ContainerNode(parent_id=container_id))
                     if self.include_analyses and container_type != 'analysis':
-                        visit_tree['analyses'].append(ContainerNode(parent_id=container_id))
+                        visit_tree['analysis'].append(ContainerNode(parent_id=container_id))
 
-                    # Add to the list of nodes to visit
-                    self.visit_nodes.append((container_type, container))
+                # Add to the list of nodes to visit
+                if not parents or self.include_parents:
+                    self.visit_nodes.append((container_level, container_type, container))
 
-    def _resolve_parents(self, container):
+    def _resolve_parents(self, container_type, container):
         """Resolve parent references for the given container
 
         Args:
+            container_type (str): The container type
             container (dict): The container to resolve
 
         Returns:
             dict: The map of parent containers
         """
-        result = {}
+        result = {container_type: container}
         for parent_type, parent_id in container.get('parents', {}).items():
             if parent_type == 'group':
                 result[parent_type] = {'_id': parent_id, 'label': parent_id}

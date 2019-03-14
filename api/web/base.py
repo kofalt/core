@@ -88,25 +88,25 @@ class RequestHandler(webapp2.RequestHandler):
 
             # Upsert for backwards compatibility (ie. not-yet-seen device still using drone secret)
             label = (drone_method + '_' + drone_name).replace(' ', '_')  # Note: old drone _id's are kept under label
-            device = config.db.devices.find_one_and_update(
+            self.device = config.db.devices.find_one_and_update(
                 {'label': label},
                 {'$set': {'label': label, 'type': drone_method, 'name': drone_name}},
                 upsert=True,
                 return_document=pymongo.collection.ReturnDocument.AFTER
             )
 
-            self.origin = {'type': Origin.device, 'id': device['_id']}
+            self.origin = {'type': Origin.device, 'id': self.device['_id']}
             drone_request = True
 
         if self.origin['type'] == Origin.device:
             # Update device.last_seen
             # In the future, consider merging any keys into self.origin?
-            config.db.devices.update_one(
+            self.device = config.db.devices.find_one_and_update(
                 {'_id': self.origin['id']},
                 {'$set': {
                     'last_seen': datetime.datetime.utcnow(),
                     'errors': []  # Reset errors list if device checks in
-                }})
+                }}, return_document=pymongo.collection.ReturnDocument.AFTER)
 
             # Bit hackish - detect from route if a job is the origin, and if so what job ID.
             # Could be removed if routes get reorganized. POST /api/jobs/id/result, maybe?
@@ -443,12 +443,15 @@ class RequestHandler(webapp2.RequestHandler):
 
         util.send_json_http_exception(self.response, message, code, request_id, core_status_code=core_status, custom=custom_errors)
 
-    def log_user_access(self, access_type, cont_name=None, cont_id=None, filename=None, origin_override=None, download_ticket=None):
+    def log_user_access(self, access_type, cont_name=None, cont_id=None,
+                        filename=None, origin_override=None, download_ticket=None,
+                        job_id=None):
         origin = origin_override if origin_override is not None else self.origin
 
         try:
             log_user_access(self.request, access_type, cont_name=cont_name, cont_id=cont_id,
-                    filename=filename, origin=origin, download_ticket=download_ticket)
+                    filename=filename, origin=origin, download_ticket=download_ticket,
+                    job_id=job_id)
         except Exception as e:  # pylint: disable=broad-except
             self.log.exception(e)
             self.abort(500, 'Unable to log access.')

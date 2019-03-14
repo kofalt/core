@@ -1124,3 +1124,186 @@ def test_optional_input_gear_rules(default_payload, data_builder, api_db, as_adm
     r = as_root.get('/jobs/next')
     assert r.ok
     job_id = r.json()['id']
+
+def test_multi_input_rules(default_payload, data_builder, as_admin, as_root, file_form):
+    # Create gear and project
+    gear_doc = default_payload['gear']
+    # Try creating batch with optional inputs and api-key input
+    gear_doc['gear']['inputs'] = {
+        'text': {
+            'base': 'file',
+            'name': {'pattern': '^.*.txt$'},
+            'size': {'maximum': 100000}
+        },
+        'csv': {
+            'base': 'file',
+            'name': {'pattern': '^.*.csv$'},
+            'size': {'maximum': 100000}
+        }
+    }
+
+    gear = data_builder.create_gear(gear=gear_doc['gear'])
+    project = data_builder.create_project()
+    acquisition = data_builder.create_acquisition()
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
+
+    # Try posting rule with fixed inputs and that auto-updates
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'test-fixed-input-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'text'}],
+        'disabled': False,
+        'auto_update': True,
+        'fixed-inputs': [
+            {
+                'input': 'csv',
+                'name': 'test.csv',
+                'id': acquisition,
+                'type': 'acquisition'
+            }
+        ]
+    })
+    assert r.status_code == 400
+
+    # Try posting rule with too many fixed inputs
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'test-fixed-input-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'text'}],
+        'disabled': False,
+        'auto_update': False,
+        'fixed-inputs': [
+            {
+                'input': 'csv',
+                'name': 'test.csv',
+                'id': acquisition,
+                'type': 'acquisition'
+            },
+            {
+                'input': 'text',
+                'name': 'test.csv',
+                'id': acquisition,
+                'type': 'acquisition'
+            }
+        ]
+    })
+    assert r.status_code == 400
+
+    # Try posting rule with invalid fixed inputs
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'test-fixed-input-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'text'}],
+        'disabled': False,
+        'auto_update': True,
+        'fixed-inputs': [
+            {
+                'input': 'not-an-input',
+                'name': 'test.csv',
+                'id': acquisition,
+                'type': 'acquisition'
+            }
+        ]
+    })
+    assert r.status_code == 400
+
+    # try creating rule with non-existent fixed inputs
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'test-fixed-input-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'text'}],
+        'disabled': False,
+        'auto_update': False,
+        'fixed_inputs': [
+            {
+                'input': 'csv',
+                'name': 'test-doesnt-exist.csv',
+                'id': acquisition,
+                'type': 'acquisition'
+            }
+        ]
+    })
+    assert r.status_code == 404
+
+    # try creating a site rule with fixed inputs
+    r = as_admin.post('/site/rules', json={
+        'gear_id': gear,
+        'name': 'test-fixed-input-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'text'}],
+        'disabled': False,
+        'auto_update': False,
+        'fixed_inputs': [
+            {
+                'input': 'csv',
+                'name': 'test.csv',
+                'id': acquisition,
+                'type': 'acquisition'
+            }
+        ]
+    })
+    assert r.status_code == 400
+
+    # Create rule with fixed inputs
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'test-fixed-input-rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'text'}],
+        'disabled': False,
+        'auto_update': False,
+        'fixed_inputs': [
+            {
+                'input': 'csv',
+                'name': 'test.csv',
+                'id': acquisition,
+                'type': 'acquisition'
+            }
+        ]
+    })
+    assert r.ok
+
+    # create job
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.txt')).ok
+
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    job_id = r.json()['id']
+
+    r = as_root.get('/jobs/' + job_id)
+    assert r.ok
+    job_map = r.json()
+
+    assert len(job_map['inputs']) == 2
+    assert job_map['inputs']['csv']['id'] == acquisition
+    assert job_map['inputs']['csv']['name'] == 'test.csv'
+
+    # test that destination is based off the non-fixed input
+    assert as_admin.post('/projects/' + project + '/files', files=file_form('test.txt')).ok
+
+    r = as_root.get('/jobs/next')
+    assert r.ok
+    job_id = r.json()['id']
+
+    r = as_root.get('/jobs/' + job_id)
+    assert r.ok
+    job_map = r.json()
+
+    assert job_map['destination']['type'] == 'project'
+    assert job_map['destination']['id'] == project
+
+    # Try to delete a fixed input
+    print(acquisition)
+    r = as_admin.delete('/acquisitions/' + acquisition + '/files/test.csv')
+    assert r.status_code == 403
+

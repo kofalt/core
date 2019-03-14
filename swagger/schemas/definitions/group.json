@@ -17,7 +17,8 @@
             "permissions": {"$ref": "permission.json#/definitions/permission-output-list"},
             "created": {"$ref":"created-modified.json#/definitions/created"},
             "modified": {"$ref":"created-modified.json#/definitions/modified"},
-            "tags": {"$ref":"tag.json#/definitions/tag-list"}
+            "tags": {"$ref":"tag.json#/definitions/tag-list"},
+            "providers": {"$ref":"provider.json#/definitions/provider-links"}
           },
           "additionalProperties":false,
           "x-sdk-model": "group",
@@ -27,7 +28,8 @@
           "type": "object",
           "properties": {
             "_id":{"$ref":"common.json#/definitions/lowercase-string-id"},
-            "label": {"$ref": "#/definitions/label"}
+            "label": {"$ref": "#/definitions/label"},
+            "providers": {"$ref":"provider.json#/definitions/provider-links"}
           },
           "additionalProperties": false,
           "x-sdk-model": "group",
@@ -72,4 +74,3 @@
         }
     }
 }
-

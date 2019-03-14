@@ -1,4 +1,4 @@
-from . import models, mappers
+from . import models, mappers, providers
 from ..jobs import gears
 from ..web import errors
 
@@ -15,7 +15,7 @@ def get_site_settings():
         result = get_default_site_settings()
     return result
 
-def update_site_settings(doc):
+def update_site_settings(doc, log):
     """Update the site settings, with validation.
 
     Args:
@@ -36,6 +36,18 @@ def update_site_settings(doc):
         if invalid_names:
             raise errors.APIValidationException('The following gear(s) do not exist: {}'.format(', '.join(invalid_names)))
 
+    if 'providers' in doc:
+        # Get current settings
+        current_site = get_site_settings()
+        providers.validate_provider_updates(current_site, doc['providers'], True)
+
+    # Log critical path updates
+    if 'center_gears' in doc:
+        log.info('Updating center gears to: %s', doc['center_gears'])
+
+    if 'providers' in doc:
+        log.info('Updating site providers to: %s', doc['providers'])
+
     mapper = mappers.SiteSettings()
     return mapper.patch(doc)
 
@@ -45,4 +57,4 @@ def get_default_site_settings():
     Returns:
         SiteSettings: The default site settings
     """
-    return models.SiteSettings(center_gears=None)
+    return models.SiteSettings(center_gears=None, providers=None)
