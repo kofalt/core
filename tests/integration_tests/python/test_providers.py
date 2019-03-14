@@ -1,8 +1,5 @@
 import bson
 
-# Explicitly import static compute provider to register the PROVIDER type
-from api.site.providers.static_compute_provider import StaticComputeProvider
-
 VALID_PROVIDER = {
     'provider_class': 'compute',
     'provider_type': 'static',
@@ -28,6 +25,7 @@ def test_providers_initial_state(as_user):
     assert site_settings.get('providers', {}).get('compute') == static_provider_id
 
 def test_create_providers(api_db, as_admin, as_user, as_public):
+
     # Create and retrieve
     r = as_public.get('/site/providers')
     assert r.status_code == 403
