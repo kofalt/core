@@ -72,7 +72,7 @@ class Queue(object):
         if job.state not in JOB_STATES_ALLOWED_MUTATE:
             raise errors.InputValidationException('Cannot mutate a job that is ' + job.state + '.')
 
-        # TODO: This should use errors.InputValidationException or similar
+        # TODO: This should use InputValidationException or similar
         if 'state' in mutation and not valid_transition(job.state, mutation['state']):
             raise Exception('Mutating job from ' + job.state + ' to ' + mutation['state'] + ' not allowed.')
 
@@ -98,7 +98,7 @@ class Queue(object):
         # Any modification must be a timestamp update
         mutation['modified'] = now
 
-        # Create an object with all the fields that must not have changed conly.
+        # Create an object with all the fields that must not have changed concurrently.
         job_query =  {
             '_id': bson.ObjectId(job.id_),
             'state': job.state,
@@ -641,7 +641,7 @@ class Queue(object):
             if orphan_candidate is None:
                 break
 
-            # If the job is ly attempting to complete, do not orphan.
+            # If the job is currently attempting to complete, do not orphan.
             ticket = JobTicket.find(orphan_candidate['_id'])
             if ticket is not None and len(ticket) > 0:
                 ticketed_jobs.append(orphan_candidate['_id'])
