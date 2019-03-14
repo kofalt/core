@@ -4,13 +4,13 @@ import requests
 import jwt
 
 from ...web import errors
-from .compute_provider import ComputeProvider
+from .base import BaseProvider
 from .factory import ProviderKey
 from ..models import ProviderClass
 from ...config import log
 
 # pylint: disable=too-few-public-methods
-class GCComputeProvider(ComputeProvider):
+class GCComputeProvider(BaseProvider):
     """The Google Cloud compute provider object."""
 
     # Must set provider_key as (provider_class, provider_type)
@@ -54,6 +54,12 @@ class GCComputeProvider(ComputeProvider):
 
         self._validate_permissions()
 
+    def get_redacted_config(self):
+        return {
+            'client_email': self.config['client_email'],
+            'client_id': self.config['client_id'],
+            'project_id': self.config['project_id']
+        }
 
     def _validate_permissions(self):
         """
