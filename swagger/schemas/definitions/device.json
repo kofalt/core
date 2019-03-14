@@ -56,6 +56,7 @@
       },
       "x-sdk-model": "device",
       "additionalProperties": false
+    },
     "device-update": {
       "type": "object",
       "properties": {
