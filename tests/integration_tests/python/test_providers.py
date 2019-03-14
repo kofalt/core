@@ -1,5 +1,8 @@
 import bson
 
+# Explicitly import static compute provider to register the PROVIDER type
+from api.site.providers.static_compute_provider import StaticComputeProvider
+
 VALID_PROVIDER = {
     'provider_class': 'compute',
     'provider_type': 'static',
