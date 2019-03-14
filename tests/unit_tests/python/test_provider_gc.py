@@ -52,3 +52,17 @@ def test_instantiate(mocker):
         gc = GCComputeProvider(config)
         gc.validate_config()
     config['project_id'] = 'test_project'
+
+
+def test_redacted_config():
+    gc = GCComputeProvider(config)
+    assert gc is not None
+    redacted = gc.get_redacted_config()
+    assert 'client_email' in redacted
+    assert 'client_id' in redacted
+    assert 'project_id' in redacted
+    # We should have only those explicit data points in the redacted config
+    assert len(redacted) == 3
+
+
+
