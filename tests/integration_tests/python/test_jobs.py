@@ -2766,10 +2766,10 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     assert as_admin.put('/jobs/' + retried_job_id, json={'state': 'failed'}).ok
 
     # Retry validates provider
-    r = as_admin.post('/jobs/' + retried_job_id + '/retry', json={'compute_provider_id': str(bson.ObjectId())})
+    r = as_admin.post('/jobs/' + retried_job_id + '/retry', params={'computeProviderId': str(bson.ObjectId())})
     assert r.status_code == 422
 
-    r = as_admin.post('/jobs/' + retried_job_id + '/retry', json={'compute_provider_id': site_provider})
+    r = as_admin.post('/jobs/' + retried_job_id + '/retry', params={'computeProviderId': site_provider})
     assert r.ok
     retried_job_id2 = r.json()['_id']
 
