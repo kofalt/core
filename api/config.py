@@ -72,7 +72,8 @@ DEFAULT_CONFIG = {
         'data_path': os.path.join(os.path.dirname(__file__), '../persistent/data'),
         'elasticsearch_host': 'localhost:9200',
         'fs_url': None,
-        'support_legacy_fs': True
+        'support_legacy_fs': True,
+        'multiproject': False
     },
 }
 
@@ -275,6 +276,7 @@ def get_public_config():
     features = {
         'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,      #  Job queue /jobs/ask route.
+        'multiproject': is_multiproject_enabled(),
         'signed_url': storage.is_signed_url(),
     }
 
@@ -298,6 +300,8 @@ def get_version():
 
     return version_object
 
+def is_multiproject_enabled():
+    return get_item('persistent', 'multiproject')
 
 def get_item(outer, inner):
     return get_config()[outer][inner]

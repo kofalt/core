@@ -260,10 +260,7 @@ def get_compute_provider_id_for_job(gear, destination, inputs):
 
 def _get_provider_picker():
     """Get the configured provider picker"""
-    cfg = config.get_config()
-    # Super secret back door to disable multiproject billing on a site
-    multiproject_enabled = not cfg.get('core', {}).get('_disable_multiproject', False)
-    return multiproject.create_provider_picker(multiproject_enabled)
+    return multiproject.create_provider_picker(config.is_multiproject_enabled())
 
 
 def _scrub_config(provider):
