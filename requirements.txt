@@ -20,5 +20,5 @@ unicodecsv==0.9.0
 urllib3==1.23
 webapp2==2.5.2
 WebOb==1.8.2
-flywheel-common==0.1.0.dev8
+flywheel-common==1.0.0
 git+https://github.com/flywheel-io/gears.git@v0.1.8#egg=gears
