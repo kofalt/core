@@ -2,6 +2,7 @@
 import datetime
 
 from ... import config
+from ...dao import dbutil
 from .. import models
 
 SITE_SINGLETON_ID = 'site'
@@ -32,6 +33,35 @@ class SiteSettings(object):
         update['$set']['modified'] = now
 
         self.dbc.update_one({'_id': SITE_SINGLETON_ID}, update, upsert=True)
+
+    def ensure_provider(self, provider_class, default_provider_id):
+        """Ensure that site settings exists and that provider of the given type is set.
+
+        Args:
+            provider_class (str): The provider class
+            default_provider_id (ObjectId): The default id to set, if it doesn't already exist
+        """
+        provider_key = 'providers.{}'.format(provider_class)
+
+        query = {
+            '_id': SITE_SINGLETON_ID,
+            provider_key: None
+        }
+
+        now = datetime.datetime.now()
+        update = {
+            '$set': {
+                provider_key: default_provider_id,
+                'modified': now
+            },
+            '$setOnInsert': {
+                'center_gears': None,
+                'created': now
+            }
+        }
+
+        # Set the provider singleton, if not set
+        dbutil.try_update_one(self.db, 'singletons', query, update, upsert=True)
 
     def get(self):
         """Find the current site config.
