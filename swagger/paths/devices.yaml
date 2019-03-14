@@ -107,8 +107,6 @@
     responses:
       '200':
         description: Device updated
-        schema:
-          $ref: schemas/output/device-admin-update.json
 /devices/{DeviceId}/key:
   parameters:
     - required: true
