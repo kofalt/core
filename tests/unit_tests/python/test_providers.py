@@ -7,10 +7,6 @@ from api.web import errors
 from api.site import models, mappers, providers
 from api.site.providers.factory import ProviderKey
 
-# We have to explicitely import the static compute provider so that the type is 
-# registered with the PROVIDERS key
-from api.site.providers.static_compute_provider import StaticComputeProvider
-
 origin = { 'type': 'user', 'id': 'user@test.com' }
 config = { 'key': 'value' }
 
