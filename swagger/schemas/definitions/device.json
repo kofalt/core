@@ -55,7 +55,7 @@
         "disabled": {"type":"boolean"}
       },
       "x-sdk-model": "device",
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "device-update": {
       "type": "object",
