@@ -4,6 +4,11 @@ from .base import BaseProvider
 from .static_compute_provider import StaticComputeProvider
 from .gc_compute_provider import GCComputeProvider
 
+# You must explicitly define the provider classes here so that 
+# they are registered In the PROVIDERS array
+from .gc_compute_provider import GCComputeProvider
+from .static_compute_provider import StaticComputeProvider
+
 from .factory import create_provider
 
 # Import repository functions directly
