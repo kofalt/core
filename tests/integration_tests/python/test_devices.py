@@ -157,7 +157,6 @@ def test_device_key_management(as_public, as_user, as_admin, api_db):
     # disable device
     r = as_admin.put('/devices/' + device_id, json={'disabled': True})
     assert r.ok
-    assert r.json()['modified'] == 1
     assert api_db.apikeys.count({'origin.id': bson.ObjectId(device_id), 'type': 'device'}) == 0
 
     # disabled device key is not regenerated
