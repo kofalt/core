@@ -707,3 +707,10 @@ def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
     assert most_recent_log['context']['job']['id'] == job_id
     assert most_recent_log['origin']['id'] == 'admin@user.com'
 
+    # Unset config
+    api_db.jobs.update_one({'_id': bson.ObjectId(job_id)}, {'$unset': {'config': ''}})
+
+    # Verify that produced metadata and info don't appear on a list endpoint
+    r = as_admin.get('/jobs', params={'filter': '_id={}'.format(job_id)})
+    assert r.ok
+
