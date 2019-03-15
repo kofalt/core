@@ -1,7 +1,7 @@
 """Provides registration and factory methods for provider classes"""
 import collections
 
-from flywheel_common import create_flywheel_fs
+from flywheel_common.storage import create_flywheel_fs
 from ..models.provider import ProviderClass
 
 # Lookup key for provider classes
