@@ -125,7 +125,7 @@ INVOCATION = {
 
         'an_api_key': {
             'base': 'api-key',
-            'key': os.environ.get('SdkTestKey')
+            'key': get_api_key()
         }
     },
     'destination': {

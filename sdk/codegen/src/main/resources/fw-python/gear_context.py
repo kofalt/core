@@ -19,6 +19,10 @@ class GearContext(object):
         self._out_dir = None
         self.log = logging.getLogger(__name__)
 
+    def init_logging(self, level='INFO'):
+        """Initializes logging to the given level"""
+        logging.basicConfig(level=logging.get(level.upper()) or logging.INFO)
+
     @property
     def config(self):
         """Get the config dictionary.
@@ -36,6 +40,10 @@ class GearContext(object):
         :rtype: dict
         """
         return self._get_invocation()['destination']
+
+    @property
+    def work_dir(self):
+
 
     @property
     def output_dir(self):
@@ -175,6 +183,8 @@ class GearContext(object):
 
         if parent_id is None:
             raise RuntimeError('Cannot find {} from destination'.format(container_type))
+
+        self.log.info('Using source container: %s=%s', container_type, parent_id)
 
         # Download bids to the target directory
         # download_bids_dir will create the target path
