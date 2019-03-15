@@ -19,7 +19,7 @@ def remove_potential_phi_from_job(job_map):
     """
     job_map_copy = copy.deepcopy(job_map)
     job_map_copy.pop('produced_metadata', None)
-    for config_input in job_map_copy['config'].get('inputs', {}).values():
+    for config_input in job_map_copy.get('config', {}).get('inputs', {}).values():
         if config_input.get('base') == 'file':
             config_input['object'].pop('info', None)
     return job_map_copy
