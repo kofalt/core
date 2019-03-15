@@ -132,3 +132,76 @@ def test_device_logging(as_drone, as_root):
 
     r = as_drone.get('/devices/logging/remote_config')
     assert r.status_code == 200
+
+
+def test_device_key_management(as_public, as_user, as_admin, api_db):
+
+    # create device
+    r = as_admin.post('/devices', json={'type': 'test'})
+    assert r.ok
+    device_id = r.json()['_id']
+    r = as_admin.get('/devices/' + device_id)
+    assert r.ok
+    device_key = r.json()['key']
+
+    # public and users cannot disable devices
+    r = as_public.put('/devices/' + device_id, json={'disabled': True})
+    assert r.status_code == 403
+    r = as_user.put('/devices/' + device_id, json={'disabled': True})
+    assert r.status_code == 403
+
+    # disabling an unknown device results in not found
+    r = as_admin.put('/devices/unknowndevice', json={'disabled': True})
+    assert r.status_code == 404
+
+    # disable device
+    r = as_admin.put('/devices/' + device_id, json={'disabled': True})
+    assert r.ok
+    assert api_db.apikeys.count({'origin.id': bson.ObjectId(device_id), 'type': 'device'}) == 0
+
+    # disabled device key is not regenerated
+    r = as_admin.get('/devices/' + device_id)
+    assert r.ok
+    assert r.json()['disabled'] is True
+    assert 'key' not in r.json()
+
+    # disabled device key is not accepted
+    as_device = as_public
+    as_device.headers.update({'Authorization': 'scitran-user {}'.format(device_key)})
+    r = as_device.put('/devices/self', json={'interval': 60})
+    assert r.status_code == 401
+
+    # reenable device
+    r = as_admin.put('/devices/' + device_id, json={'disabled': False})
+    assert r.ok
+    r = as_admin.get('/devices/' + device_id)
+    assert r.ok
+    assert r.json()['disabled'] is False
+    device_key_enabled = r.json()['key']
+    assert device_key_enabled != device_key
+
+    # public and users cannot regenerate device keys
+    r = as_public.post('/devices/' + device_id + '/key')
+    assert r.status_code == 401
+    r = as_user.post('/devices/' + device_id + '/key')
+    assert r.status_code == 403
+
+    # regenerating the key of an unknown device results in not found
+    r = as_admin.post('/devices/unknowndevice/key')
+    assert r.status_code == 404
+
+    # regenerate key
+    r = as_admin.post('/devices/' + device_id + '/key')
+    assert r.ok
+    device_key_regen = r.json()['key']
+    assert device_key_regen not in (device_key_enabled, device_key)
+
+    # regenerated key is accepted
+    as_device = as_public
+    as_device.headers.update({'Authorization': 'scitran-user {}'.format(device_key_regen)})
+    r = as_device.put('/devices/self', json={'interval': 60})
+    assert r.ok
+
+    # delete device
+    r = as_admin.delete('/devices/' + device_id)
+    assert r.ok
