@@ -3,7 +3,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from sdk_test_case import SdkTestCase
+from sdk_test_case import get_api_key, SdkTestCase
 from test_acquisition import create_test_acquisition
 
 import flywheel
