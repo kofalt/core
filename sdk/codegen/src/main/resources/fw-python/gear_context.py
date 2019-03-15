@@ -17,6 +17,7 @@ class GearContext(object):
         self._client = None
         self._invocation = None
         self._out_dir = None
+        self._work_dir = None
         self.log = logging.getLogger(__name__)
 
     def init_logging(self, level='INFO'):
@@ -43,7 +44,16 @@ class GearContext(object):
 
     @property
     def work_dir(self):
+        """Get the absolute path to a work directory
 
+        :return: The absolute path to work.
+        :rtype: str
+        """
+        if self._work_dir is None:
+            self._work_dir = os.path.join(self._path, 'work')
+            if not os.path.exists(self._work_dir):
+                os.makedirs(self._work_dir)
+        return self._work_dir
 
     @property
     def output_dir(self):
