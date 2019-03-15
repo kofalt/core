@@ -87,7 +87,7 @@ class DeviceHandler(base.RequestHandler):
         validate_data(payload, 'device-admin-update.json', 'input', 'PUT')
         device = self.storage.get_container(device_id)
 
-        result = self.storage.update_el(device_id, payload)
+        self.storage.update_el(device_id, payload)
 
         is_disabled = payload['disabled']
         if is_disabled:
