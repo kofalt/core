@@ -22,7 +22,7 @@ class GearContext(object):
 
     def init_logging(self, level='INFO'):
         """Initializes logging to the given level"""
-        logging.basicConfig(level=logging.get(level.upper()) or logging.INFO)
+        logging.basicConfig(level=getattr(logging, level.upper(), None) or logging.INFO)
 
     @property
     def config(self):
