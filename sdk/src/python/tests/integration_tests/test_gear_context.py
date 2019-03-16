@@ -90,6 +90,33 @@ class GearContextTestCases(SdkTestCase):
 
             download_bids.assert_called_with(context.client, self.session_id, 'session', bids_dir, src_data=False)
 
+    def testWriteMetadata(self):
+        with self.context as context:
+            context.update_container_metadata('session', {'dict_key': 'dict_value'}, key='value')
+
+            context.update_destination_metadata(another_key=3)
+
+            context.update_file_metadata('output.txt', {'k': 'v'}, k2='v2')
+            context.update_file_metadata('output.txt', k='v3')
+
+
+        with self.context.open_output('.metadata.json', 'r') as f:
+            metadata = json.load(f)
+
+        assert metadata == {
+            'session': {
+                'dict_key': 'dict_value',
+                'key': 'value'
+            },
+            'acquisition': {
+                'another_key': 3,
+                'files': [{
+                    'name': 'output.txt',
+                    'k': 'v3',
+                    'k2': 'v2'
+                }]
+            }
+        }
 
 INVOCATION = {
     'config': {

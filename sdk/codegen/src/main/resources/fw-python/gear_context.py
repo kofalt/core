@@ -1,4 +1,5 @@
 """Provides gear helper functions"""
+import copy
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ class GearContext(object):
         self._invocation = None
         self._out_dir = None
         self._work_dir = None
+        self._metadata = {}
         self.log = logging.getLogger(__name__)
 
     def init_logging(self, level='INFO'):
@@ -90,6 +92,27 @@ class GearContext(object):
             self._client = Client(api_key)
         return self._client
 
+    def log_config(self):
+        """Print the configuration and input files to the logger"""
+        # Log destination
+        self.log.info('Destination is %s=%s', self.destination.get('type'), self.destination.get('id'))
+
+        # Log file inputs
+        for inp_name, inp in self._get_invocation()['inputs'].items():
+            if inp['base'] != 'file':
+                continue
+
+            container_type = inp.get('hierarchy', {}).get('type')
+            container_id = inp.get('hierarchy', {}).get('id')
+            file_name = inp.get('location', {}).get('name')
+
+            self.log.info('Input file "%s" is %s from %s=%s', inp_name, file_name,
+                container_type, container_id)
+
+        # Log configuration values
+        for key, value in self.config:
+            self.log.info('Config "%s=%s"', key, value)
+
     def get_input(self, name):
         """Get the input for name.
 
@@ -119,6 +142,10 @@ class GearContext(object):
         """Open the named input file.
 
         Raises an exception if the input does not exist or is not a file.
+
+        :param str name: The name of the input
+        :param str mode: The open mode (default is 'r')
+        :param **kwargs: Additional args to pass to ``open``
         :return: The file object
         :rtype: file
         """
@@ -126,6 +153,18 @@ class GearContext(object):
         if path is None:
             raise OSError('An input named {} does not exist!'.format(name))
 
+        return open(path, mode, **kwargs)
+
+    def open_output(self, name, mode='w', **kwargs):
+        """Open the named output file.
+
+        :param str name: The name of the input
+        :param str mode: The open mode (default is 'w')
+        :param **kwargs: Additional args to pass to ``open``
+        :return: The file object
+        :rtype: file
+        """
+        path = os.path.join(self.output_dir, name)
         return open(path, mode, **kwargs)
 
     def get_context_value(self, name):
@@ -141,6 +180,60 @@ class GearContext(object):
         if inp['base'] != 'context':
             raise ValueError('The specified input {} is not a context input'.format(name))
         return inp.get('value')
+
+    def update_container_metadata(self, container_type, *args, **kwargs):
+        """Update metadata for the given container name in the hierarchy.
+
+        A dictionary and/or a set of key=value args can be passed to this function.
+
+        The metadata will be written when write_metadata() is called, or
+        if using this as a context manager, when the context is exited.
+
+        :param str container_type: The container type (e.g. session or acquisition)
+        :param *args: The optional update dictionary
+        :param **kwargs: The optional update key-value pairs
+        """
+        update = self._create_update_dict(args, kwargs)
+        self._update_metadata(container_type, update)
+
+    def update_file_metadata(self, file_name, *args, **kwargs):
+        """Update metadata for the given file on the destination.
+
+        A dictionary and/or a set of key=value args can be passed to this function.
+
+        The metadata will be written when write_metadata() is called, or
+        if using this as a context manager, when the context is exited.
+
+        :param str file_name: The name of the file
+        :param *args: The optional update dictionary
+        :param **kwargs: The optional update key-value pairs
+        """
+        container_type = self.destination['type']
+        update = self._create_update_dict(args, kwargs)
+        self._update_metadata(container_type, update, file_name=file_name)
+
+    def update_destination_metadata(self, *args, **kwargs):
+        """Update metadata for the destination container.
+
+        A dictionary and/or a set of key=value args can be passed to this function.
+
+        The metadata will be written when write_metadata() is called, or
+        if using this as a context manager, when the context is exited.
+
+        :param *args: The optional update dictionary
+        :param **kwargs: The optional update key-value pairs
+        """
+        container_type = self.destination['type']
+        update = self._create_update_dict(args, kwargs)
+        self._update_metadata(container_type, update)
+
+    def write_metadata(self):
+        """Write the metadata json file to the output folder"""
+        if not self._metadata:
+            return
+
+        with self.open_output('.metadata.json') as f:
+            json.dump(self._metadata, f, indent=2)
 
     def download_session_bids(self, target_dir='work/bids', src_data=False, folders=None, **kwargs):
         """Download the session in bids format to target_dir.
@@ -174,6 +267,13 @@ class GearContext(object):
         kwargs['folders'] = folders
         return self._download_bids('project', target_dir, kwargs)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            self.write_metadata()
+
     def _download_bids(self, container_type, target_dir, kwargs):
         """Download bids to the given target directory"""
         # Raise a specific error if BIDS not installed
@@ -203,6 +303,7 @@ class GearContext(object):
         return target_path
 
     def _load_download_bids(self):
+        """Load the download_bids_dir function from flywheel_bids"""
         try:
             from flywheel_bids.export_bids import download_bids_dir
             return download_bids_dir
@@ -224,3 +325,27 @@ class GearContext(object):
 
         return self._invocation
 
+    def _update_metadata(self, container_type, metadata, file_name=None):
+        dest = self._metadata.setdefault(container_type, {})
+        if file_name:
+            files = dest.setdefault('files', [])
+            file_entry = None
+            for fe in files:
+                if fe.get('name') == file_name:
+                    file_entry = fe
+                    break
+            if file_entry is None:
+                file_entry = {'name': file_name}
+                files.append(file_entry)
+            dest = file_entry
+
+        dest.update(metadata)
+
+    @staticmethod
+    def _create_update_dict(args, kwargs):
+        result = copy.deepcopy(kwargs) or {}
+        if len(args) > 0:
+            if len(args) > 1 or not isinstance(args[0], dict):
+                raise ValueError('Expected at most one update dictionary')
+            result.update(args[0])
+        return result
