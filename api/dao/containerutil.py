@@ -140,6 +140,28 @@ def extract_subject(session, project):
     return subject
 
 
+def get_project_groups(uid):
+    """Get the ids of groups for which a user access to any of the porjects
+
+    Args:
+        uid (str): The user id to find permissions for
+
+    Returns:
+        list: list of group ids (str)
+    """
+    pipeline = [
+        {
+            '$match': {'permissions._id': uid}
+        },
+        {
+            '$group': {
+                '_id': '$group'
+            }
+        }
+    ]
+    return [doc['_id'] for doc in config.db.projects.aggregate(pipeline)]
+
+
 def get_stats(cont, cont_type):
     """
     Add a session, subject, non-compliant session and attachment count to a project or collection
