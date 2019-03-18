@@ -5,26 +5,31 @@ import hmac
 import requests
 import uuid
 
+from flywheel_common.storage import create_flywheel_fs
 from ...web import errors
 from .factory import ProviderKey
 from ..models import ProviderClass
-from .storage_provider import StorageProvider
-from ...config import log
+from .base import BaseProvider
 
 # pylint: disable=too-few-public-methods
-class AWSStorageProvider(StorageProvider):
+class AWSStorageProvider(BaseProvider):
     """The AWS S3 Storage provider object."""
 
     # Must set provider_key as (provider_class, provider_type)
     provider_key = ProviderKey(ProviderClass.storage, 'aws')
 
-    def __init__(self):
+    def __init__(self, config):
 
-        super(AWSStorageProvider, self).__init__()
+        super(AWSStorageProvider, self).__init__(config)
+
+        self._storage_plugin = None
+        # we assume validation was done on persist so the keys should all be there
+        #self.validate_config()
+    
         # URL used to instantiate the storage plugin provider
         # URL in the format of s3://<<bucket-Name>/<path>
         self._storage_url = 's3://' + self.config['bucket'] + '/' + self.config.get('path', '')
-        self._storage_plugin = None
+        self._storage_plugin = create_flywheel_fs(self._storage_url)
 
 
     def validate_config(self):
@@ -47,10 +52,19 @@ class AWSStorageProvider(StorageProvider):
         if not self.config.get('bucket'):
             raise errors.APIValidationException('AWS S3 requires bucket be set')
 
-        self._validate_permissions()
+        # We need to have a valid storage object set to run these
+        if self._storage_plugin:
+            self._validate_permissions()
+            self._test_files()
 
-        self._test_files()
-
+    def get_redacted_config(self):
+        return {
+            'access_key': None,
+            'secret_access_key': None,
+            'region': self.config['region'],
+            'bucket': self.config['bucket'],
+            'path': self.config.get('path', None)
+        }
 
     def _validate_permissions(self):
         """
@@ -68,9 +82,6 @@ class AWSStorageProvider(StorageProvider):
             raise errors.APIValidationException('Unable to find your bucket. Be sure the bucket is configured correctly')
 
         # TODO: determine the way to validate we have only the permissions required and no more
-
-        self._test_files()
-
         return True
 
     def _test_files(self):
@@ -100,6 +111,12 @@ class AWSStorageProvider(StorageProvider):
         """
         return self._storage_url
 
+    @property
+    def storage_plugin(self):
+        """
+            Allow access to the internal storage provider
+        """
+        return self._storage_plugin
 
     def _make_request(self, method, request_parameters, host):
         """
