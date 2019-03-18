@@ -714,3 +714,11 @@ def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
     r = as_admin.get('/jobs', params={'filter': '_id={}'.format(job_id)})
     assert r.ok
 
+    # get job
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+
+    # get job detail
+    r = as_admin.get('/jobs/' + job_id + '/detail')
+    assert r.ok
+
