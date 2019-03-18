@@ -32,6 +32,30 @@ def get_provider(provider_id):
     return _scrub_config(result)
 
 
+def get_provider_instance(provider_id):
+    """Get the provider class matching provider_id, or None if not found.
+    With the internal config objects set for storage or compute
+
+    Args:
+        provider_id (str): The provider id
+
+    Returns:
+        The provider document (without config)
+
+    Raises:
+        APINotFoundException: If the provider does not exist.
+    """
+    mapper = mappers.Providers()
+    result = mapper.get(provider_id)
+    if not result:
+        raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+
+    # Create provider instance
+    provider_inst = create_provider(result.provider_class,
+        result.provider_type, result.config)
+
+    return provider_inst
+
 def get_provider_config(provider_id, full=False):
     """Get the provider configuration matching provider_id, or None if not found.
 
