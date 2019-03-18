@@ -469,6 +469,9 @@ def test_53(randstr, default_payload, as_root, api_db, database):
     assert 'gear_id' in rule
     assert rule['gear_id'] == gear_id_2
 
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_id})
+
 def test_54(randstr, api_db, database):
     # Create hierarchy
     group = 'g1'
