@@ -140,7 +140,7 @@ def extract_subject(session, project):
     return subject
 
 
-def get_resolvable_groups(uid):
+def get_project_groups(uid):
     pipeline = [
         {
             '$match': {'permissions._id': uid}
