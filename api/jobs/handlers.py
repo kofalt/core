@@ -616,14 +616,15 @@ class JobHandler(base.RequestHandler):
         Args:
             job (Job): A job object
         """
-        for config_input in job.config.get('inputs', {}).values():
-            if config_input.get('base') == 'file':
-                file_parent_type = config_input['hierarchy']['type']
-                file_parent_id = config_input['hierarchy']['id']
-                self.log_user_access(AccessType.view_file,
-                                     cont_name=file_parent_type,
-                                     cont_id=file_parent_id,
-                                     filename=config_input['location'].get('name'))
+        if job.config:
+            for config_input in job.config.get('inputs', {}).values():
+                if config_input.get('base') == 'file':
+                    file_parent_type = config_input['hierarchy']['type']
+                    file_parent_id = config_input['hierarchy']['id']
+                    self.log_user_access(AccessType.view_file,
+                                         cont_name=file_parent_type,
+                                         cont_id=file_parent_id,
+                                         filename=config_input['location'].get('name'))
         if job.produced_metadata:
             for container_type, metadata in job.produced_metadata.items():
                 if job.parents.get(container_type):
