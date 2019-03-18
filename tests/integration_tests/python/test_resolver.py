@@ -121,14 +121,30 @@ def test_resolver(data_builder, as_admin, as_user, as_public, file_form):
     assert child_in_result({'_id': session, 'container_type': 'session'}, result)
     assert len(result['children']) == 2
 
-    # resolve root/group/project (1 file, 1 session) as user with permission on the project
+    # resolve root[/group][/project] (1 file, 1 session) as user with permission on the project
     assert as_admin.post('/projects/' + project + '/permissions', json={'_id': user_id, 'access': 'ro'}).ok
-    r = as_user.post('/resolve', json={'path': [group, project_label]})
-    result = r.json()
+
+    r = as_user.post('/resolve', json={'path': []})
     assert r.ok
+    result = r.json()
+    assert result.get('path') == []
+    assert child_in_result({'_id': group, 'container_type': 'group'}, result)
+    assert len(result['children']) == 1
+
+    r = as_user.post('/resolve', json={'path': [group]})
+    assert r.ok
+    result = r.json()
+    assert path_in_result([group], result)
+    assert child_in_result({'_id': project, 'container_type': 'project'}, result)
+    assert len(result['children']) == 1
+
+    r = as_user.post('/resolve', json={'path': [group, project_label]})
+    assert r.ok
+    result = r.json()
     assert path_in_result([group, project], result)
     assert child_in_result({'_id': session, 'container_type': 'session'}, result)
     assert len(result['children']) == 2
+
     assert as_admin.delete('/projects/' + project + '/permissions/' + user_id).ok
 
     # resolve root/group/project/files (1 file, 1 session)

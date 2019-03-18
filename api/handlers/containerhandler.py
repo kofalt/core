@@ -534,7 +534,7 @@ class ContainerHandler(base.RequestHandler):
         """
         method to return the list of groups for which there are projects accessible to the user
         """
-        group_ids = list(set((p['group'] for p in self.get_all('projects'))))
+        group_ids = containerutil.get_project_groups(self.uid)
         return list(config.db.groups.find({'_id': {'$in': group_ids}}, ['label']))
 
     def set_project_template(self, **kwargs):
