@@ -141,6 +141,14 @@ def extract_subject(session, project):
 
 
 def get_project_groups(uid):
+    """Get the ids of groups for which a user access to any of the porjects
+
+    Args:
+        uid (str): The user id to find permissions for
+
+    Returns:
+        list: list of group ids (str)
+    """
     pipeline = [
         {
             '$match': {'permissions._id': uid}
