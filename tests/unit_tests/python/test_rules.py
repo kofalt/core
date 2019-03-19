@@ -346,6 +346,14 @@ def test_rule_model_dict_methods():
     assert test_rule == translated_test_rule
 
 
+def test_rule_set_id_already_set():
+    test_rule = models.Rule('gear_id', 'rule_name', [{'file.type': 'dicom'}],
+                           [], [])
+    test_rule.rule_id = bson.ObjectId()
+    with pytest.raises(ValueError):
+        test_rule.rule_id = bson.ObjectId()
+
+
 def test_rule_model_copy():
     test_rule = models.Rule('gear_id', 'rule_name', [], [], [])
     test_rule.rule_id = 'Hello'
