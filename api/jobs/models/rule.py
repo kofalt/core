@@ -61,7 +61,7 @@ class Rule(models.Base):
 
     @rule_id.setter
     def rule_id(self, _id):
-        if self.id is not None:
+        if self._id is not None:
             raise ValueError('Cannot set _id if it has already been set!')
         self._id = _id
 
