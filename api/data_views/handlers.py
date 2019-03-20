@@ -10,6 +10,7 @@ from ..web.errors import APIStorageException, InputValidationException
 from ..files import FileProcessor
 from .. import upload
 from ..placer import TargetedMultiPlacer
+from ..site.storage_provider_service import StorageProviderService
 import datetime
 
 from .data_view import DataView
@@ -183,7 +184,9 @@ class DataViewHandler(base.RequestHandler):
             if target_container:
 
                 # Saved directly to persistent storage.
-                file_processor = FileProcessor(config.primary_storage)
+                storage_service = StorageProviderService()
+                final_storage = storage_service.determine_provider(self.origin, target_container) 
+                file_processor = FileProcessor(final_storage)
 
                 # If we're saving to container, start SSE event,
                 # and write the data to a temp file
@@ -222,10 +225,11 @@ class DataViewHandler(base.RequestHandler):
                     metadata, timestamp, self.origin, {'uid': self.uid}, self.log_user_access)
 
                 file_fields = file_processor.create_file_fields(
+                    fileobj.provider_id,
                     fileobj.filename,
                     path,
-                    config.primary_storage.get_file_info(new_uuid, path)['filesize'],
-                    config.primary_storage.get_file_hash(new_uuid, path),
+                    final_storage.get_file_info(new_uuid, path)['filesize'],
+                    final_storage.get_file_hash(new_uuid, path),
                     uuid_=new_uuid,
                     mimetype=None,
                     modified=timestamp

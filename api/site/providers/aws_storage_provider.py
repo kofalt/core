@@ -14,7 +14,6 @@ from .base import BaseProvider
 # pylint: disable=too-few-public-methods
 class AWSStorageProvider(BaseProvider):
     """The AWS S3 Storage provider object."""
-
     # Must set provider_key as (provider_class, provider_type)
     provider_key = ProviderKey(ProviderClass.storage, 'aws')
 
@@ -23,9 +22,6 @@ class AWSStorageProvider(BaseProvider):
         super(AWSStorageProvider, self).__init__(config)
 
         self._storage_plugin = None
-        # we assume validation was done on persist so the keys should all be there
-        #self.validate_config()
-    
         # URL used to instantiate the storage plugin provider
         # URL in the format of s3://<<bucket-Name>/<path>
         self._storage_url = 's3://' + self.config['bucket'] + '/' + self.config.get('path', '')
@@ -59,6 +55,7 @@ class AWSStorageProvider(BaseProvider):
 
     def get_redacted_config(self):
         return {
+            'id': self.provider_id,
             'access_key': None,
             'secret_access_key': None,
             'region': self.config['region'],
@@ -93,11 +90,11 @@ class AWSStorageProvider(BaseProvider):
         test_uuid = str(uuid.uuid4())
 
         # TODO wrap these in try blocks and catch the errors as we go
-        test_file = self._storage_plugin.open(test_uuid, 'wb')
+        test_file = self._storage_plugin.open(test_uuid, None, 'wb')
         test_file.write('This is a permissions test')
         test_file.close()
 
-        test_file = self._storage_plugin.open(test_uuid, 'rb')
+        test_file = self._storage_plugin.open(test_uuid, None, 'rb')
         test_file.read()
         test_file.close()
 

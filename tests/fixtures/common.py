@@ -9,9 +9,46 @@ import attrdict
 import bson
 import pytest
 
+from api.config import local_fs_url
+
 SCITRAN_CORE_DRONE_SECRET = os.environ['SCITRAN_CORE_DRONE_SECRET']
 SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
+
+@pytest.fixture(scope='session')
+def with_site_settings(session, api_db):
+    """Create Default Site Settings which include a default storage provider"""
+    
+    # Even with sesion level scope this fixture runs multiple times.
+    # If we get that corrected we can remove this check and test will run a lot faster
+    if not api_db.get_collection('providers'):
+        api_db.create_collection('providers')
+
+    provider = api_db.providers.find_one({'label':'Local Storage'})
+
+    if not provider:
+        provider = api_db.providers.insert_one({
+            "origin": {"type":"system", "id":"system"},
+            "created":"2019-03-19T18:48:37.790Z",
+            "config":{"path":local_fs_url},
+            "modified":"2019-03-19T18:48:37.790Z",
+            "label":"Local Storage",
+            "provider_class":"storage",
+            "provider_type":"osfs"
+        })
+        provider_id = provider.inserted_id
+    else:
+        provider_id = provider['_id']
+
+    api_db.singletons.update({'_id':'site'},
+        {
+            "_id": "site",
+            "center_gears": [],
+            "created": "2019-03-19T18:44:17.701078+00:00",
+            "modified": "2019-03-19T18:44:17.701094+00:00",
+            "providers": {"storage": provider_id}
+        },
+        True)
 
 
 @pytest.fixture(scope='session')
@@ -150,7 +187,6 @@ def bootstrap_users(session, api_db):
     yield data_builder
     api_db.users.delete_many({})
     api_db.singletons.delete_one({'_id': 'bootstrap'})
-
 
 @pytest.fixture(scope='session')
 def as_drone(session):

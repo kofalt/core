@@ -2394,6 +2394,33 @@ def upgrade_to_64():
 ### END RESERVED UPGRADE SECTION
 ###
 
+def upgrade_to_64():
+    '''
+    All project templates should be list of templates
+    '''
+
+    config.db.create_collection('providers')
+
+    provider = config.db.providers.insert_one({
+        "origin": {"type":"system","id":"system"},
+        "created":"2019-03-19T18:48:37.790Z",
+        "config":{"path":config.local_fs_url},
+        "modified":"2019-03-19T18:48:37.790Z",
+        "label":"Local Storage",
+        "provider_class":"storage",
+        "provider_type":"osfs"
+    })
+
+    config.db.singletons.insert_one({
+        "_id": "site",
+        "center_gears": [],
+        "created": "2019-03-19T18:44:17.701078+00:00",
+        "modified": "2019-03-19T18:44:17.701094+00:00",
+        "providers": {"storage": provider.inserted_id}
+    })
+
+    # TODO: update all files to have the provider id.  
+    
 
 def upgrade_schema(force_from = None):
     """

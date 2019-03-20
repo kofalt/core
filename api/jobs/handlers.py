@@ -330,11 +330,11 @@ class GearHandler(base.RequestHandler):
         gear = get_gear(dl_id)
 
         file_id = gear['exchange'].get('rootfs-id')
-        file_path, storage = files.get_valid_file({
-            '_id': file_id,
-            'hash': 'v0-' + gear['exchange']['rootfs-hash'].replace(':', '-')
-        })
-        send_or_redirect_file(self, storage, file_id, file_path, 'gear.tar')
+        # TOOD: Be sure the provider-id get set when the gear is created
+        provider_id = gear['exchange'].get('rootfs-provider-id')
+        provider = get_provider_instance(provider_id)
+        file_path = files.get_file_path({'_id': file_id})
+        send_or_redirect_file(self, provider, file_id, file_path, 'gear.tar')
 
     @require_admin
     def post(self, _id):

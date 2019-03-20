@@ -1,9 +1,13 @@
 """Provides the StorageProvider base class"""
 from .provider_metaclass import ProviderMetaclass
 from abc import abstractmethod
+from .base import BaseProvider
+
+#TODO: This class is not needed anymore as theStorage providers inherit directly from baseProvider now
+
 
 # pylint: disable=too-few-public-methods
-class StorageProvider(object):
+class StorageProvider(BaseProvider):
     """The storage provider object. Provides configuration and validation for storage resources"""
     # For automatic plugin registration
     __metaclass__ = ProviderMetaclass

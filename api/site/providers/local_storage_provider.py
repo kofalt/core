@@ -16,7 +16,7 @@ class LocalStorageProvider(BaseProvider):
     """The Local PyFS Storage provider object."""
 
     # Must set provider_key as (provider_class, provider_type)
-    provider_key = ProviderKey(ProviderClass.storage, 'local')
+    provider_key = ProviderKey(ProviderClass.storage, 'osfs')
 
     def __init__(self, config):
 
@@ -25,21 +25,11 @@ class LocalStorageProvider(BaseProvider):
         self._storage_plugin = None
         #self.validate_config()
     
-        import sys
         # URL used to instantiate the storage plugin provider
         # We assume its a valid absolute url with leading /
         # we should verify this on the settings config page
         self._storage_url = "osfs://" + self.config.get('path', '')
-        
-        print 'loading provider for path'
-        print self._storage_url
-        sys.stdout.flush()
         self._storage_plugin = create_flywheel_fs(self._storage_url)
-        print 'we have loaded a plugin'
-        sys.stdout.flush()
-        print 'we have a plugin now'
-        print self._storage_plugin
-        sys.stdout.flush()
 
 
     def validate_config(self):
@@ -61,6 +51,7 @@ class LocalStorageProvider(BaseProvider):
     
     def get_redacted_config(self):
         return {
+            'id': self.provider_id,
             'path': self.config.get('path'),
         }
 
