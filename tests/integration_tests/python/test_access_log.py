@@ -16,7 +16,7 @@ class MockRequest:
 # NOTE these tests assume they are not running in parallel w/ other tests
 # by relying on the last entry in the logs
 
-def test_access_log_succeeds(data_builder, as_admin, log_db):
+def test_access_log_succeeds(data_builder, as_admin, log_db, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()

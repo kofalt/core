@@ -71,6 +71,7 @@ def get_provider_instance(provider_id):
         raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
 
     # Create provider instance
+    result.config['provider_id'] = result.provider_id
     provider_inst = create_provider(result.provider_class,
         result.provider_type, result.config)
 

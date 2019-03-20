@@ -6,9 +6,12 @@ import bson
 import pytest
 
 from api import config
+from flywheel_common import storage
+from api.config import local_fs_url
 from api.web import errors
 from api.site import models, mappers, providers, multiproject
 from api.site.providers.factory import ProviderKey
+from api.storage.py_fs.py_fs_storage import PyFsStorage
 
 origin = { 'type': 'user', 'id': 'user@test.com' }
 provider_config = { 'key': 'value' }
@@ -116,6 +119,7 @@ def test_provider_mapper_patch(api_db):
         api_db.providers.remove({'_id': provider_id})
 
 def test_provider_mapper_find_all(api_db):
+    api_db.providers.remove({})
     compute_provider = _make_provider()
     storage_provider = _make_provider(cls=models.ProviderClass.storage)
 
@@ -163,18 +167,24 @@ def test_provider_factory_static_compute():
     provider.validate_config()  # Only empty config is valid for static
 
 def test_provider_factory_storage(mocker):
-    # TODO: this needs to work correctly
-    mock_fs = mocker.patch('flywheel_common')
-    mock_fs.create_flywheel_fs.return_value = 'Test'
-    provider = providers.create_provider(ProviderClass.storage, 'gc', config)
-    assert mock_fs.create_flywheel_fs.call_count == 1
+    # spy_fs = mocker.spy(storage, 'create_flywheel_fs')
+    mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
+    mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')
+    mock_get_info = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_file_info', return_value={'filesize': 100})
+    config['path'] = local_fs_url
+    provider = providers.create_provider(models.ProviderClass.storage, 'osfs', config)
+    config.pop('path')
+    # The call to create_flywheel_fs is different instances.
+    # We can assume it was called if the storage_plugins is created. But it might have been called 2 or more times
+    # TODO: find a way to mock an interface function with spy.. the count does not get recorded
+    #assert storage.create_flywheel_fs.call_count == 1
     assert provider is not None
+    assert provider.storage_plugin is not None
     
-    # This should be in an integration test
-    # assert isinstance(provider, StorageProvider)
-    # assert provider.config == config
-    # assert provider.storage_plugin is not None
-    # assert isinstance(provider.storage_plugin, GCStorage)
+    assert isinstance(provider, providers.LocalStorageProvider)
+    assert provider.config == config
+    assert isinstance(provider.storage_plugin, PyFsStorage)
+
 
 # === Repository Tests ===
 def test_provider_repository_insert_and_update(api_db):
@@ -225,6 +235,7 @@ def test_provider_repository_insert_and_update(api_db):
         api_db.providers.remove({'_id': provider_id})
 
 def test_provider_repository_load(api_db):
+    api_db.providers.remove({})
     compute_provider = _make_provider()
     storage_provider = _make_provider(cls=models.ProviderClass.storage)
 

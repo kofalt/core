@@ -1,8 +1,6 @@
 """Provides provider base-classes"""
 # Import concrete provider classes for registration
 from .base import BaseProvider
-from .static_compute_provider import StaticComputeProvider
-from .gc_compute_provider import GCComputeProvider
 
 # You must explicitly define the provider classes here so that 
 # they are registered In the PROVIDERS array

@@ -102,13 +102,13 @@ class FullDownloadStrategy(HierarchyDownloadStrategy):
                     # Create metadata target
                     metadata_target = self._create_metadata_target(file_path, parent_type,
                         parent_id, file_entry, file_id=file_id, filename=filename,
-                        file_group=file_group)
+                        file_group=file_group, provider_id=file_entry['provider_id'])
 
                 dst_path =  '/'.join(file_path)
 
             result = [
                 models.DownloadTarget('file', dst_path, parent_type, parent_id, file_entry['modified'],
-                    file_entry['size'], file_entry.get('type'), file_id=file_id, filename=filename,
+                    file_entry['size'], file_entry.get('type'), file_entry['provider_id'], file_id=file_id, filename=filename,
                     file_group=file_group, src_path=src_path)
             ]
 
@@ -122,7 +122,7 @@ class FullDownloadStrategy(HierarchyDownloadStrategy):
             return []
 
     def _create_metadata_target(self, path, parent_type, parent_id, container, file_id=None,
-            filename=None, file_group=None):
+            filename=None, file_group=None, provider_id=None):
         metadata_name = '{}.flywheel.json'.format(path[-1])
 
         if filename is not None:
@@ -136,5 +136,5 @@ class FullDownloadStrategy(HierarchyDownloadStrategy):
 
         # NOTE: We always return size=0 for metadata - it will be set just-in-time
         return models.DownloadTarget('metadata_sidecar', dst_path, parent_type, parent_id,
-            container['modified'], 0, 'metadata', file_id=file_id, filename=filename,
+            container['modified'], 0, 'metadata', provider_id, file_id=file_id, filename=filename,
             file_group=file_group)

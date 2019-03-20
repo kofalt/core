@@ -59,7 +59,7 @@ def test_filtered_files():
     assert result == set([('output', 'test.csv'), ('output', 'test2.csv'), ('output', 'test.nii')])
 
 
-def test_archive_stream(mocker, data_builder, file_form, as_drone):
+def test_archive_stream(mocker, data_builder, file_form, as_drone, with_site_settings):
     class MockRead:
         def __init__(self):
             self._read = False
@@ -76,8 +76,9 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
     get_return_value.status = 200
     get_return_value.reason = 'OK'
     get_return_value.readable.return_value = True
-    mocked_files = mocker.patch('api.config.primary_storage.get_signed_url')
-    mocked_signed_url = mocker.patch('api.config.primary_storage.is_signed_url', return_value=True)
+    mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
+    mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')
+    mock_get_info = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_file_info', return_value={'filesize': 100})
 
     project = data_builder.create_project(label='project1')
     session = data_builder.create_session(label='session1', project=project)
@@ -118,7 +119,7 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
         # it contains two files
         assert len(tarinfo_list) == 2
 
-        assert mocked_files.called
+        assert mock_is_signed.called
         assert get_return_value.read._read
 
     get_return_value = MagicMock()

@@ -18,6 +18,12 @@ class BaseProvider(object):
         """
         self.config = config
 
+    @property
+    def provider_id(self):
+        """Returns the provider_id associated with this provider config"""
+        # The only case where the provider does not have an id is the temp storage provider instance
+        return self.config.get('provider_id', None)
+
     @abstractmethod
     def validate_config(self):
         """Perform the necessary steps to validate the given configuration.
