@@ -5,11 +5,12 @@ from . import get_site_settings
 from ..types import Origin
 from ..dao.hierarchy import get_container
 from . import providers
-
+from .models.provider import ProviderClass
+from ..config import local_fs_url
 
 class StorageProviderService(object):
 
-    def determine_provider(self, origin, container, job=None, file_size=None):
+    def determine_provider(self, origin, container=None, job=None, file_size=None):
         """
         Determines which storage provider to use based on the origin of the file
         If None is used then no storage provider is configured and you can not read/write files
@@ -19,19 +20,18 @@ class StorageProviderService(object):
         :param dict container: the container in which the file is being placed
         :param int file_size: Size of the file, will not be known for signed urls.
         :rtype StorageProvider | None:  Returns the provider or none if nothing is set on site level
+
+        TODO: If we get a none should that be an error case?  When do we want no storage to be allowed?
         """
 
-        #This block is just for testing
-        print 'getting provider based on origin of'
-        import sys
-        sys.stdout.flush()
+
+        # For now just always return the site provider if its set
         site_doc = get_site_settings()
-        provider = providers.get_provider_instance(site_doc.providers['storage'])
-        print 'we got a provider'
-        print provider.storage_plugin
-        return provider
-        return providers.get_provider_instance(site_doc.providers['storage'])
-        
+        if site_doc.get('providers') and site_doc.providers.get('storage'):
+            return providers.get_provider_instance(site_doc.providers['storage'])
+        else:
+            raise ValueError('Site settings are not configured for a storage provider')
+            #return None
 
 
         site_doc = get_site_settings()
@@ -68,5 +68,7 @@ class StorageProviderService(object):
 
     def get_temp_storage(self):
         site_doc = get_site_settings()
-        return providers.get_provider_instance(site_doc.providers['temp_storage'])
-
+        return providers.factory.create_provider(ProviderClass.storage, 'osfs', {
+            'path': local_fs_url
+            })
+        #return providers.get_provider_instance(site_doc.providers['temp_storage'])

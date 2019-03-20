@@ -8,11 +8,13 @@ import zipfile
 import fs.path
 import fs.errors
 
+from flywheel_common import storage
 from . import config, util, validators
 from .dao import containerutil, hierarchy
 from .dao.containerstorage import SubjectStorage, SessionStorage, AcquisitionStorage
 from .jobs import rules
 from .jobs.jobs import Job, JobTicket, Logs
+from .site.storage_provider_service import StorageProviderService
 from .types import Origin
 from .web import encoder
 from .web.errors import FileFormException
@@ -413,6 +415,8 @@ class TokenPlacer(Placer):
 
         self.paths = []
         self.folder = None
+        storage_service = StorageProviderService()
+        self.temp_fs = storage_service.get_temp_storage().storage_plugin
 
     def check(self):
         token = self.context['token']
@@ -427,7 +431,7 @@ class TokenPlacer(Placer):
         #
         # It must be kept in sync between each instance and also with the FileListHander tempdir.
         self.folder = fs.path.join('tokens', 'packfile', token)
-        util.mkdir_p(self.folder, config.local_fs.get_fs())
+        util.mkdir_p(self.folder, self.temp_fs.get_fs())
         # we only work with local fs when using token placer
 
     def process_file_field(self, file_attrs):
@@ -450,6 +454,9 @@ class PackfilePlacer(Placer):
         super(PackfilePlacer, self).__init__(container_type, container, id_, metadata, timestamp, origin, context, access_logger, logger=logger)
 
         self._chunk_size = CHUNK_SIZE
+
+        self.storage_service = StorageProviderService()
+        self.temp_fs = self.storage_service.get_temp_storage().storage_plugin
 
         # This endpoint is an SSE endpoint
         self.sse            = True
@@ -489,7 +496,7 @@ class PackfilePlacer(Placer):
 
         try:
             # Always on the local fs to make the pack file
-            config.local_fs.get_fs().isdir(self.folder)
+            self.temp_fs.get_fs().isdir(self.folder)
         except fs.errors.ResourceNotFound:
             raise Exception('Packfile directory does not exist or has been deleted')
 
@@ -542,11 +549,11 @@ class PackfilePlacer(Placer):
     def process_file_field(self, file_attrs):
         # Should not be called with any files but if it was then
         # remove the upload file that was saved direclty to storage from the form post
-        config.local_fs.get_fs().remove(self.folder + '/' + file_attrs['name'])
+        self.temp_fs.get_fs().remove(self.folder + '/' + file_attrs['name'])
         raise Exception('Files must already be uploaded')
 
     def finalize(self):
-        paths = config.local_fs.get_fs().listdir(self.folder)
+        paths = self.temp_fs.get_fs().listdir(self.folder)
         total = len(paths)
 
         # We create the zip file in the local storage location then get attributes and then move it to the final
@@ -556,7 +563,7 @@ class PackfilePlacer(Placer):
         token = self.context['token']
 
         tempZipPath = fs.path.join('tokens', 'packfile', token, token)
-        self.zip_ = zipfile.ZipFile(config.local_fs.get_fs().open(tempZipPath, 'wb'),
+        self.zip_ = zipfile.ZipFile(self.temp_fs.get_fs().open(tempZipPath, 'wb'),
                                     'w', zipfile.ZIP_DEFLATED, allowZip64=True)
         # Write all files to zip
         complete = 0
@@ -564,11 +571,11 @@ class PackfilePlacer(Placer):
             full_path = fs.path.join(self.folder, path)
 
             # Set the file's mtime & atime.
-            config.local_fs.get_fs().settimes(full_path, self.ziptime, self.ziptime)
+            self.temp_fs.get_fs().settimes(full_path, self.ziptime, self.ziptime)
 
             # Place file into the zip folder we created before
             # Prepend the file paths with the label name by business logic decisions
-            with config.local_fs.get_fs().open(full_path, 'rb') as f:
+            with self.temp_fs.get_fs().open(full_path, 'rb') as f:
                 self.zip_.writestr(self.dir_ + "/" + path, f.read())
 
             # Report progress
@@ -590,19 +597,20 @@ class PackfilePlacer(Placer):
 
         # Finaly move the file from the local fs to the persistent FS.
         # We could make this faster using a move if we know its a local to local fs move.
-        with config.local_fs.get_fs().open(tempZipPath, 'rb') as (f1
-                ), config.primary_storage.open(token, util.path_from_uuid(token), 'wb') as f2:
+        final_storage = self.storage_service.determine_provider(self.origin)
+        with self.temp_fs.get_fs().open(tempZipPath, 'rb') as (f1
+                ), final_storage.storage_plugin.open(token, storage.util.path_from_uuid(token), 'wb') as f2:
             while True:
                 data = f1.read(self._chunk_size)
                 if not data:
                     break
                 f2.write(data)
 
-        size = config.local_fs.get_file_info(token, tempZipPath)['filesize']
-        hash_ = config.local_fs.get_file_hash(None, tempZipPath)
+        size = self.temp_fs.get_file_info(token, tempZipPath)['filesize']
+        hash_ = self.temp_fs.get_file_hash(None, tempZipPath)
 
         # Remove the folder created by TokenPlacer after we calc the needed attributes
-        config.local_fs.get_fs().removetree(self.folder)
+        self.temp_fs.get_fs().removetree(self.folder)
 
         # Similarly, create the attributes map that is consumed by helper funcs. Clear duplication :(
         # This could be coalesced into a single map thrown on file fields, for example.
@@ -611,7 +619,7 @@ class PackfilePlacer(Placer):
             '_id': token,
             'name': self.name,
             'modified': self.timestamp,
-            'path' : util.path_from_uuid(token),
+            'path' : storage.util.path_from_uuid(token),
             'size': size,
             'zip_member_count': complete,
             'hash': hash_,
@@ -626,7 +634,8 @@ class PackfilePlacer(Placer):
 
             # Manually add the file orign to the packfile metadata.
             # This is set by upload.process_upload on each file, but we're not storing those.
-            'origin': self.origin
+            'origin': self.origin,
+            'provider_id': final_storage.provider_id
         }
 
         # Get or create a session based on the hierarchy and provided labels.
@@ -839,7 +848,8 @@ class GearPlacer(Placer):
             self.metadata.update({'exchange': {'rootfs-hash': proper_hash,
                                                'git-commit': 'local',
                                                'rootfs-url': 'INVALID',
-                                               'rootfs-id': file_attrs['_id']}})
+                                               'rootfs-id': file_attrs['_id'],
+                                               'provider_id': file_attrs['provider_id']}})
         # self.metadata['hash'] = file_attrs.get('hash')
 
         self.save_file()

@@ -5,7 +5,7 @@ import os.path
 class DownloadTarget(models.Base):
     """Represents a single target for a download summary or retrieval."""
     def __init__(self, download_type, dst_path, container_type, container_id, modified, size,
-            filetype, file_id=None, filename=None, file_group=None, src_path=None):
+            filetype, provider_id, file_id=None, filename=None, file_group=None, src_path=None):
         """Create a new download target
 
         Args:
@@ -46,6 +46,9 @@ class DownloadTarget(models.Base):
 
         self.file_id = file_id
         """str: The optional source file uuid"""
+
+        self.provider_id = provider_id
+        """str: The provider id where the file is stored. Must be a storage provider"""
 
         self.filename = filename
         """str: The name of the source file"""

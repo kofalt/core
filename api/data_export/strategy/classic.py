@@ -75,7 +75,7 @@ class ClassicDownloadStrategy(HierarchyDownloadStrategy):
 
             return [
                 models.DownloadTarget('file', dst_path, parent_type, parent_id, file_entry['modified'],
-                    file_entry['size'], file_entry.get('type'), file_id=file_entry.get('_id'), src_path=src_path)
+                    file_entry['size'], file_entry.get('type'), file_entry['provider_id'], file_id=file_entry.get('_id'), src_path=src_path)
             ]
         else:
             self.log.debug('Could not resolve path for file {} on {} {}. File will be skipped in download.'.format(file_entry['name'], parent_type, parent_id))

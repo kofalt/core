@@ -50,7 +50,7 @@ class BulkDownloadStrategy(AbstractDownloadStrategy):
             if src_path:  # silently skip missing files
                 dst_path = os.path.join(cont_name, cont_id, file_obj['name'])
                 yield models.DownloadTarget('file', dst_path, cont_name, cont_id, file_obj['modified'],
-                    file_obj['size'], file_obj.get('type'), file_id=file_obj.get('_id'),
+                    file_obj['size'], file_obj.get('type'), file_obj['provider_id'], file_id=file_obj.get('_id'),
                     filename=file_obj['name'], src_path=src_path)
             else:
                 self.log.debug('Could not resolve path for file {} on {} {}. File will be skipped in download.'.format(filename, cont_name, cont_id))

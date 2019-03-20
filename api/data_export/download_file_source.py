@@ -12,6 +12,7 @@ from .. import files, config, io, access_log
 from ..web.request import AccessType
 from ..web.encoder import custom_json_serializer
 from ..dao.containerstorage import cs_factory
+from ..site.providers import get_provider_instance
 
 METADATA_BLACKLIST = [
     '_id', 'parents', 'collections', 'group', 'project', 'subject', 'session',
@@ -145,9 +146,11 @@ class DownloadFileSource(object):
         # TODO: For now, this is an optimization - directly accessing the signed url
         # can speed up transfer. Shouldn't open for reading basically do this?
         signed_url = None
-        if config.primary_storage.is_signed_url():
+
+        final_storage = get_provider_instance(target.provider_id)
+        if final_storage.storage_plugin.is_signed_url():
             try:
-                signed_url = config.primary_storage.get_signed_url(target.file_id, target.src_path)
+                signed_url = final_storage.storage_plugin.get_signed_url(target.file_id, target.src_path)
             except fs.errors.ResourceNotFound:
                 pass
             except flywheel_common.errors.ResourceNotFound:
@@ -158,8 +161,7 @@ class DownloadFileSource(object):
                 result.open()
                 return result
             else:
-                file_system = files.get_fs_by_file_path(target.file_id, target.src_path)
-                return file_system.open(target.file_id, target.src_path, 'rb')
+                return final_storage.storage_plugin.open(target.file_id, target.src_path, 'rb')
         except (fs.errors.ResourceNotFound,
                 fs.errors.OperationFailed,
                 IOError) as err:

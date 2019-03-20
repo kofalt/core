@@ -14,6 +14,7 @@ from . import files
 from . import placer as pl
 from . import util
 from .dao import hierarchy
+from .site.storage_provider_service import StorageProviderService
 
 Strategy = util.Enum('Strategy', {
     'targeted'       : pl.TargetedPlacer,       # Upload 1 files to a container.
@@ -89,7 +90,9 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
 
     # The vast majority of this function's wall-clock time is spent here.
-    file_processor = files.FileProcessor(config.primary_storage)
+    storage_service = StorageProviderService()
+    final_storage = storage_service.determine_provider(origin, container)
+    file_processor = files.FileProcessor(final_storage)
 
     if not file_fields:
 
@@ -142,15 +145,18 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             field.path = field.filepath
 
         if tempdir:
-            field.size = (config.local_fs.get_file_info(None, field.filepath))['filesize']
+            temp_storage = storage_service.get_temp_storage()
+            field.size = (temp_storage.storage_plugin.get_file_info(None, field.filepath))['filesize']
         else:
-            field.size = (config.primary_storage.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+            field.size = (final_storage.storage_plugin.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+            field.provider_id = final_storage.provider_id
 
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 
         # create a file-attribute map commonly used elsewhere in the codebase.
         # Stands in for a dedicated object... for now.
+        field.provider_id = final_storage.provider_id
         file_attrs = make_file_attrs(field, origin)
 
         placer.process_file_field(file_attrs)
@@ -192,9 +198,6 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 class Upload(base.RequestHandler):
 
     def _create_upload_ticket(self):
-        if not config.primary_storage.is_signed_url():
-            self.abort(405, 'Signed URLs are not supported with the current storage backend')
-
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
         filenames = payload.get('filenames', None)
@@ -202,17 +205,26 @@ class Upload(base.RequestHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
+        # TODO: do we have container in the meta data? metadata.get('[container_id'])
+        self.storage_service = StorageProviderService()
+        final_storage = self.storage_service.determine_provider(self.origin, None)
+
+        if not final_storage.storage_plugin.is_signed_url():
+            self.abort(405, 'Signed URLs are not supported with the current storage backend')
+
+
         signed_urls = {}
         filedata = []
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.primary_storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_url = final_storage.storage_plugin.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             signed_urls[filename] = signed_url
             filedata.append({
                 'filename': filename,
                 'url': signed_url,
                 'uuid': new_uuid,
-                'filepath': util.path_from_uuid(new_uuid)
+                'filepath': util.path_from_uuid(new_uuid),
+                'provider_id': final_storage.provider_id
             })
         ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filedata, metadata)
 
@@ -317,10 +329,14 @@ class Upload(base.RequestHandler):
         })
         tokens_removed = 0
         dirs_cleaned = 0
+
+        self.storage_service = StorageProviderService()
+        temp_storage = self.storage_service.get_temp_storage();
+
         for token in result:
             # the token id is the folder.
             try:
-                config.local_fs.get_fs().removetree(token['_id'])
+                temp_storage.storage_plugin.get_fs().removetree(token['_id'])
                 dirs_cleaned += 1
             except fs.errors.ResourceNotFound:
                 pass
@@ -374,6 +390,7 @@ def make_file_attrs(field, origin):
 
     file_attrs = {
         '_id': field.uuid,
+        'provider_id': field.provider_id,
         'name': field.filename,
         'modified': field.modified,
         'size': field.size,

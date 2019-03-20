@@ -36,13 +36,3 @@ def create_provider(provider_class, provider_type, config):
         raise ValueError('Unknown provider: {}'.format(key))
 
     return cls(config)
-
-    #
-    #if provider_class == ProviderClass.storage:
-    #    # TOOO: we have some tight coupling because our storage factory parses the url to determine the type
-    #    # So we need the url which is constructed in the provider internally.  We should convert the storage
-    #    # factory to return the plugin based on provider class then the provider will init the plugin with 
-    #    # the correct url. That will still allow completely decoupled testing 
-    #    config.storage_plugin = create_flywheel_fs(provider.storage_url)
-    #
-    #return cls(config)
