@@ -7,9 +7,9 @@ import datetime
 import elasticsearch
 
 from flywheel_common.storage import create_flywheel_fs
+from flywheel_common import logging as flylogging
 
 from . import util
-from . import logutil
 from .dao.dbutil import try_replace_one, try_update_one
 
 logging.basicConfig(
@@ -17,15 +17,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     level=logging.DEBUG,
 )
-log = logutil.getContextLogger('scitran.api')
+log = flylogging.getContextLogger('scitran.api')
 
-logging.getLogger('MARKDOWN').setLevel(logging.WARNING) # silence Markdown library
-logging.getLogger('requests').setLevel(logging.WARNING) # silence Requests library
-logging.getLogger('paste.httpserver').setLevel(logging.WARNING) # silence Paste library
-logging.getLogger('elasticsearch').setLevel(logging.WARNING) # silence Elastic library
-logging.getLogger('urllib3').setLevel(logging.WARNING) # silence urllib3 library
-logging.getLogger('boto3').setLevel(logging.WARNING) # silence boto3 library
-logging.getLogger('botocore').setLevel(logging.WARNING) # silence botocore library
+logging.getLogger('scitran.api').addHandler(logging.StreamHandler())
 
 # Increment counters for root logger. Increments for warning and higher
 from .metrics.log_handler import MetricsLogHandler
@@ -135,8 +129,6 @@ def apply_runtime_features(config):
 __config = apply_env_variables(copy.deepcopy(DEFAULT_CONFIG))
 __config_persisted = False
 __last_update = datetime.datetime.utcfromtimestamp(0)
-
-log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
 
 if not os.path.exists(__config['persistent']['data_path']):
     os.makedirs(__config['persistent']['data_path'])
@@ -292,7 +284,6 @@ def get_config():
         __config = db.singletons.find_one({'_id': 'config'})
         __config = apply_runtime_features(__config)
         __last_update = now
-        log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
     return __config
 
 def get_public_config():
