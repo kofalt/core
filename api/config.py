@@ -128,7 +128,7 @@ def apply_env_variables(config):
 
 def apply_runtime_features(config):
     """Apply any features that must be determined at runtime"""
-    config['features']['signed_url'] = primary_storage.is_signed_url()
+    config['features']['signed_url'] = storage.is_signed_url()
     return config
 
 # Create config for startup, will be merged with db config when db is available
