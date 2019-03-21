@@ -88,6 +88,7 @@ main() {
         --env FLYWHEEL_FEATURE_MULTIPROJECT=true \
         --env SYSLOG_HOST=localhost \
         --env SCITRAN_PERSISTENT_MULTIPROJECT=true \
+        --env SYSLOG_HOST=localhost \
         --workdir /src/core \
         flywheel/core:testing \
         tests/bin/tests.sh "$@"

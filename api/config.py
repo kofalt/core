@@ -6,8 +6,8 @@ import pymongo
 import datetime
 import elasticsearch
 
+from flywheel_common.storage import create_flywheel_fs
 from flywheel_common import logging as flylogging
-from flywheel_common import storage
 
 from . import util
 from .dao.dbutil import try_replace_one, try_update_one
