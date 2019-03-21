@@ -11,6 +11,7 @@ from ..web import errors
 from ..web.request import AccessType
 from ..web import errors
 from ..site.providers import validate_provider_class
+from ..web.request import AccessType
 
 
 def remove_potential_phi_from_job(job_map):
