@@ -48,7 +48,7 @@ def get(batch_id, projection=None, get_jobs=False):
     if get_jobs:
         jobs = []
         for jid in batch_job.get('jobs', []):
-            job = Job.get(jid)
+            job = Job.get(jid).remove_potential_phi_from_job()
             jobs.append(job)
         batch_job['jobs'] = jobs
 

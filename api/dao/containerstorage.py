@@ -418,7 +418,7 @@ class AnalysisStorage(ContainerStorage):
         analyses = self.get_all_el(query, None, projection, **kwargs)
         if inflate_job_info:
             for analysis in analyses:
-                self.inflate_job_info(analysis)
+                self.inflate_job_info(analysis, remove_phi=True)
         return analyses
 
 
@@ -502,7 +502,7 @@ class AnalysisStorage(ContainerStorage):
         return result
 
 
-    def inflate_job_info(self, analysis):
+    def inflate_job_info(self, analysis, remove_phi=False):
         """
         Inflate job from id ref in analysis
 
@@ -518,6 +518,9 @@ class AnalysisStorage(ContainerStorage):
             job = Job.get(analysis['job'])
         except:
             raise Exception('No job with id {} found.'.format(analysis['job']))
+
+        if remove_phi:
+            job = job.remove_potential_phi_from_job()
 
         analysis['job'] = job
         return analysis

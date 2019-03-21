@@ -14,6 +14,8 @@ from ..dao.containerutil import create_filereference_from_dictionary, create_con
 from .. import config
 from ..web.errors import APINotFoundException
 
+from . import job_util
+
 class Job(object):
     def __init__(self, gear, inputs, destination=None, tags=None,
                  attempt=1, previous_job_id=None, created=None,
@@ -222,6 +224,16 @@ class Job(object):
             raise APINotFoundException('Job not found')
 
         return cls.load(doc)
+
+    def remove_potential_phi_from_job(self):
+        """Returns a phi free job object
+
+        Returns:
+            Job: New object without phi fields
+        """
+        job_map = self.mongo()
+        new_job_map = job_util.remove_potential_phi_from_job(job_map)
+        return Job.load(new_job_map)
 
     def map(self):
         """

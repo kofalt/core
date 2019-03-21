@@ -18,6 +18,7 @@ from ..auth import containerauth, always_ok
 from ..dao import containerstorage, noop
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize, CONTAINER_HIERARCHY
+from ..jobs import job_util
 from ..web import base
 from ..web import errors
 from ..web.request import log_access, AccessType
@@ -133,6 +134,8 @@ class AnalysesHandler(RefererHandler):
 
         if self.is_true('inflate_job'):
             self.storage.inflate_job_info(analysis)
+            if analysis.get('job'):
+                job_util.log_job_access(self, analysis['job'])
 
         self.handle_origin(analysis)
 
@@ -184,7 +187,7 @@ class AnalysesHandler(RefererHandler):
 
         if self.is_true('inflate_job'):
             for analysis in page['results']:
-                self.storage.inflate_job_info(analysis)
+                self.storage.inflate_job_info(analysis, remove_phi=True)
 
         for analysis in page['results']:
             self.handle_origin(analysis)
