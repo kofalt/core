@@ -2,6 +2,7 @@ import multiprocessing
 import os
 
 from prometheus_client import multiprocess
+from flywheel_common import logging
 
 
 pythonpath = '/src/core'
@@ -23,3 +24,8 @@ capture_output = True
 # https://github.com/prometheus/client_python#multiprocess-mode-gunicorn
 def child_exit(server, worker):
     multiprocess.mark_process_dead(worker.pid)
+
+def post_fork(server, worker):
+    logging_config_file = '/src/core/logging/core_config.yml'
+    logging.init_flywheel_logging(logging_config_file, tag='uwsgi')
+
