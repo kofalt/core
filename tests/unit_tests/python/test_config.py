@@ -1,7 +1,13 @@
+import copy
+import datetime
 import json
 
 import api.config
 
+def test_get_feature():
+    assert api.config.get_feature('job_tickets')
+    assert api.config.get_feature('does_not_exist') is None
+    assert api.config.get_feature('does_not_exist', True) == True
 
 def test_apply_env_variables(mocker, tmpdir):
     auth_file, auth_content = 'auth_config.json', {'auth': {'test': 'test'}}
@@ -11,18 +17,33 @@ def test_apply_env_variables(mocker, tmpdir):
         'SCITRAN_TEST_TRUE': 'true',
         'SCITRAN_TEST_FALSE': 'false',
         'SCITRAN_TEST_NONE': 'none',
-        'SCITRAN_SITE_UPLOAD_MAXIMUM_BYTES': '10'})
+        'SCITRAN_SITE_UPLOAD_MAXIMUM_BYTES': '10',
+        'FLYWHEEL_FEATURE_TRUE': 'true',
+        'FLYWHEEL_FEATURE_FALSE': 'false',
+        'FLYWHEEL_FEATURE_NONE': 'none',
+        'FLYWHEEL_FEATURE_SUBJECTS_VIEW': 'why not'})
+
     config = {
         'auth': {'initial': 'auth'},
         'test': {'true': '', 'false': '', 'none': ''},
-        'site': {'upload_maximum_bytes': '10737418240'}}
+        'site': {'upload_maximum_bytes': '10737418240'},
+        'features': {'test': True, 'true': False}}
+
+    expected_features = {
+        'test': True,
+        'true': True,
+        'false': False,
+        'none': 'none',
+        'subjects_view': 'why not'
+    }
+
     api.config.apply_env_variables(config)
     print config
     assert config == {
         'auth': {'test': 'test'},
         'test': {'true': True, 'false': False, 'none': None},
-        'site': {'upload_maximum_bytes': '10'}}
-
+        'site': {'upload_maximum_bytes': '10'},
+        'features': expected_features}
 
     # Test that objects don't persist
     auth_file, auth_content = 'auth_config.json', {'auth': {'test2': 'test2'}}
@@ -32,7 +53,8 @@ def test_apply_env_variables(mocker, tmpdir):
     assert config == {
         'auth': {'test2': 'test2'},
         'test': {'true': True, 'false': False, 'none': None},
-        'site': {'upload_maximum_bytes': '10'}}
+        'site': {'upload_maximum_bytes': '10'},
+        'features': expected_features}
 
     # Test Default is used when no auth is provided
     auth_file, auth_content = 'auth_config.json', {}
@@ -40,6 +62,26 @@ def test_apply_env_variables(mocker, tmpdir):
     api.config.apply_env_variables(config)
     assert config['auth'].get('google')
 
+    # Test setting a feature in storage
+    db = mocker.patch('api.config.db')
+    features2 = copy.deepcopy(expected_features)
+    features2['true'] = False
+    features2['new_feature'] = 'test_value'
+
+    db.singletons.find_one.return_value = {
+        'core': {'debug': False, 'log_level': 'info'},
+        'auth': {'test': 'test'},
+        'test': {'true': True, 'false': False, 'none': None},
+        'site': {'upload_maximum_bytes': '10'},
+        'features': features2}
+    api.config.__last_update = datetime.datetime.min
+
+    try:
+        result = api.config.get_config()
+        assert result['features']['new_feature'] == 'test_value'
+        assert not result['features']['true']
+    finally:
+        api.config.__last_update = datetime.datetime.min
 
 def test_create_or_recreate_ttl_index(mocker):
     db = mocker.patch('api.config.db')
@@ -70,3 +112,4 @@ def test_create_or_recreate_ttl_index(mocker):
     api.config.create_or_recreate_ttl_index(collection, index_name, ttl)
     db[collection].drop_index.assert_called_with(index_id)
     db[collection].create_index.assert_called_with(index_name, expireAfterSeconds=ttl)
+
