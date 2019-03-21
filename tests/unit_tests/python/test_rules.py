@@ -1,6 +1,9 @@
 import pytest
+import pymongo
+import bson
 
-from api.jobs import rules
+from api.jobs import rules, models, mappers
+from api.web import errors
 
 # Statefully holds onto some construction args and can return tuples to unroll for calling rules.eval_match.
 # Might indicate a need for a match tuple in rules.py.
@@ -153,7 +156,9 @@ def test_eval_match_unknown_type():
 def test_eval_rule_any():
     container = {'a': 'b'}
 
-    rule = {
+    rule_doc = {
+        'project_id': '000000000000000000000000',
+        'name': 'test_eval_rule_any',
         'any': [
             {
                 'type': 'file.type',
@@ -168,6 +173,7 @@ def test_eval_rule_any():
         'not': [],
         'gear_id': '000000000000000000000000',
     }
+    rule = models.Rule.from_dict(rule_doc)
 
     file_ = {'name': 'hello.dcm', 'type': 'a'}
     result = rules.eval_rule(rule, file_, container)
@@ -188,7 +194,9 @@ def test_eval_rule_any():
 def test_eval_rule_all():
     container = {'a': 'b'}
 
-    rule = {
+    rule_doc = {
+        'project_id': '000000000000000000000000',
+        'name': 'test_eval_rule_any',
         'any': [],
         'not': [],
         'all': [
@@ -203,6 +211,7 @@ def test_eval_rule_all():
         ],
         'gear_id': '000000000000000000000000',
     }
+    rule = models.Rule.from_dict(rule_doc)
 
     file_ = {'name': 'hello.dcm', 'type': 'a'}
     result = rules.eval_rule(rule, file_, container)
@@ -223,7 +232,9 @@ def test_eval_rule_all():
 def test_eval_rule_not():
     container = {'a': 'b'}
 
-    rule = {
+    rule_doc = {
+        'project_id': '000000000000000000000000',
+        'name': 'test_eval_rule_any',
         'not': [
             {
                 'type': 'file.classification',
@@ -240,8 +251,9 @@ def test_eval_rule_not():
         ],
         'all': [],
         'any': [],
-        'alg': 'dcm2nii',
+        'gear_id': '000000000000000000000000',
     }
+    rule = models.Rule.from_dict(rule_doc)
 
     file_ = {'name': 'hello.dcm', 'type': 'a', 'classification': {'Custom': ['b']}}
     result = rules.eval_rule(rule, file_, container)
@@ -263,7 +275,9 @@ def test_eval_rule_not():
 def test_eval_rule_any_all_not():
     container = {'a': 'b'}
 
-    rule = {
+    rule_doc = {
+        'project_id': '000000000000000000000000',
+        'name': 'test_eval_rule_any',
         'any': [
             {
                 'type': 'file.type',
@@ -292,6 +306,7 @@ def test_eval_rule_any_all_not():
         ],
         'gear_id': '000000000000000000000000',
     }
+    rule = models.Rule.from_dict(rule_doc)
 
     file_ = {'name': 'hello.dcm', 'type': 'a'}
     result = rules.eval_rule(rule, file_, container)
@@ -312,4 +327,317 @@ def test_eval_rule_any_all_not():
     file_ = {'name': 'hello.txt', 'type': 'a'}
     result = rules.eval_rule(rule, file_, container)
     assert result == False
+
+
+def test_rule_model_dict_methods():
+    test_rule = models.Rule('gear_id', 'rule_name', [{'file.type': 'dicom'}],
+                           [], [])
+    assert getattr(test_rule, 'any', None) is None
+    assert test_rule.any_ == [{'file.type': 'dicom'}]
+
+    test_rule_dict = test_rule.to_dict()
+    assert test_rule_dict.get('any_') is None
+    assert test_rule_dict.get('any') == test_rule.any_
+
+    translated_test_rule = models.Rule.from_dict(test_rule_dict)
+    assert getattr(translated_test_rule, 'any', None) is None
+    assert translated_test_rule.any_ == [{'file.type': 'dicom'}]
+
+    assert test_rule == translated_test_rule
+
+
+def test_rule_model_copy():
+    test_rule = models.Rule('gear_id', 'rule_name', [], [], [])
+    test_rule.rule_id = 'Hello'
+
+    copy_test_rule = test_rule.copy()
+
+    test_rule_dict = test_rule.to_dict()
+    test_rule_dict.pop('_id')
+    copy_test_rule_dict = copy_test_rule.to_dict()
+
+    assert test_rule_dict == copy_test_rule_dict
+
+
+def test_rules_mapper_insert_rule(api_db):
+    # Insert Rule
+    rules_mapper = mappers.RulesMapper(db=api_db)
+    rule = models.Rule('gear_id', 'insert_rule', [], [], [])
+
+    rule_id = rules_mapper.insert(rule)
+    assert rule.rule_id == rule_id
+
+    rule_mongo_document = api_db.project_rules.find_one({'_id': rule_id})
+    assert rule_mongo_document == rule.to_dict()
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_id})
+
+
+def test_rules_mapper_duplicate_insert_rule(api_db):
+    rules_mapper = mappers.RulesMapper(db=api_db)
+    rule = models.Rule('gear_id', 'insert_rule', [], [], [])
+    rules_mapper.insert(rule)
+
+    # Try to insert it again
+    with pytest.raises(pymongo.errors.DuplicateKeyError):
+        rules_mapper.insert(rule)
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule.rule_id})
+
+
+def test_rules_mapper_insert_preset_id_rule(api_db):
+    rules_mapper = mappers.RulesMapper(db=api_db)
+    rule = models.Rule('gear_id', 'insert_rule', [], [], [])
+
+    # Insert a rule with an id already set
+    rule.rule_id = 'preset_id_rule_id'
+    rule_id = rules_mapper.insert(rule)
+
+    assert rule_id == 'preset_id_rule_id'
+    assert rule_id == rule.rule_id
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_id})
+
+
+def test_rules_mapper_insert_copy_rule(api_db):
+    rules_mapper = mappers.RulesMapper(db=api_db)
+    rule = models.Rule('gear_id', 'insert_rule', [], [], [])
+    rules_mapper.insert(rule)
+
+    # Insert a rule copy
+    copy_rule_id = rules_mapper.insert(rule.copy())
+    assert copy_rule_id != rule.rule_id
+
+    copy_rule_mongo_document = api_db.project_rules.find_one(
+        {'_id': copy_rule_id}
+    )
+    assert copy_rule_mongo_document
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule.rule_id})
+    api_db.project_rules.delete_one({'_id': copy_rule_id})
+
+
+def test_rules_mapper_get_rule(api_db):
+    # Add rules to db
+    rule_1_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'site'
+    }).inserted_id
+    rule_2_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'project_id'
+    }).inserted_id
+
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    # Find a single rule by id
+    rule_1 = rules_mapper.get(rule_1_id)
+    assert isinstance(rule_1, models.Rule)
+    assert rule_1.rule_id == rule_1_id
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_1_id})
+    api_db.project_rules.delete_one({'_id': rule_2_id})
+
+
+def test_rules_mapper_get_rule_that_does_not_exist(api_db):
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    # Look for rule that doesn't exist
+    rule = rules_mapper.get(bson.ObjectId())
+    assert rule is None
+
+
+def test_rules_mapper_get_rule_projection(api_db):
+    # Add rules to db
+    rule_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'config': {'key': 'value'},
+        'project_id': 'site'
+    }).inserted_id
+
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    # Find a single rule without a projection
+    rule = rules_mapper.get(rule_id)
+    assert rule.config['key'] == 'value'
+
+    # Find a single rule by id with a projection
+    rule_projected = rules_mapper.get(rule_id, projection={'config': 0})
+    assert rule_projected.config is None
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_id})
+
+
+def test_rules_mapper_find_all(api_db):
+    # Add rules to db
+    rule_1_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'site'
+    }).inserted_id
+    rule_2_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'project_id'
+    }).inserted_id
+    rule_3_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'project_id'
+    }).inserted_id
+
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    # Find all rules
+    rules = rules_mapper.find_all()
+    rules = list(rules)
+
+    assert len(rules) == 3
+    assert isinstance(rules[0], models.Rule)
+
+    rule_ids = [rule.rule_id for rule in rules]
+    assert rule_1_id in rule_ids
+    assert rule_2_id in rule_ids
+    assert rule_3_id in rule_ids
+
+    # Clean Up
+    for rule_id in rule_ids:
+        api_db.project_rules.delete_one({'_id': rule_id})
+
+
+def test_rules_mapper_find_all_with_query(api_db):
+    # Add rules to db
+    rule_1_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'site'
+    }).inserted_id
+    rule_2_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'project_id'
+    }).inserted_id
+    rule_3_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'project_id': 'project_id'
+    }).inserted_id
+
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    # Find all rules for project project_id
+    rules = rules_mapper.find_all(project_id='project_id')
+    rules = list(rules)
+
+    assert len(rules) == 2
+    assert isinstance(rules[0], models.Rule)
+
+    for rule in rules:
+        assert rule.project_id == 'project_id'
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_1_id})
+    api_db.project_rules.delete_one({'_id': rule_2_id})
+    api_db.project_rules.delete_one({'_id': rule_3_id})
+
+
+def test_rules_mapper_find_all_when_no_rules_exist(api_db):
+    rules_mapper = mappers.RulesMapper(db=api_db)
+    rules = list(rules_mapper.find_all())
+    assert rules == []
+
+
+def test_rules_mapper_patch_rule(api_db):
+    # Add rules to db
+    rule_doc = {
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'config': {'key': 'value'},
+        'project_id': 'site'
+    }
+    rule_id = api_db.project_rules.insert_one(rule_doc).inserted_id
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    # Patch rule name
+    rules_mapper.patch(rule_id, {'name': 'new_rule_name'})
+
+    patched_rule_doc = api_db.project_rules.find_one({'_id': rule_id})
+    assert patched_rule_doc['name'] == 'new_rule_name'
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_id})
+
+
+def test_rules_mapper_patch_rule_that_does_not_exist(api_db):
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    with pytest.raises(errors.APINotFoundException):
+        rules_mapper.patch(bson.ObjectId(), {'name': 'new_rule_name'})
+
+
+def test_rules_mapper_delete_rule(api_db):
+    # Add rules to db
+    rule_doc = {
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'all': [],
+        'not': [],
+        'config': {'key': 'value'},
+        'project_id': 'site'
+    }
+    rule_id = api_db.project_rules.insert_one(rule_doc).inserted_id
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    deleted_count = rules_mapper.delete(rule_id)
+    assert deleted_count == 1
+
+    rule = api_db.project_rules.find_one({'_id': rule_id})
+    assert rule is None
+
+
+def test_rules_mapper_delete_rule_that_does_not_exist(api_db):
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    deleted_count = rules_mapper.delete(bson.ObjectId())
+    assert deleted_count == 0
 

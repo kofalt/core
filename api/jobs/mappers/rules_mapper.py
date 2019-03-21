@@ -1,6 +1,7 @@
 import bson
 
 from ... import config
+from ...web import errors
 from ..models import Rule
 
 class RulesMapper(object):
@@ -19,8 +20,9 @@ class RulesMapper(object):
             ObjectId: the inserted rule id
         """
         result = self.dbc.insert_one(rule.to_dict())
-        # Update the instance id
-        rule.rule_id = result.inserted_id
+        # Update the instance id if we didn't insert the rule with an id
+        if rule.rule_id != result.inserted_id:
+            rule.rule_id = result.inserted_id
         # Return the resulting id
         return result.inserted_id
 
@@ -30,10 +32,16 @@ class RulesMapper(object):
         Args:
             rule_id (str|ObjectId): The id of the rule to update
             doc (dict): The set of updates to apply
+
+        Raises:
+            APINotFoundException
         """
         # Create the update document
         update = {'$set': doc}
-        self.dbc.update_one({'_id': bson.ObjectId(rule_id)}, update)
+        response = self.dbc.update_one({'_id': bson.ObjectId(rule_id)}, update)
+        if response.matched_count == 0:
+            raise errors.APINotFoundException('Rule {} not found'.format(rule_id))
+
 
     def find_all(self, project_id=None, gear_id=None, fixed_input=None, auto_update=None,
                  disabled=None, projection=None):
@@ -87,7 +95,7 @@ class RulesMapper(object):
         for rule_doc in self.dbc.find(query, **kwargs):
             yield self._load_rule(rule_doc)
 
-    def find(self, rule_id, projection=None):
+    def get(self, rule_id, projection=None):
         """Find the rule that matches the given id.
 
         Args:
