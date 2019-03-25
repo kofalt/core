@@ -1,9 +1,6 @@
 """Provides registration and factory methods for provider classes"""
 import collections
 
-from flywheel_common.storage import create_flywheel_fs
-from ..models.provider import ProviderClass
-
 # Lookup key for provider classes
 #     provider_class (ProviderClass): The provider class (compute or storage)
 #     provider_type (str): A provider type string
