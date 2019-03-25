@@ -440,7 +440,7 @@ class FileListHandler(ListHandler):
             self.abort(409, 'file exists, hash mismatch')
 
         file_path = files.get_file_path(fileinfo)
-        file_system = final_storage = get_provider_instance(fileinfo['provider_id']).storage_plugin
+        file_system = get_provider_instance(fileinfo['provider_id']).storage_plugin
 
         # Request for download ticket
         if self.get_param('ticket') == '':

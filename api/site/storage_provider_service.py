@@ -10,6 +10,7 @@ from ..config import local_fs_url
 
 class StorageProviderService(object):
 
+    # pylint: disable=unused-argument
     def determine_provider(self, origin, container=None, job=None, file_size=None):
         """
         Determines which storage provider to use based on the origin of the file
@@ -71,7 +72,6 @@ class StorageProviderService(object):
 
     def get_local_storage(self):
         """ Local storage is a storage plugin that supports get_fs. But it will not clean up automatically"""
-        site_doc = get_site_settings()
         return providers.factory.create_provider(ProviderClass.storage, 'osfs', {
             'path': local_fs_url
             })

@@ -1,8 +1,4 @@
 """ Provides the local PyFs Storage Provider """
-import datetime
-import hashlib
-import hmac
-import requests
 import uuid
 
 from flywheel_common.storage import create_flywheel_fs

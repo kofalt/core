@@ -6,15 +6,10 @@ import hashlib
 import uuid
 import datetime
 
-import fs.move
-import fs.tempfs
-import fs.path
-import fs.errors
-
 from flywheel_common import storage
 from .site.storage_provider_service import StorageProviderService
 
-from . import config, util
+from . import util
 
 DEFAULT_HASH_ALG = 'sha384'
 
@@ -87,13 +82,11 @@ class FileProcessor(object):
             temp_storage = storage_service.get_local_storage()
             # we remove the provider id since we are not going to be storing these files in the db
             # We also have to manually remove the files when we are done.
-            provider_id = None
             if not temp_storage.storage_plugin.get_fs().exists(tempdir_name):
                 temp_storage.storage_plugin.get_fs().makedirs(tempdir_name)
             field_storage_class = get_single_file_field_storage(temp_storage, use_filepath=use_filepath, tempdir_name=tempdir_name)
         else:
             field_storage_class = get_single_file_field_storage(self._storage, use_filepath=use_filepath)
-            provider_id = self._storage.provider_id
 
         form = field_storage_class(
             fp=request.body_file, environ=env, keep_blank_values=True

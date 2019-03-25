@@ -207,8 +207,8 @@ class Upload(base.RequestHandler):
             self.abort(400, 'metadata and at least one filename are required')
 
         # TODO: do we have container in the meta data? metadata.get('[container_id'])
-        self.storage_service = StorageProviderService()
-        final_storage = self.storage_service.determine_provider(self.origin, None)
+        storage_service = StorageProviderService()
+        final_storage = storage_service.determine_provider(self.origin, None)
 
         if not final_storage.storage_plugin.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
@@ -331,9 +331,9 @@ class Upload(base.RequestHandler):
         tokens_removed = 0
         dirs_cleaned = 0
 
-        self.storage_service = StorageProviderService()
+        storage_service = StorageProviderService()
         # We have to manually remove files when finished
-        temp_storage = self.storage_service.get_local_storage();
+        temp_storage = storage_service.get_local_storage()
 
         for token in result:
             # the token id is the folder.
