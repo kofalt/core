@@ -93,7 +93,7 @@ class Job(object):
 
 
         # Trim tags array to unique members...
-        tags = list(set(tags))
+        tags = list(sorted(set(tags)))
 
         # If no origin, mark as system origin
         if origin is None:
