@@ -23,8 +23,7 @@ class LocalStorageProvider(BaseProvider):
         super(LocalStorageProvider, self).__init__(config)
 
         self._storage_plugin = None
-        #self.validate_config()
-    
+
         # URL used to instantiate the storage plugin provider
         # We assume its a valid absolute url with leading /
         # we should verify this on the settings config page
@@ -43,12 +42,10 @@ class LocalStorageProvider(BaseProvider):
         if not self.config.get('path'):
             raise errors.APIValidationException('Local Storage requires path be set')
 
-        # We need to have a valid storage object set to run these
-        if self._storage_plugin:
-            pass
-            #self._validate_permissions()
-            #self._test_files()
-    
+        # if we dont have a storage_plugin something else went wrong so let this bubble up
+        self._validate_permissions()
+        self._test_files()
+
     def get_redacted_config(self):
         return {
             'id': self.provider_id,
@@ -59,27 +56,35 @@ class LocalStorageProvider(BaseProvider):
         """
             Do a permission check on the files to be sure we can write files at the path
         """
-        # TODO: make this correct
+        # Errors will bubble up
         self._test_files()
         return True
 
     def _test_files(self):
         """
-            Use the provider to upload to the path 
+            Use the provider to upload to the path
         """
 
         test_uuid = str(uuid.uuid4())
 
-        # TODO wrap these in try blocks and catch the errors as we go
-        test_file = self._storage_plugin.open(test_uuid, 'wb')
-        test_file.write('This is a permissions test')
-        test_file.close()
+        try:
+            test_file = self._storage_plugin.open(test_uuid, 'wb')
+            test_file.write('This is a permissions test')
+            test_file.close()
+        except:
+            raise errors.APIValidationException('Unable to write files to the local path')
 
-        test_file = self._storage_plugin.open(test_uuid, 'rb')
-        test_file.read()
-        test_file.close()
+        try:
+            test_file = self._storage_plugin.open(test_uuid, 'rb')
+            test_file.read()
+            test_file.close()
+        except:
+            raise errors.APIValidationException('Unable to read file on the local path')
 
-        self._storage_plugin.remove_file(test_uuid)
+        try:
+            self._storage_plugin.remove_file(test_uuid)
+        except:
+            raise errors.APIValidationException('Unable to remove files on the local path')
 
     @property
     def storage_url(self):
