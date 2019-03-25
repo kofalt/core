@@ -6,7 +6,8 @@ import flywheel
 
 SCITRAN_PERSISTENT_DB_URI = os.environ.get('SCITRAN_PERSISTENT_DB_URI')
 SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10)).decode('utf-8')
-
+SCITRAN_PERSISTENT_DATA_PATH= os.environ.get('SCITRAN_PERSISTENT_DATA_PATH')
+        
 def create_user(db, _id, api_key, **kwargs):
     payload = {
         '_id': _id,
@@ -32,7 +33,7 @@ def create_user(db, _id, api_key, **kwargs):
         'origin': {'type': 'user', 'id': _id}
     }, upsert=True)
 
-def create_site(db, **kwargs):
+def create_site(db, path, **kwargs):
 
     """Create Default Site Settings which include a default storage provider"""
 
@@ -41,13 +42,11 @@ def create_site(db, **kwargs):
 
     provider = db.providers.find_one({'label':'Local Storage'})
 
-    local_fs_url = flywheel.api.config.local_fs_url
-
     if not provider:
         provider = db.providers.insert_one({
             "origin": {"type":"system", "id":"system"},
             "created":"2019-03-19T18:48:37.790Z",
-            "config":{"path":local_fs_url},
+            "config":{"path": path},
             "modified":"2019-03-19T18:48:37.790Z",
             "label":"Local Storage",
             "provider_class":"storage",
@@ -75,8 +74,10 @@ def init_db():
 
     if not SCITRAN_PERSISTENT_DB_URI:
         raise Exception('Cannot initialize database without SCITRAN_PERSISTENT_DB_URI!')
+    if not SCITRAN_PERSISTENT_DATA_PATH:
+        raise Exception('Cannot initialize database without SCITRAN_PERSISTENT_DATA_PATH!')
 
     db = pymongo.MongoClient(SCITRAN_PERSISTENT_DB_URI).get_default_database()
     create_user(db, 'admin@user.com', SCITRAN_ADMIN_API_KEY, root=True)
-    create_site(db)
+    create_site(db, SCITRAN_PERSISTENT_DATA_PATH)
 
