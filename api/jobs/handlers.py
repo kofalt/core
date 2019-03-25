@@ -330,7 +330,6 @@ class GearHandler(base.RequestHandler):
         gear = get_gear(dl_id)
 
         file_id = gear['exchange'].get('rootfs-id')
-        # TOOD: Be sure the provider-id get set when the gear is created
         provider_id = gear['exchange'].get('rootfs-provider-id')
         provider = get_provider_instance(provider_id)
         file_path = files.get_file_path({'_id': file_id})

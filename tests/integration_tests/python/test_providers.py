@@ -112,7 +112,7 @@ def test_get_provider(api_db, as_admin, as_user, as_public):
         assert r.ok
         assert r.json() == r_provider
 
-        r = as_admin.get('/site/providers?provider_class=compute')
+        r = as_admin.get('/site/providers?class=compute')
         assert r.ok
         r_providers = r.json()
         assert len(r_providers) >= 1

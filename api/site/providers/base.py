@@ -24,6 +24,12 @@ class BaseProvider(object):
         # The only case where the provider does not have an id is the temp storage provider instance
         return self.config.get('provider_id', None)
 
+    @property
+    def provider_label(self):
+        """Returns the provider_label associated with this provider config"""
+        # The only case where the provider does not have an id is the temp storage provider instance
+        return self.config.get('provider_label', None)
+
     @abstractmethod
     def validate_config(self):
         """Perform the necessary steps to validate the given configuration.

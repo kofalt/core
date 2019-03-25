@@ -363,17 +363,8 @@ def get_release_version():
 #primary_storage = create_flywheel_fs(__config['persistent']['fs_url'])
 # primary_storage = create_flywheel_fs(__config['persistent']['data_path'])
 
-# local_fs must be PyFS with osfs for using the local get_fs functions for file manipulation
-#local_fs = create_flywheel_fs('osfs://' + __config['persistent']['data_path'])
-# This is used for the base of the temp_fs path
+# This is used for the temp storage and must be set
 local_fs_url = __config['persistent']['data_path']
-
-#local_fs = get_provider_instance({
-#    'provider_class': 'storage',
-#    'provider_type': 'osfs',
-#    'config': {'path': __config['persistent']['data_path']}
-#})
-
 
 support_legacy_fs = __config['persistent']['support_legacy_fs']
 
