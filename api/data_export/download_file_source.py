@@ -8,7 +8,7 @@ import urllib3
 import fs.errors
 import flywheel_common.errors
 
-from .. import files, config, io, access_log
+from .. import io, access_log
 from ..web.request import AccessType
 from ..web.encoder import custom_json_serializer
 from ..dao.containerstorage import cs_factory
