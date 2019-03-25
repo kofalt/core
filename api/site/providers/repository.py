@@ -72,6 +72,7 @@ def get_provider_instance(provider_id):
 
     # Create provider instance
     result.config['provider_id'] = result.provider_id
+    result.config['provider_label'] = result.label
     provider_inst = create_provider(result.provider_class,
         result.provider_type, result.config)
 

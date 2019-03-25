@@ -15,6 +15,7 @@ import pymongo
 from flywheel_common import storage
 
 from api import util
+from api.site.storage_provider_service import StorageProviderService
 
 
 log = logging.getLogger('cleanup_deleted')
@@ -37,15 +38,17 @@ def main(*argv):
     logging.getLogger('azure.storage').setLevel(logging.WARNING)  # silence azure.storage library
 
     global db, fs, data_path
+
+    storage_service = StorageProviderService()
+    local_fs = storage_service.determine_provider(None, None)
+    fs = local_fs.storage_plugin
+
     db_uri = os.environ['SCITRAN_PERSISTENT_DB_URI']
-    data_path = os.environ['SCITRAN_PERSISTENT_DATA_PATH']
     db = pymongo.MongoClient(db_uri).get_default_database()
-    fs_url = os.environ['SCITRAN_PERSISTENT_FS_URL']
-    fs = storage.create_flywheel_fs(fs_url)
 
     log.info('Using mongo URI: %s', db_uri)
-    log.info('Using data path: %s', data_path)
-    log.info('Using filesystem: %s', fs_url)
+    log.info('Using data provider: %s', local_fs.provider_id)
+    log.info('Using storage path: %s', local_fs.storage_url)
 
     origins = []
 

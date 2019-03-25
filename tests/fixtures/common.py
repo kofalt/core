@@ -16,6 +16,24 @@ SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
 
 @pytest.fixture(scope='session')
+def second_storage_provider(session, api_db, with_site_settings):
+
+    new_dir = local_fs_url + '/second/'
+    if not os.path.exists(new_dir):
+        os.mkdir(new_dir)
+    provider = api_db.providers.insert_one({
+        "origin": {"type":"system", "id":"system"},
+        "created":"2019-03-19T18:48:37.790Z",
+        "config":{"path": new_dir},
+        "modified":"2019-03-19T18:48:37.790Z",
+        "label":"Local Storage Test",
+        "provider_class":"storage",
+        "provider_type":"osfs"
+    })
+
+    return str(provider.inserted_id)
+
+@pytest.fixture(scope='session')
 def with_site_settings(session, api_db):
     """Create Default Site Settings which include a default storage provider"""
     
@@ -333,7 +351,7 @@ class DataBuilder(object):
             self.api_db.apikeys.insert_one({
                 '_id': user_api_key,
                 'created': datetime.datetime.utcnow(),
-                'last_seen': None,
+                'last_used': None,
                 'type': 'user',
                 'origin': {'type': 'user', 'id': _id}
             })

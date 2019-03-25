@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 """
-Migrate storage backend from legacy storage to PyFilesystem
+Migrate storage backend from one Provider to anohter Provider
 """
 
 import argparse
 import datetime
 import logging
 import os
-import pprint
 import time
 import uuid
 import sys
@@ -19,7 +18,7 @@ from fs import errors
 
 from flywheel_common import storage
 from api import util
-
+from api.site.providers import get_provider_instance
 
 CHUNK_SIZE = 2 ** 20
 
@@ -27,11 +26,10 @@ log = logging.getLogger('migrate_storage')
 
 def main(*argv):
     """
-    Remove CAS logic, generate UUID for the files and move the files from the lagacy storage to the new one.
+    Supports moving files from one provider to another provider via provider_id
     """
     argv = argv or sys.argv[1:]
     args = parse_args(argv)
-
 
     date_format = '%Y-%m-%d %H:%M:%S'
     log_format = '%(asctime)s %(levelname)4.4s %(message)s'
@@ -39,31 +37,30 @@ def main(*argv):
                         format=log_format,
                         level=getattr(logging, args.log_level.upper()))
 
-    global db, target_fs, local_fs, local_fs2, data_path, migrate_file
+    global db, target_fs, migrate_file, sources, dest_storage, delete_source, filter_source
     db_uri = os.environ['SCITRAN_PERSISTENT_DB_URI']
-    data_path = os.environ['SCITRAN_PERSISTENT_DATA_PATH']
     log.info('Using mongo URI: %s', db_uri)
-    log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
-    local_fs = storage.create_flywheel_fs('osfs://' + data_path)
 
-    ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    data_path2 = os.path.join(data_path, 'v1')
-    if os.path.exists(data_path2):
-        log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-        local_fs2 = storage.create_flywheel_fs('osfs://' + data_path2)
-    else:
-        local_fs2 = None
-    ###
+    sources = {}; #Just so we dont have to keep loading all the source types
+    try:
+        dest_storage = get_provider_instance(args.destination)
+    except: 
+        log.error('Unable to locate the destination provider specifed. Be sure this provider exists in the system')
+        exit(1)
 
-    fs_url = os.environ.get('SCITRAN_PERSISTENT_FS_URL', 'osfs://' + os.path.join(data_path, 'v1'))
-    log.info('Migrate files from %s to %s', data_path, fs_url)
-    target_fs = storage.create_flywheel_fs(fs_url)
+    log.info('Migrate files to %s', dest_storage.provider_label)
+    
+    target_fs = dest_storage.storage_plugin
+    delete_source = False
+    if args.delete_files:
+        log.info('Deleting source files')
+        delete_source = True;
 
-    if fs_url.startswith('gc://'):
-        # Late import storage error class and decorate retry
-        from google.cloud.exceptions import GoogleCloudError
-        migrate_file = retry(GoogleCloudError, tries=4)(migrate_file)
+    filter_source = None
+    if args.source:
+        filter_source = args.source
+        log.info("Only moving filters from provider with id %s", filter_source) 
 
     try:
         if not (args.containers or args.gears):
@@ -76,11 +73,6 @@ def main(*argv):
         if args.gears:
             migrate_gears()
 
-        if args.delete_files:
-            log.info('Delete legacy files')
-            local_fs.get_fs().removetree(u'/')
-
-        cleanup_empty_folders()
     except MigrationError:
         log.critical('Migration failed')
         exit(1)
@@ -90,23 +82,14 @@ def main(*argv):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--destination', required=True, help='Destination Provider Id')
+    parser.add_argument('--source', help='Only move files from this Provider Id')
     parser.add_argument('--containers', action='store_true', help='Migrate containers')
     parser.add_argument('--gears', action='store_true', help='Migrate gears')
-    parser.add_argument('--delete-files', action='store_true', help='Delete files from legacy storage')
+    parser.add_argument('--delete-files', action='store_true', help='Delete files from source storage provider')
     parser.add_argument('--log-level', default='info', metavar='PATH', help='log level [info]')
 
     return parser.parse_args(argv)
-
-
-def get_src_fs_by_file_path(file_path):
-    if local_fs.get_file_info(None, file_path):
-        return local_fs
-    ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif local_fs2 and local_fs2.get_file_info(None, file_path):
-        return local_fs2
-    ###
-    else:
-        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
 
 
 def get_files_by_prefix(document, prefix):
@@ -118,15 +101,6 @@ def get_files_by_prefix(document, prefix):
 def show_progress(current_index, total_files):
     if current_index % (total_files / 10 + 1) == 0:
         log.info('Processed %s files of total %s files ...' % (current_index, total_files))
-
-
-def cleanup_empty_folders():
-    log.info('Cleanup empty folders')
-
-    for _dirpath, _, _ in os.walk(data_path, topdown=False):
-        if not (os.listdir(_dirpath) or data_path == _dirpath):
-            os.rmdir(_dirpath)
-
 
 def get_containers_files(containers_prefixes):
     _files = []
@@ -141,6 +115,10 @@ def get_containers_files(containers_prefixes):
                     'fileinfo': f,
                     'prefix': prefix
                 }
+
+                if filter_source and f.provider_id != filter_source:
+                    continue
+
                 _files.append(f_dict)
 
     return _files
@@ -157,6 +135,10 @@ def get_gears_files():
                 'gear_name': document['gear']['name'],
                 'exchange': document['exchange']
             }
+
+            if filter_source and document['exchange']['rootfs-provider-id'] != filter_source:
+                continue
+
             _files.append(f_dict)
 
     return _files
@@ -206,76 +188,42 @@ def retry(exception_to_check, tries=4, delay=3, backoff=2):
 
 
 def migrate_file(f):
-    file_id = f['fileinfo'].get('_id', '')
-    if file_id:
-        file_path = util.path_from_uuid(file_id)
-        if not target_fs.get_file_info(file_id, file_path):
-            log.debug('    file aready has id field, just copy to target storage')
-            src_fs = get_src_fs_by_file_path(file_path)
-            log.debug('    file found in %s' % src_fs)
 
-            old_file = src_fs.open(file_id, file_path, 'rb')
-            new_file = target_fs.open(file_id, file_path, 'wb')
-            buffer_copy(old_file, new_file, CHUNK_SIZE)
-            old_file.close()
-            new_file.close()
-        else:
-            log.debug('    file is aready present in target storage, skipping')
-    else:
-        file_id = str(uuid.uuid4())
-        log.debug('    generated uuid: %s', file_id)
-        f_old_path = util.path_from_hash(f['fileinfo']['hash'])
-        log.debug('    file old path: %s', f_old_path)
-        f_new_path = util.path_from_uuid(file_id)
-        log.debug('    file new path: %s', f_new_path)
+    source_fs = get_source_fs(f['fileinfo']['provider_id'])
 
-        log.debug('    copy file to target storage')
-        old_file = local_fs.open(None, f_old_path, 'rb')
-        new_file = target_fs.open(file_id, f_new_path, 'wb')
-        buffer_copy(old_file, new_file, CHUNK_SIZE)
-        old_file.close()
-        new_file.close()
+    file_id = f['fileinfo']['_id']
+    with source_fs.open(file_id, None, 'rb') as (f1
+            ), target_fs.open(file_id, None, 'wb') as f2:
+        while True:
+            data = f1.read(CHUNK_SIZE)
+            if not data:
+                break
+            f2.write(data)
 
-        update_set = {
-            f['prefix'] + '.$.modified': datetime.datetime.utcnow(),
-            f['prefix'] + '.$._id': file_id
-        }
+    # We update first in case there are any issues with delete. 
+    db[f['container']].find_one_and_update(
+            {'_id': f['container_id'], 'files._id': file_id},
+            {'$set': {'files.$.provider_id': dest_storage.provider_id}})
 
-        # Update the file with the newly generated UUID
-        updated_doc = db[f['container']].find_one_and_update(
-            {'_id': f['container_id'],
-             f['prefix'] + '.name': f['fileinfo']['name'],
-             f['prefix'] + '.hash': f['fileinfo']['hash']},
-            {'$set': update_set}
-        )
+    if delete_source:
+        source_fs.remove_file(file_id, None)   
 
-        if not updated_doc:
-            log.info('Probably the following file has been updated during the migration '
-                     'and its hash is changed, cleaning up from the new filesystem')
-            target_fs.remove_file(file_id, f_new_path)
+def migrate_analysis_file(f):
 
+        file_id = f['fileinfo']['_id']
+        source_fs = get_source_fs(f['fileinfo']['provider_id'])
 
-def migrate_analysis_file(f, migrated_files):
-    match = [cf for cf in migrated_files if
-             cf['fileinfo']['hash'] == f['fileinfo']['hash'] and cf['fileinfo'].get('_id')]
-    # The file is already migrated
-    if len(match) > 0 and not f['fileinfo'].get('_id'):
-        log.debug('    file was already migrated, just set a reference')
-        update_set = {
-            f['prefix'] + '.$.modified': match[0]['fileinfo']['modified'],
-            f['prefix'] + '.$._id': match[0]['fileinfo']['_id']
-        }
-
-        # Update the file with the newly generated UUID
+        with source_fs.open(file_id, None, 'rb') as (f1
+                ), target_fs.open(file_id, None, 'wb') as f2:
+            while True:
+                data = f1.read(CHUNK_SIZE)
+                if not data:
+                    break
+                f2.write(data)
+        # Update provider in the db
         db[f['container']].find_one_and_update(
-            {'_id': f['container_id'],
-             f['prefix'] + '.name': f['fileinfo']['name'],
-             f['prefix'] + '.hash': f['fileinfo']['hash']},
-            {'$set': update_set}
-        )
-    else:
-        log.debug('    migrate file normally')
-        migrate_file(f)
+                {'_id': f['container_id'], 'inputs._id': file_id},
+                {'$set': {'inputs.$.provider_id': dest_storage.provider_id}})
 
 
 def migrate_containers():
@@ -295,64 +243,33 @@ def migrate_containers():
         show_progress(i + 1, len(container_files))
 
     log.info('Migrate analysis files...')
-    # Refresh the list of container files
-    migrated_files = get_containers_files([('projects', 'files'),
-                                           ('acquisitions', 'files'),
-                                           ('sessions', 'files'),
-                                           ('subjects', 'files'),
-                                           ('collections', 'files'),
-                                           ('analyses', 'files')])
     analysis_files = get_containers_files([('analyses', 'inputs')])
 
     for i, f in enumerate(analysis_files):
-        log.debug('  [%s/%s] %s/%s/%s', i+1, len(container_files), f['container'], f['container_id'],
-                  f['fileinfo']['name'])
-        migrate_analysis_file(f, migrated_files)
+        log.debug('  [%s/%s] %s/%s/%s - %s', i+1, len(container_files), f['container'], f['container_id'],
+                  f['fileinfo']['name'], f['fileinfo']['provider_id'])
+        migrate_analysis_file(f)
         show_progress(i + 1, len(analysis_files))
 
 
 def migrate_gear_files(f):
     file_id = f['exchange'].get('rootfs-id', '')
-    if file_id:
-        file_path = util.path_from_uuid(file_id)
-        if not target_fs.get_file_info(file_id, file_path):
-            log.debug('    file aready has id field, just copy to target storage')
-            src_fs = get_src_fs_by_file_path(file_path)
-            log.debug('    file found in %s' % src_fs)
-
-            old_file = src_fs.open(file_id, file_path, 'rb')
-            new_file = target_fs.open(file_id, file_path, 'wb')
-            buffer_copy(old_file, new_file, CHUNK_SIZE)
-            old_file.close()
-            new_file.close()
-        else:
-            log.debug('    file is aready present in target storage, skipping')
-    else:
-        file_id = str(uuid.uuid4())
-        file_hash = 'v0-' + f['exchange']['rootfs-hash'].replace(':', '-')
-        f_old_path = util.path_from_hash(file_hash)
-        log.debug('    file old path: %s', f_old_path)
-        f_new_path = util.path_from_uuid(file_id)
-        log.debug('    file new path: %s', f_new_path)
-
-        log.debug('    copy file to target storage')
-
-        old_file = local_fs.open(None, f_old_path, 'rb')
-        new_file = target_fs.open(file_id, f_new_path, 'wb')
-        buffer_copy(old_file, new_file, CHUNK_SIZE)
-        old_file.close()
-        new_file.close()
-
-        update_set = {
-            'modified': datetime.datetime.utcnow(),
-            'exchange.rootfs-id': file_id
-        }
-
-        # Update the gear with the newly generated UUID
-        db['gears'].find_one_and_update(
+    source_fs = get_source_fs(f['exchange']['rootfs-provider-id'])
+    
+    with source_fs.open(file_id, None, 'rb') as (f1
+            ), target_fs.open(file_id, None, 'wb') as f2:
+        while True:
+            data = f1.read(CHUNK_SIZE)
+            if not data:
+                break
+            f2.write(data)
+    
+    db.gears.find_one_and_update(
             {'_id': f['gear_id']},
-            {'$set': update_set}
-        )
+            {'$set': {'exchange.rootfs-provider-id': dest_storage.provider_id}})
+
+    if delete_source:
+        source_fs.remove_file(file_id)
 
 
 def migrate_gears():
@@ -365,14 +282,11 @@ def migrate_gears():
         migrate_gear_files(f)
         show_progress(i + 1, len(_files))
 
+def get_source_fs(provider_id): 
+    if not sources.get('provider_id'):
+        sources[provider_id] = get_provider_instance(provider_id)
 
-def buffer_copy(src, dest, length):
-
-    while True:
-        chunk = src.read(length)
-        if not chunk:
-            break
-        dest.write(chunk)
+    return sources[provider_id].storage_plugin
 
 class MigrationError(Exception):
     pass

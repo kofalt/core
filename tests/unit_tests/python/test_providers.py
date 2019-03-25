@@ -119,7 +119,6 @@ def test_provider_mapper_patch(api_db):
         api_db.providers.remove({'_id': provider_id})
 
 def test_provider_mapper_find_all(api_db):
-    api_db.providers.remove({})
     compute_provider = _make_provider()
     storage_provider = _make_provider(cls=models.ProviderClass.storage)
 
@@ -129,6 +128,11 @@ def test_provider_mapper_find_all(api_db):
 
     try:
         results = list(mapper.find_all(models.ProviderClass.storage))
+        # This provider is the default site provider so exclude it from our tests if present
+        for result in results:
+            if result.label == 'Local Storage':
+                results.remove(result)
+
         assert len(results) == 1
         assert results[0].to_dict() == storage_provider.to_dict()
 
@@ -138,10 +142,18 @@ def test_provider_mapper_find_all(api_db):
         assert compute_provider.to_dict() in dict_results
 
         results = list(mapper.find_all('nothing'))
+        # This provider is the default site provider so exclude it from our tests if present
+        for result in results:
+            if result.label == 'Local Storage':
+                results.remove(result)
+
         assert len(results) == 0
 
         results = list(mapper.find_all())
-        assert len(results) >= 2
+        for result in results:
+            if result.label == 'Local Storage':
+                results.remove(result)
+        assert len(results) == 2
 
     finally:
         # Cleanup
@@ -180,7 +192,7 @@ def test_provider_factory_storage(mocker):
     #assert storage.create_flywheel_fs.call_count == 1
     assert provider is not None
     assert provider.storage_plugin is not None
-    
+
     assert isinstance(provider, providers.LocalStorageProvider)
     assert provider.config == config
     assert isinstance(provider.storage_plugin, PyFsStorage)
@@ -235,7 +247,6 @@ def test_provider_repository_insert_and_update(api_db):
         api_db.providers.remove({'_id': provider_id})
 
 def test_provider_repository_load(api_db):
-    api_db.providers.remove({})
     compute_provider = _make_provider()
     storage_provider = _make_provider(cls=models.ProviderClass.storage)
 
@@ -259,7 +270,12 @@ def test_provider_repository_load(api_db):
 
         # Load all
         results = list(providers.get_providers())
-        assert len(results) >= 2
+        # This provider is the default site provider so exclude it from our tests if present
+        for result in results:
+            if result.label == 'Local Storage':
+                results.remove(result)
+
+        assert len(results) == 2
 
         # Load by type
         results = list(providers.get_providers('compute'))

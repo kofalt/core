@@ -81,7 +81,7 @@ def zip_test_data(files=['dir1/file1.csv', 'dir2/file2.csv']):
     zf.close()
     return sio.getvalue()
 
-def test_data_view_columns(as_user):
+def test_data_view_columns(as_user, with_site_settings):
     r = as_user.get('/views/columns')
     assert r.ok
     columns = r.json()
@@ -107,12 +107,12 @@ def test_data_view_columns(as_user):
     if len(expected_columns):
         pytest.fail('Did not find all expected columns: {}'.format(', '.join(expected_columns)))
 
-def test_adhoc_empty_data_view(data_builder, as_admin, as_user):
+def test_adhoc_empty_data_view(data_builder, as_admin, as_user, with_site_settings):
     project = data_builder.create_project(label='test-project')
     r = as_user.post('/views/data?containerId={}'.format(project), json={})
     assert r.status_code == 400
 
-def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
+def test_adhoc_data_view_permissions(data_builder, as_admin, as_user, with_site_settings):
     project = data_builder.create_project(label='test-project')
     r = as_user.post('/views/data?containerId={}'.format(project), json={
         "columns": [
@@ -121,7 +121,7 @@ def test_adhoc_data_view_permissions(data_builder, as_admin, as_user):
     })
     assert r.status_code == 403
 
-def test_adhoc_data_view_column_validation(data_builder, file_form, as_admin):
+def test_adhoc_data_view_column_validation(data_builder, file_form, as_admin, with_site_settings):
     # JSON
     project = data_builder.create_project(label='test-project')
     session = data_builder.create_session(project=project, label='test-session')
@@ -142,7 +142,7 @@ def test_adhoc_data_view_column_validation(data_builder, file_form, as_admin):
     })
     assert r.status_code == 400
 
-def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
+def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin, with_site_settings):
     # JSON
     project = data_builder.create_project(label='test-project')
     r = as_admin.post('/views/data?containerId={}'.format(project), json={
@@ -186,7 +186,7 @@ def test_adhoc_data_view_empty_result(data_builder, file_form, as_admin):
     assert len(data['columns']) == 0
     assert len(data['rows']) == 0
 
-def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
+def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -233,7 +233,7 @@ def test_adhoc_data_view_metadata_only(data_builder, file_form, as_admin):
     assert rows[1]['acquisition.id'] == acquisition2
     assert rows[1]['acquisition_label'] == 'scout'
 
-def test_adhoc_data_view_flatten_info(data_builder, file_form, as_admin):
+def test_adhoc_data_view_flatten_info(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -321,7 +321,7 @@ def test_adhoc_data_view_flatten_info(data_builder, file_form, as_admin):
     assert rows[1][nested_value_idx] == '23'
     assert rows[1][nested_value2_idx] == ''
 
-def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
+def test_adhoc_data_view_session_target(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -358,7 +358,7 @@ def test_adhoc_data_view_session_target(data_builder, file_form, as_admin):
     assert rows[0]['session.age_years'] == 33.0
     assert rows[0]['acquisition'] == 'scout'
 
-def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
+def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -412,7 +412,7 @@ def test_adhoc_data_view_csv_files(data_builder, file_form, as_admin):
             assert isinstance(row['value2'], float)
             assert row['value2'] == 2*j
 
-def test_adhoc_data_view_json_row_column_format(data_builder, file_form, as_admin):
+def test_adhoc_data_view_json_row_column_format(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -452,7 +452,7 @@ def test_adhoc_data_view_json_row_column_format(data_builder, file_form, as_admi
         assert row[4] == str(i)
         assert row[5] == str(2*i)
 
-def test_adhoc_data_view_csv_format(data_builder, file_form, as_admin):
+def test_adhoc_data_view_csv_format(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -486,7 +486,7 @@ def test_adhoc_data_view_csv_format(data_builder, file_form, as_admin):
         assert row[1] == str(i)
         assert row[2] == str(2*i)
 
-def test_adhoc_data_view_tsv_format(data_builder, file_form, as_admin):
+def test_adhoc_data_view_tsv_format(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -527,7 +527,7 @@ def test_adhoc_data_view_tsv_format(data_builder, file_form, as_admin):
         assert row[4] == str(i)
         assert row[5] == str(2*i)
 
-def test_adhoc_data_view_tsv_file(data_builder, file_form, as_admin):
+def test_adhoc_data_view_tsv_file(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -560,7 +560,7 @@ def test_adhoc_data_view_tsv_file(data_builder, file_form, as_admin):
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
 
-def test_adhoc_data_view_json_list_file(data_builder, file_form, as_admin):
+def test_adhoc_data_view_json_list_file(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -593,7 +593,7 @@ def test_adhoc_data_view_json_list_file(data_builder, file_form, as_admin):
         assert row['aValue'] == i
         assert row['value2'] == 2*i
 
-def test_adhoc_data_view_json_dict_file(data_builder, file_form, as_admin):
+def test_adhoc_data_view_json_dict_file(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -623,7 +623,7 @@ def test_adhoc_data_view_json_dict_file(data_builder, file_form, as_admin):
     assert row['aValue'] == 0
     assert row['value2'] == 0
 
-def test_adhoc_data_view_missing_data_csv_files(data_builder, file_form, as_admin):
+def test_adhoc_data_view_missing_data_csv_files(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -714,7 +714,7 @@ def test_adhoc_data_view_missing_data_csv_files(data_builder, file_form, as_admi
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
 
-def test_adhoc_data_view_zip_members(data_builder, file_form, as_admin):
+def test_adhoc_data_view_zip_members(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -752,7 +752,7 @@ def test_adhoc_data_view_zip_members(data_builder, file_form, as_admin):
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
 
-def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_drone, api_db):
+def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_drone, api_db, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition = data_builder.create_acquisition(session=session, label='scout')
@@ -991,7 +991,7 @@ def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_dr
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis1)})
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis2)})
 
-def test_user_data_view(as_user, as_public):
+def test_user_data_view(as_user, as_public, with_site_settings):
     # Try to create with no body
     r = as_user.post('/containers/user@user.com/views')
     assert r.status_code == 400
@@ -1064,7 +1064,7 @@ def test_user_data_view(as_user, as_public):
     r = as_user.delete('/views/' + view)
     assert r.ok
 
-def test_site_data_view(as_admin, as_user):
+def test_site_data_view(as_admin, as_user, with_site_settings):
     view = {
         'label': 'test-site-view',
         'columns': [{'src': 'acquisition.label'}]
@@ -1131,7 +1131,7 @@ def test_site_data_view(as_admin, as_user):
     r = as_admin.delete('/views/' + view)
     assert r.ok
 
-def test_group_data_view(as_admin, as_user, data_builder):
+def test_group_data_view(as_admin, as_user, data_builder, with_site_settings):
     group = data_builder.create_group(_id='data_view_group')
     assert group == 'data_view_group'
 
@@ -1183,7 +1183,7 @@ def test_group_data_view(as_admin, as_user, data_builder):
     r = as_admin.delete('/views/' + view)
     assert r.ok
 
-def test_project_data_view(as_admin, as_user, as_public, data_builder, file_form):
+def test_project_data_view(as_admin, as_user, as_public, data_builder, file_form, with_site_settings):
     project = data_builder.create_project(label='test-project', public=False)
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition1 = data_builder.create_acquisition(session=session1, label='scout')
@@ -1282,7 +1282,7 @@ def test_project_data_view(as_admin, as_user, as_public, data_builder, file_form
     r = as_admin.delete('/views/' + view)
     assert r.ok
 
-def test_data_view_filtering(data_builder, file_form, as_admin):
+def test_data_view_filtering(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -1388,7 +1388,7 @@ def test_data_view_filtering(data_builder, file_form, as_admin):
     assert rows[0]['session.id'] == session2
     assert rows[0]['session.label'] == 'ses-01'
 
-def test_data_view_skip_and_limit(data_builder, file_form, as_admin):
+def test_data_view_skip_and_limit(data_builder, file_form, as_admin, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session1 = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     session2 = data_builder.create_session(project=project, subject=subject2, label='ses-01')
@@ -1436,7 +1436,7 @@ def test_data_view_skip_and_limit(data_builder, file_form, as_admin):
         assert isinstance(row['value2'], float)
         assert row['value2'] == 2*j
 
-def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user, as_public):
+def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user, as_public, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition = data_builder.create_acquisition(session=session, label='scout')
