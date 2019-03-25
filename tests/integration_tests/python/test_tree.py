@@ -184,7 +184,7 @@ def test_fetch_tree_permissions(data_builder, as_admin, as_user, as_public):
     assert r.ok
     assert subjects == r.json()
 
-def test_fetch_tree_filter_limit(data_builder, file_form, as_admin, as_root, api_db, legacy_cas_file):
+def test_fetch_tree_filter_limit(data_builder, file_form, as_admin, as_root, api_db):
     group = data_builder.create_group(label='group1')
     project = data_builder.create_project(label='project1', group=group)
     session = data_builder.create_session(label='session1', project=project)
@@ -297,7 +297,7 @@ def test_fetch_tree_parent(data_builder, as_admin):
     assert sessions[1]['subject']['_id'] == subject
     assert sessions[1]['subject']['code'] == 'subject1'
 
-def test_fetch_tree_files(data_builder, file_form, as_admin, as_root, api_db, legacy_cas_file):
+def test_fetch_tree_files(data_builder, file_form, as_admin, as_root, api_db):
     group = data_builder.create_group(label='group1')
     project = data_builder.create_project(label='project1', group=group)
     session = data_builder.create_session(label='session1', project=project)

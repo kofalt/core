@@ -6,10 +6,11 @@ from bson.objectid import ObjectId
 import pytest
 
 from api import config, util
+from api.site.storage_provider_service import StorageProviderService
 
 
 @pytest.fixture(scope='function')
-def cleanup_deleted(mocker, monkeypatch):
+def cleanup_deleted(mocker, monkeypatch, with_site_settings):
     """Enable importing from `bin` and return `cleanup_deleted`."""
     monkeypatch.setenv('SCITRAN_PERSISTENT_FS_URL', config.__config['persistent']['fs_url'])
 
@@ -19,7 +20,7 @@ def cleanup_deleted(mocker, monkeypatch):
     return cleanup_deleted
 
 
-def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_db, cleanup_deleted):
+def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_db, cleanup_deleted, with_site_settings):
     session_id = data_builder.create_session()
 
     file_name_1 = '%s.csv' % randstr()
@@ -49,7 +50,10 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
-    assert config.primary_storage.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is not None
+    # TODO: we will have to be sure we get the same provider when we move to multi provider support
+    storage_service = StorageProviderService()
+    storage = storage_service.determine_provider(None, None)
+    assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is not None
 
     # file won't be deleted after 72 hours if the origin is a user
     d = datetime.datetime.now() - datetime.timedelta(hours=73)
@@ -61,7 +65,7 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
-    assert config.primary_storage.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is not None
+    assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is not None
 
     # file deleted after 72 hours if the origin is not a user
     api_db['sessions'].find_one_and_update(
@@ -72,7 +76,7 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # file removed from the filesystem
-    assert config.primary_storage.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is None
+    assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is None
 
     # file also removed from the database
     document = api_db['sessions'].find_one(
@@ -116,8 +120,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # files still exist
-    assert config.primary_storage.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is not None
-    assert config.primary_storage.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
+    assert storage.storage_plugin.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is not None
+    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
 
     # file won't be deleted after 72 hours if the origin is a user
     d = datetime.datetime.now() - datetime.timedelta(hours=73)
@@ -129,8 +133,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
-    assert config.primary_storage.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is not None
-    assert config.primary_storage.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
+    assert storage.storage_plugin.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is not None
+    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
 
     # file deleted after 72 hours if the origin is not a user
     api_db['sessions'].find_one_and_update(
@@ -141,9 +145,9 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # first file removed from the filesystem
-    assert config.primary_storage.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is None
+    assert storage.storage_plugin.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is None
     # but the second file is still there
-    assert config.primary_storage.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
+    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
 
     # upload a file into the first session to see that it is kept when we use the --all flag
     # but others which are marked to delete will be removed
@@ -159,9 +163,9 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     # with --all flag we delete every files which are marked to delete
     # don't care about the origin
     cleanup_deleted.main('--log-level', 'DEBUG', '--all')
-    assert config.primary_storage.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is None
+    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is None
     # we keep files which are not marked
-    assert config.primary_storage.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is not None
+    assert storage.storage_plugin.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is not None
 
     # Mark the first session as deleted
     api_db['sessions'].find_one_and_update(
@@ -171,4 +175,4 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     # now the fourth file will be deleted too
     cleanup_deleted.main('--log-level', 'DEBUG', '--all')
-    assert config.primary_storage.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is None
+    assert storage.storage_plugin.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is None

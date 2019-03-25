@@ -663,6 +663,7 @@ def test_reaper_reupload_deleted(data_builder, as_admin, as_root, file_form):
     ### test acquisition recreation
     # get + delete acquisition
     r = as_root.get('/acquisitions')
+
     assert r.ok
     acquisition = next(a['_id'] for a in r.json() if a['uid'] == 'reupload')
 

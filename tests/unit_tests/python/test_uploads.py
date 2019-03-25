@@ -1,5 +1,4 @@
-def test_signed_url_reaper_upload(as_drone, mocker, with_site_settings):
-
+def test_signed_url_reaper_upload(as_drone, mocker, api_db, with_site_settings):
     payload = {
         'metadata': {
             'group': {'_id': 'scitran'},
@@ -47,7 +46,7 @@ def test_signed_url_reaper_upload(as_drone, mocker, with_site_settings):
     # assert mock_fs.move.call_count == 0
 
 
-def test_signed_url_label_upload(as_drone, data_builder, mocker, with_site_settings):
+def test_signed_url_label_upload(as_drone, data_builder, mocker):
     group = data_builder.create_group()
 
     payload = {
@@ -86,7 +85,7 @@ def test_signed_url_label_upload(as_drone, data_builder, mocker, with_site_setti
     # assert not mock_fs.move.called
 
 
-def test_signed_url_engine_upload(as_drone, data_builder, mocker, with_site_settings):
+def test_signed_url_engine_upload(as_drone, data_builder, mocker):
     project = data_builder.create_project()
 
     payload = {
@@ -131,7 +130,7 @@ def test_signed_url_engine_upload(as_drone, data_builder, mocker, with_site_sett
     # assert not mock_fs.move.called
 
 
-def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mocker, with_site_settings):
+def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mocker):
     session = data_builder.create_session()
 
     body = file_form(
@@ -179,7 +178,7 @@ def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mo
     r = as_drone.delete('/sessions/' + session + '/analyses/' + session_analysis)
     assert r.ok
 
-def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker, with_site_settings):
+def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
     project = data_builder.create_project()
 
     payload = {

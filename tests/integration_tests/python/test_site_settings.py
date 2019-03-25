@@ -40,7 +40,7 @@ def test_site_settings_update(as_admin, api_db, default_payload, data_builder):
             api_db.singletons.remove({'_id': 'site'})
 
 
-def test_site_settings_validation(as_admin):
+def test_site_settings_validation(as_admin, with_site_settings):
     # No body
     r = as_admin.put('/site/settings')
     assert r.status_code == 400
@@ -55,7 +55,7 @@ def test_site_settings_validation(as_admin):
 
     # center_gears values (invalid gear name)
     r = as_admin.put('/site/settings', json={'center_gears': ['not_a_gear']})
-    assert r.status_code == 422
+    assert r.status_code == 400
 
     # center_gears values
     r = as_admin.put('/site/settings', json={'center_gears': ['not-a-gear']})

@@ -185,7 +185,7 @@ class DataViewHandler(base.RequestHandler):
 
                 # Saved directly to persistent storage.
                 storage_service = StorageProviderService()
-                final_storage = storage_service.determine_provider(self.origin, target_container) 
+                final_storage = storage_service.determine_provider(self.origin, target_container)
                 file_processor = FileProcessor(final_storage)
 
                 # If we're saving to container, start SSE event,
@@ -228,8 +228,8 @@ class DataViewHandler(base.RequestHandler):
                     fileobj.provider_id,
                     fileobj.filename,
                     path,
-                    final_storage.get_file_info(new_uuid, path)['filesize'],
-                    final_storage.get_file_hash(new_uuid, path),
+                    final_storage.storage_plugin.get_file_info(new_uuid, path)['filesize'],
+                    final_storage.storage_plugin.get_file_hash(new_uuid, path),
                     uuid_=new_uuid,
                     mimetype=None,
                     modified=timestamp

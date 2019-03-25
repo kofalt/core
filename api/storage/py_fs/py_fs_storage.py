@@ -21,24 +21,23 @@ class PyFsStorage(Interface):
 
     def open(self, uuid, path_hint, mode, **kwargs):
 
+        #Path hint take precedence on the legacy PyFs
+        if not path_hint:
+            path_hint = path_from_uuid(uuid)
+
         if 'w' in mode:
-            if path_hint:
-                dirname = fs.path.dirname(path_hint)
-                if dirname and not self._fs.isdir(dirname):
-                    self._fs.makedirs(fs.path.dirname(path_hint))
-            else:
-                # the legacy PyFs files will always make use of the path_hint when open for writing. Future file types may not
-                pass
+            dirname = fs.path.dirname(path_hint)
+            if dirname and not self._fs.isdir(dirname):
+                self._fs.makedirs(fs.path.dirname(path_hint))
 
         # Allow error to bubble up
         return self._fs.open(path_hint, mode)
 
     def remove_file(self, uuid, path_hint):
-        #pylint: disable=unused-argument
-        if path_hint:
-            self._fs.remove(path_hint)
-        else:
-            pass
+        if not path_hint:
+            path_hint = path_from_uuid(uuid)
+
+        self._fs.remove(path_hint)
 
         return True
 

@@ -1,4 +1,4 @@
-def test_total(data_builder, as_admin):
+def test_total(data_builder, as_admin, with_site_settings):
     a1 = data_builder.create_acquisition(label='a1')
     a2 = data_builder.create_acquisition(label='a2')
 
@@ -38,7 +38,7 @@ def test_total(data_builder, as_admin):
     assert page['results'] == gears
 
 
-def test_limit(data_builder, as_admin, file_form):
+def test_limit(data_builder, as_admin, file_form, with_site_settings):
     assert as_admin.get('/users?limit=foo').status_code == 422
     assert as_admin.get('/users?limit=-1').status_code == 422
 
@@ -118,7 +118,7 @@ def test_limit(data_builder, as_admin, file_form):
     assert as_admin.delete('/site/rules/' + r2).ok
 
 
-def test_page(data_builder, as_admin):
+def test_page(data_builder, as_admin, with_site_settings):
     assert as_admin.get('/users?page=foo').status_code == 422
     assert as_admin.get('/users?page=-1').status_code == 422
 
@@ -135,7 +135,7 @@ def test_page(data_builder, as_admin):
     assert {aq['_id'] for aq in r.json()} == set()
 
 
-def test_skip(data_builder, as_admin):
+def test_skip(data_builder, as_admin, with_site_settings):
     assert as_admin.get('/users?skip=foo').status_code == 422
     assert as_admin.get('/users?skip=-1').status_code == 422
 
@@ -149,7 +149,7 @@ def test_skip(data_builder, as_admin):
     assert {aq['_id'] for aq in r.json()} == {b}
 
 
-def test_sort(data_builder, as_admin):
+def test_sort(data_builder, as_admin, with_site_settings):
     assert as_admin.get('/acquisitions?sort=label:foo').status_code == 422
 
     a1 = data_builder.create_acquisition(label='a')
@@ -179,7 +179,7 @@ def test_sort(data_builder, as_admin):
     assert [g['_id'] for g in r.json()] == [g_b1, g_a1]
 
 
-def test_filter(data_builder, as_admin):
+def test_filter(data_builder, as_admin, with_site_settings):
     assert as_admin.get('/acquisitions?filter=foo').status_code == 422
     assert as_admin.get('/acquisitions?filter=label=a&filter=label=b').status_code == 422
 
@@ -246,7 +246,7 @@ def test_filter(data_builder, as_admin):
     assert {g['_id'] for g in r.json()} == {g_a1}
 
 
-def test_after_id(data_builder, as_admin, file_form):
+def test_after_id(data_builder, as_admin, file_form, with_site_settings):
     assert as_admin.get('/users?after_id=foo&after_id=bar').status_code == 422
     assert as_admin.get('/users?after_id=foo&sort=bar').status_code == 422
 

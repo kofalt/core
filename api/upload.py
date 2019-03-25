@@ -145,7 +145,8 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             field.path = field.filepath
 
         if tempdir:
-            temp_storage = storage_service.get_temp_storage()
+            # We have to manually clean up anything left in temp_storage
+            temp_storage = storage_service.get_local_storage()
             field.size = (temp_storage.storage_plugin.get_file_info(None, field.filepath))['filesize']
         else:
             field.size = (final_storage.storage_plugin.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
@@ -331,7 +332,8 @@ class Upload(base.RequestHandler):
         dirs_cleaned = 0
 
         self.storage_service = StorageProviderService()
-        temp_storage = self.storage_service.get_temp_storage();
+        # We have to manually remove files when finished
+        temp_storage = self.storage_service.get_local_storage();
 
         for token in result:
             # the token id is the folder.

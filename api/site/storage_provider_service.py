@@ -28,7 +28,10 @@ class StorageProviderService(object):
         # For now just always return the site provider if its set
         site_doc = get_site_settings()
         if site_doc.get('providers') and site_doc.providers.get('storage'):
-            return providers.get_provider_instance(site_doc.providers['storage'])
+            provider = providers.get_provider_instance(site_doc.providers['storage'])
+            if not provider:
+                raise ValueError('Storage provider can not be found for this site')
+            return provider
         else:
             raise ValueError('Site settings are not configured for a storage provider')
             #return None
@@ -66,9 +69,9 @@ class StorageProviderService(object):
 
             return providers.get_provider_instance(site_doc.providers['storage'])
 
-    def get_temp_storage(self):
+    def get_local_storage(self):
+        """ Local storage is a storage plugin that supports get_fs. But it will not clean up automatically"""
         site_doc = get_site_settings()
         return providers.factory.create_provider(ProviderClass.storage, 'osfs', {
             'path': local_fs_url
             })
-        #return providers.get_provider_instance(site_doc.providers['temp_storage'])

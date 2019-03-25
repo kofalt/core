@@ -416,7 +416,7 @@ class TokenPlacer(Placer):
         self.paths = []
         self.folder = None
         storage_service = StorageProviderService()
-        self.temp_fs = storage_service.get_temp_storage().storage_plugin
+        self.temp_fs = storage_service.get_local_storage().storage_plugin
 
     def check(self):
         token = self.context['token']
@@ -456,7 +456,7 @@ class PackfilePlacer(Placer):
         self._chunk_size = CHUNK_SIZE
 
         self.storage_service = StorageProviderService()
-        self.temp_fs = self.storage_service.get_temp_storage().storage_plugin
+        self.temp_fs = self.storage_service.get_local_storage().storage_plugin
 
         # This endpoint is an SSE endpoint
         self.sse            = True
@@ -849,7 +849,7 @@ class GearPlacer(Placer):
                                                'git-commit': 'local',
                                                'rootfs-url': 'INVALID',
                                                'rootfs-id': file_attrs['_id'],
-                                               'provider_id': file_attrs['provider_id']}})
+                                               'rootfs-provider-id': file_attrs['provider_id']}})
         # self.metadata['hash'] = file_attrs.get('hash')
 
         self.save_file()

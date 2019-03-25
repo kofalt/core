@@ -84,7 +84,9 @@ class FileProcessor(object):
         # We only use the tempdir_name for Token and Placer strategy
         if tempdir_name:
             storage_service = StorageProviderService()
-            temp_storage = storage_service.get_temp_storage()
+            temp_storage = storage_service.get_local_storage()
+            # we remove the provider id since we are not going to be storing these files in the db
+            # We also have to manually remove the files when we are done.
             provider_id = None
             if not temp_storage.storage_plugin.get_fs().exists(tempdir_name):
                 temp_storage.storage_plugin.get_fs().makedirs(tempdir_name)
@@ -160,7 +162,7 @@ class FileHasherWriter(object):
     def provider_id(self):
         """ Returns the provider id for the file"""
         # Provider Id could be empty for temp files
-        return self.fileobj.get('provider_id')
+        return self.fileobj.provider_id
 
     @property
     def hash(self):
