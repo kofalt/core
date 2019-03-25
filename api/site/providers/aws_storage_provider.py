@@ -24,7 +24,8 @@ class AWSStorageProvider(BaseProvider):
         self._storage_plugin = None
         # URL used to instantiate the storage plugin provider
         # URL in the format of s3://<<bucket-Name>/<path>
-        self._storage_url = 's3://' + self.config['bucket'] + '/' + self.config.get('path', '')
+        # At this instance the bucket could be invalid but it will be confirmed in validate_config
+        self._storage_url = 's3://' + self.config.get('bucket', '') + '/' + self.config.get('path', '')
         self._storage_plugin = create_flywheel_fs(self._storage_url)
 
 
@@ -48,10 +49,8 @@ class AWSStorageProvider(BaseProvider):
         if not self.config.get('bucket'):
             raise errors.APIValidationException('AWS S3 requires bucket be set')
 
-        # We need to have a valid storage object set to run these
-        if self._storage_plugin:
-            self._validate_permissions()
-            self._test_files()
+        self._validate_permissions()
+        self._test_files()
 
     def get_redacted_config(self):
         return {
@@ -89,16 +88,27 @@ class AWSStorageProvider(BaseProvider):
 
         test_uuid = str(uuid.uuid4())
 
-        # TODO wrap these in try blocks and catch the errors as we go
-        test_file = self._storage_plugin.open(test_uuid, None, 'wb')
-        test_file.write('This is a permissions test')
-        test_file.close()
+        try:
+            test_file = self._storage_plugin.open(test_uuid, None, 'wb')
+            test_file.write('This is a permissions test')
+            test_file.close()
+        except:
+            raise errors.APIStorageException('Error writing data to the storage bucket')
 
-        test_file = self._storage_plugin.open(test_uuid, None, 'rb')
-        test_file.read()
-        test_file.close()
+        try:
+            test_file = self._storage_plugin.open(test_uuid, None, 'rb')
+            result = test_file.read()
+            test_file.close()
+        except:
+            raise errors.APIStorageException('Error reading data from teh storage bucket')
 
-        self._storage_plugin.remove_file(test_uuid)
+        if result != 'This is a permissions test':
+            raise errors.APIStorageException('The data written to the storage dues not match what was expected')
+
+        try:
+            self._storage_plugin.remove_file(test_uuid)
+        except:
+            raise errors.APIStorageException('Error removing files from the storage bucket')
 
     @property
     def storage_url(self):
