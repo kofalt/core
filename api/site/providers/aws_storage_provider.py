@@ -106,7 +106,7 @@ class AWSStorageProvider(BaseProvider):
             raise errors.APIStorageException('The data written to the storage dues not match what was expected')
 
         try:
-            self._storage_plugin.remove_file(test_uuid)
+            self._storage_plugin.remove_file(test_uuid, None)
         except:
             raise errors.APIStorageException('Error removing files from the storage bucket')
 
