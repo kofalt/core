@@ -164,7 +164,7 @@ class Job(object):
         # Don't modify the map
         d = copy.deepcopy(e)
 
-        if d.get('inputs'):
+        if d.get('inputs') is not None:
             input_dict = {}
 
             for i in d['inputs']:

@@ -632,6 +632,8 @@ class JobHandler(base.RequestHandler):
         def get_container(ref):
             """Helper for cached retrieval of container"""
             # Normalize id
+            if not ref or not ref.id:
+                return None
             strid = str(ref.id)
             if strid in _container_cache:
                 result = _container_cache[strid]
@@ -651,6 +653,9 @@ class JobHandler(base.RequestHandler):
         result['inputs'] = {}
         if job.inputs is not None:
             for key, ref in job.inputs.items():
+                if not hasattr(ref, 'map'):
+                    continue
+
                 rec = {
                     'ref': ref.map()
                 }
@@ -719,11 +724,13 @@ class JobHandler(base.RequestHandler):
         for name in saved_files:
             rec = {
                 'ref': {
-                    'type': job.destination.type,
-                    'id': job.destination.id,
                     'name': name
                 }
             }
+
+            if job.destination:
+                rec['ref']['type'] = job.destination.type
+                rec['ref']['id'] = job.destination.id
 
             if dest_cont:
                 obj = job.destination.find_file(name, cont=dest_cont)
