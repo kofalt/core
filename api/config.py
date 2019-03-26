@@ -122,7 +122,18 @@ def apply_env_variables(config):
 
 def apply_runtime_features(config):
     """Apply any features that must be determined at runtime"""
-    config['features']['signed_url'] = storage.is_signed_url()
+
+
+    # TODO: These shold be static constants from the provider class but this creates ciruclar 
+    # dependencies on the import ordering
+    signed_url = False
+    if db.providers.find_one({
+        'provider_class': 'storage',
+        'provider_type': {'$in' : ['aws','gc']}
+        }):
+        signed_url = True
+
+    config['features']['signed_url'] = signed_url
     return config
 
 # Create config for startup, will be merged with db config when db is available
@@ -293,21 +304,12 @@ def get_public_config():
     for values in auth.itervalues():
         values.pop('client_secret', None)
 
-    # TODO: These shold be static constants from the provider class but this creates ciruclar 
-    # dependencies on the import ordering
-    signed_url = False
-    if db.providers.find_one({
-        'provider_class': 'storage',
-        'provider_type': {'$in' : ['aws','gc']}
-        }):
-        signed_url = True
-
     # Start publishing features as a boolean map
     features = {
         'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,      #  Job queue /jobs/ask route.
         'multiproject': is_multiproject_enabled(),
-        'signed_url': signed_url, # this no longer makes sense as all providers could or could not support signed_urls
+        'signed_url': cfg['features']['signed_url'], # this no longer makes sense as all providers could or could not support signed_urls
     }
 
     return {
