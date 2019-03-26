@@ -7,9 +7,9 @@ import datetime
 import elasticsearch
 
 from flywheel_common.storage import create_flywheel_fs
+from flywheel_common import logging as flylogging
 
 from . import util
-from . import logutil
 from .dao.dbutil import try_replace_one, try_update_one
 
 logging.basicConfig(
@@ -17,15 +17,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     level=logging.DEBUG,
 )
-log = logutil.getContextLogger('scitran.api')
+log = flylogging.getContextLogger('scitran.api')
 
-logging.getLogger('MARKDOWN').setLevel(logging.WARNING) # silence Markdown library
-logging.getLogger('requests').setLevel(logging.WARNING) # silence Requests library
-logging.getLogger('paste.httpserver').setLevel(logging.WARNING) # silence Paste library
-logging.getLogger('elasticsearch').setLevel(logging.WARNING) # silence Elastic library
-logging.getLogger('urllib3').setLevel(logging.WARNING) # silence urllib3 library
-logging.getLogger('boto3').setLevel(logging.WARNING) # silence boto3 library
-logging.getLogger('botocore').setLevel(logging.WARNING) # silence botocore library
+logging.getLogger('scitran.api').addHandler(logging.StreamHandler())
 
 # Increment counters for root logger. Increments for warning and higher
 from .metrics.log_handler import MetricsLogHandler
@@ -64,6 +58,11 @@ DEFAULT_CONFIG = {
             "auth_endpoint" : "https://accounts.google.com/o/oauth2/auth"
         }
     },
+    'features': {
+        # Permanent API features should exist here
+        'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
+        'job_ask': True,      #  Job queue /jobs/ask route.
+    },
     'persistent': {
         'db_uri':     'mongodb://localhost:27017/scitran',
         'db_log_uri': 'mongodb://localhost:27017/logs',
@@ -87,7 +86,7 @@ def apply_env_variables(config):
         config['auth'] = environ_config.get('auth', DEFAULT_CONFIG['auth'])
 
     for outer_key, scoped_config in config.iteritems():
-        if outer_key == 'auth':
+        if outer_key in ('auth', 'features'):
             # Auth is loaded via file
             continue
         try:
@@ -105,14 +104,30 @@ def apply_env_variables(config):
         except Exception: # pylint: disable=broad-except
             # ignore uniterable keys like `created` and `modified`
             pass
+
+    # Set feature flags based on FLYWHEEL_FEATURE_xx
+    feature_prefix = 'FLYWHEEL_FEATURE_'
+    for key, value in os.environ.items():
+        if not key.startswith(feature_prefix):
+            continue
+        feature_key = key[len(feature_prefix):].lower()
+        if value.lower() == 'true':
+            value = True
+        elif value.lower() == 'false':
+            value = False
+        config['features'][feature_key] = value
+
+    return config
+
+def apply_runtime_features(config):
+    """Apply any features that must be determined at runtime"""
+    config['features']['signed_url'] = storage.is_signed_url()
     return config
 
 # Create config for startup, will be merged with db config when db is available
 __config = apply_env_variables(copy.deepcopy(DEFAULT_CONFIG))
 __config_persisted = False
 __last_update = datetime.datetime.utcfromtimestamp(0)
-
-log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
 
 if not os.path.exists(__config['persistent']['data_path']):
     os.makedirs(__config['persistent']['data_path'])
@@ -257,17 +272,20 @@ def get_config():
         if not success:
             log.debug('Worker lost config upsert race; ignoring.')
 
+        __config = apply_runtime_features(__config)
         __config_persisted = True
         __last_update = now
     elif now - __last_update > datetime.timedelta(seconds=120):
         log.debug('Refreshing configuration from database')
         __config = db.singletons.find_one({'_id': 'config'})
+        __config = apply_runtime_features(__config)
         __last_update = now
-        log.setLevel(getattr(logging, __config['core']['log_level'].upper()))
     return __config
 
 def get_public_config():
-    auth = copy.deepcopy(__config.get('auth'))
+    cfg = get_config()
+
+    auth = copy.deepcopy(cfg.get('auth'))
     for values in auth.itervalues():
         values.pop('client_secret', None)
 
@@ -292,8 +310,8 @@ def get_public_config():
         'modified': __config.get('modified'),
         'site': __config.get('site'),
         'auth': auth,
-        'signed_url': features['signed_url'],  # Legacy note: clients expect top-level signed_url key
-        'features': features
+        'signed_url': cfg['features']['signed_url'],  # Legacy note: clients expect top-level signed_url key
+        'features': cfg['features']
     }
 
 def get_version():
@@ -314,6 +332,10 @@ def get_item(outer, inner):
 
 def get_auth(auth_type):
     return get_config()['auth'][auth_type]
+
+
+def get_feature(key, dflt=None):
+    return get_config()['features'].get(key, dflt)
 
 # Application version file path
 release_version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../api_version.txt')

@@ -12,7 +12,8 @@ from . import mappers, models
 from .job_util import (
     resolve_context_inputs,
     get_context_for_destination,
-    remove_potential_phi_from_job
+    remove_potential_phi_from_job,
+    log_job_access
 )
 from .. import config
 from .. import upload
@@ -601,40 +602,10 @@ class JobsHandler(base.RequestHandler):
 class JobHandler(base.RequestHandler):
     """Provides /Jobs/<jid> routes."""
 
-    def _log_job_access(self, job):
-        """Log a view_file access for each file input for the job because we
-        are going to return the info object on the inputs
-
-        Args:
-            job (Job): A job object
-        """
-        if job.config:
-            for config_input in job.config.get('inputs', {}).values():
-                if config_input.get('base') == 'file':
-                    file_parent_type = config_input['hierarchy']['type']
-                    file_parent_id = config_input['hierarchy']['id']
-                    self.log_user_access(AccessType.view_file,
-                                         cont_name=file_parent_type,
-                                         cont_id=file_parent_id,
-                                         filename=config_input['location'].get('name'))
-        if job.produced_metadata:
-            for container_type, metadata in job.produced_metadata.items():
-                if job.parents.get(container_type):
-                    self.log_user_access(AccessType.view_container,
-                                         cont_name=container_type,
-                                         cont_id=job.parents[container_type])
-                if container_type == 'session' and metadata.get('subject'):
-                    if job.parents.get('subject'):
-                        self.log_user_access(AccessType.view_subject,
-                                             cont_name='subject',
-                                             cont_id=job.parents['subject'])
-
-        self.log_user_access(AccessType.view_job, job_id=job.id_)
-
     @require_admin
     def get(self, _id):
         job = Job.get(_id)
-        self._log_job_access(job)
+        log_job_access(self, job)
         return job
 
     @require_login
@@ -653,6 +624,8 @@ class JobHandler(base.RequestHandler):
         def get_container(ref):
             """Helper for cached retrieval of container"""
             # Normalize id
+            if not ref or not ref.id:
+                return None
             strid = str(ref.id)
             if strid in _container_cache:
                 result = _container_cache[strid]
@@ -672,6 +645,9 @@ class JobHandler(base.RequestHandler):
         result['inputs'] = {}
         if job.inputs is not None:
             for key, ref in job.inputs.items():
+                if not hasattr(ref, 'map'):
+                    continue
+
                 rec = {
                     'ref': ref.map()
                 }
@@ -703,7 +679,7 @@ class JobHandler(base.RequestHandler):
                     rec['object'] = cont
 
         # Log the access of all inputs
-        self._log_job_access(job)
+        log_job_access(self, job)
 
         # If we're still not authorized, check the destination
         dest_cont = get_container(job.destination)
@@ -740,11 +716,13 @@ class JobHandler(base.RequestHandler):
         for name in saved_files:
             rec = {
                 'ref': {
-                    'type': job.destination.type,
-                    'id': job.destination.id,
                     'name': name
                 }
             }
+
+            if job.destination:
+                rec['ref']['type'] = job.destination.type
+                rec['ref']['id'] = job.destination.id
 
             if dest_cont:
                 obj = job.destination.find_file(name, cont=dest_cont)

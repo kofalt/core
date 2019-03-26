@@ -2348,7 +2348,7 @@ def test_config_values(data_builder, default_payload, as_admin, file_form):
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
 
-def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, as_public, file_form):
+def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, as_public, file_form, api_db):
     # Dupe of test_queue.py
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -2567,6 +2567,37 @@ def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, 
     assert csv_out['ref']['type'] == 'session'
     assert csv_out['ref']['id'] == session
     assert 'object' not in csv_out
+
+    # ===== Mangled job object =====
+
+    # input without ids
+    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'inputs': [{'input': 'garbage'}]}})
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
+
+    # None for inputs
+    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$unset': {'inputs': ''}})
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
+
+    # Empty inputs
+    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'inputs': []}})
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
+
+    # Empty config
+    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'config': {}}})
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
+
+    # No destination
+    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$unset': {'destination': ''}})
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
+
+    api_db.jobs.update_one({'_id': bson.ObjectId(job)}, {'$set': {'destination': None}})
+    r = as_admin.get('/jobs/' + job + '/detail')
+    assert r.ok
 
 def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form):
     # create gear

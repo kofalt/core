@@ -85,6 +85,7 @@ main() {
         --volume $(pwd)/keys:/var/scitran/keys \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://core-test-mongo:27017/scitran \
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-mongo:27017/logs \
+        --env SYSLOG_HOST=localhost \
         --workdir /src/core \
         flywheel/core:testing \
         tests/bin/tests.sh "$@"
