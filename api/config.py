@@ -128,7 +128,18 @@ def apply_env_variables(config):
 
 def apply_runtime_features(config):
     """Apply any features that must be determined at runtime"""
-    config['features']['signed_url'] = storage.is_signed_url()
+
+
+    # TODO: These shold be static constants from the provider class but this creates ciruclar 
+    # dependencies on the import ordering
+    signed_url = False
+    if db.providers.find_one({
+        'provider_class': 'storage',
+        'provider_type': {'$in' : ['aws','gc']}
+        }):
+        signed_url = True
+
+    config['features']['signed_url'] = signed_url
     return config
 
 # Create config for startup, will be merged with db config when db is available
