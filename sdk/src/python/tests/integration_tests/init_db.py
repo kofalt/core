@@ -2,12 +2,10 @@ import binascii
 import os
 import datetime
 
-import flywheel
-
 SCITRAN_PERSISTENT_DB_URI = os.environ.get('SCITRAN_PERSISTENT_DB_URI')
 SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10)).decode('utf-8')
-SCITRAN_PERSISTENT_DATA_PATH= os.environ.get('SCITRAN_PERSISTENT_DATA_PATH')
-        
+SCITRAN_PERSISTENT_DATA_PATH = os.environ.get('SCITRAN_PERSISTENT_DATA_PATH')
+
 def create_user(db, _id, api_key, **kwargs):
     payload = {
         '_id': _id,
@@ -75,7 +73,7 @@ def init_db():
     if not SCITRAN_PERSISTENT_DB_URI:
         raise Exception('Cannot initialize database without SCITRAN_PERSISTENT_DB_URI!')
     if not SCITRAN_PERSISTENT_DATA_PATH:
-        raise Exception('Cannot initialize database without SCITRAN_PERSISTENT_DATA_PATH!')
+        raise Exception('Cannot initialize tests without SCITRAN_PERSISTENT_DATA_PATH!')
 
     db = pymongo.MongoClient(SCITRAN_PERSISTENT_DB_URI).get_default_database()
     create_user(db, 'admin@user.com', SCITRAN_ADMIN_API_KEY, root=True)
