@@ -126,12 +126,21 @@ def apply_runtime_features(config):
 
     # TODO: These shold be static constants from the provider class but this creates ciruclar 
     # dependencies on the import ordering
+    # We short circuit the lookup if there is not the possibility for using signed urls
+    # We could do an aggregate but generally simple single queries are faster than aggregates
+    # We can optimize this later but it will be called frequently.
     signed_url = False
-    if db.providers.find_one({
+    if db.providers.find({
         'provider_class': 'storage',
-        'provider_type': {'$in' : ['aws','gc']}
-        }):
+        'provider_type': {'$in' : ['aws', 'gc']}
+        }).count() > 0:
         signed_url = True
+
+        if db.providers.find({
+            'provider_class': 'storage',
+            'provider_type': {'$in' : ['osfs']}
+            }).count() > 1:
+                signed_url = False
 
     config['features']['signed_url'] = signed_url
     return config

@@ -1,6 +1,7 @@
 import copy
 import datetime
 import json
+import re
 
 import api.config
 
@@ -113,3 +114,39 @@ def test_create_or_recreate_ttl_index(mocker):
     db[collection].drop_index.assert_called_with(index_id)
     db[collection].create_index.assert_called_with(index_name, expireAfterSeconds=ttl)
 
+def test_signed_urls():
+    regex = re.compile("remove_me")
+
+    #We should assume our tests start with a valid state
+    api.config.db.providers.remove({'label': regex})
+    api.config.__last_update = datetime.datetime(2000, 01, 01)
+    assert api.config.get_config()['features']['signed_url'] == False
+
+    # One OSFS is assumed to be local storage
+    api.config.db.providers.insert({'label': 'remove_me', 'provider_class': 'storage', 'provider_type': 'osfs'})
+    assert api.config.get_config()['features']['signed_url'] == False
+
+    # Lets add a signed url storage provider to trigger signed_url boolean true
+    api.config.db.providers.insert({'label': 'remove_me_signed', 'provider_class': 'storage', 'provider_type': 'aws'})
+    api.config.__last_update = datetime.datetime(2000, 01, 01)
+    assert api.config.get_config()['features']['signed_url'] == True
+
+    # Multiple signed url providers is still true
+    api.config.db.providers.insert({'label': 'remove_me_signed_gc', 'provider_class': 'storage', 'provider_type': 'gc'})
+    api.config.__last_update = datetime.datetime(2000, 01, 01)
+    assert api.config.get_config()['features']['signed_url'] == True
+
+    # Signed with only one gc provider
+    api.config.db.providers.remove({'label': 'remove_me_signed'})
+    api.config.__last_update = datetime.datetime(2000, 01, 01)
+    assert api.config.get_config()['features']['signed_url'] == True
+    api.config.db.providers.insert({'label': 'remove_me_signed', 'provider_class': 'storage', 'provider_type': 'aws'})
+
+    # The second osfs will render signed urls False
+    api.config.db.providers.insert({'label': 'remove_me_2', 'provider_class': 'storage', 'provider_type': 'osfs'})
+    api.config.__last_update = datetime.datetime(2000, 01, 01)
+    assert api.config.get_config()['features']['signed_url'] == False
+
+
+    #Clean up our providers
+    api.config.db.providers.remove({'label': regex})
