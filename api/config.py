@@ -140,7 +140,7 @@ def apply_runtime_features(config):
             'provider_class': 'storage',
             'provider_type': {'$in' : ['osfs']}
             }).count() > 1:
-                signed_url = False
+            signed_url = False
 
     config['features']['signed_url'] = signed_url
     return config
