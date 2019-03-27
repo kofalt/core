@@ -136,5 +136,5 @@ class FullDownloadStrategy(HierarchyDownloadStrategy):
 
         # NOTE: We always return size=0 for metadata - it will be set just-in-time
         return models.DownloadTarget('metadata_sidecar', dst_path, parent_type, parent_id,
-            container['modified'], 0, 'metadata', provider_id, file_id=file_id, filename=filename,
+            container['modified'], 0, None, provider_id, file_id=file_id, filename=filename,
             file_group=file_group)
