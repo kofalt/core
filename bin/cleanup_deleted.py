@@ -11,7 +11,7 @@ import sys
 
 import pymongo
 
-from api.storage.py_fs_storage import PyFsStorage
+from flywheel_common import storage
 
 from api import util
 
@@ -40,7 +40,7 @@ def main(*argv):
     data_path = os.environ['SCITRAN_PERSISTENT_DATA_PATH']
     db = pymongo.MongoClient(db_uri).get_default_database()
     fs_url = os.environ['SCITRAN_PERSISTENT_FS_URL']
-    fs = PyFsStorage(fs_url)
+    fs = storage.create_flywheel_fs(fs_url)
 
     log.info('Using mongo URI: %s', db_uri)
     log.info('Using data path: %s', data_path)

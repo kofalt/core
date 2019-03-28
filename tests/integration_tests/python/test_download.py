@@ -1,4 +1,6 @@
 import cStringIO
+import datetime
+import json
 import os
 import tarfile
 import zipfile
@@ -8,6 +10,23 @@ import pytest
 
 from api import config, util
 
+BYTES_IN_MEGABYTE = float(1<<20)
+
+def tarfile_members(contents):
+    tar_file = cStringIO.StringIO(contents)
+    tar = tarfile.open(mode="r", fileobj=tar_file)
+
+    # Verify a single file in tar with correct file name
+    result = {}
+    for tarinfo in tar:
+        fileobj = tar.extractfile(tarinfo.name)
+        data = fileobj.read()
+        fileobj.close()
+
+        result[tarinfo.name] = data
+    tar.close()
+
+    return result
 
 def test_download_k(data_builder, file_form, as_admin, as_user, api_db, legacy_cas_file):
     project = data_builder.create_project(label='project1')
@@ -967,3 +986,312 @@ def test_subject_download(data_builder, as_admin, file_form):
     r = as_admin.post('/download', json={'nodes': [{'level': 'subject', '_id': subject}], 'optional': False})
     assert r.ok
     assert r.json()['file_cnt'] == 2
+
+def test_full_project_download(data_builder, file_form, as_admin, as_root, as_drone, api_db):
+    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+    project = data_builder.create_project(label='project1')
+    subject = data_builder.create_subject(code='subject1', project=project, type='animal', species='dog')
+    session = data_builder.create_session(label='session1', project=project, subject={'_id': subject})
+    session2 = data_builder.create_session(label='session2', project=project, subject={'_id': subject})
+    session3 = data_builder.create_session(label='session3', project=project, subject={'_id': subject})
+    session4 = data_builder.create_session(label='session4', age=1234, project=project, subject={'_id': subject})
+    acquisition = data_builder.create_acquisition(label='acquisition1', session=session)
+    acquisition2 = data_builder.create_acquisition(label='acquisition2', session=session2)
+    acquisition3 = data_builder.create_acquisition(label='acquisition3', session=session3)
+    acquisition4 = data_builder.create_acquisition(label='acquisition4', session=session4)
+
+    # Set metadata on session
+    as_admin.post('/sessions/' + session + '/info', json={
+        'replace': {
+            'test': 'test_data'
+        }
+    })
+
+    # upload the same file to each container created and use different tags to
+    # facilitate download filter tests:
+    file_name = 'test.csv'
+    as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(
+        file_name, meta={'name': file_name, 'type': 'csv', 'tags': ['acq1']}))
+
+    as_admin.post('/acquisitions/' + acquisition2 + '/files', files=file_form(
+        file_name, meta={'name': file_name, 'type': 'csv'}))
+
+    as_admin.post('/acquisitions/' + acquisition3 + '/files', files=file_form(
+        'test.txt', meta={'name': file_name, 'type': 'text'}))
+
+    as_admin.post('/acquisitions/' + acquisition4 + '/files', files=file_form(
+        'test.txt', meta={'name': file_name, 'type': 'text'}))
+
+    as_admin.post('/sessions/' + session + '/files', files=file_form(
+        file_name, meta={'name': file_name, 'type': 'csv', 'tags': ['plus']}))
+
+    as_admin.post('/projects/' + project + '/files', files=file_form(
+        file_name, meta={'name': file_name, 'type': 'csv', 'tags': ['plus', 'minus']}))
+
+    # also a deleted file to make sure it doesn't show up
+    as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(
+        file_name, meta={'name': 'deleted_'+file_name, 'type': 'csv'}))
+    r = as_admin.delete('/acquisitions/' + acquisition + '/files/deleted_' + file_name)
+    assert r.ok
+
+    # Create analysis job at project level
+    r = as_admin.post('/projects/' + project + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'acquisition', 'id': acquisition, 'name': 'test.csv'}}}
+    })
+    assert r.ok
+    analysis1_id = r.json()['_id']
+
+    # Engine upload
+    r = as_admin.get('/analyses/' + analysis1_id)
+    assert r.ok
+    job = r.json().get('job')
+
+    r = as_drone.post('/engine',
+        params={'level': 'analysis', 'id': analysis1_id, 'job': job},
+        files=file_form('output.csv', meta={'type': 'tabular data'}))
+    assert r.ok
+
+    # Create ad-hoc analysis for session
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'analysis_label',
+        'inputs': [
+            {'type': 'acquisition', 'id': acquisition, 'name': 'test.csv'},
+        ]
+    })
+    assert r.ok
+    analysis2_id = r.json()['_id']
+
+    # Manual upload
+    r = as_admin.post('/analyses/' + analysis2_id + '/files', files=file_form('output1.csv', 'output2.csv', meta=[
+        {'name': 'output1.csv', 'info': {'foo': 'foo'}},
+        {'name': 'output2.csv', 'info': {'bar': 'bar'}},
+    ]))
+    assert r.ok
+
+    # Test no match
+    # Retrieve a ticket for a batch download
+    r = as_admin.post('/download', params={'type': 'full', 'analyses': 'true', 'metadata': 'true'}, json={
+        'filters': [{'tags': {
+            '+': ['NONE-SUCH']
+        }}],
+        'nodes': [
+            {'level': 'project', '_id': project},
+        ]
+    })
+    assert r.status_code == 404
+
+    # Retrieve a ticket for a batch download
+    r = as_admin.post('/download', params={'type': 'full'}, json={
+        'nodes': [
+            {'level': 'project', '_id': project},
+        ]
+    })
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # Compare summary with & without metadata
+    r = as_admin.post('/download/summary', params={'type': 'full'}, json=[{"level":"project", "_id":project}])
+    assert r.ok
+    no_metadata_summary = r.json()
+    assert len(no_metadata_summary) == 2
+    assert no_metadata_summary.get('csv', {}).get('count',0) == 4
+    assert no_metadata_summary.get('csv', {}).get('mb_total',0) == 40 / BYTES_IN_MEGABYTE
+    assert no_metadata_summary.get('text', {}).get('count',0) == 2
+    assert no_metadata_summary.get('text', {}).get('mb_total',0) == 20 / BYTES_IN_MEGABYTE
+
+    # Compare summary with & without metadata
+    r = as_admin.post('/download/summary', params={'type': 'full', 'metadata': 'true'}, json=[{"level":"project", "_id":project}])
+    assert r.ok
+    assert r.json() == no_metadata_summary
+
+    # Perform a download, without metadata
+    r = as_admin.get('/download', params={'ticket': ticket})
+    assert r.ok
+
+    expected_files = {
+        'flywheel/project1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/ACQUISITIONS/acquisition2/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/ACQUISITIONS/acquisition3/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/ACQUISITIONS/acquisition4/FILES/test.csv'
+    }
+
+    files = tarfile_members(r.content)
+    assert set(files.keys()) == expected_files
+
+    # Retrieve a ticket for a batch download
+    r = as_admin.post('/download', params={'type': 'full', 'metadata': 'true'}, json={
+        'filters': [{'tags': {
+            '-': ['minus']
+        }}],
+        'nodes': [
+            {'level': 'project', '_id': project},
+        ]
+    })
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # Perform a download, with metadata
+    r = as_admin.get('/download', params={'ticket': ticket})
+    assert r.ok
+
+    expected_files = {
+        'flywheel/project1/project1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/subject1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/session1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/session2.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/session3.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/session4.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/acquisition1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/ACQUISITIONS/acquisition2/acquisition2.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/ACQUISITIONS/acquisition3/acquisition3.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/ACQUISITIONS/acquisition4/acquisition4.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/ACQUISITIONS/acquisition2/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/ACQUISITIONS/acquisition3/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/ACQUISITIONS/acquisition4/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/ACQUISITIONS/acquisition2/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/ACQUISITIONS/acquisition3/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/ACQUISITIONS/acquisition4/FILES/test.csv.flywheel.json'
+    }
+
+    files = tarfile_members(r.content)
+    assert set(files.keys()) == expected_files
+
+    # Check contents of subject metadata
+    subject_json = json.loads(files['flywheel/project1/SUBJECTS/subject1/subject1.flywheel.json'])
+    assert '_id' not in subject_json
+    assert subject_json['code'] == 'subject1'
+    assert subject_json['type'] == 'animal'
+    assert subject_json['species'] == 'dog'
+    assert 'created' in subject_json
+    assert 'modified' in subject_json
+
+    # Check contents of session metadata
+    session_json = json.loads(files['flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/session4.flywheel.json'])
+    assert '_id' not in session_json
+    assert session_json['label'] == 'session4'
+    assert session_json['age'] == 1234
+    assert 'created' in session_json
+    assert 'modified' in session_json
+
+    # Check contents of file metadata
+    session_file_json = json.loads(files['flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv.flywheel.json'])
+    assert '_id' not in session_file_json
+    assert session_file_json['name'] == 'test.csv'
+    assert session_file_json['size'] > 0
+    assert session_file_json['type'] == 'csv'
+    assert session_file_json['tags'] == ['acq1']
+    assert 'created' in session_file_json
+    assert 'modified' in session_file_json
+
+    # Target a file on acquisition1, and ensure that no extraneous containers are generated
+    # Retrieve a ticket for a batch download
+    r = as_admin.post('/download', params={'type': 'full', 'metadata': 'true'}, json={
+        'filters': [{'tags': {
+            '+': ['acq1']
+        }}],
+        'nodes': [
+            {'level': 'project', '_id': project},
+        ]
+    })
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # Perform a download, with metadata
+    r = as_admin.get('/download', params={'ticket': ticket})
+    assert r.ok
+
+    expected_files = {
+        'flywheel/project1/project1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/subject1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/session1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/acquisition1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv.flywheel.json'
+    }
+
+    files = tarfile_members(r.content)
+    assert set(files.keys()) == expected_files
+
+    # Retrieve a ticket for a batch download with metadata and analyses
+    r = as_admin.post('/download', params={
+        'type': 'full',
+        'metadata': 'true',
+        'analyses': 'true'
+    }, json={
+        'filters': [{'tags': {
+            '-': ['minus']
+        }}],
+        'nodes': [
+            {'level': 'project', '_id': project},
+        ]
+    })
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # Perform a download, with metadata
+    r = as_admin.get('/download', params={'ticket': ticket})
+    assert r.ok
+
+    expected_files = {
+        'flywheel/project1/project1.flywheel.json',
+        'flywheel/project1/ANALYSES/online/online.flywheel.json',
+        'flywheel/project1/ANALYSES/online/INPUT/test.csv',
+        'flywheel/project1/ANALYSES/online/INPUT/test.csv.flywheel.json',
+        'flywheel/project1/ANALYSES/online/OUTPUT/output.csv',
+        'flywheel/project1/ANALYSES/online/OUTPUT/output.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/subject1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/session1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/session2.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/session3.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/session4.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/acquisition1.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/ACQUISITIONS/acquisition2/acquisition2.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/ACQUISITIONS/acquisition3/acquisition3.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/ACQUISITIONS/acquisition4/acquisition4.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/ACQUISITIONS/acquisition2/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/ACQUISITIONS/acquisition3/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/ACQUISITIONS/acquisition4/FILES/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ACQUISITIONS/acquisition1/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session2/ACQUISITIONS/acquisition2/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session3/ACQUISITIONS/acquisition3/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session4/ACQUISITIONS/acquisition4/FILES/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/analysis_label.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/INPUT/test.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/INPUT/test.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/OUTPUT/output1.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/OUTPUT/output1.csv.flywheel.json',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/OUTPUT/output2.csv',
+        'flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/OUTPUT/output2.csv.flywheel.json'
+    }
+
+    files = tarfile_members(r.content)
+    assert set(files.keys()) == expected_files
+
+    # Test analysis input metadata
+    analysis_input_json = json.loads(files['flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/INPUT/test.csv.flywheel.json'])
+    assert '_id' not in analysis_input_json
+    assert analysis_input_json['name'] == 'test.csv'
+    assert analysis_input_json['size'] > 0
+    assert analysis_input_json['type'] == 'csv'
+    assert 'created' in analysis_input_json
+    assert 'modified' in analysis_input_json
+
+    # Test analysis output metadata
+    analysis_output_json = json.loads(files['flywheel/project1/SUBJECTS/subject1/SESSIONS/session1/ANALYSES/analysis_label/OUTPUT/output1.csv.flywheel.json'])
+    assert '_id' not in analysis_output_json
+    assert analysis_output_json['name'] == 'output1.csv'
+    assert analysis_output_json['size'] > 0
+    assert analysis_output_json['type'] == 'tabular data'
+    assert 'created' in analysis_output_json
+    assert 'modified' in analysis_output_json

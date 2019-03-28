@@ -62,7 +62,8 @@ class DeviceHandler(base.RequestHandler):
     @staticmethod
     def join_api_key(device):
         api_key = DeviceApiKey.get(device['_id'])
-        device['key'] = api_key['_id'] if api_key else DeviceApiKey.generate(device['_id'])
+        if device.get('disabled', False) is False:
+            device['key'] = api_key['_id'] if api_key else DeviceApiKey.generate(device['_id'])
 
     @require_admin
     def post(self):
@@ -80,6 +81,21 @@ class DeviceHandler(base.RequestHandler):
         return {'_id': result.inserted_id, 'key': key}
 
     @require_admin
+    def put(self, device_id):
+        payload = self.request.json_body if self.request.body else {}
+
+        validate_data(payload, 'device-admin-update.json', 'input', 'PUT')
+        device = self.storage.get_container(device_id)
+
+        self.storage.update_el(device_id, payload)
+
+        is_disabled = payload['disabled']
+        if is_disabled:
+            DeviceApiKey.revoke(device['_id'])
+        elif not is_disabled and device.get('disabled', False):
+            DeviceApiKey.generate(device['_id'])
+
+    @require_admin
     def delete(self, device_id):
         result = self.storage.delete_el(device_id)
         if result.deleted_count != 1:
@@ -89,6 +105,12 @@ class DeviceHandler(base.RequestHandler):
     @require_login
     def get_status(self):
         return get_device_statuses(self.storage.get_all_el(None, None, None))
+
+    @require_admin
+    def regenerate_key(self, device_id):
+        device = self.storage.get_container(device_id)
+        key = DeviceApiKey.generate(device['_id'])
+        return {'key': key}
 
     @require_drone
     def put_self(self):

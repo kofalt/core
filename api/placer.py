@@ -591,7 +591,7 @@ class PackfilePlacer(Placer):
         # Finaly move the file from the local fs to the persistent FS.
         # We could make this faster using a move if we know its a local to local fs move.
         with config.local_fs.get_fs().open(tempZipPath, 'rb') as (f1
-                ), config.storage.open(token, util.path_from_uuid(token), 'wb') as f2:
+                ), config.primary_storage.open(token, util.path_from_uuid(token), 'wb') as f2:
             while True:
                 data = f1.read(self._chunk_size)
                 if not data:

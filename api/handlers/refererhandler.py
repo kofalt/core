@@ -18,10 +18,10 @@ from ..auth import containerauth, always_ok
 from ..dao import containerstorage, noop
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize, CONTAINER_HIERARCHY
+from ..jobs import job_util
 from ..web import base
 from ..web import errors
 from ..web.request import log_access, AccessType
-from ..jobs import job_util
 from .listhandler import FileListHandler
 
 
@@ -133,6 +133,8 @@ class AnalysesHandler(RefererHandler):
 
         if self.is_true('inflate_job'):
             self.storage.inflate_job_info(analysis)
+            if analysis.get('job'):
+                job_util.log_job_access(self, analysis['job'])
 
         self.handle_origin(analysis)
 
@@ -184,7 +186,7 @@ class AnalysesHandler(RefererHandler):
 
         if self.is_true('inflate_job'):
             for analysis in page['results']:
-                self.storage.inflate_job_info(analysis)
+                self.storage.inflate_job_info(analysis, remove_phi=True)
 
         for analysis in page['results']:
             self.handle_origin(analysis)
@@ -402,9 +404,9 @@ class AnalysesHandler(RefererHandler):
                     # IMPORTANT: If you modify the below code reflect the code changes in
                     # listhandler.py:FileListHandler's download method
                     signed_url = None
-                    if config.storage.is_signed_url() and config.storage.can_redirect_request(self.request.headers):
+                    if config.primary_storage.is_signed_url() and config.primary_storage.can_redirect_request(self.request.headers):
                         try:
-                            signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
+                            signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'), file_path,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(

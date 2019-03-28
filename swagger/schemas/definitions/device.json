@@ -34,7 +34,8 @@
         "errors":    {"$ref":"#/definitions/errors"},
         "info":      {"$ref":"common.json#/definitions/info"},
         "interval":  {"$ref":"#/definitions/interval"},
-        "last_seen": {"$ref":"common.json#/definitions/timestamp"}
+        "last_seen": {"$ref":"common.json#/definitions/timestamp"},
+        "disabled":  {"type":"boolean"}
       },
       "x-sdk-model": "device",
       "additionalProperties": false
@@ -44,6 +45,14 @@
       "properties": {
         "label": {"type":"string"},
         "type":  {"type":"string"}
+      },
+      "x-sdk-model": "device",
+      "additionalProperties": false
+    },
+    "device-admin-update": {
+      "type": "object",
+      "properties": {
+        "disabled": {"type":"boolean"}
       },
       "x-sdk-model": "device",
       "additionalProperties": false

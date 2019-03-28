@@ -40,6 +40,7 @@ $template_arguments:
   get:
     summary: List all subjects for the given project.
     operationId: get_project_subjects
+    x-fw-pagination: true
     tags:
     - projects
     responses:

@@ -1,5 +1,6 @@
 import copy
 import os
+import shutil
 
 import attrdict
 import fs.move
@@ -111,7 +112,11 @@ def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs._fs.exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=util.path_from_uuid(file_id), dst_fs=config.local_fs._fs, dst_path=file_path)
+
+    with config.primary_storage.open(file_id, util.path_from_uuid(file_id), 'r') as src, config.local_fs.get_fs().open(file_path, 'wb') as dst:
+        shutil.copyfileobj(src, dst)
+
+    config.primary_storage.remove_file(file_id, util.path_from_uuid(file_id))
 
     yield (project, file_name, file_content)
 

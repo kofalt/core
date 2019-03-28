@@ -5,8 +5,8 @@ import os.path
 class DownloadTarget(models.Base):
     """Represents a single target for a download summary or retrieval."""
     def __init__(self, download_type, dst_path, container_type, container_id, modified, size,
-            filetype, file_id=None, src_path=None):
-        """Create a new download target.
+            filetype, file_id=None, filename=None, file_group=None, src_path=None):
+        """Create a new download target
 
         Args:
             download_type (str): The type of download, used for sub-class instantiation
@@ -17,6 +17,8 @@ class DownloadTarget(models.Base):
             size (int): The size of the file, in bytes
             filetype (str): The filetype of the file (e.g. dicom or json)
             file_id (str): The optional file id, if applicable
+            filename (str): The optional filename, if applicable
+            file_group (str): The optional file_group, if applicable
             src_path (str): The optional source file path, if applicable
         """
         super(DownloadTarget, self).__init__()
@@ -44,6 +46,12 @@ class DownloadTarget(models.Base):
 
         self.file_id = file_id
         """str: The optional source file uuid"""
+
+        self.filename = filename
+        """str: The name of the source file"""
+
+        self.file_group = file_group
+        """str: The group that the source file belongs to (e.g. input/files)"""
 
         self.src_path = src_path
         """str: The optional source file path"""

@@ -98,7 +98,7 @@ Create a new subject with a label of ``Subject 01``
 
 .. code-block:: python
 
-	subject = project.addSubject(label='Subject 01')
+	subject = project.add_subject(label='Subject 01')
 
 List Subjects
 -------------

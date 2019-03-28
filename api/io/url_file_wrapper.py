@@ -14,7 +14,7 @@ class URLFileWrapper(object):
 
         self._response = None
 
-    def __enter__(self):
+    def open(self):
         self._response = self.http.request('GET', self.url, preload_content=False)
 
         if self._response.status < 200 or self._response.status > 299:
@@ -22,9 +22,6 @@ class URLFileWrapper(object):
                 self._response.reason))
 
         return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
 
     def read(self, length=None):
         if self._response is None:

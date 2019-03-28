@@ -14,9 +14,27 @@
         schema:
           $ref: schemas/output/download-ticket-with-summary.json
     parameters:
+      - name: type
+        in: query
+        type: string
+        description: >-
+          The download type, one of: bulk, classic or full.
+          Default is classic.
+      - name: analyses
+        in: query
+        type: boolean
+        description: >-
+          For "full" download, whether or not to include analyses.
+          Default is false.
+      - name: metadata
+        in: query
+        type: boolean
+        description: >-
+          For "full" download, whether or not to include metadata sidecars.
+          Default is false.
       - name: prefix
         in: query
-        type: string                
+        type: string
         description: |
           A string to customize the name of the download
           in the format <prefix>_<timestamp>.tar.

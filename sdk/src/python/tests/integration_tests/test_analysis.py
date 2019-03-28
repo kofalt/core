@@ -166,6 +166,8 @@ class AnalysisTestCases(SdkTestCase):
 
         # Access analysis directly
         r_analysis2 = fw.get_analysis(analysis_id)
+        # Strip of phi fields for job direct access
+        r_analysis2.job.config['inputs']['any-file']['object'].pop('info')
         self.assertEqual(r_analysis, r_analysis2)
 
         # Project based analysis
@@ -188,6 +190,8 @@ class AnalysisTestCases(SdkTestCase):
 
         # Access analysis directly
         r_analysis2 = fw.get_analysis(analysis_id)
+        # Strip of phi fields for job direct access
+        r_analysis2.job.config['inputs']['any-file']['object'].pop('info')
         self.assertEqual(r_analysis, r_analysis2)
 
     def test_analysis_files(self):

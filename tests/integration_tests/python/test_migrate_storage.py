@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 
 import fs.move
@@ -9,20 +10,21 @@ import pymongo
 from api import config, util
 from bson.objectid import ObjectId
 
+def move_file(src_id, dst_storage, dst_path):
+    dst_fs = dst_storage.get_fs()
+    src_path = util.path_from_uuid(src_id)
+    target_dir = fs.path.dirname(dst_path)
+    if not dst_fs.exists(target_dir):
+        dst_fs.makedirs(target_dir)
+    with config.primary_storage.open(src_id, src_path, 'rb') as src_fp, dst_fs.open(dst_path, 'wb') as dst_fp:
+        shutil.copyfileobj(src_fp, dst_fp)
+    config.primary_storage.remove_file(src_id, src_path)
 
-def move_file_to_legacy(src, dst):
-    target_dir = fs.path.dirname(dst)
-    if not config.local_fs.get_fs().exists(target_dir):
-        config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=src,
-                      dst_fs=config.local_fs._fs, dst_path=dst)
+def move_file_to_legacy(src_id, dst_path):
+    move_file(src_id, config.local_fs, dst_path)
 
-def move_file_to_legacy2(src, dst):
-    target_dir = fs.path.dirname(dst)
-    if not config.local_fs2.get_fs().exists(target_dir):
-        config.local_fs2.get_fs().makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=src,
-                      dst_fs=config.local_fs2.get_fs(), dst_path=dst)
+def move_file_to_legacy2(src_id, dst_path):
+    move_file(src_id, config.local_fs2, dst_path)
 
 @pytest.fixture(scope='function')
 def migrate_storage(mocker):
@@ -75,8 +77,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs.get_fs().makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=util.path_from_uuid(file_id_1),
-                      dst_fs=config.local_fs.get_fs(), dst_path=file_path)
+    move_file(file_id_1, config.local_fs, file_path)
 
     api_db['gears'].find_one_and_update(
         {'_id': ObjectId(gear_id_1)},
@@ -100,8 +101,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
     target_dir = fs.path.dirname(file_path)
     if not config.local_fs.get_fs().exists(target_dir):
         config.local_fs._fs.makedirs(target_dir)
-    fs.move.move_file(src_fs=config.storage._fs, src_path=file_path,
-                      dst_fs=config.local_fs._fs, dst_path=file_path)
+    move_file(file_id_2, config.local_fs, file_path)
     gears.append((gear_id_2, file_path))
 
     yield gears
@@ -116,7 +116,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 
     for f_path in files_to_delete:
         try:
-            config.storage._fs.remove(f_path)
+            config.primary_storage.remove_file(None, f_path)
         except:
             pass
 
@@ -147,7 +147,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
         {'$unset': {'files.$._id': ''}}
     )
 
-    move_file_to_legacy(util.path_from_uuid(file_id_1), util.path_from_hash(file_hash_1))
+    move_file_to_legacy(file_id_1, util.path_from_hash(file_hash_1))
     files.append((session_id, file_name_1, url_1, util.path_from_hash(file_hash_1)))
 
     # Create an UUID file
@@ -161,7 +161,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_2 = file_info['_id']
     url_2 = '/sessions/' + session_id + '/files/' + file_name_2
 
-    move_file_to_legacy(util.path_from_uuid(file_id_2), util.path_from_uuid(file_id_2))
+    move_file_to_legacy(file_id_2, util.path_from_uuid(file_id_2))
     files.append((session_id, file_name_2, url_2, util.path_from_uuid(file_id_2)))
 
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
@@ -175,7 +175,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_3 = file_info['_id']
     url_3 = '/sessions/' + session_id + '/files/' + file_name_3
 
-    move_file_to_legacy2(util.path_from_uuid(file_id_3), util.path_from_uuid(file_id_3))
+    move_file_to_legacy2(file_id_3, util.path_from_uuid(file_id_3))
     files.append((session_id, file_name_3, url_3, util.path_from_uuid(file_id_3)))
     ###
 
@@ -188,7 +188,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     # Delete the files
     for f in files:
         try:
-            config.storage._fs.remove(util.path_from_uuid(f['_id']))
+            config.primary_storage.remove_file(f['_id'], util.path_from_uuid(f['_id']))
         except:
             pass
 
@@ -206,7 +206,7 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage):
     r = as_admin.get(url_1, params={'ticket': ''})
     assert r.ok
     ticket = r.json()['ticket']
-    
+
     # download the file
     assert as_admin.get(url_1, params={'ticket': ticket}).ok
 
@@ -228,9 +228,9 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage):
     migrate_storage.main('--containers')
 
     # delete files from the legacy storage
-    config.local_fs._fs.remove(file_path_1)
-    config.local_fs._fs.remove(file_path_2)
-    config.local_fs2._fs.remove(file_path_3)
+    config.local_fs.remove_file(None, file_path_1)
+    config.local_fs.remove_file(None, file_path_2)
+    config.local_fs2.remove_file(None, file_path_3)
 
     # get the files from the new filesystem
     # get the ticket
@@ -264,13 +264,13 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage):
     (_, _, _, file_path_2) = files_to_migrate[1]
 
     # delete the file
-    config.local_fs._fs.remove(file_path_1)
+    config.local_fs.remove_file(None, file_path_1)
 
     with pytest.raises(Exception):
         migrate_storage.main('--containers')
 
     # clean up
-    config.local_fs._fs.remove(file_path_2)
+    config.local_fs.remove_file(None, file_path_2)
 
 
 def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
@@ -287,8 +287,8 @@ def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage):
     migrate_storage.main('--gears')
 
     # delete files from the legacy storage
-    config.local_fs._fs.remove(gear_file_path_1)
-    config.local_fs._fs.remove(gear_file_path_2)
+    config.local_fs.remove_file(None, gear_file_path_1)
+    config.local_fs.remove_file(None, gear_file_path_2)
 
     # get the files from the new filesystem
     assert as_admin.get('/gears/temp/' + gear_id_1).ok
@@ -304,13 +304,13 @@ def test_migrate_gears_error(gears_to_migrate, migrate_storage):
     (_, gear_file_path_2) = gears_to_migrate[1]
 
     # delete the file
-    config.local_fs._fs.remove(gear_file_path_1)
+    config.local_fs.remove_file(None, gear_file_path_1)
 
     with pytest.raises(Exception):
         migrate_storage.main('--gears')
 
     # clean up
-    config.local_fs._fs.remove(gear_file_path_2)
+    config.local_fs.remove_file(None, gear_file_path_2)
 
 
 def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, file_form, api_db, mocker, caplog):
@@ -344,8 +344,8 @@ def test_file_replaced_handling(files_to_migrate, migrate_storage, as_admin, fil
             {'files.name': file_name_2}
         )['files'][1]['_id']
 
-        assert config.storage.get_file_info(file_1_id, util.path_from_uuid(file_1_id)) is not None
-        assert config.storage.get_file_info(file_2_id, util.path_from_uuid(file_2_id)) is not None
+        assert config.primary_storage.get_file_info(file_1_id, util.path_from_uuid(file_1_id)) is not None
+        assert config.primary_storage.get_file_info(file_2_id, util.path_from_uuid(file_2_id)) is not None
 
     assert any(log.message == 'Probably the following file has been updated during the migration and its hash is changed, cleaning up from the new filesystem' for log in caplog.records)
 
@@ -392,8 +392,8 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     migrate_storage.main('--containers')
 
     # delete files from the legacy storage
-    config.local_fs._fs.remove(file_path_1)
-    config.local_fs._fs.remove(file_path_2)
+    config.local_fs.remove_file(None, file_path_1)
+    config.local_fs.remove_file(None, file_path_2)
 
     # get the files from the new filesystem
     # get the ticket

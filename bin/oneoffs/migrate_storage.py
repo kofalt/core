@@ -17,7 +17,7 @@ from functools import wraps
 from fs import errors
 
 
-from api.storage.py_fs_storage import PyFsStorage
+from flywheel_common import storage
 from api import util
 
 
@@ -45,20 +45,20 @@ def main(*argv):
     log.info('Using mongo URI: %s', db_uri)
     log.info('Using data path: %s', data_path)
     db = pymongo.MongoClient(db_uri).get_default_database()
-    local_fs = PyFsStorage('osfs://' + data_path)
-    
+    local_fs = storage.create_flywheel_fs('osfs://' + data_path)
+
     ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
     data_path2 = os.path.join(data_path, 'v1')
     if os.path.exists(data_path2):
         log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-        local_fs2 = PyFsStorage('osfs://' + data_path2)
+        local_fs2 = storage.create_flywheel_fs('osfs://' + data_path2)
     else:
         local_fs2 = None
     ###
 
     fs_url = os.environ.get('SCITRAN_PERSISTENT_FS_URL', 'osfs://' + os.path.join(data_path, 'v1'))
     log.info('Migrate files from %s to %s', data_path, fs_url)
-    target_fs = PyFsStorage(fs_url)
+    target_fs = storage.create_flywheel_fs(fs_url)
 
     if fs_url.startswith('gc://'):
         # Late import storage error class and decorate retry
@@ -252,8 +252,7 @@ def migrate_file(f):
         if not updated_doc:
             log.info('Probably the following file has been updated during the migration '
                      'and its hash is changed, cleaning up from the new filesystem')
-            # We dont support delete at this time so we should check the hash before we save the file if we dont extra files lying around
-            # target_fs.remove(f_new_path)
+            target_fs.remove_file(file_id, f_new_path)
 
 
 def migrate_analysis_file(f, migrated_files):

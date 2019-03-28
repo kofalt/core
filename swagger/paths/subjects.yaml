@@ -28,6 +28,7 @@ $template_arguments:
   get:
     summary: List sessions of a subject
     operationId: get_subject_sessions
+    x-fw-pagination: true
     tags:
     - subjects
     responses:

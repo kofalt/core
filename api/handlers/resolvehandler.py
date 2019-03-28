@@ -71,19 +71,22 @@ class ResolveHandler(base.RequestHandler):
 
         resolver = Resolver(id_only=id_only, include_subjects=self.is_enabled('Subject-Container'))
         result = resolver.resolve(doc['path'])
-        path_length = len(result['path'])
+        resolvable_groups = containerutil.get_project_groups(self.uid)
 
         # Cancel the request if anything in the path is unauthorized; remove any children that are unauthorized.
         # Except for the group, only check permissions for groups if it's the only container in the path
         if not self.user_is_admin:
             for x in result["path"]:
                 ok = False
-                if (path_length == 1 and x['container_type'] == 'group') or x['container_type'] in ['acquisition', 'session', 'project']:
+                if x['container_type'] in ['acquisition', 'session', 'project', 'group']:
                     perms = x.get('permissions', [])
                     for y in perms:
                         if y.get('_id') == self.uid:
                             ok = True
                             break
+
+                    if x['container_type'] == 'group' and not ok:
+                        ok = x['_id'] in resolvable_groups
 
                     if not ok:
                         self.abort(403, "Not authorized")
@@ -98,6 +101,8 @@ class ResolveHandler(base.RequestHandler):
                         if y.get('_id') == self.uid:
                             ok = True
                             break
+                    if x['container_type'] == 'group' and not ok:
+                        ok = x['_id'] in resolvable_groups
                 else:
                     ok = True
 

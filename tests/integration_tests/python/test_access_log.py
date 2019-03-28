@@ -532,6 +532,16 @@ def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
     assert r.ok
     assert r.json()['info']['a'] == 'b'
 
+    # Add a second file for the analysis
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('analysis-test.zip')).ok
+    r = as_admin.post('/acquisitions/' + acquisition + '/files/analysis-test.zip/info', json={
+        'replace': {'a': 'b'}
+    })
+    assert r.ok
+    r = as_admin.get('/acquisitions/' + acquisition + '/files/analysis-test.zip/info')
+    assert r.ok
+    assert r.json()['info']['a'] == 'b'
+
     job_data = {
         'gear_id': gear,
         'inputs': {
@@ -706,4 +716,80 @@ def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
     assert most_recent_log['access_type'] == 'view_job_logs'
     assert most_recent_log['context']['job']['id'] == job_id
     assert most_recent_log['origin']['id'] == 'admin@user.com'
+
+    # Unset config
+    api_db.jobs.update_one({'_id': bson.ObjectId(job_id)}, {'$unset': {'config': ''}})
+
+    # Verify that produced metadata and info don't appear on a list endpoint
+    r = as_admin.get('/jobs', params={'filter': '_id={}'.format(job_id)})
+    assert r.ok
+
+    # get job
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+
+    # get job detail
+    r = as_admin.get('/jobs/' + job_id + '/detail')
+    assert r.ok
+
+    # Create analysis job at project level
+    r = as_admin.post('/projects/' + project + '/analyses', json={
+        'label': 'online',
+        'job': {
+            'gear_id': gear,
+            'inputs': {
+                'dicom': {
+                    'type': 'acquisition',
+                    'id': acquisition,
+                    'name': 'analysis-test.zip'
+                }
+            },
+        }
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Get log count
+    log_count = log_db.access_log.find({}).count()
+
+    # Get the analysis with the job inflated
+    r = as_admin.get('/analyses/' + analysis + '?inflate_job=true')
+    assert r.ok
+    assert 'id' in r.json().get('job', {})
+
+    # Check number of logs
+    assert log_count + 3 == log_db.access_log.find({}).count()
+    log_count = log_db.access_log.find({}).count()
+
+    most_recent_logs = log_db.access_log.find({}).sort([('timestamp', -1)]).limit(3)
+    assert 'view_job' in [log['access_type'] for log in most_recent_logs]
+
+    # Verify ?inflate_jobs=true works for multiple analyses
+    r = as_admin.get('/projects/' + project + '/analyses?inflate_job=true')
+    assert r.ok
+    job = r.json()[0]['job']
+
+    # Check number of logs has not changed
+    assert log_count == log_db.access_log.find({}).count()
+
+    assert not job.get('produced_metadata')
+    assert not job['config']['inputs']['dicom']['object'].get('info')
+
+    # Delete the input file
+    r = as_admin.delete('/acquisitions/' + acquisition + '/files/test.zip')
+    assert r.ok
+
+    # Get the job
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+
+    # Delete the input file from the db as though it was cleaned up
+    api_db.acquisitions.update_one(
+        {'_id': bson.ObjectId(acquisition)},
+        {'$pull': {'files': {'name': 'test.zip'}}}
+    )
+
+    # Get the job
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
 

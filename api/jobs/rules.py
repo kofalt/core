@@ -9,6 +9,7 @@ from ..web.errors import APIValidationException, InputValidationException
 
 from . import gears
 from .jobs import Job
+from .mappers import RulesMapper
 from .queue import Queue
 
 log = config.log
@@ -125,15 +126,15 @@ def eval_rule(rule, file_, container):
     """
 
     # Are there matches in the 'not' set?
-    for match in rule.get('not', []):
+    for match in rule.not_:
         if eval_match(match['type'], match['value'], file_, container, regex=match.get('regex')):
             return False
 
     # Are there matches in the 'any' set?
-    must_match = len(rule.get('any', [])) > 0
+    must_match = len(rule.any_) > 0
     has_match = False
 
-    for match in rule.get('any', []):
+    for match in rule.any_:
         if eval_match(match['type'], match['value'], file_, container, regex=match.get('regex')):
             has_match = True
             break
@@ -143,7 +144,7 @@ def eval_rule(rule, file_, container):
         return False
 
     # Are there matches in the 'all' set?
-    for match in rule.get('all', []):
+    for match in rule.all_:
         if not eval_match(match['type'], match['value'], file_, container, regex=match.get('regex')):
             return False
 
@@ -208,20 +209,20 @@ def create_potential_jobs(db, container, container_type, file_, rule_failure_cal
     for rule in rules:
         try:
             if eval_rule(rule, file_, container):
-                gear_id = rule['gear_id']
+                gear_id = rule.gear_id
 
                 input_ = FileReference(type=container_type, id=str(container['_id']), name=file_['name'])
-                job = queue_job_legacy(gear_id, input_, fixed_inputs=rule.get('fixed_inputs'))
+                job = queue_job_legacy(gear_id, input_, fixed_inputs=rule.fixed_inputs)
 
                 if 'config' in rule:
-                    job.config = rule['config']
+                    job.config = rule.config
 
                 if 'compute_provider_id' in rule:
                     job.compute_provider_id = rule['compute_provider_id']
 
                 potential_jobs.append({
                     'job': job,
-                    'rule': rule
+                    'rule': rule.to_dict()
                 })
         except Exception as exc_val:  # pylint: disable=broad-except
             log.exception('Unable to evaluate rule %s(name=%s)', rule['_id'], rule.get('name'))
@@ -236,6 +237,8 @@ def create_jobs(db, container_before, container_after, container_type, replaced_
     after the changes.
     Returns the algorithm names that were queued.
     """
+    if container_type == 'collection':
+        return []
 
     # A list of FileContainerReferences that have been completely replaced
     # Jobs with these as inputs should get enqueue even if they are in the jobs_before list
@@ -313,15 +316,19 @@ def get_rules_for_container(db, container):
     Recursively walk the hierarchy until the project object is found.
     """
 
-    if 'session' in container:
+    if 'project' in container.get('parents') and container['parents'].get('project'):
+        project = db.projects.find_one({'_id': container['parents']['project']})
+        return get_rules_for_container(db, project)
+    elif 'session' in container:
         session = db.sessions.find_one({'_id': container['session']})
         return get_rules_for_container(db, session)
     elif 'project' in container:
         project = db.projects.find_one({'_id': container['project']})
         return get_rules_for_container(db, project)
     else:
+        rules_mapper = RulesMapper()
         # Assume container is a project, or a collection (which currently cannot have a rules property)
-        result = list(db.project_rules.find({'project_id': str(container['_id']), 'disabled': {'$ne': True}}))
+        result = list(rules_mapper.find_all(project_id=str(container['_id']), disabled={'$ne': True}))
 
         if not result:
             return []
@@ -335,12 +342,13 @@ def copy_site_rules_for_project(project_id):
     Note: Assumes project exists and caller has access.
     """
 
-    site_rules = config.db.project_rules.find({'project_id' : 'site'})
+    rules_mapper = RulesMapper()
+    site_rules = rules_mapper.find_all(project_id='site')
 
-    for doc in site_rules:
-        doc.pop('_id')
-        doc['project_id'] = str(project_id)
-        config.db.project_rules.insert_one(doc)
+    for rule in site_rules:
+        rule_copy = rule.copy()
+        rule_copy.project_id = str(project_id)
+        rules_mapper.insert(rule_copy)
 
 
 def validate_regexes(rule):

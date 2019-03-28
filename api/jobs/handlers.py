@@ -8,11 +8,13 @@ from jsonschema import ValidationError
 from urlparse import urlparse
 
 from . import batch
+from . import mappers, models
 from .job_util import (
     resolve_context_inputs,
     get_context_for_destination,
     remove_potential_phi_from_job,
-    validate_job_compute_provider
+    validate_job_compute_provider,
+    log_job_access
 )
 from .. import config
 from .. import upload
@@ -394,7 +396,7 @@ class RulesHandler(base.RequestHandler):
         validate_fixed_inputs(gear, payload.get('fixed_inputs'))
 
         # Check that the rule has at least one rule-item
-        if not (payload.get('any') or payload.get('all') or payload.get('all')):
+        if not (payload.get('any') or payload.get('all') or payload.get('not')):
             raise InputValidationException('Cannot create rule without any conditions')
 
         if requires_read_write_key(get_gear(payload['gear_id'])):
@@ -419,14 +421,17 @@ class RulesHandler(base.RequestHandler):
         validate_job_compute_provider(payload, self, validate_provider=True)
 
         payload['project_id'] = cid
+        rule = models.Rule.from_dict(payload)
+        rules_mapper = mappers.RulesMapper()
 
-        result = config.db.project_rules.insert_one(payload)
-        return { '_id': result.inserted_id }
+        inserted_id = rules_mapper.insert(rule)
+        return { '_id': inserted_id }
 
 class RuleHandler(base.RequestHandler):
 
     def get(self, cid, rid):
         """Get rule"""
+        rules_mapper = mappers.RulesMapper()
 
         projection = None
         if cid == 'site':
@@ -438,17 +443,18 @@ class RuleHandler(base.RequestHandler):
             if not self.user_is_admin and not has_access(self.uid, project, 'ro'):
                 raise APIPermissionException('User does not have access to project {} rules'.format(cid))
 
-        result = config.db.project_rules.find_one({'project_id' : cid, '_id': bson.ObjectId(rid)}, projection=projection)
+        rule = rules_mapper.get(rid, projection=projection)
 
-        if not result:
+        if not rule:
             raise APINotFoundException('Rule not found.')
 
-        return result
+        return rule
 
 
     @verify_payload_exists
     def put(self, cid, rid):
         """Change a rule"""
+        rules_mapper = mappers.RulesMapper()
 
         if cid == 'site':
             if not self.user_is_admin:
@@ -458,25 +464,25 @@ class RuleHandler(base.RequestHandler):
             if not self.user_is_admin and not has_access(self.uid, project, 'admin'):
                 raise APIPermissionException('Modifying project rules can only be done by a project admin.')
 
-        doc = config.db.project_rules.find_one({'project_id' : cid, '_id': bson.ObjectId(rid)})
+        rule = rules_mapper.get(rid)
 
-        if not doc:
+        if not rule:
             raise APINotFoundException('Rule not found.')
 
         updates = self.request.json
         validate_data(updates, 'rule-update.json', 'input', 'POST', optional=True)
 
-        current_auto_update = doc.get('auto_update', False)
+        current_auto_update = rule.auto_update
         auto_update = updates.get('auto_update', current_auto_update)
 
 
         if auto_update:
-            gear_name = get_gear(doc['gear_id'])['gear']['name']
+            gear_name = get_gear(rule.gear_id)['gear']['name']
             gear_id_latest_version = str(get_latest_gear(gear_name)['_id'])
             update_gear_id = updates.get('gear_id')
 
             update_gear_is_latest = update_gear_id == gear_id_latest_version
-            current_gear_is_latest = doc['gear_id'] == gear_id_latest_version
+            current_gear_is_latest = rule.gear_id == gear_id_latest_version
 
             rule_config = updates.get('config')
             rule_fixed_inputs = updates.get('fixed_inputs')
@@ -485,9 +491,9 @@ class RuleHandler(base.RequestHandler):
             updates['config'] = {}
 
         validate_regexes(updates)
-        gear_id = updates.get('gear_id', doc['gear_id'])
-        config_ = updates.get('config', doc.get('config'))
-        fixed_inputs = updates.get('fixed_inputs', doc.get('fixed_inputs'))
+        gear_id = updates.get('gear_id', rule.gear_id)
+        config_ = updates.get('config', rule.config)
+        fixed_inputs = updates.get('fixed_inputs', rule.fixed_inputs)
         gear = get_gear(gear_id)
         validate_gear_config(gear, config_)
         validate_fixed_inputs(gear, fixed_inputs)
@@ -497,13 +503,15 @@ class RuleHandler(base.RequestHandler):
         # Check and raise if non-admin user attempts to override compute provider
         validate_job_compute_provider(updates, self, validate_provider=True)
 
-        doc.update(updates)
-        if not (doc.get('any') or doc.get('all') or doc.get('all')):
+        rule_updates = models.Rule.from_dict(updates)
+        rule.update(rule_updates)
+        if not (rule.any_ or rule.all_ or rule.not_):
             raise InputValidationException('Rule must have at least one condition')
-        config.db.project_rules.replace_one({'_id': bson.ObjectId(rid)}, doc)
+        rules_mapper.patch(rid, updates)
 
     def delete(self, cid, rid):
         """Remove a rule"""
+        rules_mapper = mappers.RulesMapper()
 
         if cid == 'site':
             if not self.user_is_admin:
@@ -514,8 +522,8 @@ class RuleHandler(base.RequestHandler):
                 raise APIPermissionException('Modifying project rules can only be done by a project admin.')
 
 
-        result = config.db.project_rules.delete_one({'project_id' : cid, '_id': bson.ObjectId(rid)})
-        if result.deleted_count != 1:
+        deleted_count = rules_mapper.delete(rid)
+        if deleted_count != 1:
             raise APINotFoundException('Rule not found.')
 
 class JobsHandler(base.RequestHandler):
@@ -603,39 +611,10 @@ class JobsHandler(base.RequestHandler):
 class JobHandler(base.RequestHandler):
     """Provides /Jobs/<jid> routes."""
 
-    def _log_job_access(self, job):
-        """Log a view_file access for each file input for the job because we
-        are going to return the info object on the inputs
-
-        Args:
-            job (Job): A job object
-        """
-        for config_input in job.config.get('inputs', {}).values():
-            if config_input.get('base') == 'file':
-                file_parent_type = config_input['hierarchy']['type']
-                file_parent_id = config_input['hierarchy']['id']
-                self.log_user_access(AccessType.view_file,
-                                     cont_name=file_parent_type,
-                                     cont_id=file_parent_id,
-                                     filename=config_input['location'].get('name'))
-        if job.produced_metadata:
-            for container_type, metadata in job.produced_metadata.items():
-                if job.parents.get(container_type):
-                    self.log_user_access(AccessType.view_container,
-                                         cont_name=container_type,
-                                         cont_id=job.parents[container_type])
-                if container_type == 'session' and metadata.get('subject'):
-                    if job.parents.get('subject'):
-                        self.log_user_access(AccessType.view_subject,
-                                             cont_name='subject',
-                                             cont_id=job.parents['subject'])
-
-        self.log_user_access(AccessType.view_job, job_id=job.id_)
-
     @require_admin
     def get(self, _id):
         job = Job.get(_id)
-        self._log_job_access(job)
+        log_job_access(self, job)
         return job
 
     @require_login
@@ -654,6 +633,8 @@ class JobHandler(base.RequestHandler):
         def get_container(ref):
             """Helper for cached retrieval of container"""
             # Normalize id
+            if not ref or not ref.id:
+                return None
             strid = str(ref.id)
             if strid in _container_cache:
                 result = _container_cache[strid]
@@ -673,6 +654,9 @@ class JobHandler(base.RequestHandler):
         result['inputs'] = {}
         if job.inputs is not None:
             for key, ref in job.inputs.items():
+                if not hasattr(ref, 'map'):
+                    continue
+
                 rec = {
                     'ref': ref.map()
                 }
@@ -704,7 +688,7 @@ class JobHandler(base.RequestHandler):
                     rec['object'] = cont
 
         # Log the access of all inputs
-        self._log_job_access(job)
+        log_job_access(self, job)
 
         # If we're still not authorized, check the destination
         dest_cont = get_container(job.destination)
@@ -741,11 +725,13 @@ class JobHandler(base.RequestHandler):
         for name in saved_files:
             rec = {
                 'ref': {
-                    'type': job.destination.type,
-                    'id': job.destination.id,
                     'name': name
                 }
             }
+
+            if job.destination:
+                rec['ref']['type'] = job.destination.type
+                rec['ref']['id'] = job.destination.id
 
             if dest_cont:
                 obj = job.destination.find_file(name, cont=dest_cont)

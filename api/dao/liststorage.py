@@ -4,7 +4,7 @@ import copy
 import datetime
 
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
-from . import consistencychecker
+from . import consistencychecker, containerutil
 from .. import config
 from .. import util
 from ..jobs import rules
@@ -139,7 +139,9 @@ class FileStorage(ListStorage):
 
     def _create_jobs(self, container_before):
         container_after = self.get_container(container_before['_id'])
-        return rules.create_jobs(config.db, container_before, container_after, self.cont_name)
+        container_type = containerutil.singularize(self.cont_name)
+        return rules.create_jobs(config.db, container_before, container_after,
+                                 container_type)
 
     def _update_el(self, _id, query_params, payload, exclude_params):
         container_before = self.get_container(_id)

@@ -6,7 +6,6 @@ import warnings
 
 import webapp2
 
-
 # Disable warnings for implicit tempfile.TemporaryDirectory cleanup
 warnings.filterwarnings('ignore', message=r'Implicitly cleaning up <TemporaryDirectory')
 
@@ -97,7 +96,6 @@ def dispatcher(router, request, response):
 
 def app_factory(*_, **__):
     # pylint: disable=protected-access,unused-argument
-
     # don't use config.get_item() as we don't want to require the database at startup
     application = webapp2.WSGIApplication(endpoints, debug=config.__config['core']['debug'])
     application.router.set_dispatcher(dispatcher)

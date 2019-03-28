@@ -49,8 +49,13 @@ class SubjectsTestCases(SdkTestCase):
         self.assertIn(r_subject, subjects)
 
         # # Get from parent
-        # subjects = fw.get_project_subjects(self.project_id)
-        # self.assertIn(r_subject, subjects)
+        subjects = fw.get_project_subjects(self.project_id)
+        self.assertIn(r_subject, subjects)
+
+        project = fw.get(self.project_id)
+        r_subject = project.subjects.find_one('code="{}"'.format(subject_code))
+        self.assertIsNotNone(r_subject)
+        self.assertEqual(r_subject.id, subject_id)
 
         # Modify
         new_sex = 'male'
@@ -99,6 +104,12 @@ class SubjectsTestCases(SdkTestCase):
         r_session = r_subject.add_session(label='Session 1')
         self.assertEqual(r_session.project, self.project_id)
         self.assertEqual(r_session.subject.id, subject_id)
+        session_id = r_session.id
+
+        # Find session
+        r_session = r_subject.sessions.find_one('label=Session 1')
+        self.assertIsNotNone(r_session)
+        self.assertEqual(r_session.id, session_id)
 
         # Delete
         fw.delete_subject(subject_id)

@@ -1,11 +1,13 @@
 """Provides factory function for DownloadStrategies"""
 from .bulk import BulkDownloadStrategy
 from .classic import ClassicDownloadStrategy
+from .full import FullDownloadStrategy
 
 
 _strategies = {
     'classic': ClassicDownloadStrategy,
     'bulk': BulkDownloadStrategy,
+    'full': FullDownloadStrategy,
 }
 
 

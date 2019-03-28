@@ -3,10 +3,12 @@ Job related utilities.
 """
 import copy
 
+from ..config import log
 from ..auth import has_access
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
 from ..web import errors
+from ..web.request import AccessType
 from ..site.providers import validate_provider_class
 
 
@@ -21,10 +23,53 @@ def remove_potential_phi_from_job(job_map):
     """
     job_map_copy = copy.deepcopy(job_map)
     job_map_copy.pop('produced_metadata', None)
-    for config_input in job_map_copy['config'].get('inputs', {}).values():
-        if config_input.get('base') == 'file':
-            config_input['object'].pop('info', None)
+    job_config = job_map_copy.get('config', {})
+    if not job_config:
+        return job_map_copy
+    try:
+        config_inputs = job_config.get('inputs') or {}
+        for config_input in config_inputs.values():
+            if config_input.get('base') == 'file':
+                config_input['object'].pop('info', None)
+    except (TypeError, KeyError, AttributeError) as e:
+        log.critical('Could not remove phi from job {}', exc_info=e)
     return job_map_copy
+
+
+def log_job_access(handler, job):
+    """Log a view_file access for each file input for the job because we
+    are going to return the info object on the inputs
+
+    Args:
+        handler (RequestHandler): The handler that is returning the job
+        job (Job): A job object
+    """
+    try:
+        if job.config:
+            config_inputs = job.config.get('inputs') or {}
+            for config_input in config_inputs.values():
+                if config_input.get('base') == 'file':
+                    file_parent_type = config_input['hierarchy']['type']
+                    file_parent_id = config_input['hierarchy']['id']
+                    handler.log_user_access(AccessType.view_file,
+                                            cont_name=file_parent_type,
+                                            cont_id=file_parent_id,
+                                            filename=config_input['location'].get('name'))
+        if job.produced_metadata:
+            for container_type, metadata in job.produced_metadata.items():
+                if job.parents.get(container_type):
+                    handler.log_user_access(AccessType.view_container,
+                                            cont_name=container_type,
+                                            cont_id=job.parents[container_type])
+                if container_type == 'session' and metadata.get('subject'):
+                    if job.parents.get('subject'):
+                        handler.log_user_access(AccessType.view_subject,
+                                                cont_name='subject',
+                                                cont_id=job.parents['subject'])
+    except (TypeError, KeyError, AttributeError) as e:
+        log.critical('Could not log accessing all inputs and outputs of job {}'.format(job.id), exc_info=e)
+
+    handler.log_user_access(AccessType.view_job, job_id=job.id_)
 
 
 def get_context_for_destination(cont_type, cont_id, uid, storage=None, cont=None):
