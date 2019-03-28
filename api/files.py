@@ -11,6 +11,8 @@ import fs.tempfs
 import fs.path
 import fs.errors
 
+from flywheel_common import storage
+
 from . import config, util
 
 DEFAULT_HASH_ALG = 'sha384'
@@ -155,7 +157,7 @@ class FileHasherWriter(object):
     @property
     def hash(self):
         """Return the formatted hash of the file"""
-        return util.format_hash(self.hash_alg, self.hasher.hexdigest())
+        return storage.format_hash(self.hash_alg, self.hasher.hexdigest())
 
     @property
     def filename(self):
@@ -335,8 +337,8 @@ def get_fs_by_file_path(file_id, file_path):
 
     # When we add more native storage types we will have to store the file system type in the file object and
     # not rely on this method to determine where its physically located
-    if config.storage.get_file_info(file_id, file_path):
-        return config.storage
+    if config.primary_storage.get_file_info(file_id, file_path):
+        return config.primary_storage
 
     elif config.support_legacy_fs and config.local_fs.get_file_info(file_id, file_path):
         return config.local_fs

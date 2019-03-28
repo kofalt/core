@@ -183,7 +183,7 @@ class DataViewHandler(base.RequestHandler):
             if target_container:
 
                 # Saved directly to persistent storage.
-                file_processor = FileProcessor(config.storage)
+                file_processor = FileProcessor(config.primary_storage)
 
                 # If we're saving to container, start SSE event,
                 # and write the data to a temp file
@@ -224,8 +224,8 @@ class DataViewHandler(base.RequestHandler):
                 file_fields = file_processor.create_file_fields(
                     fileobj.filename,
                     path,
-                    config.storage.get_file_info(new_uuid, path)['filesize'],
-                    config.storage.get_file_hash(new_uuid, path),
+                    config.primary_storage.get_file_info(new_uuid, path)['filesize'],
+                    config.primary_storage.get_file_hash(new_uuid, path),
                     uuid_=new_uuid,
                     mimetype=None,
                     modified=timestamp

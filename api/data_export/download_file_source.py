@@ -6,6 +6,7 @@ import cStringIO
 import certifi
 import urllib3
 import fs.errors
+import flywheel_common.errors
 
 from .. import files, config, io, access_log
 from ..web.request import AccessType
@@ -144,12 +145,13 @@ class DownloadFileSource(object):
         # TODO: For now, this is an optimization - directly accessing the signed url
         # can speed up transfer. Shouldn't open for reading basically do this?
         signed_url = None
-        if config.storage.is_signed_url():
+        if config.primary_storage.is_signed_url():
             try:
-                signed_url = config.storage.get_signed_url(target.file_id, target.src_path)
+                signed_url = config.primary_storage.get_signed_url(target.file_id, target.src_path)
             except fs.errors.ResourceNotFound:
                 pass
-
+            except flywheel_common.errors.ResourceNotFound:
+                pass
         try:
             if signed_url:
                 result = io.URLFileWrapper(signed_url, self._http)

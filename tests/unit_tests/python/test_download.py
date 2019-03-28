@@ -76,8 +76,8 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
     get_return_value.status = 200
     get_return_value.reason = 'OK'
     get_return_value.readable.return_value = True
-    mocked_files = mocker.patch('api.config.storage.get_signed_url')
-    mocked_signed_url = mocker.patch('api.config.storage.is_signed_url', return_value=True)
+    mocked_files = mocker.patch('api.config.primary_storage.get_signed_url')
+    mocked_signed_url = mocker.patch('api.config.primary_storage.is_signed_url', return_value=True)
 
     project = data_builder.create_project(label='project1')
     session = data_builder.create_session(label='session1', project=project)

@@ -1,17 +1,18 @@
-from .storage import Storage
 from fs import open_fs
 import hashlib
 import fs
 import six
-from ..util import path_from_uuid, format_hash
+
+from flywheel_common.storage import path_from_uuid, format_hash
+from flywheel_common.storage import Interface
 
 DEFAULT_HASH_ALG = 'sha384'
 DEFAULT_BUFFER_SIZE = 2 ** 20
 
-class PyFsStorage(Storage):
+class PyFsStorage(Interface):
 
     def __init__(self, url):
-        super (PyFsStorage, self).__init__()
+        super(PyFsStorage, self).__init__()
         self._fs = open_fs(url)
         self._has_signed_url = hasattr(self._fs, 'get_signed_url')
 
@@ -33,6 +34,7 @@ class PyFsStorage(Storage):
         return self._fs.open(path_hint, mode)
 
     def remove_file(self, uuid, path_hint):
+        #pylint: disable=unused-argument
         if path_hint:
             self._fs.remove(path_hint)
         else:
@@ -118,4 +120,3 @@ class PyFsStorage(Storage):
             Returns the local file system OSFS object for local file maniulation/processing
         """
         return self._fs
-

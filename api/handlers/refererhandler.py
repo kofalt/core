@@ -401,9 +401,9 @@ class AnalysesHandler(RefererHandler):
                     # IMPORTANT: If you modify the below code reflect the code changes in
                     # listhandler.py:FileListHandler's download method
                     signed_url = None
-                    if config.storage.is_signed_url() and config.storage.can_redirect_request(self.request.headers):
+                    if config.primary_storage.is_signed_url() and config.primary_storage.can_redirect_request(self.request.headers):
                         try:
-                            signed_url = config.storage.get_signed_url(fileinfo.get('_id'), file_path,
+                            signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'), file_path,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(
