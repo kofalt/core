@@ -45,6 +45,27 @@ template: |
           examples:
             response:
               $ref: examples/output/analysis.json
+    put:
+      summary: Modify an analysis.
+      {{#resource}}
+      operationId: modify_{{.}}_analysis
+      {{/resource}}
+      {{^resource}}
+      operationId: modify_analysis
+      {{/resource}}
+      tags:
+      - '{{tag}}'
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: schemas/input/analysis-update.json
+      responses:
+        '200':
+          $ref: '#/responses/200:modified-with-count'
+        '400':
+          $ref: '#/responses/400:invalid-body-json'
     {{#supportsDelete}}
     delete:
       summary: Delete an anaylsis

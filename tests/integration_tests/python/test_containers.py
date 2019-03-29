@@ -840,11 +840,18 @@ def test_analysis_put(data_builder, default_payload, as_user, as_admin, file_for
 
     assert r.ok
     analysis = r.json()['_id']
+
     r = as_user.put('/sessions/'+session + '/analyses/' + analysis, json={'label': 'ayo'})
     assert r.ok
     r = as_user.get('/sessions/'+session + '/analyses/' + analysis)
     assert r.ok
     assert r.json()['label'] == 'ayo'
+
+    r = as_user.put('/analyses/' + analysis, json={'label': 'foo'})
+    assert r.ok
+    r = as_user.get('/sessions/' + session + '/analyses/' + analysis)
+    assert r.ok
+    assert r.json()['label'] == 'foo'
 
     r = as_user.put('/sessions/'+session + '/analyses/' + analysis, json={'input': 'ayo'})
     assert r.status_code == 400
