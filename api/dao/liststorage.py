@@ -190,7 +190,7 @@ class FileStorage(ListStorage):
     def _delete_el(self, _id, query_params):
         files = self.get_container(_id).get('files', [])
         for f in files:
-            if f['name'] == query_params['name']:
+            if f['name'].encode('utf-8') == query_params['name']:
                 f['deleted'] = datetime.datetime.utcnow()
         result = self.dbc.update_one({'_id': _id}, {'$set': {'files': files, 'modified': datetime.datetime.utcnow()}})
         self._update_session_compliance(_id)
