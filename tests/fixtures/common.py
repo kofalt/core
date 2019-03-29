@@ -46,6 +46,7 @@ def with_site_settings(session, api_db):
 
     if not provider:
         provider = api_db.providers.insert_one({
+            "_id": bson.ObjectId("deadbeefdeadbeefdeadbeef"),
             "origin": {"type":"system", "id":"system"},
             "created":"2019-03-19T18:48:37.790Z",
             "config":{"path":local_fs_url},
@@ -64,7 +65,7 @@ def with_site_settings(session, api_db):
             "center_gears": [],
             "created": "2019-03-19T18:44:17.701078+00:00",
             "modified": "2019-03-19T18:44:17.701094+00:00",
-            "providers": {"storage": provider_id}
+            "providers": {"storage": "deadbeefdeadbeefdeadbeef"}
         },
         True)
 
@@ -118,7 +119,7 @@ def randstr(request):
 
 
 @pytest.yield_fixture(scope='function')
-def data_builder(as_root, api_db, randstr):
+def data_builder(as_root, api_db, randstr, with_site_settings):
     """Yield DataBuilder instance (per test)"""
     # NOTE currently there's only a single data_builder for simplicity which
     # uses as_root - every resource is created/owned by the admin user
@@ -133,7 +134,7 @@ def default_payload():
     return attrdict.AttrDict({
         'user': {'firstname': 'test', 'lastname': 'user'},
         'group': {},
-        'project': {'public': True},
+        'project': {'public': True, 'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}},
         'subject': {'public': True},
         'session': {'public': True},
         'acquisition': {'public': True},
@@ -174,7 +175,6 @@ def default_payload():
             'config': {},
         },
     })
-
 
 @pytest.fixture(scope='session')
 def merge_dict():

@@ -607,9 +607,8 @@ class FileListHandler(ListHandler):
 
         # Request for upload ticket
         if self.get_param('ticket') == '':
-
-            # TODO: get the container based on the name
-            container = None
+            container_service = containerstorage.cs_factory(cont_name)
+            container = container_service.get_el(_id)
             storage_service = StorageProviderService()
             final_storage = storage_service.determine_provider(self.origin, container)
             return self._create_upload_ticket(final_storage)

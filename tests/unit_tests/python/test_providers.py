@@ -5,7 +5,6 @@ from mock import patch
 import bson
 import pytest
 
-from api import config
 from flywheel_common import storage
 from api.config import local_fs_url
 from api.web import errors
@@ -183,9 +182,8 @@ def test_provider_factory_storage(mocker):
     mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
     mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')
     mock_get_info = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_file_info', return_value={'filesize': 100})
-    config['path'] = local_fs_url
-    provider = providers.create_provider(models.ProviderClass.storage, 'osfs', config)
-    config.pop('path')
+    test_config = {'path': local_fs_url}
+    provider = providers.create_provider(models.ProviderClass.storage, 'osfs', test_config)
     # The call to create_flywheel_fs is different instances.
     # We can assume it was called if the storage_plugins is created. But it might have been called 2 or more times
     # TODO: find a way to mock an interface function with spy.. the count does not get recorded
@@ -194,7 +192,7 @@ def test_provider_factory_storage(mocker):
     assert provider.storage_plugin is not None
 
     assert isinstance(provider, providers.LocalStorageProvider)
-    assert provider.config == config
+    assert provider.config == test_config
     assert isinstance(provider.storage_plugin, PyFsStorage)
 
 

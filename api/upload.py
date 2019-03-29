@@ -5,7 +5,6 @@ import os
 import uuid
 import fs.errors
 
-
 from flywheel_common import storage
 from .web import base
 from .web.errors import FileFormException
@@ -95,7 +94,6 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     file_processor = files.FileProcessor(final_storage)
 
     if not file_fields:
-
         # The only time we need the tempdir_name is when we use token and packfile.
         form = file_processor.process_form(request, use_filepath=filename_path, tempdir_name=tempdir)
 
@@ -198,7 +196,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
 class Upload(base.RequestHandler):
 
-    def _create_upload_ticket(self):
+    def _create_upload_ticket(self, container=None):
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
         filenames = payload.get('filenames', None)
@@ -206,9 +204,8 @@ class Upload(base.RequestHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
-        # TODO: do we have container in the meta data? metadata.get('[container_id'])
         storage_service = StorageProviderService()
-        final_storage = storage_service.determine_provider(self.origin, None)
+        final_storage = storage_service.determine_provider(self.origin, container)
 
         if not final_storage.storage_plugin.is_signed_url():
             self.abort(405, 'Signed URLs are not supported with the current storage backend')
@@ -256,7 +253,7 @@ class Upload(base.RequestHandler):
 
         # Request for upload ticket
         if self.get_param('ticket') == '':
-            return self._create_upload_ticket()
+            return self._create_upload_ticket(None)
 
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('ticket')
@@ -292,9 +289,10 @@ class Upload(base.RequestHandler):
             'job_ticket_id': self.get_param('job_ticket'),
         }
 
-        # Request for upload ticket
+        # Request for upload ticket will validate we have a provider before we do the actual upload
         if self.get_param('upload_ticket') == '':
-            return self._create_upload_ticket()
+            container = hierarchy.get_container(level, cid)
+            return self._create_upload_ticket(container)
 
 
         # Check ticket id and skip permissions check if it clears

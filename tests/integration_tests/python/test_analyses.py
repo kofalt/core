@@ -5,7 +5,7 @@ import tarfile
 import bson
 
 
-def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
+def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, with_site_settings):
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
     group = data_builder.create_group()
     project = data_builder.create_project()
@@ -181,7 +181,7 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db):
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
 
-def test_offline_analysis(data_builder, as_admin, file_form, api_db):
+def test_offline_analysis(data_builder, as_admin, file_form, api_db, with_site_settings):
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
@@ -228,7 +228,7 @@ def test_offline_analysis(data_builder, as_admin, file_form, api_db):
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
 
-def test_legacy_analysis(data_builder, as_admin, file_form, api_db):
+def test_legacy_analysis(data_builder, as_admin, file_form, api_db, with_site_settings):
     session = data_builder.create_session()
 
     # Create legacy analysis (upload both inputs and outputs in the same fileform)
@@ -245,7 +245,7 @@ def test_legacy_analysis(data_builder, as_admin, file_form, api_db):
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
 
-def test_analysis_download(data_builder, as_admin, as_root, file_form, api_db):
+def test_analysis_download(data_builder, as_admin, as_root, file_form, api_db, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session()
 

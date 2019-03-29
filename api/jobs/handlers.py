@@ -13,7 +13,7 @@ from .job_util import (
     resolve_context_inputs,
     get_context_for_destination,
     remove_potential_phi_from_job,
-    validate_job_compute_provider
+    validate_job_compute_provider,
     log_job_access
 )
 from .. import config
