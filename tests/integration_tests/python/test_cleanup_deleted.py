@@ -172,3 +172,159 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     # now the fourth file will be deleted too
     cleanup_deleted.main('--log-level', 'DEBUG', '--all')
     assert config.primary_storage.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is None
+
+
+def test_cleanup_single_project(data_builder, default_payload, randstr, file_form, as_admin, as_drone, api_db, cleanup_deleted):
+    project_id = data_builder.create_project()
+    session_id = data_builder.create_session()
+    acquisition_id = data_builder.create_acquisition()
+
+    file_name_1 = '%s.csv' % randstr()
+    file_content_1 = randstr()
+    as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))
+
+    file_info = api_db['sessions'].find_one(
+        {'files.name': file_name_1}
+    )['files'][0]
+    file_id_1 = file_info['_id']
+
+    # Create ad-hoc analysis
+    r = as_admin.post('/sessions/' + session_id + '/analyses', json={
+        'label': 'offline',
+        'inputs': [{'type': 'session', 'id': session_id, 'name': file_name_1}]
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # get the ticket
+    r = as_admin.get('/sessions/' + session_id + '/files/' + file_name_1, params={'ticket': ''})
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    # download the file
+    assert as_admin.get('/sessions/' + session_id + '/files/' + file_name_1, params={'ticket': ticket}).ok
+
+    # run a job
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'session',
+                'id': session_id,
+                'name': file_name_1
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition_id
+        },
+        'tags': [ 'test-tag' ]
+    }
+    # add job with explicit destination
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    # start job (Adds logs)
+    r = as_admin.get('/jobs/next')
+    assert r.ok
+
+    # prepare completion (send success status before engine upload)
+    r = as_drone.post('/jobs/' + job_id + '/prepare-complete')
+    assert r.ok
+
+    # verify that job ticket has been created
+    job_ticket = api_db.job_tickets.find_one({'job': job_id})
+    assert job_ticket['timestamp']
+
+
+    produced_metadata = {
+        'project': {
+            'label': 'engine project',
+            'info': {'test': 'p'}
+        },
+        'session': {
+            'label': 'engine session',
+            'subject': {'code': 'engine subject', 'sex': 'male', 'age': 86400},
+            'info': {'test': 's'}
+        },
+        'acquisition': {
+            'label': 'engine acquisition',
+            'timestamp': '2016-06-20T21:57:36+00:00',
+            'info': {'test': 'a'},
+            'files': [{
+                'name': 'result.txt',
+                'type': 'text',
+                'info': {'test': 'f0'}
+            }]
+        }
+    }
+
+    # engine upload
+    r = as_drone.post('/engine',
+        params={'level': 'acquisition', 'id': acquisition_id, 'job': job_id, 'job_ticket': job_ticket['_id']},
+        files=file_form('result.txt', meta=produced_metadata)
+    )
+    assert r.ok
+
+    # Make sure produced metadata and logs exist
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    job = r.json()
+    assert job.get('produced_metadata')
+
+    r = as_admin.get('/jobs/' + job_id + '/logs')
+    assert r.ok
+    assert r.json().get('logs')
+
+    # Try cleaning undeleted project
+    cleanup_deleted.main('--log-level', 'DEBUG', '--all', '--project', project_id, '--job-phi')
+
+    # Make sure file is still there
+    assert config.primary_storage.get_file_info(file_id_1, util.path_from_uuid(file_id_1))
+
+    # Make sure job phi is still there
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    job = r.json()
+    assert job.get('produced_metadata')
+
+    r = as_admin.get('/jobs/' + job_id + '/logs')
+    assert r.ok
+    assert r.json().get('logs')
+
+    # delete the project
+    r = as_admin.delete('/projects/' + project_id)
+    assert r.ok
+
+    # Run cleanup again
+    cleanup_deleted.main('--log-level', 'DEBUG', '--all', '--project', project_id, '--job-phi')
+
+    # Make sure file is not there
+    assert not config.primary_storage.get_file_info(file_id_1, util.path_from_uuid(file_id_1))
+
+    # Check job phi
+    r = as_admin.get('/jobs/' + job_id)
+    assert r.ok
+    job = r.json()
+    assert not job.get('produced_metadata')
+
+    r = as_admin.get('/jobs/' + job_id + '/logs')
+    assert r.ok
+    assert not r.json().get('logs')
+
+    assert not api_db.projects.find_one({'_id': ObjectId(project_id)})
+    assert not api_db.subjects.find_one({'parents.project': ObjectId(project_id)})
+    assert not api_db.sessions.find_one({'parents.project': ObjectId(project_id)})
+    assert not api_db.acquisitions.find_one({'parents.project': ObjectId(project_id)})
+    assert not api_db.analyses.find_one({'parents.project': ObjectId(project_id)})
+

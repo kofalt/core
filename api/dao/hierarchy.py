@@ -68,36 +68,45 @@ def get_parent_tree(cont_name, _id):
         analysis_id = bson.ObjectId(_id)
         analysis = get_container('analysis', analysis_id)
         tree['analysis'] = analysis
+        if analysis is None:
+            raise APIStorageException('Analysis {} does not exist'.format(analysis_id))
         if analysis['parent']['type'] == 'session':
             session_id = analysis['parent']['id']
     if cont_name == 'acquisition':
         acquisition_id = bson.ObjectId(_id)
         acquisition = get_container('acquisition', acquisition_id)
         tree['acquisition'] = acquisition
+        if acquisition is None:
+            raise APIStorageException('Acquisition {} does not exist'.format(acquisition_id))
         session_id = acquisition['session']
     if cont_name == 'session' or session_id:
         if not session_id:
             session_id = bson.ObjectId(_id)
         session = get_container('session', session_id)
         tree['session'] = session
+        if session is None:
+            raise APIStorageException('Session {} does not exist'.format(session_id))
         subject_id = session['subject']
     if cont_name == 'subject' or subject_id:
         if not subject_id:
             subject_id = bson.ObjectId(_id)
         subject = get_container('subject', subject_id)
+        if subject is None:
+            raise APIStorageException('Subject {} does not exist'.format(subject_id))
         tree['subject'] = subject
         project_id = subject['project']
     if cont_name == 'project' or project_id:
         if not project_id:
             project_id = bson.ObjectId(_id)
         project = get_container('project', project_id)
+        if project is None:
+            raise APIStorageException('Project {} does not exist'.format(project_id))
         tree['project'] = project
         group_id = project['group']
     if cont_name == 'group' or group_id:
         if not group_id:
             group_id = _id
         tree['group'] = get_container('group', group_id)
-
     return tree
 
 def is_session_compliant(session, templates):
