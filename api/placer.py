@@ -481,6 +481,8 @@ class PackfilePlacer(Placer):
         self.ziptime        = None
         self.tempdir        = None
 
+        self.container      = container
+
 
     def check(self):
 
@@ -600,7 +602,7 @@ class PackfilePlacer(Placer):
 
         # Finaly move the file from the local fs to the persistent FS.
         # We could make this faster using a move if we know its a local to local fs move.
-        final_storage = self.storage_service.determine_provider(self.origin)
+        final_storage = self.storage_service.determine_provider(self.origin, self.container)
         with self.temp_fs.get_fs().open(tempZipPath, 'rb') as (f1
                 ), final_storage.storage_plugin.open(token, storage.util.path_from_uuid(token), 'wb') as f2:
             while True:

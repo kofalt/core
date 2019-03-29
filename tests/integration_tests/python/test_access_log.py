@@ -505,7 +505,7 @@ def test_bulk_access(data_builder, as_admin, log_db):
     assert log2['context']['file']['name'] == 'example.csv'
 
 def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
-                    file_form, api_db):
+                    file_form, api_db, with_site_settings):
 
     from pprint import pprint
 
