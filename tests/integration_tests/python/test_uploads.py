@@ -1134,7 +1134,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_admin):
                 'sex': 'male',
                 'age': 100000000000,
             },
-            'info': {'test': 's'},
+            'info': {'test': 's', 'file.txt': 'Hello'},
             'tags': ['one', 'two']
         },
         'acquisition':{
@@ -1191,6 +1191,8 @@ def test_acquisition_engine_upload(data_builder, file_form, as_admin):
 
     expected_metadata = copy.deepcopy(metadata)
     expected_metadata['acquisition']['files'][2]['name'] = 'folderB/two.csv'
+    # fields get sanitized
+    expected_metadata['session']['info']['file_txt'] = expected_metadata['session']['info'].pop('file.txt')
 
     # Confirm produced_metadata is unchanged
     job_doc = as_admin.get('/jobs/' + job).json()
@@ -1211,6 +1213,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_admin):
     assert s['age'] == 100000000000
 
     metadata['session']['info']['subject_raw'] = {'sex': 'male'}
+    metadata['session']['info']['file_txt'] = metadata['session']['info'].pop('file.txt')
     assert s['info'] == metadata['session']['info']
     assert s['subject']['code'] == metadata['session']['subject']['code']
 
