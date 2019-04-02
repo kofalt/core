@@ -310,14 +310,6 @@ def get_public_config():
     for values in auth.itervalues():
         values.pop('client_secret', None)
 
-    # Start publishing features as a boolean map
-    features = {
-        'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
-        'job_ask': True,      #  Job queue /jobs/ask route.
-        'multiproject': is_multiproject_enabled(),
-        'signed_url': cfg['features']['signed_url'], # this no longer makes sense as all providers could or could not support signed_urls
-    }
-
     return {
         'created': __config.get('created'),
         'modified': __config.get('modified'),

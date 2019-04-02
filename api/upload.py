@@ -15,7 +15,6 @@ from . import placer as pl
 from . import util
 from .dao import hierarchy
 from .site.storage_provider_service import StorageProviderService
-from .types import Origin
 
 Strategy = util.Enum('Strategy', {
     'targeted'       : pl.TargetedPlacer,       # Upload 1 files to a container.
