@@ -267,10 +267,15 @@ def test_subject_notes(data_builder, as_admin, as_public, file_form):
     assert r.status_code == 404
 
 
-def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form):
+def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form, with_site_settings):
     # Create gear, project and subject with one input file
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
     project = data_builder.create_project()
+    # Projects must have a provider for drone uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
+
     r = as_admin.post('/subjects', json={'project': project, 'code': 'test'})
     assert r.ok
     subject = r.json()['_id']

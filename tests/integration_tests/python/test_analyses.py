@@ -9,6 +9,10 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, wi
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
     group = data_builder.create_group()
     project = data_builder.create_project()
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
@@ -313,7 +317,7 @@ def test_analysis_join_origin(data_builder, file_form, as_admin, as_drone):
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
-    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
+    as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
 
     # Create job-based analysis
     r = as_admin.post('/sessions/' + session + '/analyses', json={
@@ -328,6 +332,12 @@ def test_analysis_join_origin(data_builder, file_form, as_admin, as_drone):
     r = as_admin.get('/analyses/' + analysis)
     assert r.ok
     job = r.json().get('job')
+
+    # Projects must have a provider for job/gear uploads to work
+    project = r.json().get('parents').get('project')
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
 
     # Engine upload
     r = as_drone.post('/engine',

@@ -503,8 +503,9 @@ class RuleHandler(base.RequestHandler):
         # Check and raise if non-admin user attempts to override compute provider
         validate_job_compute_provider(updates, self, validate_provider=True)
 
-        doc.update(updates)
-        if not (doc.get('any') or doc.get('all') or doc.get('all')):
+        rule_updates = models.Rule.from_dict(updates)
+        rule.update(rule_updates)
+        if not (rule.any_ or rule.all_ or rule.not_):
             raise InputValidationException('Rule must have at least one condition')
         rules_mapper.patch(rid, updates)
 

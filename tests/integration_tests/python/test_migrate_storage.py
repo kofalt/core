@@ -165,7 +165,7 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage, second_stor
 
     #For now we will get the only provider in the system which is osfs for local file minipulation
     storage_service = StorageProviderService()
-    local_fs = storage_service.determine_provider(None, None).storage_plugin
+    local_fs = storage_service.determine_provider(None, None, force_site_provider=True).storage_plugin
 
     # get the file to migrate
     (_, _, _, file_path_1, provider_id) = files_to_migrate[0]
@@ -180,7 +180,7 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage, second_stor
     #This session will continue to exist in the DB with defunt data 
 
 
-def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage, second_storage_provider):
+def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage, with_site_settings, second_storage_provider):
     """Testing collection migration"""
 
     (gear_id_1, gear_file_id_1, gear_file_provider_id_1) = gears_to_migrate[0]

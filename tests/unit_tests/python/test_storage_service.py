@@ -52,10 +52,13 @@ def test_provider_selection(mocker, with_site_settings):
     provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
     assert provider == 4321
 
-    # user origin and provider is the site provider should give error
     mocker.patch('api.site.providers.get_provider_id_for_container', return_value=(True, 2222))
-    with pytest.raises(ValueError):
-        provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
+    # This will be true once the storage quota checks are implemented
+    # with pytest.raises(ValueError):
+        # provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
+    # Without quota checks we just return the site provider for now
+    provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
+    assert provider == site_settings.providers['storage']
 
 def mocked_return(value):
     return value

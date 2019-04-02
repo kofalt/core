@@ -12,10 +12,7 @@ def get_site_settings():
     mapper = mappers.SiteSettings()
     result = mapper.get()
     if result is None:
-        # Initialize if site settings does not exist
-        # This is process-safe using "atomic" mongo operations
-        initialize()
-        result = mapper.get()
+        return get_default_site_settings()
     return result
 
 
@@ -44,6 +41,10 @@ def update_site_settings(doc, log):
         # Get current settings
         current_site = get_site_settings()
         providers.validate_provider_updates(current_site, doc['providers'], True)
+        # Patch will override the array if we dont supply all provider types
+        for class_ in models.provider.ProviderClass:
+            if not doc['providers'].get(class_.value):
+                doc['providers'][class_.value] = current_site['providers'][class_.value]
 
     # Log critical path updates
     if 'center_gears' in doc:
@@ -63,13 +64,3 @@ def get_default_site_settings():
         SiteSettings: The default site settings
     """
     return models.SiteSettings(center_gears=None, providers=None)
-
-
-def initialize():
-    """Ensure that the initial site settings exists with a compute provider."""
-    provider_mapper = mappers.Providers()
-    compute_provider = models.Provider('compute', 'static', 'Default Compute Provider', None, {})
-    compute_provider_id = provider_mapper.get_or_create_site_provider(compute_provider)
-
-    site_mapper = mappers.SiteSettings()
-    site_mapper.ensure_provider('compute', compute_provider_id)

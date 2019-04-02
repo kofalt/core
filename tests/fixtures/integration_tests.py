@@ -73,16 +73,15 @@ def with_user(data_builder, randstr, as_public):
     return attrdict.AttrDict(user=user, api_key=api_key, session=session)
 
 @pytest.fixture(scope='function')
-def site_providers(api_db, data_builder):
+def compute_provider(api_db, data_builder):
     current_site_settings = api_db.singletons.find_one({'_id': 'site'})
 
-    # Set site providers
-    providers = {
-        'compute': data_builder.get_or_create('compute_provider'),
-    }
-    api_db.singletons.update({'_id': 'site'}, {'providers': providers}, upsert=True)
+    # Set compute provider
+    compute = data_builder.get_or_create('compute_provider')
 
-    yield providers
+    api_db.singletons.update({'_id': 'site'}, {'$set':{'providers.compute': compute}}, upsert=True)
+
+    yield compute
 
     if current_site_settings:
         api_db.singletons.update({'_id': 'site'}, current_site_settings)
