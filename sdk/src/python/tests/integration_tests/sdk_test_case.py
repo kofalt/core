@@ -14,8 +14,7 @@ def utcnow():
     # datetime requires tzinfo for comparison
     return datetime.utcnow().replace(tzinfo=TZ_UTC)
 
-def make_clients():
-    api_key = None
+def get_api_key():
     if init_db.SCITRAN_PERSISTENT_DB_URI:
         # Initialize database first
         init_db.init_db()
@@ -28,6 +27,11 @@ def make_clients():
     if not api_key:
         print('Could not initialize test case, no api_key. Try setting the SdkTestKey environment variable!')
         exit(1)
+
+    return api_key
+
+def make_clients():
+    api_key = get_api_key()
 
     fw = flywheel.Flywheel(api_key)
     fw.enable_feature('beta')

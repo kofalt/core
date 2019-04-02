@@ -108,8 +108,8 @@ Finally, if the ID of the Object is known, then it can be retrieved directly usi
 	% Get session by id
 	session = fw.get('5bed87475b0ab53e50d03e0c');
 
-Working with Objects [NEW]
---------------------------
+Working with Objects
+--------------------
 Most Objects in the Flywheel SDK provide methods for common operations. For example, to update properties on an object,
 you can simply call the ``update`` method, passing in a dictionary or key value pairs:
 
@@ -129,8 +129,8 @@ quickly refresh an object by calling reload:
 	% Reload a session
 	session = session.reload();
 
-Working with Finders [NEW]
---------------------------
+Working with Finders
+--------------------
 Another way to find objects is via Finders provided at the top level, and on objects. Finders allow locating objects
 via arbitrary filtering. Depending on which version of a finder method you call, you can retrieve all matching objects,
 or the first matching object. Finally, if you want to walk over a large number of objects, finders support iteration.
