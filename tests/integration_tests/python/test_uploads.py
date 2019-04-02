@@ -64,11 +64,6 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settin
     session_uid = prefix + '-session-uid'
     session_uid = unicode(bson.ObjectId())
 
-    print 'we have a device'
-    print as_device
-    import sys
-    sys.stdout.flush()
-
     project_1 = data_builder.create_project(label=project_label_1, group=group_1)
 
     # reaper-upload files to group_1/project_label_1 using session_uid
@@ -1701,7 +1696,7 @@ def test_analysis_engine_upload(data_builder, file_form, as_admin):
     assert r.ok
 
 
-def test_packfile_upload(data_builder, file_form, as_user, as_device, api_db):
+def test_packfile_upload(data_builder, file_form, as_user, as_device, api_db, with_site_settings):
     group = data_builder.create_group()
     project = data_builder.create_project()
     session = data_builder.create_session()
