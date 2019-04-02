@@ -15,7 +15,6 @@ from .dao.containerstorage import SubjectStorage, SessionStorage, AcquisitionSto
 from .jobs import rules
 from .jobs.jobs import Job, JobTicket, Logs
 from .site.storage_provider_service import StorageProviderService
-from .types import Origin
 from .web import encoder
 from .web.errors import FileFormException
 
