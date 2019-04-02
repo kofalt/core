@@ -350,7 +350,8 @@ class EnginePlacer(Placer):
             job = Job.get(self.context.get('job_id'))
 
         # Save a deep-copy of produced metadata before
-        # manipulation (if we're saving it to a job)
+        # manipulation but after sanitization (if we're saving it to a job)
+        self.metadata = util.mongo_sanitize_fields(self.metadata)
         produced_metadata = copy.deepcopy(self.metadata) if job is not None else None
 
         if self.metadata is not None:
