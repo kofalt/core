@@ -48,16 +48,31 @@ def with_site_settings(session, api_db):
         provider = api_db.providers.insert_one({
             "_id": bson.ObjectId("deadbeefdeadbeefdeadbeef"),
             "origin": {"type":"system", "id":"system"},
-            "created":"2019-03-19T18:48:37.790Z",
-            "config":{"path":local_fs_url},
-            "modified":"2019-03-19T18:48:37.790Z",
-            "label":"Local Storage",
-            "provider_class":"storage",
-            "provider_type":"osfs"
+            "created": "2019-03-19T18:48:37.790Z",
+            "config": {"path":local_fs_url},
+            "modified": "2019-03-19T18:48:37.790Z",
+            "label": "Local Storage",
+            "provider_class": "storage",
+            "provider_type": "osfs"
         })
-        provider_id = provider.inserted_id
+        storage_provider_id = provider.inserted_id
     else:
-        provider_id = provider['_id']
+        storage_provider_id = provider['_id']
+
+    provider = api_db.providers.find_one({'label': 'Default Compute Provider'})
+    if not provider:
+        provider = api_db.providers.insert_one({
+            "origin": {"type":"system", "id":"system"},
+            "created": "2019-03-19T18:48:37.790Z",
+            "config": {"path":local_fs_url},
+            "modified": "2019-03-19T18:48:37.790Z",
+            "label": "Default Compute Provider",
+            "provider_class": "compute",
+            "provider_type": "static"
+        })
+        compute_provider_id = provider.inserted_id
+    else:
+        compute_provider_id = provider['_id']
 
     api_db.singletons.update({'_id':'site'},
         {
@@ -65,7 +80,7 @@ def with_site_settings(session, api_db):
             "center_gears": [],
             "created": "2019-03-19T18:44:17.701078+00:00",
             "modified": "2019-03-19T18:44:17.701094+00:00",
-            "providers": {"storage": "deadbeefdeadbeefdeadbeef"}
+            "providers": {"storage": storage_provider_id, "compute": compute_provider_id}
         },
         True)
 
@@ -134,7 +149,7 @@ def default_payload():
     return attrdict.AttrDict({
         'user': {'firstname': 'test', 'lastname': 'user'},
         'group': {},
-        'project': {'public': True, 'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}},
+        'project': {'public': True},
         'subject': {'public': True},
         'session': {'public': True},
         'acquisition': {'public': True},
@@ -207,6 +222,18 @@ def bootstrap_users(session, api_db):
     api_db.singletons.delete_one({'_id': 'bootstrap'})
 
 @pytest.fixture(scope='session')
+def bootstrap_device(session, api_db, as_admin):
+    """Create api key and device"""
+    _session = session()
+    r = as_admin.post('/devices', json={'label': 'test device', 'type': 'reaper'})
+    assert r.ok
+    device = r.json()
+
+    yield device
+
+    r = as_admin.delete('/devices', json={'label': 'test device', 'type': 'reaper'})
+
+@pytest.fixture(scope='session')
 def as_drone(session):
     """Return ApiAccessor with drone access"""
     _session = session()
@@ -239,6 +266,11 @@ def as_user(session, bootstrap_users):
     _session.headers.update({'Authorization': 'scitran-user {}'.format(SCITRAN_USER_API_KEY)})
     return _session
 
+@pytest.fixture(scope='session')
+def as_device(session, bootstrap_device):
+    _session = session()
+    _session.headers.update({'Authorization': 'scitran-user {}'.format(bootstrap_device['key'])})
+    return _session
 
 @pytest.fixture(scope='function')
 def as_public(session):
@@ -276,6 +308,7 @@ class DataBuilder(object):
 
         # merge any kwargs on top of the default payload
         payload = copy.deepcopy(_default_payload[resource])
+
         _merge_dict(payload, kwargs)
 
         # add missing required unique fields using randstr

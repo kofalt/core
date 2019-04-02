@@ -84,3 +84,14 @@ def require_drone(handler_method):
             raise APIPermissionException('Superuser required.')
         return handler_method(self, *args, **kwargs)
     return check_drone
+
+def require_device(handler_method):
+    """
+    A decorator to ensure the request is made as a device.
+
+    """
+    def check_device(self, *args, **kwargs):
+        if self.origin.get('type', '') != Origin.device:
+            raise APIPermissionException('Device request required.')
+        return handler_method(self, *args, **kwargs)
+    return check_device

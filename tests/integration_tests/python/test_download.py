@@ -960,6 +960,11 @@ def test_full_project_download(data_builder, file_form, as_admin, as_root, as_dr
     acquisition3 = data_builder.create_acquisition(label='acquisition3', session=session3)
     acquisition4 = data_builder.create_acquisition(label='acquisition4', session=session4)
 
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
+
     # Set metadata on session
     as_admin.post('/sessions/' + session + '/info', json={
         'replace': {

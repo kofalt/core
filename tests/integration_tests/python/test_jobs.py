@@ -1043,7 +1043,7 @@ def test_jobs_capabilities(data_builder, default_payload, as_public, as_user, as
     assert len(result['jobs']) == 1
     assert result['jobs'][0]['id'] == job_id
 
-def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form):
+def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form, with_site_settings):
     # create gear
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -1054,6 +1054,12 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     gear = data_builder.create_gear(gear=gear_doc)
     gear2 = data_builder.create_gear()
     project = data_builder.create_project()
+
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
+
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
@@ -1184,7 +1190,16 @@ def test_job_state_transition_from_complete(data_builder, default_payload, as_ad
 
     # create acq with file (for input)
     acquisition = data_builder.create_acquisition()
+
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
+    assert r.ok
+
+    # Projects must have a provider for job/gear uploads to work
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    project = r.json().get('parents').get('project')
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
     assert r.ok
 
     # create job
@@ -2348,7 +2363,7 @@ def test_config_values(data_builder, default_payload, as_admin, file_form):
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
 
-def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, as_public, file_form, api_db):
+def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, as_public, file_form, api_db, with_site_settings):
     # Dupe of test_queue.py
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -2372,6 +2387,10 @@ def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, 
     })
     session = data_builder.create_session(label='job-detail session')
     acquisition = data_builder.create_acquisition(label='job-detail acquisition')
+
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
 
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
@@ -2599,7 +2618,7 @@ def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, 
     r = as_admin.get('/jobs/' + job + '/detail')
     assert r.ok
 
-def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form):
+def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form, with_site_settings):
     # create gear
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -2613,6 +2632,11 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
+    assert r.ok
+
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
     assert r.ok
 
     # create invalid rule for the project
@@ -2701,7 +2725,7 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     assert r.ok
     assert r.json()['logs'] == expected_job_logs
 
-def test_job_providers(site_providers, data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
+def test_job_providers(compute_provider, data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
     gear_name = data_builder.randstr()
     gear_doc = default_payload['gear']['gear']
     gear_doc['name'] = gear_name
@@ -2724,7 +2748,7 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
         '_id': user_id
     }).ok
 
-    site_provider = site_providers['compute']
+    site_provider = compute_provider
     override_provider = data_builder.create_compute_provider()
 
     job_data_orig = {

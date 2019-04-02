@@ -12,7 +12,7 @@ from .providers import get_provider_id_for_container
 class StorageProviderService(object):
 
     # pylint: disable=unused-argument
-    def determine_provider(self, origin, container=None, file_size=None):
+    def determine_provider(self, origin, container=None, file_size=None, force_site_provider=False):
         """
         Determines which storage provider to use based on the origin of the file
 
@@ -20,11 +20,18 @@ class StorageProviderService(object):
         :param dict job: A dict with the following definition
         :param dict container: the container in which the file is being placed
         :param int file_size: Size of the file, will not be known for signed urls.
+        :param bool force_site_provider: Override that forces site provider selection
         :rtype StorageProvider:  Returns the provider
         :raises ValueError:
-
         """
+
         site_doc = get_site_settings()
+        if not site_doc.providers.get('storage'):
+            raise ValueError('Site settings are not configured for a storage provider')
+        
+        if force_site_provider:
+            return providers.get_provider_instance(site_doc.providers['storage'])
+
         if origin['type'] == Origin.device.value:
             return providers.get_provider_instance(site_doc.providers['storage'])
 

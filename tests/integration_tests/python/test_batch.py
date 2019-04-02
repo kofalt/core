@@ -866,7 +866,7 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     # must remove jobs manually because gears were added manually
     api_db.jobs.remove({'gear_id': {'$in': [gear, gear_v1]}})
 
-def test_batch_providers(site_providers, data_builder, api_db, as_user, as_admin, as_root, as_drone):
+def test_batch_providers(compute_provider, data_builder, api_db, as_user, as_admin, as_root, as_drone, with_site_settings):
     gear_id = data_builder.create_gear()
     gear = as_admin.get('/gears/' + gear_id).json()
 
@@ -877,7 +877,7 @@ def test_batch_providers(site_providers, data_builder, api_db, as_user, as_admin
     as_admin.post('/acquisitions/' + acquisition + '/files', files={
         'file': ('test.txt', 'test\ncontent\n')})
 
-    site_provider = site_providers['compute']
+    site_provider = compute_provider
     override_provider = data_builder.create_compute_provider()
 
     # Ensure that user is a project admin

@@ -128,12 +128,13 @@ def test_provider_mapper_find_all(api_db):
     try:
         results = list(mapper.find_all(models.ProviderClass.storage))
         # This provider is the default site provider so exclude it from our tests if present
+        final_results = []
         for result in results:
-            if result.label == 'Local Storage':
-                results.remove(result)
+            if result.label != 'Local Storage':
+                final_results.append(result)
 
-        assert len(results) == 1
-        assert results[0].to_dict() == storage_provider.to_dict()
+        assert len(final_results) == 1
+        assert final_results[0].to_dict() == storage_provider.to_dict()
 
         results = list(mapper.find_all('compute'))
         assert len(results) >= 1
@@ -141,18 +142,14 @@ def test_provider_mapper_find_all(api_db):
         assert compute_provider.to_dict() in dict_results
 
         results = list(mapper.find_all('nothing'))
-        # This provider is the default site provider so exclude it from our tests if present
-        for result in results:
-            if result.label == 'Local Storage':
-                results.remove(result)
-
         assert len(results) == 0
 
         results = list(mapper.find_all())
+        final_results = [];
         for result in results:
-            if result.label == 'Local Storage':
-                results.remove(result)
-        assert len(results) == 2
+            if not (result.label == 'Local Storage' or result.label == 'Default Compute Provider'):
+                final_results.append(result)
+        assert len(final_results) == 2
 
     finally:
         # Cleanup
@@ -268,12 +265,12 @@ def test_provider_repository_load(api_db):
 
         # Load all
         results = list(providers.get_providers())
-        # This provider is the default site provider so exclude it from our tests if present
+        # These are the defaults  so exclude from our tests if present
+        final_results = [];
         for result in results:
-            if result.label == 'Local Storage':
-                results.remove(result)
-
-        assert len(results) == 2
+            if not (result.label == 'Local Storage' or result.label == 'Default Compute Provider'):
+                final_results.append(result)
+        assert len(final_results) == 2
 
         # Load by type
         results = list(providers.get_providers('compute'))

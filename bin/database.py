@@ -2403,9 +2403,9 @@ def upgrade_to_64():
 
     provider = config.db.providers.insert_one({
         "origin": {"type":"system","id":"system"},
-        "created":"2019-03-19T18:48:37.790Z",
+        "created": datetime.datetime.now(),
         "config":{"path":config.local_fs_url},
-        "modified":"2019-03-19T18:48:37.790Z",
+        "modified": datetime.datetime.now(),
         "label":"Local Storage",
         "provider_class":"storage",
         "provider_type":"osfs"
@@ -2414,13 +2414,60 @@ def upgrade_to_64():
     config.db.singletons.insert_one({
         "_id": "site",
         "center_gears": [],
-        "created": "2019-03-19T18:44:17.701078+00:00",
-        "modified": "2019-03-19T18:44:17.701094+00:00",
+        "created": datetime.datetimne.now(),
+        "modified": datetime.datetime.now(),
         "providers": {"storage": provider.inserted_id}
     })
+    
+    # validate that all files have _ids
+    config.db.acquisitions.files.find_one(
+        {'_id': {'$exists': None}}
+    )
+
+    #Check if any file does not have a vaild _id
+    if config.db.acquistions.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all aquistion files have a file._id'
+    if config.db.analysis.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all analysis files have a file._id'
+    if config.db.acquistions.find_one({'inputs': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all aquistion files have a file._id'
+    if config.db.collections.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all collection files have a file._id'
+    if config.db.projects.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all project files have a file._id'
+    if config.db.sessions.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all session files have a file._id'
+    if config.db.subjects.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all subject files have a file._id'
+    if config.db.gears.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
+        raise 'Not all subject files have a file._id'
 
     # TODO: update all files to have the provider id.  
-    
+    config.db.acquisitions.update_many(
+        {'files._id': {'$exists': True}},
+        {'$set': {'files.$.provider_id': provider.inserted_id}})
+    config.db.analysis.update_many(
+        {'files._id': {'$exists': True}},
+        {'$set': {'files.$.provider_id': provider.inserted_id}})
+    config.db.analysis.update_many(
+        {'inputs._id': {'$exists': True}},
+        {'$set': {'inputs.$.provider_id': provider.inserted_id}})
+    config.db.collections.update_many(
+        {'files._id': {'$exists': True}},
+        {'$set': {'files.$.provider_id': provider.inserted_id}})
+    config.db.projects.update_many(
+        {'files._id': {'$exists': True}},
+        {'$set': {'files.$.provider_id': provider.inserted_id}})
+    config.db.sessions.update_many(
+        {'files._id': {'$exists': True}},
+        {'$set': {'files.$.provider_id': provider.inserted_id}})
+    config.db.subject.update_many(
+        {},
+        {'$set': {'files.$.provider_id': provider.inserted_id}})
+
+    config.db.gears.update_many(
+        {'exchange.rootfs-id': {'$exists': True}},
+        {'$set': {'exchange.rootfs-provider-id': provider.inserted_id}})
 
 def upgrade_schema(force_from = None):
     """

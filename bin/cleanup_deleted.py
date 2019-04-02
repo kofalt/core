@@ -12,11 +12,8 @@ import sys
 
 import pymongo
 
-from flywheel_common import storage
-
 from api import util
-from api.site.storage_provider_service import StorageProviderService
-
+from api.site.providers import get_provider_instance
 
 log = logging.getLogger('cleanup_deleted')
 cont_names = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses', 'collections']
@@ -37,18 +34,12 @@ def main(*argv):
     logging.getLogger('botocore').setLevel(logging.WARNING)  # silence botocore library
     logging.getLogger('azure.storage').setLevel(logging.WARNING)  # silence azure.storage library
 
-    global db, fs, data_path
-
-    storage_service = StorageProviderService()
-    local_fs = storage_service.determine_provider(None, None)
-    fs = local_fs.storage_plugin
+    global db, data_path
 
     db_uri = os.environ['SCITRAN_PERSISTENT_DB_URI']
     db = pymongo.MongoClient(db_uri).get_default_database()
 
     log.info('Using mongo URI: %s', db_uri)
-    log.info('Using data provider: %s', local_fs.provider_id)
-    log.info('Using storage path: %s', local_fs.storage_url)
 
     origins = []
 
@@ -234,9 +225,10 @@ def cleanup_files(remove_all, origins, project_id, job_phi):
 
                 if f.get('_id'):
                     uuid_path = util.path_from_uuid(f['_id'])
-                    if fs.get_file_info(f['_id'], uuid_path):
-                        log.debug('    removing from %s', fs)
-                        fs.remove_file(f['_id'], uuid_path)
+                    storage_provider = get_provider_instance(f['provider_id'])
+                    if storage_provider.storage_plugin.get_file_info(f['_id'], uuid_path):
+                        log.debug('    removing from %s', storage_provider.provider_label)
+                        storage_provider.storage_plugin.remove_file(f['_id'], uuid_path)
 
                     if not document_deleted:
                         # only need to remove the file from the database

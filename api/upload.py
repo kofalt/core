@@ -5,6 +5,7 @@ import os
 import uuid
 import fs.errors
 
+from .auth import require_device
 from flywheel_common import storage
 from .web import base
 from .web.errors import FileFormException
@@ -14,6 +15,7 @@ from . import placer as pl
 from . import util
 from .dao import hierarchy
 from .site.storage_provider_service import StorageProviderService
+from .types import Origin
 
 Strategy = util.Enum('Strategy', {
     'targeted'       : pl.TargetedPlacer,       # Upload 1 files to a container.
@@ -87,13 +89,16 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     else:
         name_fn = os.path.basename
 
+    # Gear uploads come in as user origin but we need to be sure they end up in the site storage provider
+    force_site_provider = False
+    if container_type == 'gear':
+        force_site_provider = True
 
     # The vast majority of this function's wall-clock time is spent here.
     storage_service = StorageProviderService()
-    final_storage = storage_service.determine_provider(origin, container)
-    file_processor = files.FileProcessor(final_storage)
-
+    final_storage = storage_service.determine_provider(origin, container, force_site_provider=force_site_provider)
     if not file_fields:
+        file_processor = files.FileProcessor(final_storage)
         # The only time we need the tempdir_name is when we use token and packfile.
         form = file_processor.process_form(request, use_filepath=filename_path, tempdir_name=tempdir)
 
@@ -237,19 +242,15 @@ class Upload(base.RequestHandler):
             self.abort(403, 'ticket not for this resource or source IP')
         return ticket
 
+    @require_device
     def upload(self, strategy):
-        """Receive a sortable reaper upload."""
-
-        if not self.user_is_admin:
-            user = self.uid
-            if not user:
-                self.abort(403, 'Uploading requires login')
+        """Receive a sortable reaper upload only from devices."""
 
         if strategy in ['label', 'uid', 'uid-match', 'reaper']:
             strategy = strategy.replace('-', '')
             strategy = getattr(Strategy, strategy)
 
-        context = {'uid': self.uid if not self.user_is_admin else None}
+        context = {'uid': None}
 
         # Request for upload ticket
         if self.get_param('ticket') == '':

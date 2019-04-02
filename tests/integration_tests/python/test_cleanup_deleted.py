@@ -52,7 +52,7 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     # TODO: we will have to be sure we get the same provider when we move to multi provider support
     storage_service = StorageProviderService()
-    storage = storage_service.determine_provider(None, None)
+    storage = storage_service.determine_provider(None, None, force_site_provider=True)
     assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is not None
 
     # file won't be deleted after 72 hours if the origin is a user

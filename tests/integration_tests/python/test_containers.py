@@ -419,6 +419,11 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_us
     project = data_builder.create_project()
     session = data_builder.create_session()
 
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
+    
     # Add User to permissions
     as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
 
@@ -432,22 +437,22 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_us
 
     # upload files for testing join=origin
     # Origin.user upload (the jobs below also reference it)
-    as_user.post('/projects/' + project + '/files', files=file_form(
-        'user.csv', meta={'name': 'user.csv'}))
+    assert as_user.post('/projects/' + project + '/files', files=file_form(
+        'user.csv', meta={'name': 'user.csv'})).ok
     job_1 = data_builder.create_job(inputs={
         'user': {'type': 'project', 'id': project, 'name': 'user.csv'}})
 
     # Origin.job upload (requires as_drone)
-    as_drone.post('/engine',
+    assert as_drone.post('/engine',
         params={'level': 'project', 'id': project, 'job': job_1},
-        files=file_form('job_1.csv', meta={'project': {'files': [{'name': 'job_1.csv'}]}}))
+        files=file_form('job_1.csv', meta={'project': {'files': [{'name': 'job_1.csv'}]}})).ok
     job_2 = data_builder.create_job(inputs={
         'user': {'type': 'project', 'id': project, 'name': 'user.csv'}})
 
     # additional Origin.job upload for testing join=origin_job_gear_name gear name caching
-    as_drone.post('/engine',
+    assert as_drone.post('/engine',
         params={'level': 'project', 'id': project, 'job': job_2},
-        files=file_form('job_2.csv', meta={'project': {'files': [{'name': 'job_2.csv'}]}}))
+        files=file_form('job_2.csv', meta={'project': {'files': [{'name': 'job_2.csv'}]}})).ok
 
     # upload file and unset origin to mimic missing origin scenario
     as_user.post('/projects/' + project + '/files', files=file_form(

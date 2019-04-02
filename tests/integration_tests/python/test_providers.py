@@ -7,13 +7,14 @@ VALID_PROVIDER = {
     'config': {},
 }
 
-def test_providers_initial_state(as_user):
+def test_providers_initial_state(as_user, with_site_settings, api_db):
+
     r = as_user.get('/site/providers')
     assert r.ok
 
     static_provider_id = None
     for provider in r.json():
-        if provider['provider_class'] == 'compute' and provider['provider_type'] == 'static':
+        if provider['provider_class'] == 'compute' and provider['label'] == 'Default Compute Provider':
             static_provider_id = provider['_id']
 
     assert static_provider_id is not None
@@ -21,7 +22,6 @@ def test_providers_initial_state(as_user):
     r = as_user.get('/site/settings')
     assert r.ok
     site_settings = r.json()
-
     assert site_settings.get('providers', {}).get('compute') == static_provider_id
 
 def test_create_providers(api_db, as_admin, as_user, as_public):
@@ -225,7 +225,7 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
         if device_id is not None:
             assert as_root.delete('/devices/' + device_id).ok
 
-def test_site_providers(api_db, data_builder, as_user, as_admin):
+def test_site_providers(api_db, data_builder, as_user, as_admin, with_site_settings):
     # Create a static compute provider
     r = as_admin.post('/site/providers', json=VALID_PROVIDER)
     assert r.ok
@@ -335,7 +335,7 @@ def test_project_providers(api_db, data_builder, as_user, as_admin):
         project2 = data_builder.create_project(providers={'compute': provider_id})
         r = as_admin.get('/projects/' + project2)
         assert r.ok
-        assert r.json()['providers'] == {'compute': provider_id}
+        assert r.json()['providers']['compute'] == provider_id
 
         # Can't set provider on subject/session
         r = as_admin.post('/subjects', json={'project': project, 'code': 'subject2', 'providers': {'compute': provider_id}})
