@@ -3,11 +3,9 @@
 # # # WHY Does this import not work when this file was under the providers dir
 from . import get_site_settings
 from ..types import Origin
-from ..dao.hierarchy import get_container
 from . import providers
 from .models.provider import ProviderClass
 from ..config import local_fs_url
-from .providers import get_provider_id_for_container
 
 class StorageProviderService(object):
 
