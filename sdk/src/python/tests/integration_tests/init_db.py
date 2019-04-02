@@ -1,6 +1,7 @@
 import binascii
 import os
 import datetime
+import bson
 
 SCITRAN_PERSISTENT_DB_URI = os.environ.get('SCITRAN_PERSISTENT_DB_URI')
 SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10)).decode('utf-8')
@@ -41,7 +42,8 @@ def create_site(db, path, **kwargs):
     provider = db.providers.find_one({'label':'Local Storage'})
 
     if not provider:
-        provider = db.providers.insert_one({
+        storage_provider = db.providers.insert_one({
+            "_id": bson.ObjectId("deadbeefdeadbeefdeadbeef"),
             "origin": {"type":"system", "id":"system"},
             "created":"2019-03-19T18:48:37.790Z",
             "config":{"path": path},
@@ -50,9 +52,24 @@ def create_site(db, path, **kwargs):
             "provider_class":"storage",
             "provider_type":"osfs"
         })
-        provider_id = provider.inserted_id
+        storage_provider_id = storage_provider.inserted_id
     else:
-        provider_id = provider['_id']
+        storage_provider_id = provider['_id']
+
+    provider = db.providers.find_one({'label': 'Default Compute Provider'})
+    if not provider:
+        compute_provider = db.providers.insert_one({
+            "origin": {"type":"system", "id":"system"},
+            "created": "2019-03-19T18:48:37.790Z",
+            "config": {"path":path},
+            "modified": "2019-03-19T18:48:37.790Z",
+            "label": "Default Compute Provider",
+            "provider_class": "compute",
+            "provider_type": "static"
+        })
+        compute_provider_id = compute_provider.inserted_id
+    else:
+        compute_provider_id = provider['_id']
 
     db.singletons.update({'_id':'site'},
         {
@@ -60,7 +77,9 @@ def create_site(db, path, **kwargs):
             "center_gears": [],
             "created": "2019-03-19T18:44:17.701078+00:00",
             "modified": "2019-03-19T18:44:17.701094+00:00",
-            "providers": {"storage": provider_id}
+            "providers": {
+                "storage": storage_provider_id,
+                'compute': compute_provider_id}
         },
         True)
 
