@@ -592,17 +592,9 @@ class PackfilePlacer(Placer):
 
         self.zip_.close()
 
-        # We have to determine provider before we override the origin.  What do we force origin to user?
-        final_storage = self.storage_service.determine_provider(self.origin, self.container)
-
         # Lookup uid on token
         token  = self.context['token']
-        uid = config.db['tokens'].find_one({ '_id': token }).get('user')
-        self.origin = {
-            'type': str(Origin.user),
-            'id': uid
-        }
-
+        final_storage = self.storage_service.determine_provider(self.origin, self.container)
         with self.temp_fs.get_fs().open(tempZipPath, 'rb') as (f1
                 ), final_storage.storage_plugin.open(token, storage.util.path_from_uuid(token), 'wb') as f2:
             while True:
