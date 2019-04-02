@@ -761,6 +761,8 @@ class FileListHandler(ListHandler):
             upload.Strategy.token,
             self.log_user_access,
             origin=self.origin,
+            container_type='project',
+            id_=project_id,
             context={'token': token_id},
             tempdir=fs.path.join('tokens', 'packfile', token_id))
 
@@ -776,5 +778,13 @@ class FileListHandler(ListHandler):
         # Because this is an SSE endpoint, there is no form-post. Instead, read JSON data from request param
         metadata = json.loads(self.request.GET.get('metadata'))
 
-        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id},
-                response=self.response, metadata=metadata, tempdir=fs.path.join('tokens', 'packfile', token_id))
+        return upload.process_upload(self.request,
+                upload.Strategy.packfile,
+                self.log_user_access,
+                origin=self.origin,
+                container_type='project',
+                id_=project_id,
+                context={'token': token_id},
+                response=self.response,
+                metadata=metadata,
+                tempdir=fs.path.join('tokens', 'packfile', token_id))
