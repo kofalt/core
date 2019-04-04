@@ -4,6 +4,7 @@ from . import config
 
 from .dao.hierarchy import get_parent_tree
 from .web.request import AccessType
+from .web.errors import APIStorageException
 
 
 def log_user_access(request, access_type, cont_name=None, cont_id=None,
@@ -45,7 +46,10 @@ def log_user_access(request, access_type, cont_name=None, cont_id=None,
         if cont_name in ['collection', 'collections']:
             context['collection'] = {'id': cont_id}
         else:
-            tree = get_parent_tree(cont_name, cont_id)
+            try:
+                tree = get_parent_tree(cont_name, cont_id)
+            except APIStorageException:
+                return
 
             for k, v in tree.iteritems():
                 label_key = 'code' if k == 'subject' else 'label'

@@ -318,7 +318,7 @@ endpoints = [
 
 
         # Analyses
-        route( '/analyses/<_id:{oid}>',                      AnalysesHandler,  m=['GET']),
+        route( '/analyses/<_id:{oid}>',                      AnalysesHandler,  m=['GET', 'PUT']),
         prefix('/analyses/<_id:{oid}>', [
             route('/files',                                       AnalysesHandler, h='upload',      m=['POST']),
             route('/<filegroup:inputs|files>/<filename:{fname}>', AnalysesHandler, h='download',    m=['GET']),

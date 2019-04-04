@@ -1,6 +1,10 @@
+# coding=utf-8
 
+import bson
 import pytest
+import mock
 from api import files
+from api.dao import liststorage
 
 
 def test_extension():
@@ -39,3 +43,32 @@ def test_eeg():
 def test_ParaVision():
     assert files.guess_type_from_filename('1.pv5.zip') == 'ParaVision'
     assert files.guess_type_from_filename('1.pv6.zip') == 'ParaVision'
+
+
+def test_delet_file(api_db):
+    filename = u'åß∂.csv'
+    result = api_db.acquisitions.insert_one({
+        '_id': bson.ObjectId(),
+        'label': 'AcquisitionLabel',
+        'files': [
+            {
+                'name': filename,
+                'origin': {'type': 'user', 'id': 'me@email.com'},
+            }
+        ],
+        'session': bson.ObjectId()
+    })
+    acquisition_id = result.inserted_id
+
+    storage = liststorage.FileStorage('acquisitions')
+    storage.dbc = api_db.acquisitions
+
+    with mock.patch('api.dao.liststorage.ListStorage._update_session_compliance'):
+        storage._delete_el(acquisition_id, {'name': filename.encode('utf-8')})
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_id})
+    assert filename not in [f['name'] for f in acquisition.get('files', []) if f.get('deleted') is None]
+
+    # Cleanup
+    api_db.acquisitions.delete_one({'_id': acquisition_id})
+

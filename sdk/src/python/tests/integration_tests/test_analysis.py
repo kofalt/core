@@ -122,6 +122,11 @@ class AnalysisTestCases(SdkTestCase):
             'hello': 'world'
         })
 
+        # Update analysis label
+        r_analysis.update({'label': 'NewLabel'})
+        r_analysis = r_analysis.reload()
+        assert r_analysis.label == 'NewLabel'
+
     def test_job_based_analysis(self):
         fw = self.fw
 
