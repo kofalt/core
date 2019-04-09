@@ -380,7 +380,9 @@ class FileListHandler(ListHandler):
         ticket = config.db.downloads.find_one({'_id': ticket_id})
         if not ticket:
             self.abort(404, 'no such ticket')
-        if ticket['target'] != _id or ticket['filename'] != filename or ticket['ip'] != self.request.client_addr:
+        if (ticket['target'] != _id or
+            ticket['filename'].encode('utf-8') != filename or
+            ticket['ip'] != self.request.client_addr):
             self.abort(400, 'ticket not for this resource or source IP')
         return ticket
 
@@ -418,7 +420,6 @@ class FileListHandler(ListHandler):
         permchecker, storage, _, _, keycheck = self._initialize_request(cont_name, list_name, _id)
         list_name = storage.list_name
         filename = kwargs.get('name')
-
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('ticket')
         ticket = None
@@ -655,7 +656,6 @@ class FileListHandler(ListHandler):
         rules_using_file = rules_mapper.find_all(fixed_input={'name': filename, 'id': _id})
         for rule in rules_using_file:
             raise APIPermissionException('File is used as fixed input in rule {} in project {}, please delete the rule to delete the file'.format(rule.name, rule.project_id))
-
 
         self.log_user_access(AccessType.delete_file, cont_name=cont_name, cont_id=_id, filename=filename)
         result = keycheck(storage.exec_op)('DELETE', _id, query_params=kwargs)
