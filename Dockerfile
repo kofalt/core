@@ -46,6 +46,7 @@ RUN set -eux \
     && echo $API_VERSION > /src/core/api_version.txt \
     && /src/core/bin/build_info.sh $VCS_BRANCH $VCS_COMMIT > /src/core/version.json \
     && cat /src/core/version.json
+VOLUME "/src/core/core.egg-info"
 
 # testing - install mongodb & test deps for standalone running/testing
 FROM base as testing
@@ -58,6 +59,7 @@ COPY tests/requirements.txt /src/core/tests/requirements.txt
 RUN pip install -r /src/core/tests/requirements.txt
 COPY . /src/core
 RUN pip install --no-deps -e /src/core
+VOLUME "/src/core/core.egg-info"
 
 # TODO uncomment once compatible with fly/fly
 # # make dist the last (default) build target
