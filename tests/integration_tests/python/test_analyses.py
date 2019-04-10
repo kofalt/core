@@ -200,6 +200,38 @@ def test_offline_analysis(data_builder, as_admin, file_form, api_db):
     })
     assert r.status_code == 404
 
+    # Create ad-hoc analysis with info
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'offline',
+        'inputs': [{'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}],
+        'info': {'bar': 'bar'}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Get info ad-hoc analysis
+    r = as_admin.get('/sessions/' + session + '/analyses/' + analysis)
+    assert r.ok
+    info = r.json()['info']
+    assert info ==  {'bar': 'bar'}
+
+    # ad-hoc analysis with info sanitize
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'offline',
+        'inputs': [{'type': 'acquisition', 'id': acquisition, 'name': 'input.csv'}],
+        'info': {'.': 'dot',
+                 '$': 'dollar'}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    # Get sanitized info ad-hoc analysis
+    r = as_admin.get('/sessions/' + session + '/analyses/' + analysis)
+    assert r.ok
+    info = r.json()['info']
+    assert info ==  {'_': 'dot',
+                     '-': 'dollar'}
+
     # Create ad-hoc analysis
     r = as_admin.post('/sessions/' + session + '/analyses', json={
         'label': 'offline',

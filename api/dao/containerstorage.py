@@ -5,6 +5,7 @@ import copy
 from . import containerutil
 from . import hierarchy
 from .. import config
+from .. import util
 
 from ..util import deep_update
 from ..jobs.jobs import Job
@@ -469,6 +470,8 @@ class AnalysisStorage(ContainerStorage):
             else:
                 analysis['inputs'][i] = fileref.get_file()
 
+        if analysis.get('info') is not None:
+            analysis['info'] = util.mongo_sanitize_fields(analysis['info'])
 
         result = super(AnalysisStorage, self).create_el(analysis)
         if not result.acknowledged:
