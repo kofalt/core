@@ -50,13 +50,25 @@ def config_from_api_key(api_key):
     return config
 
 
+def config_from_drone_login(drone_login):
+    config = Configuration()
+    config.host = 'https://{}:{}/api'.format(drone_login.host, drone_login.port)
+    config.auth_headers = drone_login.get_headers()
+    config.auth_settings = lambda: {}
+    return config
+
+
 class Flywheel:
-    def __init__(self, api_key, root=False, skip_version_check=True, subjects_in_resolver=None):
+    def __init__(self, api_key, root=False, skip_version_check=True,
+            subjects_in_resolver=None, drone_login=None):
         # Init logging
         logging.basicConfig()
 
         # Parse API Key and configure api_client
-        config = config_from_api_key(api_key)
+        if drone_login is not None:
+            config = config_from_drone_login(drone_login)
+        else:
+            config = config_from_api_key(api_key)
         self.api_client = ApiClient(config, context=self)
 
         # Root mode (Deprecated)

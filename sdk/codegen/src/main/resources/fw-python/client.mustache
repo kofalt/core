@@ -16,7 +16,7 @@ def get_api_key_from_cli(path):
 
 class Client(object):
     def __init__(self, api_key=None, **kwargs):
-        if not api_key:
+        if not api_key and 'drone_login' not in kwargs:
             api_key = get_api_key_from_cli(os.path.expanduser('~/.config/flywheel/user.json'))
 
         self._fw = Flywheel(api_key, **kwargs)

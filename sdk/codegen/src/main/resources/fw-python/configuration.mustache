@@ -76,6 +76,9 @@ class Configuration(six.with_metaclass(TypeWithDefault, object)):
         # Debug switch
         self.debug = False
 
+        # Alternate headers for authentication
+        self.auth_headers = {}
+
         # SSL/TLS verification
         # Set this to false to skip verifying SSL certificate when calling API
         # from https server.
