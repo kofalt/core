@@ -31,6 +31,7 @@ from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 from ..web.request import log_access, AccessType
+from ..site import providers
 
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,
@@ -559,6 +560,23 @@ class JobsHandler(base.RequestHandler):
         job.insert()
 
         return { '_id': job.id_ }
+
+    @require_login
+    def determine_provider(self):
+        """Determine the effective provider for a job"""
+        payload = self.request.json
+
+        if payload.get('destination') and payload['destination']['type'] == 'analysis':
+            raise InputValidationException('Cannot use analysis as destination for a job')
+
+        # Remove any existing provider
+        payload.pop('compute_provider_id', None)
+
+        # Raises precondition failed if provider could not be determined
+        job = Queue.enqueue_job(payload, self.origin, perm_check_uid=None)
+
+        # Retrieve the provider
+        return providers.get_provider(job.compute_provider_id)
 
     @require_admin
     def stats(self):

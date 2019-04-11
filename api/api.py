@@ -155,6 +155,7 @@ endpoints = [
             route('/stats',                         JobsHandler, h='stats',                m=['GET']),
             route('/reap',                          JobsHandler, h='reap_stale',           m=['POST']),
             route('/add',                           JobsHandler, h='add',                  m=['POST']),
+            route('/determine_provider',            JobsHandler, h='determine_provider',   m=['POST']),
             route('/<:[^/]+>',                      JobHandler),
             route('/<:[^/]+>/config.json',          JobHandler,  h='get_config'),
             route('/<:[^/]+>/retry',                JobHandler,  h='retry',                m=['POST']),

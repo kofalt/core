@@ -2750,6 +2750,9 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.status_code == 412
 
+    r = as_admin.post('/jobs/determine_provider', json=job_data)
+    assert r.status_code == 412
+
     # Validate overridden provider_id
     job_data['compute_provider_id'] = str(bson.ObjectId())
     r = as_admin.post('/jobs/add', json=job_data)
@@ -2764,6 +2767,10 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
     job_id = r.json()['_id']
+
+    # Still return 412 on determine_provider because we ignore overridden provider
+    r = as_admin.post('/jobs/determine_provider', json=job_data)
+    assert r.status_code == 412
 
     r = as_admin.get('/jobs/' + job_id)
     assert r.ok
@@ -2852,6 +2859,13 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     # Can create job (device origin)
     api_db.acquisitions.update_one({'_id': bson.ObjectId(acquisition)}, {'$set': {'files.0.origin.type': 'device'}})
 
+    # Get site provider back
+    r = as_admin.post('/jobs/determine_provider', json=job_data)
+    r_provider = r.json()
+    for key in ('created', 'modified', 'label', 'origin', 'provider_class', 'provider_type'):
+        assert key in r_provider
+    assert r_provider['_id'] == site_provider
+
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
     job_id = r.json()['_id']
@@ -2865,6 +2879,9 @@ def test_job_providers(site_providers, data_builder, default_payload, as_public,
     r = as_admin.post('/jobs/add', json=job_data)
     assert r.ok
     job_id = r.json()['_id']
+
+    r = as_admin.post('/jobs/determine_provider', json=job_data)
+    assert r.json()['_id'] == site_provider
 
     r = as_admin.get('/jobs/' + job_id)
     assert r.ok
