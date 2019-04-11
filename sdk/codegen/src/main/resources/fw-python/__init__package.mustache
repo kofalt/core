@@ -20,6 +20,8 @@ from {{packageName}}.flywheel import Flywheel
 from {{packageName}}.client import Client
 from {{packageName}}.view_builder import ViewBuilder
 from {{packageName}}.rest import ApiException
+from {{packageName}}.gear_context import GearContext
+from {{packageName}}.drone_login import create_drone_client
 
 # import models into sdk package
 {{#models}}{{#model}}from {{modelPackage}}.{{classFilename}} import {{classname}}

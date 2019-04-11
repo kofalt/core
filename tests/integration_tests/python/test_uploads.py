@@ -1,3 +1,4 @@
+# coding=utf-8
 import bson
 import copy
 import datetime
@@ -1134,7 +1135,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_admin):
                 'sex': 'male',
                 'age': 100000000000,
             },
-            'info': {'test': 's'},
+            'info': {'test': 's', 'file.txt': 'Hello'},
             'tags': ['one', 'two']
         },
         'acquisition':{
@@ -1191,6 +1192,8 @@ def test_acquisition_engine_upload(data_builder, file_form, as_admin):
 
     expected_metadata = copy.deepcopy(metadata)
     expected_metadata['acquisition']['files'][2]['name'] = 'folderB/two.csv'
+    # fields get sanitized
+    expected_metadata['session']['info']['file_txt'] = expected_metadata['session']['info'].pop('file.txt')
 
     # Confirm produced_metadata is unchanged
     job_doc = as_admin.get('/jobs/' + job).json()
@@ -1211,6 +1214,7 @@ def test_acquisition_engine_upload(data_builder, file_form, as_admin):
     assert s['age'] == 100000000000
 
     metadata['session']['info']['subject_raw'] = {'sex': 'male'}
+    metadata['session']['info']['file_txt'] = metadata['session']['info'].pop('file.txt')
     assert s['info'] == metadata['session']['info']
     assert s['subject']['code'] == metadata['session']['subject']['code']
 
@@ -1903,3 +1907,40 @@ def test_engine_tags(data_builder, file_form, as_root):
     r = as_root.get('/projects/' + project)
     assert r.json()['tags'] == ['one', 'two', 'three']
     assert r.json()['label'] != 'override test'
+
+
+def test_unicode_filenames(data_builder, file_form, as_admin, as_public, api_db):
+    filename = u'∂©∑∂ç.csv'
+    file_contents = 'Hello World!'
+    project = data_builder.create_project()
+
+    core_works = False
+    if core_works:
+        r = as_admin.post('/projects/' + project + '/files', files=file_form((filename, file_contents)))
+        assert r.ok
+    else:
+        r = as_admin.post('/projects/' + project + '/files', files=file_form(('placeholder.csv', file_contents)))
+        assert r.ok
+
+        api_db.projects.update_one({'_id': bson.ObjectId(project)}, {'$set': {'files.0.name': filename}})
+
+    r = as_admin.get('/projects/' + project)
+    assert r.ok
+    r_project = r.json()
+
+    assert len(r_project['files']) == 1
+    assert r_project['files'][0]['name'] == filename
+
+    # Download file
+    r = as_admin.get('/projects/' + project + '/files/' + filename)
+    assert r.ok
+    assert r.text == file_contents
+
+    # Download via ticket
+    r = as_admin.get('/projects/' + project + '/files/' + filename + '?ticket=')
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    r = as_public.get('/projects/' + project + '/files/' + filename + '?ticket=' + ticket)
+    assert r.ok
+    assert r.text == file_contents

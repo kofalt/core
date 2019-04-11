@@ -66,6 +66,8 @@ public class PythonGenerator extends PythonClientCodegen implements CodegenConfi
         supportingFiles.add(new SupportingFile("mixins.py", modelFolder, "mixins.py"));
         supportingFiles.add(new SupportingFile("gear_mixin.py", modelFolder, "gear_mixin.py"));
         supportingFiles.add(new SupportingFile("gear_invocation.py", modelFolder, "gear_invocation.py"));
+        supportingFiles.add(new SupportingFile("gear_context.py", packageName, "gear_context.py"));
+        supportingFiles.add(new SupportingFile("drone_login.py", packageName, "drone_login.py"));
 
         // PIP Files
         supportingFiles.add(new SupportingFile("LICENSE.mustache", "", "LICENSE.txt"));

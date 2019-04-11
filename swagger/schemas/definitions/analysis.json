@@ -11,6 +11,7 @@
 					"description": "The set of inputs that this analysis is based on"
 				},
 				"description": {"$ref":"common.json#/definitions/description"},
+				"info":        {"$ref":"container.json#/definitions/info"},
 				"label":       {"$ref":"common.json#/definitions/label"}
 			},
 		    "additionalProperties": false,

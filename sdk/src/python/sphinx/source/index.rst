@@ -9,7 +9,8 @@ Flywheel SDK Documentation
    data_model
    examples
    data_views
-   flywheel 
+   sdk_gears
+   flywheel
 
 
 
