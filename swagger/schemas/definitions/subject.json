@@ -2,21 +2,21 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "definitions":{
         "_id":              {"$ref":"common.json#/definitions/objectid"},
-        "firstname":        { 
-          "type": "string", 
+        "firstname":        {
+          "type": "string",
           "maxLength": 64,
           "description": "First name"
         },
-        "lastname":         { 
-          "type": "string", 
+        "lastname":         {
+          "type": "string",
           "maxLength": 64,
           "description": "Last name"
         },
-        "age":              { 
+        "age":              {
           "type": ["integer", "null"],
           "description": "Age at time of session, in seconds"
         },
-        "sex": { 
+        "sex": {
             "oneOf": [
               { "type": "null"},
               { "type": "string", "enum": ["male", "female", "other", "unknown"] }
@@ -46,8 +46,9 @@
               { "type": "string", "enum": ["Not Hispanic or Latino", "Hispanic or Latino", "Unknown or Not Reported"] }
             ]
         },
-        "code":             { 
-          "type": "string", 
+        "code": {
+          "type": "string",
+          "minLength": 1,
           "maxLength": 64,
           "description": "A unique identifier for the subject"
         },
@@ -73,6 +74,7 @@
 
               "label":            {"$ref":"#/definitions/code"},
               "code":             {"$ref":"#/definitions/code"},
+              "master_code":      {"$ref":"#/definitions/code"},
               "tags":             {"$ref":"tag.json#/definitions/tag-list"},
               "info":             {"$ref":"common.json#/definitions/info"},
               "files":{
@@ -87,10 +89,11 @@
         "subject-metadata-input": {
             "type": "object",
             "properties": {
-                "label": {"$ref":"#/definitions/code"},
-                "code":  {"type": ["string", "null"]},
-                "info":  {"type": ["object", "null"]},
-                "tags":  {"$ref": "tag.json#/definitions/tag-list"},
+                "label":        {"$ref":"#/definitions/code"},
+                "code":         {"type": ["string", "null"]},
+                "master_code":  {"type": ["string", "null"]},
+                "info":         {"type": ["object", "null"]},
+                "tags":         {"$ref": "tag.json#/definitions/tag-list"},
                 "files": {
                     "type":  ["array", "null"],
                     "items": {"$ref": "file.json#/definitions/file-input"}
@@ -106,6 +109,7 @@
               "parents":          {"$ref":"container.json#/definitions/parents"},
               "label":            {"$ref":"#/definitions/code"},
               "code":             {"$ref":"#/definitions/code"},
+              "master_code":      {"$ref":"#/definitions/code"},
 
               "created":          {"$ref":"created-modified.json#/definitions/created"},
               "modified":         {"$ref":"created-modified.json#/definitions/modified"},

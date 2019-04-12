@@ -59,7 +59,7 @@ def test_filtered_files():
     assert result == set([('output', 'test.csv'), ('output', 'test2.csv'), ('output', 'test.nii')])
 
 
-def test_archive_stream(mocker, data_builder, file_form, as_drone):
+def test_archive_stream(mocker, data_builder, file_form, as_drone, randstr):
     class MockRead:
         def __init__(self):
             self._read = False
@@ -69,6 +69,8 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
                 self._read = True
                 return 'test'
             return ''
+
+    mocker.patch('api.dao.containerutil.verify_master_subject_code')
 
     get_return_value = MagicMock()
     get_return_value.read = MockRead()
@@ -80,8 +82,12 @@ def test_archive_stream(mocker, data_builder, file_form, as_drone):
     mocked_signed_url = mocker.patch('api.config.primary_storage.is_signed_url', return_value=True)
 
     project = data_builder.create_project(label='project1')
-    session = data_builder.create_session(label='session1', project=project)
-    session2 = data_builder.create_session(label='session1', project=project)
+    # since partialFilterExpression on unique compound indexes doesn't work with mongomock,
+    # provide these fields explicitly
+    session = data_builder.create_session(label='session1', project=project,
+        subject={'code': randstr(), 'master_code': randstr()})
+    session2 = data_builder.create_session(label='session1', project=project,
+        subject={'code': randstr(), 'master_code': randstr()})
     acquisition = data_builder.create_acquisition(session=session)
     acquisition2 = data_builder.create_acquisition(session=session2)
 

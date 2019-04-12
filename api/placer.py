@@ -204,6 +204,7 @@ class UIDPlacer(Placer):
 
     def check(self):
         self.requireMetadata()
+        containerutil.verify_master_subject_code(self.metadata.get('session', {}).get('subject', {}))
 
         payload_schema_uri = validators.schema_uri('input', self.metadata_schema)
         metadata_validator = validators.from_schema_path(payload_schema_uri)
@@ -315,6 +316,7 @@ class EnginePlacer(Placer):
 
         if self.metadata is not None:
             validators.validate_data(self.metadata, 'enginemetadata.json', 'input', 'POST', optional=True)
+            containerutil.verify_master_subject_code(self.metadata.get('session', {}).get('subject', {}))
 
             ###
             # Shuttle `measurements` key into `classification` on files

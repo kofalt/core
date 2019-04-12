@@ -28,7 +28,7 @@ from api.jobs import batch
 from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fixes
 from process_cursor import process_cursor
 
-CURRENT_DATABASE_VERSION = 63 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 64 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2329,6 +2329,19 @@ def upgrade_to_63():
     '''
     cursor = config.db.projects.find({'template': {'$exists': True}})
     process_cursor(cursor, upgrade_template_to_list)
+
+
+def upgrade_to_64():
+    '''
+    (project, code) compound index should be unique in subjects collection
+    '''
+    # cleanup codes with empty and null value
+    config.db.subjects.update_many({'code': {'$in': [None, '']}}, {'$unset': {'code': 1}})
+    # apply indexes
+    config.db.subjects.create_index([('project', 1), ('code', 1), ('deleted', 1)],
+        partialFilterExpression={'code': {'$exists': True}}, unique=True)
+    config.db.subjects.create_index([('project', 1), ('master_code', 1), ('deleted', 1)],
+        partialFilterExpression={'master_code': {'$exists': True}}, unique=True)
 
 ###
 ### BEGIN RESERVED UPGRADE SECTION

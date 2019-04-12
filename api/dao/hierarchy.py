@@ -4,13 +4,14 @@ import datetime
 import dateutil.parser
 import difflib
 import pymongo
+import pymongo.errors
 import re
 
 from .. import util
 from .. import config
 from .basecontainerstorage import ContainerStorage
 from ..auth import has_access
-from ..web.errors import APIStorageException, APINotFoundException, APIPermissionException
+from ..web.errors import APIStorageException, APINotFoundException, APIPermissionException, APIConflictException
 from ..web.request import AccessType
 from . import containerutil
 
@@ -443,7 +444,10 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
         cont.update(insert_vals)
         if cont_name in ['acquisitions', 'sessions', 'subjects', 'projects', 'analyses']:
             cont['parents'] = ContainerStorage.factory(cont_name).get_parents(cont)
-        insert_id = config.db[cont_name].insert(cont)
+        try:
+            insert_id = config.db[cont_name].insert(cont)
+        except pymongo.errors.DuplicateKeyError as e:
+            raise APIConflictException(str(e))
         cont['_id'] = insert_id
         return cont
 

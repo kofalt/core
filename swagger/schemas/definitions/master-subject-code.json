@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions": {
+    "_id": {
+      "type": "string",
+      "description": "The master subject code itself"
+    },
+    "patient_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Patient id",
+      "pattern": "^.*[0-9a-zA-Z]+.*"
+    },
+    "first_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "First name",
+      "pattern": "^.*[a-zA-Z]+.*"
+    },
+    "last_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Last name",
+      "pattern": "^.*[a-zA-Z]+.*"
+    },
+    "date_of_birth": {
+      "type": "string",
+      "description": "Date of birth in YYYY-MM-DD format",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "use_patient_id": {
+      "type": "boolean",
+      "description": "Use patient ID for identification or first name, last name, DOB"
+    },
+    "master-subject-code-id-input": {
+      "type": "object",
+      "properties": {
+        "first_name": {
+          "$ref": "#/definitions/first_name"
+        },
+        "last_name": {
+          "$ref": "#/definitions/last_name"
+        },
+        "date_of_birth": {
+          "$ref": "#/definitions/date_of_birth"
+        },
+        "patient_id": {
+          "$ref": "#/definitions/patient_id"
+        },
+        "use_patient_id": {
+          "$ref": "#/definitions/use_patient_id"
+        }
+      },
+      "required": [
+          "patient_id",
+          "use_patient_id"
+      ],
+      "additionalProperties": false
+    },
+    "master-subject-code-dob-input": {
+      "type": "object",
+      "properties": {
+        "first_name": {
+          "$ref": "#/definitions/first_name"
+        },
+        "last_name": {
+          "$ref": "#/definitions/last_name"
+        },
+        "date_of_birth": {
+          "$ref": "#/definitions/date_of_birth"
+        },
+        "patient_id": {
+          "$ref": "#/definitions/patient_id"
+        },
+        "use_patient_id": {
+          "$ref": "#/definitions/use_patient_id"
+        }
+      },
+      "required": [
+          "first_name",
+          "last_name",
+          "date_of_birth",
+          "use_patient_id"
+      ],
+      "additionalProperties": false
+    },
+    "code-output": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Master subject code"
+        }
+      }
+    }
+  }
+}

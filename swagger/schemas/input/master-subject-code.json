@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type":"object",
+  "anyOf":[
+    {"$ref":"../definitions/master-subject-code.json#/definitions/master-subject-code-id-input"},
+    {"$ref":"../definitions/master-subject-code.json#/definitions/master-subject-code-dob-input"}
+  ],
+  "example": {
+    "use_patient_id": true,
+    "patient_id": "MRN-123456"
+  }
+}
