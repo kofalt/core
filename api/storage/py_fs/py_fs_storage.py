@@ -11,9 +11,9 @@ DEFAULT_BUFFER_SIZE = 2 ** 20
 
 class PyFsStorage(Interface):
 
-    def __init__(self, url):
-        super(PyFsStorage, self).__init__()
-        self._fs = open_fs(url)
+    def __init__(self, config=None, creds=None):
+        self._path = config['path']
+        self._fs = open_fs(self._path)
         self._has_signed_url = hasattr(self._fs, 'get_signed_url')
 
         self._default_hash_alg = DEFAULT_HASH_ALG

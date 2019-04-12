@@ -12,7 +12,7 @@ from .. import io, access_log
 from ..web.request import AccessType
 from ..web.encoder import custom_json_serializer
 from ..dao.containerstorage import cs_factory
-from ..site.providers import get_provider_instance
+from ..site.providers import get_provider
 
 METADATA_BLACKLIST = [
     '_id', 'parents', 'collections', 'group', 'project', 'subject', 'session',
@@ -147,7 +147,7 @@ class DownloadFileSource(object):
         # can speed up transfer. Shouldn't open for reading basically do this?
         signed_url = None
 
-        final_storage = get_provider_instance(target.provider_id)
+        final_storage = get_provider(target.provider_id)
         if final_storage.storage_plugin.is_signed_url():
             try:
                 signed_url = final_storage.storage_plugin.get_signed_url(target.file_id, target.src_path)

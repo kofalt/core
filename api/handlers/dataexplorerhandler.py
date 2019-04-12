@@ -774,7 +774,7 @@ class DataExplorerHandler(base.RequestHandler):
 
         fileobj.close()
 
-        file_fields = file_processor.create_file_fields(fileobj.provider_id, output_filename, fileobj.path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
+        file_fields = file_processor.create_file_fields(fileobj.provider_id, output_filename, path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
         file_attrs = upload.make_file_attrs(file_fields, self.origin)
 
         # Place the file

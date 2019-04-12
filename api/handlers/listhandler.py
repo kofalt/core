@@ -19,7 +19,7 @@ from ..dao import containerstorage
 from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
 from ..web.request import AccessType
 from ..jobs.mappers import RulesMapper
-from ..site.providers import get_provider_instance
+from ..site.providers import get_provider
 from ..site import StorageProviderService 
 
 def initialize_list_configurations():
@@ -441,7 +441,7 @@ class FileListHandler(ListHandler):
             self.abort(409, 'file exists, hash mismatch')
 
         file_path = files.get_file_path(fileinfo)
-        file_system = get_provider_instance(fileinfo['provider_id']).storage_plugin
+        file_system = get_provider(fileinfo['provider_id']).storage_plugin
 
         # Request for download ticket
         if self.get_param('ticket') == '':

@@ -1,14 +1,12 @@
 """Provides the StaticComputeProvider class"""
+from flywheel_common.providers import ProviderClass
+
 from ...web import errors
 from .base import BaseProvider
 from .factory import ProviderKey
-from ..models import ProviderClass
 
 class StaticComputeProvider(BaseProvider):
     """The static compute provider object."""
-
-    # Must set provider_key as (provider_class, provider_type)
-    provider_key = ProviderKey(ProviderClass.compute, 'static')
 
     def validate_config(self):
         # Only empty configuration is valid

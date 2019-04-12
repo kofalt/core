@@ -4,6 +4,7 @@ import datetime
 import bson
 import pymongo
 
+from flywheel_common.providers import create_provider
 from ... import config
 from .. import models
 
@@ -22,9 +23,18 @@ class Providers(object):
         Returns:
             ObjectId: The inserted provider id
         """
-        result = self.dbc.insert_one(provider.to_dict())
+
+        # It should be empty anyway
+        raw = provider._schema.dump(provider).data
+        del raw['provider_id']
+        del raw['_id']
+        raw['label'] = raw['provider_label']
+        del raw['provider_label']
+
+        result = self.dbc.insert_one(raw)
         # Update the instance id
         provider.provider_id = result.inserted_id
+        provider._id = result.inserted_id
         # And return the resulting id
         return result.inserted_id
 
@@ -38,7 +48,7 @@ class Providers(object):
             doc (dict): The set of updates to apply
         """
         # Create the upsert document
-        update = { '$set': doc }
+        update = {'$set': doc}
         update['$set']['modified'] = datetime.datetime.now()
         self.dbc.update_one({'_id': bson.ObjectId(provider_id)}, update)
 
@@ -110,4 +120,11 @@ class Providers(object):
         # Remove site key
         doc.pop('_site', None)
 
-        return models.Provider.from_dict(doc)
+        provider = create_provider(
+            class_=doc['provider_class'],
+            type_=doc['provider_type'],
+            label=doc['label'],
+            config=doc['config'],
+            creds=doc['creds'],
+            id_=doc['_id'])
+        return provider

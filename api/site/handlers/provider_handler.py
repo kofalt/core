@@ -1,9 +1,9 @@
 """API Handlers for providers"""
+from flywheel_common.providers import create_provider
+
 from ... import validators
 from ...web import base
 from ...auth import require_admin, require_login
-
-from ..models import Provider
 from ..providers import (get_provider, get_provider_config,
     get_providers, insert_provider, update_provider,
     is_compute_dispatcher)
@@ -34,7 +34,7 @@ class ProviderHandler(base.RequestHandler):
     @require_login
     def get(self, _id):
         provider = get_provider(_id)
-        return provider.to_dict()
+        return provider._schema.dump(provider).data
 
     @require_admin
     def get_config(self, _id):
@@ -53,8 +53,15 @@ class ProviderHandler(base.RequestHandler):
         payload = self.request.json
         validators.validate_data(payload, 'provider.json', 'input', 'POST')
 
-        provider = Provider(payload['provider_class'], payload['provider_type'],
-            payload['label'], self.origin, payload['config'])
+        provider = create_provider(
+            class_=payload['provider_class'],
+            type_=payload['provider_type'],
+            label=payload['label'],
+            config=payload['config'],
+            creds=payload['creds'])
+
+        #provider.creds.validate_permissions()
+        provider.validate_permissions()
 
         provider_id = insert_provider(provider)
         return {'_id': provider_id}

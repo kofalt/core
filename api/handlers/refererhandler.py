@@ -23,7 +23,7 @@ from ..web import base
 from ..web import errors
 from ..web.request import log_access, AccessType
 from .listhandler import FileListHandler
-from ..site.providers import get_provider_instance
+from ..site.providers import get_provider
 
 log = config.log
 
@@ -370,7 +370,7 @@ class AnalysesHandler(RefererHandler):
             else:
                 fileinfo = fileinfo[0]
                 file_path = files.get_file_path(fileinfo)
-                file_system = get_provider_instance(fileinfo['provider_id']).storage_plugin
+                file_system = get_provider(fileinfo['provider_id']).storage_plugin
                 filename = fileinfo['name']
 
                 # Request for info about zipfile

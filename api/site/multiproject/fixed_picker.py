@@ -1,4 +1,5 @@
 """Provides a picker that always returns the site provider"""
+from flywheel_common.providers import ProviderClass
 from .provider_picker import ProviderPicker
 from .. import mappers, models
 
@@ -9,7 +10,7 @@ class FixedProviderPicker(ProviderPicker):
         self.site_settings_mapper = mappers.SiteSettings()
 
     def get_provider_id_for_container(self, container, provider_class, site_settings=None):
-        if isinstance(provider_class, models.ProviderClass):
+        if isinstance(provider_class, ProviderClass):
             provider_key = provider_class.value
         else:
             provider_key = provider_class

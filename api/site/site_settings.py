@@ -1,3 +1,4 @@
+from flywheel_common.providers import ProviderClass
 from . import models, mappers, providers
 from ..jobs import gears
 from ..web import errors
@@ -42,7 +43,7 @@ def update_site_settings(doc, log):
         current_site = get_site_settings()
         providers.validate_provider_updates(current_site, doc['providers'], True)
         # Patch will override the array if we dont supply all provider types
-        for class_ in models.provider.ProviderClass:
+        for class_ in ProviderClass:
             if not doc['providers'].get(class_.value):
                 doc['providers'][class_.value] = current_site['providers'][class_.value]
 
@@ -63,4 +64,8 @@ def get_default_site_settings():
     Returns:
         SiteSettings: The default site settings
     """
-    return models.SiteSettings(center_gears=None, providers=None)
+    providers_ = {}
+    for class_ in ProviderClass:
+        providers_[class_.value] = None
+
+    return models.SiteSettings(center_gears=None, providers=providers_)

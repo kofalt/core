@@ -31,7 +31,7 @@ from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 from ..web.request import log_access, AccessType
-from ..site import providers
+from ..site.providers import get_provider
 
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,
@@ -331,7 +331,7 @@ class GearHandler(base.RequestHandler):
 
         file_id = gear['exchange'].get('rootfs-id')
         provider_id = gear['exchange'].get('rootfs-provider-id')
-        provider = get_provider_instance(provider_id)
+        provider = get_provider(provider_id)
         file_path = files.get_file_path({'_id': file_id})
         send_or_redirect_file(self, provider, file_id, file_path, 'gear.tar')
 
@@ -575,7 +575,7 @@ class JobsHandler(base.RequestHandler):
         job = Queue.enqueue_job(payload, self.origin, perm_check_uid=None)
 
         # Retrieve the provider
-        return providers.get_provider(job.compute_provider_id)
+        return get_provider(job.compute_provider_id)
 
     @require_admin
     def stats(self):

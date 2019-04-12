@@ -4,7 +4,7 @@ import time
 import zipfile
 
 from .. import files
-from ..site.providers import get_provider_instance
+from ..site.providers import get_provider
 from .util import filtered_container_list
 
 # TODO: Should we support tarfiles?
@@ -54,7 +54,7 @@ class FileOpener(object):
             open_mode = 'rb'
         try:
             # Open the file using file_system
-            file_system = get_provider_instance(self.file_entry['provider_id']).storage_plugin
+            file_system = get_provider(self.file_entry['provider_id']).storage_plugin
             file_path = files.get_file_path(self.file_entry)
 
             self._system_fd = file_system.open(self.file_entry.get('_id'), file_path, open_mode)
