@@ -2,8 +2,6 @@
 import collections
 import os
 
-import requests
-
 
 def seconds_to_years(seconds):
     """Convert seconds to years"""
