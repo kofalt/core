@@ -38,7 +38,6 @@ def test_apply_env_variables(mocker, tmpdir):
     }
 
     api.config.apply_env_variables(config)
-    print config
     assert config == {
         'auth': {'test': 'test'},
         'test': {'true': True, 'false': False, 'none': None},

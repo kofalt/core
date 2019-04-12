@@ -89,3 +89,61 @@ $template_arguments:
   $template: templates/analysis-notes.yaml
 /subjects/{SubjectId}/analyses/{AnalysisId}/notes/{NoteId}:
   $template: templates/analysis-notes-item.yaml
+
+# ===== Master code =====
+/subjects/master-code:
+  post:
+    summary: Request a master subject code for the given patient
+    description: >
+      The workflow is the following.
+        - send `patient_id` (e.g., MRN) and/or `first_name`, `last_name`, `date_of_birth`
+        - indicate whether to use `patient_id` for identification or `first_name`, `last_name`, `date_of_birth`
+          by the `use_patient_id` field
+        - the response will contain a master subject code
+        - if you send the same identifying information again, you will receive the same code
+
+      Note that if you received a MSC code for example by just providing the `patient_id`, you can save more information
+      for that MSC in a second request (`first_name`, `last_name`, `date_of_birth`). Only the missing fields will be set,
+      so you can't update any existing field (e.g. changing the name).
+
+      Since you can create multiple MSC codes with the same name and date of birth using different patient ids,
+      you will get HTTP 400 error if you request an MSC code by name and date of birth and there are multiple matches.
+      In this case you need to use patient id.
+
+    operationId: create_master_subject_code
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/master-subject-code.json
+    tags:
+      - subjects
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/master-subject-code.json
+      '400':
+        description: Input validation error, or multiple MSC codes found.
+      '409':
+        description: >
+          Couldn't create new master subject code.
+          The server running out of free codes or you used a patient id which already exists.
+
+/subjects/master-code/{code}:
+  get:
+    summary: Verify that the given master subject code exists or not
+    operationId: verify_master_subject_code
+    parameters:
+      - name: code
+        in: path
+        required: true
+        type: string
+    tags:
+      - subjects
+    responses:
+      '200':
+        description: The code exists
+      '404':
+        description: The code doesn't exist

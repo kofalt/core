@@ -771,6 +771,8 @@ def test_58(api_db, database, data_builder, as_admin, file_form):
 
 def test_60(api_db, data_builder, database):
     """Test subject collection pullout upgrade."""
+    if database.CURRENT_DATABASE_VERSION > 63:
+        pytest.skip('Above db version 63 this test is not functional because of the new unique indexes on the subjects collection.')
     group = data_builder.create_group()
     project = bson.ObjectId(data_builder.create_project())
     now = datetime.datetime.utcnow()
@@ -1211,3 +1213,46 @@ def test_63(api_db, database):
         if project['_id'] == project_1:
             assert isinstance(project.get('templates'), list)
             assert project['templates'][0] == template
+
+
+def test_64(api_db, database):
+    api_db.subjects.drop_indexes()
+    project_id = bson.ObjectId()
+    project_id_2 = bson.ObjectId()
+    api_db.subjects.insert_one({
+        'code': 'test_1',
+        'project': project_id
+    })
+    # same as above but deleted
+    api_db.subjects.insert_one({
+        'code': 'test_1',
+        'project': project_id,
+        'deleted': datetime.datetime.now()
+    })
+    api_db.subjects.insert_one({
+        'code': 'test_2',
+        'project': project_id
+    })
+    # same as above but in a differenet project
+    api_db.subjects.insert_one({
+        'code': 'test_2',
+        'project': project_id_2
+    })
+    api_db.subjects.insert_one({
+        'code': '',
+        'project': project_id
+    })
+    api_db.subjects.insert_one({
+        'code': None,
+        'project': project_id
+    })
+
+    database.upgrade_to_64()
+
+    assert map(lambda x: x.to_dict()['key'], list(api_db.subjects.list_indexes())) == [
+        {'_id': 1},
+        {'code': 1, 'deleted': 1, 'project': 1},
+        {'deleted': 1, 'master_code': 1, 'project': 1}
+    ]
+
+    api_db.subjects.delete_many({'project': {'$in': [project_id, project_id_2]}})

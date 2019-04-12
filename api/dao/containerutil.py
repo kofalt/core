@@ -1,11 +1,14 @@
 import bson.objectid
 import copy
+import json
+import requests
 
 from .. import config
 from ..auth import has_access
 from ..types import Origin
 
-from ..web.errors import APINotFoundException, APIPermissionException
+from ..web.errors import APINotFoundException, APIPermissionException, InputValidationException
+from ..master_subject_code.mappers import MasterSubjectCodes
 
 
 # Ordering optimized for global request frequency
@@ -125,6 +128,11 @@ def extract_subject(session, project):
         # If a subject with that id exists and is deleted, create a new one
         if result:
             subject['_id'] = bson.ObjectId()
+    elif subject.get('master_code'):
+        query = {'master_code': subject['master_code'], 'project': project['_id'], 'deleted': {'$exists': False}}
+        result = config.db.subjects.find_one(query)
+        if result:
+            subject['_id'] = result['_id']
     elif subject.get('code'):
         # If a non-deleted subject with that code doesn't exist in the project, create a new id
         query = {'code': subject['code'], 'project': project['_id'], 'deleted': {'$exists': False}}
@@ -138,6 +146,25 @@ def extract_subject(session, project):
         session['age'] = subject.pop('age')
     attach_raw_subject(session, subject)
     return subject
+
+
+def verify_master_subject_code(subject):
+    """Verify that the provided master subject code exists"""
+
+    if subject.get('master_code'):
+        verify_config = config.get_item('master_subject_code', 'verify_config')
+        if verify_config:
+            verify_config = json.loads(verify_config)
+            # url is set so use it to verify the master subject code
+            url = verify_config['url'].rstrip('/')
+            resp = requests.get(url + '/' + subject['master_code'], headers=verify_config.get('headers'))
+            if not resp.ok:
+                raise InputValidationException('Invalid master subject code')
+        else:
+            # url is not set, try to verify locally, check database
+            msc_mapper = MasterSubjectCodes()
+            if not msc_mapper.get_by_id(subject['master_code']):
+                raise InputValidationException('Invalid master subject code')
 
 
 def get_project_groups(uid):

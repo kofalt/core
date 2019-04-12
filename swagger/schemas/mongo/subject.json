@@ -21,6 +21,7 @@
     "strain":           { "type": "string" },
 
     "code":             { "type": "string" },
+    "master_code":      { "type": "string" },
     "label":            { "type": "string" },
     "tags":             { "type": "array", "items": {"type": "string"} },
     "files":            {

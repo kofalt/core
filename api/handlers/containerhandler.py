@@ -628,4 +628,5 @@ class ContainerHandler(base.RequestHandler):
         #  * otherwise PUT would require admin
         method = 'POST'
         subject_validator(permchecker(noop))(method, payload=subject)
+        containerutil.verify_master_subject_code(subject)
         containerstorage.SubjectStorage().create_or_update_el(subject)

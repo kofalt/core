@@ -42,7 +42,7 @@ DEFAULT_CONFIG = {
         'registered': False,
         'ssl_cert': None,
         'inactivity_timeout': None,
-        'upload_maximum_bytes': '10737418240'
+        'upload_maximum_bytes': '10737418240',
     },
     'queue': {
         'max_retries': 3,
@@ -72,6 +72,12 @@ DEFAULT_CONFIG = {
         'elasticsearch_host': 'localhost:9200',
         'fs_url': None,
         'support_legacy_fs': True
+    },
+    'master_subject_code': {
+        'size': '6',
+        'prefix': 'fw',
+        'chars': 'BCDFGHJKLMNPQRSTVWXYZ123456789',
+        'verify_config': None
     },
 }
 
@@ -192,7 +198,13 @@ def initialize_db():
     db.apikeys.create_index([('type', 1), ('origin.id', 1)], **kwargs)
     db.queries.create_index('creator', **kwargs)
     db.projects.create_index([('group', 1), ('label', 1)], **kwargs)
-    db.subjects.create_index([('project', 1), ('code', 1)], **kwargs)
+    # The following two indexes hardly depend on that the `deleted` field is a timestamp not just a boolean flag,
+    # otherwise we couldn't have multiple deleted subjects with the same code which is required
+    # because deleting a subject and creating a new one with the same code is a valid usecase.
+    db.subjects.create_index([('project', 1), ('code', 1), ('deleted', 1)],
+        partialFilterExpression={'code': {'$exists': True}}, unique=True, **kwargs)
+    db.subjects.create_index([('project', 1), ('master_code', 1), ('deleted', 1)],
+        partialFilterExpression={'master_code': {'$exists': True}}, unique=True, **kwargs)
     db.sessions.create_index([('project', 1), ('label', 1)], **kwargs)
     db.sessions.create_index([('subject', 1), ('label', 1)], **kwargs)
     db.sessions.create_index('uid', **kwargs)
@@ -215,6 +227,12 @@ def initialize_db():
     db.batch.create_index('jobs', **kwargs)
     db.project_rules.create_index('project_id', **kwargs)
     db.data_views.create_index('parent', **kwargs)
+    db.master_subject_codes.create_index(
+        [('first_name', 1), ('last_name', 1), ('date_of_birth', 1), ('patient_id', 1)],
+        unique=True, **kwargs)
+    db.master_subject_codes.create_index('patient_id',
+        partialFilterExpression={'patient_id': {'$exists': True}},
+        unique=True, **kwargs)
 
     # Create indexes on container collection
     for coll in ['groups', 'projects', 'subjects', 'sessions', 'acquisitions', 'analyses', 'collections']:

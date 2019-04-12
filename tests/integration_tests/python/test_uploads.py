@@ -988,6 +988,99 @@ def test_label_upload(data_builder, file_form, as_admin):
     data_builder.delete_group(group, recursive=True)
 
 
+def test_master_subject_code_upload(data_builder, file_form, as_admin):
+    group = data_builder.create_group()
+
+    metadata = {
+        'group': {'_id': group},
+        'project': {
+            'label': 'test_project'
+        },
+        'session': {
+            'label': 'test_session_label',
+            'subject': {
+                'code': 'test_code',
+                'master_code': 'non_existent'
+            }
+        },
+        'acquisition': {
+            'label': 'test_acquisition_label',
+            'files': [{'name': 'acquisition.csv'}]
+        }
+    }
+    # invalid master subject code
+    r = as_admin.post('/upload/label', files=file_form(
+        'acquisition.csv',
+        meta=metadata)
+    )
+    assert r.status_code == 400
+
+    # create a valid master subject code
+    r = as_admin.post('/subjects/master-code', json={
+        'use_patient_id': True,
+        'patient_id': 'MRN-123456'
+    })
+    assert r.ok
+    master_code_1 = r.json()['code']
+    metadata['session']['subject']['master_code'] = master_code_1
+
+    r = as_admin.post('/upload/label', files=file_form(
+        'acquisition.csv',
+        meta=metadata)
+                      )
+    assert r.ok
+
+    # get newly created project/session/acquisition
+    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
+    subjects = as_admin.get('/projects/' + project + '/subjects').json()
+    assert len(subjects) == 1
+    assert subjects[0]['master_code'] == master_code_1
+
+    sessions = as_admin.get('/projects/' + project + '/sessions').json()
+    assert len(sessions) == 1
+
+    acquisitions = as_admin.get('/sessions/' + sessions[0]['_id'] + '/acquisitions').json()
+    assert len(acquisitions) == 1
+
+    # upload the previous metadata, but use different master subject code and same subject code
+    # it should fail
+    # create a valid master subject code
+    r = as_admin.post('/subjects/master-code', json={
+        'use_patient_id': True,
+        'patient_id': 'MRN-56789'
+    })
+    assert r.ok
+    master_code_2 = r.json()['code']
+    metadata['session']['subject']['master_code'] = master_code_2
+    r = as_admin.post('/upload/label', files=file_form(
+        'acquisition.csv',
+        meta=metadata))
+    assert r.status_code == 409
+
+    # uploading a new file will go into the same subject if the master subject code is the same
+    metadata['session']['subject']['master_code'] = master_code_1
+    metadata['acquisition']['label'] = 'test_acquisition_label_2'
+    r = as_admin.post('/upload/label', files=file_form(
+        'acquisition.csv',
+        meta=metadata))
+    assert r.ok
+
+    # get newly created project/session/acquisition
+    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
+    subjects = as_admin.get('/projects/' + project + '/subjects').json()
+    assert len(subjects) == 1
+    assert subjects[0]['master_code'] == master_code_1
+
+    sessions = as_admin.get('/projects/' + project + '/sessions').json()
+    assert len(sessions) == 1
+
+    acquisitions = as_admin.get('/sessions/' + sessions[0]['_id'] + '/acquisitions').json()
+    assert len(acquisitions) == 2
+
+    # delete group and children recursively (created by upload)
+    data_builder.delete_group(group, recursive=True)
+
+
 def test_multi_upload(data_builder, upload_file_form, randstr, as_admin):
     # test uid-uploads respecting existing uids
     fixed_uid = randstr()
@@ -1111,7 +1204,7 @@ def test_engine_upload_errors(as_drone, as_user):
     assert r.status_code == 400
 
 
-def test_acquisition_engine_upload(data_builder, file_form, as_admin):
+def test_acquisition_engine_upload(data_builder, file_form, as_admin, api_db):
     project = data_builder.create_project()
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
