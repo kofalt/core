@@ -1,5 +1,9 @@
 """Provides utility functions"""
 import collections
+import os
+
+import requests
+
 
 def seconds_to_years(seconds):
     """Convert seconds to years"""
@@ -63,3 +67,8 @@ def to_ref(obj):
     if ref_fn:
         return ref_fn()
     return obj
+
+def set_verify_ssl(session):
+    """Create a session that verifies against correct certs"""
+    if 'FW_SSL_CERT_FILE' in os.environ:
+        session.verify = os.environ['FW_SSL_CERT_FILE']

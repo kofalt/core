@@ -6,10 +6,14 @@ import org.apache.commons.httpclient.protocol.Protocol;
 import org.apache.commons.httpclient.protocol.ProtocolSocketFactory;
 
 import javax.net.ssl.*;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.*;
 import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -25,6 +29,11 @@ import java.util.List;
  * where LetsEncrypt is used.
  */
 public class HttpsSocketFactory implements ProtocolSocketFactory {
+    static {
+        // Put one-time initializations in this block
+        // Ensure that we'll be able to connect to modern secure web services
+        SecurityPolicy.enableUnlimitedCryptography();
+    }
 
     private final String[] enabledProtocols;
     private final String[] enabledCipherSuites;
@@ -51,11 +60,33 @@ public class HttpsSocketFactory implements ProtocolSocketFactory {
             "TLS_RSA_WITH_AES_128_CBC_SHA256"
     };
 
+    private static String _sslCertFile = null;
+
+    public static synchronized void setSSLCertFile(String sslCertFile) {
+        _sslCertFile = sslCertFile;
+    }
+
+    public static synchronized String getSSLCertFile() {
+        return _sslCertFile;
+    }
+
+    /**
+     * Safely create a keystore for certificates.
+     * @return The created keystore
+     */
+    private KeyStore createKeystore() {
+        String certFile = getSSLCertFile();
+        if( certFile != null && !certFile.isEmpty() ) {
+            return this.loadKeystoreFromPem(certFile);
+        }
+        return this.loadKeystoreFromBundle();
+    }
+
     /**
      * Safely create a keystore using the bundled cacerts.
      * @return The created keystore
      */
-    private KeyStore createKeystore() {
+    private KeyStore loadKeystoreFromBundle() {
         InputStream in = null;
         try {
             in = getClass().getResourceAsStream("/io/flywheel/rest/cacerts");
@@ -68,6 +99,39 @@ public class HttpsSocketFactory implements ProtocolSocketFactory {
         } finally {
             try {
                 in.close();
+            } catch( Exception e ) {}
+        }
+    }
+
+    /**
+     * Safely create a keystore by loading the given cert file.
+     * @param path The path to the cert file
+     * @return The created keystore
+     */
+    private KeyStore loadKeystoreFromPem(String path) {
+        FileInputStream fis = null;
+        try {
+            KeyStore ks = KeyStore.getInstance("JKS");
+            ks.load(null, null);
+
+            fis = new FileInputStream(path);
+            BufferedInputStream bis = new BufferedInputStream(fis);
+
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+            int idx = 1;
+            while (bis.available() > 0) {
+                Certificate cert = cf.generateCertificate(bis);
+                ks.setCertificateEntry(String.format("cert%03d", idx++), cert);
+            }
+
+            return ks;
+        } catch(Exception e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            try {
+                fis.close();
             } catch( Exception e ) {}
         }
     }

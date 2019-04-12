@@ -2,6 +2,7 @@
 import requests
 from .rest import ApiException
 from .client import Client
+from . import util
 
 def create_drone_client(host, secret, method, name, port=443, **kwargs):
     """Create a Client instance using drone credentials.
@@ -16,6 +17,8 @@ def create_drone_client(host, secret, method, name, port=443, **kwargs):
     :rtype: flywheel.Client
     """
     with requests.Session() as session:
+        util.set_verify_ssl(session)
+
         # Get auth status to determine device id
         base_uri = 'https://{}:{}/api'.format(host, port)
 
