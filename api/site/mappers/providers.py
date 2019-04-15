@@ -4,7 +4,7 @@ import datetime
 import bson
 import pymongo
 
-from flywheel_common.providers import create_provider
+from flywheel_common.providers import create_provider, ProviderClass
 from ... import config
 from .. import models
 
@@ -24,12 +24,9 @@ class Providers(object):
             ObjectId: The inserted provider id
         """
 
+        raw = self._parse_raw(provider)
         # It should be empty anyway
-        raw = provider._schema.dump(provider).data
-        del raw['provider_id']
         del raw['_id']
-        raw['label'] = raw['provider_label']
-        del raw['provider_label']
 
         result = self.dbc.insert_one(raw)
         # Update the instance id
@@ -38,8 +35,8 @@ class Providers(object):
         # And return the resulting id
         return result.inserted_id
 
-    def patch(self, provider_id, doc):
-        """Update the provider, with the given update fields in doc.
+    def patch(self, provider_id, provider):
+        """Update the provider, with the given update fields in the doc.
 
         The modified time will be set automatically.
 
@@ -48,7 +45,10 @@ class Providers(object):
             doc (dict): The set of updates to apply
         """
         # Create the upsert document
-        update = {'$set': doc}
+        raw = self._parse_raw(provider)
+        raw['label'] = provider.provider_label
+        del raw['_id']
+        update = {'$set': raw}
         update['$set']['modified'] = datetime.datetime.now()
         self.dbc.update_one({'_id': bson.ObjectId(provider_id)}, update)
 
@@ -74,7 +74,7 @@ class Providers(object):
             Provider: The next provider matching the given class
         """
         if provider_class:
-            if isinstance(provider_class, models.ProviderClass):
+            if isinstance(provider_class, ProviderClass):
                 provider_class = provider_class.value
             query = {'provider_class': provider_class}
         else:
@@ -125,6 +125,16 @@ class Providers(object):
             type_=doc['provider_type'],
             label=doc['label'],
             config=doc['config'],
-            creds=doc['creds'],
+            creds=doc.get('creds'), #Creds is not required in local or gc currently,
             id_=doc['_id'])
         return provider
+
+    def _parse_raw(self, provider):
+
+        """ Parse out the unneeded field for the provider to raw doc mapping """
+        raw = provider._schema.dump(provider).data
+        raw['label'] = provider.provider_label
+
+        del raw['provider_label']
+        del raw['provider_id']
+        return raw

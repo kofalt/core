@@ -60,9 +60,6 @@ class ProviderHandler(base.RequestHandler):
             config=payload['config'],
             creds=payload['creds'])
 
-        #provider.creds.validate_permissions()
-        provider.validate_permissions()
-
         provider_id = insert_provider(provider)
         return {'_id': provider_id}
 

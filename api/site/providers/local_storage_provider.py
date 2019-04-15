@@ -25,9 +25,6 @@ class LocalStorageProvider(BaseStorageProvider):
     _storage_plugin_type = 'osfs'
     _creds = None
 
-    def get_storage_url(self):
-        return 'dadada'
-
     def validate_permissions(self):
         #self._test_files()
         return True
