@@ -6,13 +6,13 @@ from elasticsearch import ElasticsearchException, TransportError, RequestError, 
 from ..files import FileProcessor
 from ..placer import TargetedMultiPlacer
 from .. import upload
+from .. import search
 
-from ..web import base
+from ..web import base, errors
 from .. import config, validators
 from ..dao import noop, hierarchy
 from ..auth import require_login, groupauth, require_admin
 from ..dao.containerstorage import QueryStorage, ContainerStorage
-from ..web.errors import APIStorageException, APIPermissionException, APIValidationException, APINotFoundException
 
 log = config.log
 
@@ -379,10 +379,26 @@ class DataExplorerHandler(base.RequestHandler):
             else:
                 modified_filters.append(f)
 
+        structured_query = request.get('structured_query', '')
+        if structured_query:
+            if not isinstance(structured_query, basestring):
+                raise errors.InputValidationException('structured_query must be a string')
+
+            self.log.debug('Structured query: <%s>', structured_query)
+            try:
+                tree = search.parse_query(structured_query)
+            except search.ParseError as e:
+                raise errors.APIValidationException(str(e))
+
+            es_filter = search.to_es_query(tree)
+            self.log.debug('Structured query result: %s', es_filter)
+
+            modified_filters.append(es_filter)
+
         if request.get('all_data', False):
             # User would like to search all data regardless of permissions
             if not self.user_is_admin:
-                raise APIPermissionException("Must have site admin privileges to search across all data")
+                raise errors.APIPermissionException("Must have site admin privileges to search across all data")
         else:
             modified_filters.append({'term': {'permissions._id': self.uid}})
 
@@ -431,75 +447,13 @@ class DataExplorerHandler(base.RequestHandler):
 
     @require_login
     def aggregate_field_values(self):
-        """
-        Return list of type ahead values for a key given a value
-        that the user has already started to type in for the value of
-        a custom string field or a set of statistics if the field type is
-        a number.
-        """
         try:
             field_name = self.request.json_body['field_name']
         except (KeyError, ValueError):
-            self.abort(400, 'Field name is required')
-        filters = [{'term': {'deleted': False}}]
-        if not self.user_is_admin:
-            filters.append({'term': {'permissions._id': self.uid}})
-        try:
-            field = config.es.get(index='data_explorer_fields', id=field_name, doc_type='flywheel_field')
-        except TransportError as e:
-            self.log.warning(e)
-            self.abort(404, 'Could not find mapping for field {}.'.format(field_name))
-        field_type = field['_source']['type']
+            raise errors.InputValidationException('Field name is required')
+
         search_string = self.request.json_body.get('search_string', None)
-
-
-        # If the field type is a string, return a list of type-ahead values
-        body = {
-            "size": 0,
-            "query": {
-                "bool": {
-                    "must" : {
-                        "match" : { field_name : search_string}
-                    },
-                    "filter" : filters
-                }
-            }
-        }
-        if not filters:
-            # TODO add non-user auth support (#865)
-            body['query']['bool'].pop('filter')
-        if search_string is None:
-            body['query']['bool']['must'] = MATCH_ALL
-
-        if field_type in ['string', 'boolean']:
-            body['aggs'] = {
-                "results" : {
-                    "terms" : {
-                        "field" : field_name + ".raw",
-                        "size" : 15,
-                        "missing": "null"
-                    }
-                }
-            }
-
-        # If it is a number (int, date, or some other type), return various statistics on the values of the field
-        elif field_type in ['integer', 'float', 'date']:
-            body['aggs'] = {
-                "results" : {
-                    "stats" : {
-                        "field" : field_name
-                    }
-                }
-            }
-        else:
-            self.abort(400, 'Aggregations are only allowed on string, integer, float, data and boolean fields.')
-
-        aggs = config.es.search(
-            index='data_explorer',
-            doc_type='flywheel',
-            body=body
-        )['aggregations']['results']
-        return aggs
+        return self._suggest_values(field_name, search_string=search_string)
 
     @require_login
     def get_facets(self):
@@ -550,6 +504,47 @@ class DataExplorerHandler(base.RequestHandler):
         size = int(size*1.02)
         return size
 
+    @require_login
+    def suggest(self):
+        # Return replace-from and replacement-value
+        query = self.request.json_body.get('structured_query', '')
+        parse_result = search.parse_partial(query)
+
+        # If token is None or empty, we have no suggestions
+        if not parse_result:
+            return {'from': 0, 'suggestions': []}
+
+        if parse_result.type == 'field':
+            suggestions = self._suggest_fields(parse_result.value)
+            suggestions = [s['name'] for s in suggestions]
+        else:  # token_type == 'phrase'
+            try:
+                result = self._suggest_values(parse_result.last_field, search_string=parse_result.value, include_stats=False)
+                buckets = result.get('buckets', [])
+                suggestions = [s['key'] for s in buckets if s['key'] != 'null']
+            except (errors.APINotFoundException, errors.InputValidationException):
+                self.log.debug('Could not find suggestions for field: %s', parse_result.last_field)
+                suggestions = []
+
+        return {
+            'from': parse_result.pos,
+            'suggestions': [{'display': s, 'value': search.escape_id(s)} for s in suggestions]
+        }
+
+    def parse_query(self):
+        """Parse a structured query and return any errors."""
+        result = {'valid': True, 'errors': []}
+
+        query = self.request.json_body.get('structured_query', '')
+        try:
+            # For now all we return is whether it's valid or not
+            search.parse_query(query)
+        except search.ParseError as ex:
+            result['errors'] = [err.to_dict() for err in ex.errors]
+            result['valid'] = False
+
+        return result
+
     def get_nodes(self):
 
         return_type, filters, search_string, size = self._parse_request()
@@ -585,9 +580,12 @@ class DataExplorerHandler(base.RequestHandler):
     @require_login
     def search_fields(self):
         field_query = self.request.json_body.get('field')
+        return self._suggest_fields(field_query)
 
+
+    def _suggest_fields(self, field_query, count=15):
         es_query = {
-            "size": 15,
+            "size": count,
             "query": {
                 "match" : { "name" : field_query }
             }
@@ -608,6 +606,71 @@ class DataExplorerHandler(base.RequestHandler):
 
         return results
 
+    def _suggest_values(self, field_name, include_stats=True, search_string=None, count=15):
+        """
+        Return list of type ahead values for a key given a value
+        that the user has already started to type in for the value of
+        a custom string field or a set of statistics if the field type is
+        a number.
+        """
+        filters = [{'term': {'deleted': False}}]
+        if not self.user_is_admin:
+            filters.append({'term': {'permissions._id': self.uid}})
+        try:
+            field = config.es.get(index='data_explorer_fields', id=field_name, doc_type='flywheel_field')
+        except TransportError as e:
+            self.log.warning(e)
+            raise errors.APINotFoundException('Could not find mapping for field {}.'.format(field_name))
+
+        field_type = field['_source']['type']
+
+        # If the field type is a string, return a list of type-ahead values
+        body = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must" : {
+                        "match" : { field_name : search_string}
+                    },
+                    "filter" : filters
+                }
+            }
+        }
+        if not filters:
+            # TODO add non-user auth support (#865)
+            body['query']['bool'].pop('filter')
+        if search_string is None:
+            body['query']['bool']['must'] = MATCH_ALL
+
+        if field_type in ['string', 'boolean']:
+            body['aggs'] = {
+                "results" : {
+                    "terms" : {
+                        "field" : field_name + ".raw",
+                        "size" : count,
+                        "missing": "null"
+                    }
+                }
+            }
+
+        # If it is a number (int, date, or some other type), return various statistics on the values of the field
+        elif field_type in ['integer', 'float', 'date'] and include_stats:
+            body['aggs'] = {
+                "results" : {
+                    "stats" : {
+                        "field" : field_name
+                    }
+                }
+            }
+        else:
+            raise errors.InputValidationException('Aggregations are only allowed on string, integer, float, data and boolean fields.')
+
+        aggs = config.es.search(
+            index='data_explorer',
+            doc_type='flywheel',
+            body=body
+        )['aggregations']['results']
+        return aggs
 
     @require_login
     def search(self):
@@ -676,11 +739,11 @@ class DataExplorerHandler(base.RequestHandler):
                 index='data_explorer',
                 body={'docs': docs})['docs']
         else:
-            raise APIValidationException('Must provide a search query OR a list of files')
+            raise errors.APIValidationException('Must provide a search query OR a list of files')
 
         output_container = hierarchy.get_container(output['type'], output['id'])
         if not output_container:
-            raise APINotFoundException('Could not find {} {}'.format(output['type'], output['id']))
+            raise errors.APINotFoundException('Could not find {} {}'.format(output['type'], output['id']))
 
         # Format the elastic search results into the training set file format
         file_results = [format_file_doc(f['_source'], labels) for f in file_results]
@@ -1001,7 +1064,7 @@ class QueryHandler(base.RequestHandler):
         if result.inserted_id:
             return {'_id': result.inserted_id}
         else:
-            raise APIStorageException("Failed to save the search")
+            raise errors.APIStorageException("Failed to save the search")
 
     def get_all(self):
         return self.storage.get_all_el({}, {'_id': self.uid}, {'label': 1})
@@ -1010,8 +1073,8 @@ class QueryHandler(base.RequestHandler):
         return self.storage.get_container(sid)
 
     def delete(self, sid):
-        search = self.storage.get_container(sid)
-        permchecker = groupauth.default(self, search)
+        record = self.storage.get_container(sid)
+        permchecker = groupauth.default(self, record)
         result = permchecker(self.storage.exec_op)('DELETE', sid)
         if result.deleted_count == 1:
             return {'deleted': result.deleted_count}

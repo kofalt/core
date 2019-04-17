@@ -1,0 +1,9 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf":[{"$ref":"../definitions/search.json#/definitions/structured-search-query"}],
+    "example": {
+        "structured_query": "subject.species == rat"
+    }
+}
+

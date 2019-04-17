@@ -1,0 +1,14 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf":[{"$ref":"../definitions/search.json#/definitions/parse-search-query-result"}],
+    "example": {
+        "valid": false,
+        "errors": [{
+            "line": 1,
+            "pos": 11,
+            "offset": 10,
+            "message": "Invalid operator '!!'"
+        }]
+    }
+}

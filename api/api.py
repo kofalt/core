@@ -111,7 +111,6 @@ endpoints = [
         route('/report/<report_type:site|project|accesslog|usage>',   ReportHandler,                m=['GET']),
         route('/report/accesslog/types',                        ReportHandler,  h='get_types',      m=['GET']),
 
-
         # Search
         route('/dataexplorer/search',                   DataExplorerHandler,   h='search',                 m=['POST']),
         route('/dataexplorer/facets',                   DataExplorerHandler,   h='get_facets',             m=['POST']),
@@ -119,6 +118,8 @@ endpoints = [
         route('/dataexplorer/search/fields',            DataExplorerHandler,   h='search_fields',          m=['POST']),
         route('/dataexplorer/search/fields/aggregate',  DataExplorerHandler,   h='aggregate_field_values', m=['POST']),
         route('/dataexplorer/search/nodes',             DataExplorerHandler,   h='get_nodes',              m=['POST']),
+        route('/dataexplorer/search/parse',             DataExplorerHandler,   h='parse_query',            m=['POST']),
+        route('/dataexplorer/search/suggest',           DataExplorerHandler,   h='suggest',                m=['POST']),
         route('/dataexplorer/index/fields',             DataExplorerHandler,   h='index_field_names',      m=['POST']),
         route('/dataexplorer/search/training',          DataExplorerHandler,   h='save_training_set',      m=['POST']),
 

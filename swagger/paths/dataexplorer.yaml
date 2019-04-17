@@ -37,3 +37,47 @@
         schema:
           $ref: schemas/output/search-status.json
 
+/dataexplorer/search/parse:
+  post:
+    summary: Parse a structured search query
+    operationId: parse_search_query
+    description: |
+      Validates a search query, returning any parse errors that were encountered.
+      In the future, this endpoint may return the abstract syntax tree or evaluated query.
+    tags:
+    - dataexplorer
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/structured-search-query.json
+    responses:
+      '200':
+        description: The result of parsing the search query
+        schema:
+          $ref: schemas/output/parse-search-query-result.json
+
+/dataexplorer/search/suggest:
+  post:
+    summary: Get suggestions for a structured search query
+    operationId: get_search_query_suggestions
+    description: |
+      Send the search query from the start of the string, and
+      get a set of suggested replacements back. When utilizing a suggestion,
+      the caller should replace the contents from the "from" field to the end
+      of the string with the provided "value".
+    tags:
+    - dataexplorer
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/structured-search-query.json
+    responses:
+      '200':
+        description: The result of parsing the search query
+        schema:
+          $ref: schemas/output/search-query-suggestions.json
+

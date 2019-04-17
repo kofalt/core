@@ -41,3 +41,11 @@ def test_search_status(as_drone, as_user, as_public):
     assert r.ok
     assert r.json()['status'] == 'up-to-date'
 
+def test_parse_query(as_public):
+    r = as_public.post('/dataexplorer/search/parse', json={'structured_query': 'subject.code =~ ex8*'})
+    assert r.ok
+    assert r.json() == {'valid': True, 'errors': []}
+
+    r = as_public.post('/dataexplorer/search/parse', json={'structured_query': 'subject.code ~~ ex8*'})
+    assert r.ok
+    assert r.json() == {'valid': False, 'errors': [{'line': 1, 'pos': 14, 'offset': 13, 'message': "Unknown operator: '~~'"}]}

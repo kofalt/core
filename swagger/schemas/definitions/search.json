@@ -1,31 +1,45 @@
 {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "definitions": {
-    	"search-type": {
-    		"type": "string",
-    		"enum": ["file", "acquisition", "session", "analysis", "collection"],
-    		"description": "Sets the type of search results to return"
-    	},
-    	"search-query": {
-    		"type": "object",
-    		"properties": {
-	    		"return_type": {"$ref": "#/definitions/search-type"},
-	    		"search_string": {
-	    			"type": "string",
-	    			"description": "Represents the plain text search query"
-	    		},
-	    		"all_data": {
-	    			"type": "boolean",
-	    			"description": "When set will include all data that the user does not have access to read",
-	    			"default": false
-	    		},
-	    		"filters": {
-	    			"type": "object",
-	    			"description": "See https://www.elastic.co/guide/en/elasticsearch/reference/current/term-level-queries.html"
-	    		}
-	    	},
-	    	"required": ["return_type"]
-    	},
+        "search-type": {
+            "type": "string",
+            "enum": ["file", "acquisition", "session", "analysis", "collection"],
+            "description": "Sets the type of search results to return"
+        },
+        "search-query": {
+            "type": "object",
+            "properties": {
+                "return_type": {"$ref": "#/definitions/search-type"},
+                "search_string": {
+                    "type": "string",
+                    "description": "Represents the plain text search query"
+                },
+                "structured_query": {
+                    "type": "string",
+                    "description": "Represents structured query language search"
+                },
+                "all_data": {
+                    "type": "boolean",
+                    "description": "When set will include all data that the user does not have access to read",
+                    "default": false
+                },
+                "filters": {
+                    "type": "object",
+                    "description": "See https://www.elastic.co/guide/en/elasticsearch/reference/current/term-level-queries.html"
+                }
+            },
+            "required": ["return_type"]
+        },
+        "structured-search-query": {
+            "type": "object",
+            "properties": {
+                "structured_query": {
+                    "type": "string",
+                    "description": "Represents structured query language search"
+                }
+            },
+            "required": ["structured_query"]
+        },
         "save-search":{
             "type":       "object",
             "properties": {
@@ -50,89 +64,88 @@
             },
             "additionalProperties": false
         },
-    	"search-project-response": {
-    		"type": "object",
-    		"properties": {
+        "search-project-response": {
+            "type": "object",
+            "properties": {
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"}
-    		},
-    		"description": "Fields for project search response",
+            },
+            "description": "Fields for project search response",
             "x-sdk-container-mixin": "project-mixin"
-    	},
-    	"search-group-response": {
-    		"type": "object",
-    		"properties": {
+        },
+        "search-group-response": {
+            "type": "object",
+            "properties": {
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"}
-    		},
-    		"description": "Fields for group search response",
+            },
+            "description": "Fields for group search response",
             "x-sdk-container-mixin": "group-mixin"
-    	},
-    	"search-session-response": {
-    		"type": "object",
-    		"properties": {
+        },
+        "search-session-response": {
+            "type": "object",
+            "properties": {
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"},
                 "timestamp":   {"$ref":"common.json#/definitions/timestamp"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
-    		},
-    		"description": "Fields for session search response",
+            },
+            "description": "Fields for session search response",
             "x-sdk-container-mixin": "session-mixin"
-    	},
-    	"search-acquisition-response": {
-    		"type": "object",
-    		"properties": {
+        },
+        "search-acquisition-response": {
+            "type": "object",
+            "properties": {
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"},
                 "timestamp":   {"$ref":"common.json#/definitions/timestamp"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
-    		},
-    		"description": "Fields for acquisition search response",
+            },
+            "description": "Fields for acquisition search response",
             "x-sdk-container-mixin": "acquisition-mixin"
-    	},
-    	"search-subject-response": {
-    		"type": "object",
-    		"properties": {
+        },
+        "search-subject-response": {
+            "type": "object",
+            "properties": {
                 "code":         {"$ref":"subject.json#/definitions/code"}
             },
-    		"description": "Fields for subject search response",
+            "description": "Fields for subject search response",
             "x-sdk-container-mixin": "subject-mixin"
-    	},
-    	"search-file-response": {
-    		"type": "object",
-    		"properties": {
+        },
+        "search-file-response": {
+            "type": "object",
+            "properties": {
                 "classification": {"$ref":"common.json#/definitions/classification"},
                 "created":        {"$ref":"created-modified.json#/definitions/created"},
-	            "type":           {"$ref":"file.json#/definitions/file-type"},
-	            "name":           {"$ref":"file.json#/definitions/name"},
-	            "size":           {"$ref":"file.json#/definitions/size"}
-    		},
-    		"description": "Fields for file search response",
+                "type":           {"$ref":"file.json#/definitions/file-type"},
+                "name":           {"$ref":"file.json#/definitions/name"},
+                "size":           {"$ref":"file.json#/definitions/size"}
+            },
+            "description": "Fields for file search response",
             "x-sdk-container-mixin": "file-mixin"
-    	},
-    	"search-analysis-response": {
-    		"type": "object",
-    		"properties": {
+        },
+        "search-analysis-response": {
+            "type": "object",
+            "properties": {
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"},
                 "user":        {"$ref":"common.json#/definitions/user-id"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
-    		},
-    		"description": "Fields for acquisition search response",
+            },
+            "description": "Fields for acquisition search response",
             "x-sdk-container-mixin": "analysis-mixin"
-    	},
-    	"search-collection-response": {
-    		"type": "object",
-    		"properties": {
+        },
+        "search-collection-response": {
+            "type": "object",
+            "properties": {
                 "_id":         {"$ref":"container.json#/definitions/_id"},
                 "label":       {"$ref":"common.json#/definitions/label"},
                 "curator":     {"$ref":"common.json#/definitions/user-id"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"}
-    		},
-    		"description": "Fields for collection search response",
+            },
+            "description": "Fields for collection search response",
             "x-sdk-container-mixin": "collection-mixin"
-    	},
-
+        },
         "search-parent-response": {
             "type": "object",
             "properties": {
@@ -144,44 +157,44 @@
             "description": "Fields for parent search response"
         },
         "search-parent-group": {
-          "allOf": [
-            {"$ref":"#/definitions/search-parent-response"},
-            {"$ref":"group.json#/definitions/group-output"}
-          ],
-          "x-discriminator-value": "group",
-          "x-sdk-container-mixin": "group-mixin"
+            "allOf": [
+                {"$ref":"#/definitions/search-parent-response"},
+                {"$ref":"group.json#/definitions/group-output"}
+            ],
+            "x-discriminator-value": "group",
+            "x-sdk-container-mixin": "group-mixin"
         },
         "search-parent-project": {
-          "allOf": [
-            {"$ref":"#/definitions/search-parent-response"},
-            {"$ref":"project.json#/definitions/project-output"}
-          ],
-          "x-discriminator-value": "project",
-          "x-sdk-container-mixin": "project-mixin"
+            "allOf": [
+                {"$ref":"#/definitions/search-parent-response"},
+                {"$ref":"project.json#/definitions/project-output"}
+            ],
+            "x-discriminator-value": "project",
+            "x-sdk-container-mixin": "project-mixin"
         },
         "search-parent-session": {
           "allOf": [
-            {"$ref":"#/definitions/search-parent-response"},
-            {"$ref":"session.json#/definitions/session-output"}
+              {"$ref":"#/definitions/search-parent-response"},
+              {"$ref":"session.json#/definitions/session-output"}
           ],
           "x-discriminator-value": "session",
           "x-sdk-container-mixin": "project-mixin"
         },
         "search-parent-acquisition": {
-          "allOf": [
-            {"$ref":"#/definitions/search-parent-response"},
-            {"$ref":"acquisition.json#/definitions/acquisition-output"}
-          ],
-          "x-discriminator-value": "acquisition",
-          "x-sdk-container-mixin": "acquisition-mixin"
+            "allOf": [
+                {"$ref":"#/definitions/search-parent-response"},
+                {"$ref":"acquisition.json#/definitions/acquisition-output"}
+            ],
+            "x-discriminator-value": "acquisition",
+            "x-sdk-container-mixin": "acquisition-mixin"
         },
         "search-parent-collection": {
-          "allOf": [
-            {"$ref":"#/definitions/search-parent-response"},
-            {"$ref":"collection.json#/definitions/collection-output"}
-          ],
-          "x-discriminator-value": "collection",
-          "x-sdk-container-mixin": "collection-mixin"
+            "allOf": [
+                {"$ref":"#/definitions/search-parent-response"},
+                {"$ref":"collection.json#/definitions/collection-output"}
+            ],
+            "x-discriminator-value": "collection",
+            "x-sdk-container-mixin": "collection-mixin"
         },
         "search-parent-analysis": {
             "allOf": [
@@ -216,34 +229,98 @@
                 "output": {"$ref": "container.json#/definitions/container-reference"}
             }
         },
-    	"search-response": {
-    		"type": "object",
-    		"properties": {
-    			"return_type": {"$ref":"#/definitions/search-type"},
-    			"project":     {"$ref":"#/definitions/search-project-response"},
-    			"group":       {"$ref":"#/definitions/search-group-response"},
-    			"session":     {"$ref":"#/definitions/search-session-response"},
-    			"acquisition": {"$ref":"#/definitions/search-acquisition-response"},
-    			"subject":     {"$ref":"#/definitions/search-subject-response"},
-    			"file":        {"$ref":"#/definitions/search-file-response"},
-    			"collection":  {"$ref":"#/definitions/search-collection-response"},
-    			"analysis":    {"$ref":"#/definitions/search-analysis-response"},
-    			"parent":      {"$ref":"#/definitions/search-parent-response"},
-    			"permissions": {"$ref":"permission.json#/definitions/permission-output-list"}
-    		},
-    		"description": "Single search response entry",
+        "search-response": {
+            "type": "object",
+            "properties": {
+                "return_type": {"$ref":"#/definitions/search-type"},
+                "project":     {"$ref":"#/definitions/search-project-response"},
+                "group":       {"$ref":"#/definitions/search-group-response"},
+                "session":     {"$ref":"#/definitions/search-session-response"},
+                "acquisition": {"$ref":"#/definitions/search-acquisition-response"},
+                "subject":     {"$ref":"#/definitions/search-subject-response"},
+                "file":        {"$ref":"#/definitions/search-file-response"},
+                "collection":  {"$ref":"#/definitions/search-collection-response"},
+                "analysis":    {"$ref":"#/definitions/search-analysis-response"},
+                "parent":      {"$ref":"#/definitions/search-parent-response"},
+                "permissions": {"$ref":"permission.json#/definitions/permission-output-list"}
+            },
+            "description": "Single search response entry",
             "x-sdk-container-mixin": "search-response-mixin"
-    	},
-      "search-status": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["missing", "indexing", "up-to-date"]
-          },
-          "last_seen": {"$ref": "created-modified.json#/definitions/modified"}
         },
-        "additionalProperties": false
-      }
+        "search-status": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["missing", "indexing", "up-to-date"]
+                },
+                "last_seen": {"$ref": "created-modified.json#/definitions/modified"}
+            },
+            "additionalProperties": false
+        },
+        "search-suggestion": {
+            "type": "object",
+            "properties": {
+                "display": {
+                    "type": "string",
+                    "description": "The display value of the suggestion"
+                },
+                "value": {
+                    "type": "string",
+                    "description": "The value to use for replacement"
+                }
+            },
+            "required": ["display", "value"]
+        },
+        "search-query-suggestions": {
+            "type": "object",
+            "properties": {
+                "from":  {
+                    "type": "integer",
+                    "description": "The starting position for the auto-complete replacement"
+                },
+                "suggestions": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/search-suggestion"},
+                    "description": "The list of suggested replacements"
+                }
+            }
+        },
+        "parse-error": {
+            "type": "object",
+            "properties": {
+                "line": {
+                    "type": "integer",
+                    "description": "The line number where the error occurred"
+                },
+                "pos": {
+                    "type": "integer",
+                    "description": "The position where the error occurred"
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "The absolute offset in the input (from 0) where the error occurred"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "The error message"
+                }
+            },
+            "required": ["message"]
+        },
+        "parse-search-query-result": {
+            "type": "object",
+            "properties": {
+                "valid": {
+                    "type": "boolean",
+                    "description": "Whether the structured query was valid or not"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/parse-error"}
+                }
+            },
+            "required": ["valid"]
+        }
     }
 }
