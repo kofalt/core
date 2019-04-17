@@ -538,3 +538,115 @@ def test_aggregate_field_values(as_public, as_drone, es):
         index='data_explorer')
     assert r.ok
     assert r.json == result
+
+def test_structured_search(as_public, as_drone, es, as_user):
+    # try to search w/ invalid syntax
+    r = as_drone.post('/dataexplorer/search', json={'return_type': 'file', 'structured_query': 'foo ^^ bar'})
+    assert r.status_code == 422
+
+    # session search against elastic mock
+    cont_type, results = 'session', 'results'
+
+    query = 'subject.code == amyg_s4'
+    query_es = {'bool': {'must': [{'term': {'subject.code.raw': 'amyg_s4'}}]}}
+
+    es.search.return_value = {'aggregations': {'by_container': {'buckets': [
+        {'by_top_hit': {'hits': {'hits': [results]}}},
+    ]}}}
+    r = as_drone.post('/dataexplorer/search', json={'return_type': cont_type, 'all_data': True, 'structured_query': query})
+    es.search.assert_called_with(
+        body={
+            'size': 0,
+            'query': {'bool': {
+                'filter': {'bool': {'must': [
+                    query_es,
+                    {'term': {'deleted': False}}
+                ]}},
+            }},
+            'aggs': {'by_container': {'terms':
+                {'field': cont_type + '._id', 'size': 100},
+                'aggs': {'by_top_hit': {'top_hits': {
+                    '_source': deh.SOURCE[cont_type],
+                    'size': 1
+                }}}
+            }}
+        },
+        doc_type='flywheel',
+        index='data_explorer')
+    assert r.ok
+    assert r.json['results'] == [results]
+
+
+    search_str = 'search'
+    es.search.return_value = {'aggregations': {'by_container': {'buckets': [
+        {'by_top_hit': {'hits': {'hits': [results]}}},
+    ]}}}
+    r = as_drone.post('/dataexplorer/search', json={'return_type': cont_type, 'all_data': True,
+        'search_string': search_str, 'structured_query': query})
+    es.search.assert_called_with(
+        body={
+            'size': 0,
+            'query': {'bool': {
+                'must': {'match': {'_all': search_str}},
+                'filter': {'bool': {'must': [
+                    query_es,
+                    {'term': {'deleted': False}}
+                ]}},
+            }},
+            'aggs': {'by_container': {'terms':
+                {'field': cont_type + '._id', 'size': 100},
+                'aggs': {'by_top_hit': {'top_hits': {
+                    '_source': deh.SOURCE[cont_type],
+                    'size': 1
+                }}}
+            }}
+        },
+        doc_type='flywheel',
+        index='data_explorer')
+    assert r.ok
+    assert r.json['results'] == [results]
+
+def test_search_suggest(as_public, as_drone, es, as_user):
+    query = 'subject.'
+    result_source = 'source'
+    es.search.return_value = {'hits': {'hits': [{'_source': {'name': result_source}}]}}
+    r = as_drone.post('/dataexplorer/search/suggest', json={'structured_query': query})
+    es.search.assert_called_with(
+        body={'size': 15, 'query': {'match': {'name': 'subject.'}}},
+        doc_type='flywheel_field',
+        index='data_explorer_fields')
+    assert r.ok
+    assert r.json == {
+        'from': 0,
+        'suggestions': [{'display': result_source, 'value': result_source}]
+    }
+
+    es.search.reset_mock()
+    query = 'subject.code ='
+    r = as_drone.post('/dataexplorer/search/suggest', json={'structured_query': query})
+    assert not es.search.called
+    assert r.ok
+    assert r.json == {'from': 0, 'suggestions': []}
+
+    query = 'subject.code == ex'
+    results = {'buckets': [ {'key': 'null'}, {'key': 'value_result'}, {'key': 'value "result"'} ]}
+    expected_results = [
+        {'display': 'value_result', 'value': 'value_result'},
+        {'display': 'value "result"', 'value': '"value \\"result\\""'},
+    ]
+    es.get.return_value = {'_source': {'type': 'string'}}
+    es.search.return_value = {'aggregations': {'results': results}}
+    r = as_drone.post('/dataexplorer/search/suggest', json={'structured_query': query})
+    es.search.assert_called_with(
+        body={'aggs': {'results': {'terms': {'field': 'subject.code.raw', 'size': 15, 'missing': 'null'}}},
+              'query': {'bool': {
+                'filter': [{'term': {'deleted': False}}],
+                'must': {'match': {'subject.code': 'ex'}}}},
+              'size': 0},
+        doc_type='flywheel',
+        index='data_explorer')
+    assert r.ok
+    assert r.json == {
+        'from': 16,
+        'suggestions': expected_results
+    }
