@@ -16,3 +16,5 @@ coverage.xml
 endpoints.json
 node_modules
 api_version.txt
+api/search/parser.out
+api/search/parsetab.py

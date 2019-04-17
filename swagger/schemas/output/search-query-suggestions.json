@@ -1,0 +1,12 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf":[{"$ref":"../definitions/search.json#/definitions/search-query-suggestions"}],
+    "example": {
+        "from": 13,
+        "suggestions": [
+            {"display": "Test", "value": "Test"},
+            {"display": "Hello World", "value": "\"Hello World\""}
+        ]
+    }
+}
