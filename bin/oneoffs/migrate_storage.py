@@ -18,7 +18,7 @@ from fs import errors
 
 from flywheel_common import storage
 from api import util
-from api.site.providers import get_provider_instance
+from api.site.providers import get_provider
 
 CHUNK_SIZE = 2 ** 20
 
@@ -44,12 +44,12 @@ def main(*argv):
 
     sources = {}; #Just so we dont have to keep loading all the source types
     try:
-        dest_storage = get_provider_instance(args.destination)
+        dest_storage = get_provider(args.destination)
     except: 
         log.error('Unable to locate the destination provider specifed. Be sure this provider exists in the system')
         exit(1)
 
-    log.info('Migrate files to %s', dest_storage.provider_label)
+    log.info('Migrate files to %s', dest_storage.label)
     
     target_fs = dest_storage.storage_plugin
     delete_source = False
@@ -284,7 +284,7 @@ def migrate_gears():
 
 def get_source_fs(provider_id): 
     if not sources.get('provider_id'):
-        sources[provider_id] = get_provider_instance(provider_id)
+        sources[provider_id] = get_provider(provider_id)
 
     return sources[provider_id].storage_plugin
 

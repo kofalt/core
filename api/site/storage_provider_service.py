@@ -1,5 +1,5 @@
 """ Service layer for procesing provider business logic """
-from flywheel_common.providers import ProviderClass
+from flywheel_common.providers import ProviderClass, create_provider
 
 # # # WHY Does this import not work when this file was under the providers dir
 from . import get_site_settings
@@ -26,7 +26,7 @@ class StorageProviderService(object):
         site_doc = get_site_settings()
         if not site_doc.providers.get('storage'):
             raise ValueError('Site settings are not configured for a storage provider')
-        
+
         if force_site_provider:
             return providers.get_provider(site_doc.providers['storage'])
 
@@ -41,6 +41,7 @@ class StorageProviderService(object):
             if job.gear_info['name'] in site_doc.center_gears:
                 return providers.get_provider(site_doc.providers['storage'])
             provider_choice = providers.get_provider_id_for_container(container, ProviderClass.storage, site_doc)
+
             # Return is a tuple indicating if a site provider was returned. We dont allow bubbling up to site.
             if not provider_choice[0]:
                 return providers.get_provider(provider_choice[1])
@@ -62,6 +63,5 @@ class StorageProviderService(object):
 
     def get_local_storage(self):
         """ Local storage is a storage plugin that supports get_fs. But it will not clean up automatically"""
-        return providers.factory.create_provider(ProviderClass.storage, 'osfs', {
-            'path': local_fs_url
-        })
+        return create_provider(ProviderClass.storage.value, 'local', 'temp_storage',
+                               {'path': local_fs_url}, None)

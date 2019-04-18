@@ -1,9 +1,11 @@
 """Provides repository-layer functions for loading/saving providers"""
+import datetime
 import bson
+
 from flywheel_common.providers import ProviderClass, create_provider
+from flywheel_common import errors
 
 from ... import config
-from ...web import errors
 from .. import mappers, multiproject
 
 
@@ -29,7 +31,7 @@ def get_provider(provider_id, secure=False):
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+        raise errors.ResourceNotFound('Provider {} not found!'.format(provider_id))
     if not secure:
         return _scrub_config(result)
     return result
@@ -49,9 +51,9 @@ def validate_provider_class(provider_id, provider_class):
     result = mapper.get(provider_id)
 
     if not result:
-        raise errors.APIValidationException('Provider {} does not exist'.format(provider_id))
+        raise errors.ResourceNotFound('', 'Provider {} does not exist'.format(provider_id))
     if result.provider_class != provider_class:
-        raise errors.APIValidationException('Provider {} is not a {} provider!'.format(
+        raise errors.ValidationError('Provider {} is not a {} provider!'.format(
             provider_id, provider_class.value))
 
 def get_provider_config(provider_id, full=False):
@@ -65,17 +67,17 @@ def get_provider_config(provider_id, full=False):
         The provider configuration
 
     Raises:
-        APINotFoundException: If the provider does not exist.
+        ResourceNotFound: If the provider does not exist.
     """
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+        raise errors.ResourceNotFound('Provider {} not found!'.format(provider_id))
 
     if full:
         # Cannot get storage provider config this way
         if result.provider_class != ProviderClass.compute.value:
-            raise errors.APIPermissionException()
+            raise errors.PermissionError('Only compute config can be retrieved with this method')
         return result.config
 
     return result.get_redacted_config()
@@ -108,9 +110,16 @@ def insert_provider(provider):
         ObjectId: The inserted provider id
 
     Raises:
-        APIValidationException: If an invalid provider type is specified,
-            or if the given configuration is invalid.
+        ValueError: If an invalid provider type is specified
     """
+
+    # We validate in case the provider was created outside our create_provider method.
+    values = set(item.value for item in ProviderClass)
+    if not provider.provider_class in values:
+        raise errors.ValidationError('Unregistered provider class specified')
+
+    provider.created = datetime.datetime.utcnow()
+    provider.modified = datetime.datetime.utcnow()
 
     provider.validate()
     provider.validate_permissions()
@@ -136,30 +145,33 @@ def update_provider(provider_id, doc):
     current_provider = mapper.get(provider_id)
 
     if not current_provider:
-        raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+        raise errors.ResourceNotFound('Provider {} not found!'.format(provider_id))
 
     # NOTE: We do NOT permit updating provider class or type
     if 'provider_class' in doc:
-        raise errors.APIValidationException('Cannot change provider class!')
+        raise errors.ValidationError('Cannot change provider class!')
 
     if 'provider_type' in doc:
-        raise errors.APIValidationException('Cannot change provider type!')
+        raise errors.ValidationError('Cannot change provider type!')
 
-    # Label is a one off because its kept as provider_label internally
     if 'label' in doc:
-        current_provider.provider_label = doc['label']
+        current_provider.label = doc['label']
+    # If we do it this way we can only ever update keys not delete them
     if 'config' in doc:
-        for key in doc['config']:
-            current_provider.config[key] = doc['config'][key]
+        current_provider.config = doc['config']
+        #for key in doc['config']:
+        #    current_provider.config[key] = doc['config'][key]
+    current_provider.modifed = datetime.datetime.utcnow()
     current_provider.validate()
 
     if 'creds' in doc:
+        # Do full validation if the creds are changed to confirm they are correct
         provider = create_provider(current_provider.provider_class,
-                current_provider.provider_type, current_provider.provider_label,
+                current_provider.provider_type, current_provider.label,
                 current_provider.config, doc['creds'], provider_id)
         provider.validate_permissions()
 
-    mapper.patch(provider_id, provider)
+    mapper.patch(provider_id, current_provider)
 
 
 def validate_provider_updates(container, provider_ids, is_admin):
@@ -204,23 +216,23 @@ def validate_provider_updates(container, provider_ids, is_admin):
             current_id = current_provider_ids.get(provider_class)
             if current_id != provider_ids[provider_class]:
                 if current_id:
-                    raise errors.APIValidationException('Cannot change {} provider once set!'.format(provider_class))
+                    raise errors.ValidationError('Cannot change {} provider once set!'.format(provider_class))
 
                 updates[provider_class] = True
 
     # Verify that the user is admin
     if (updates['storage'] or updates['compute']) and not is_admin:
-        raise errors.APIPermissionException('Changing providers requires site-admin!')
+        raise errors.PermissionError('Changing providers requires site-admin!')
 
     # Verify that provider exists and is the correct type
     for provider_class in ('compute', 'storage'):
         if not updates[provider_class]:
             continue
-        storage_provider = get_provider(provider_ids[provider_class])
+        provider = get_provider(provider_ids[provider_class])
 
-        if storage_provider.provider_class != ProviderClass(provider_class).value:
-            raise errors.APIValidationException('Invalid storage provider class: {}'.format(
-                storage_provider.provider_class))
+        if provider.provider_class != ProviderClass(provider_class).value:
+            raise errors.ValidationError('Invalid provider class: {}'.format(
+                provider.provider_class))
 
 
 def get_provider_id_for_container(container, provider_class, site_settings=None):

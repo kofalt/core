@@ -1,5 +1,6 @@
 """API Handlers for providers"""
 from flywheel_common.providers import create_provider
+from flywheel_common.errors import ValidationError
 
 from ... import validators
 from ...web import base
@@ -27,7 +28,7 @@ class ProviderHandler(base.RequestHandler):
 
         results = []
         for provider in get_providers(provider_class=provider_class):
-            results.append(provider.to_dict())
+            results.append(provider._schema.dump(provider).data)
 
         return results
 
@@ -59,6 +60,7 @@ class ProviderHandler(base.RequestHandler):
             label=payload['label'],
             config=payload['config'],
             creds=payload['creds'])
+        provider.origin = self.origin
 
         provider_id = insert_provider(provider)
         return {'_id': provider_id}

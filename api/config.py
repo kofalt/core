@@ -62,7 +62,7 @@ DEFAULT_CONFIG = {
         # Permanent API features should exist here
         'job_tickets': True,   # Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,       # Job queue /jobs/ask route.
-        'multiproject': False  # Multiproject support
+        'multiproject': True  # Multiproject support
     },
     'persistent': {
         'db_uri':     'mongodb://localhost:27017/scitran',
@@ -385,18 +385,3 @@ def get_release_version():
 local_fs_url = __config['persistent']['data_path']
 
 support_legacy_fs = __config['persistent']['support_legacy_fs']
-
-### Temp fix for 3-way split storages, where files exist in
-# 1. $SCITRAN_PERSISTENT_DATA_PATH/v0/ha/sh/v0-hash  (before abstract fs)
-# 2. $SCITRAN_PERSISTENT_DATA_PATH/v1/uu/id/uuid     (using abstract fs, without fs_url - defaulting to data_path/v1)
-# 3. $SCITRAN_PERSISTENT_FS_URL/uu/id/uuid           (using abstract fs, with fs_url)
-data_path2 = __config['persistent']['data_path'] + '/v1'
-if os.path.exists(data_path2):
-    log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-    local_fs2 = create_flywheel_fs('osfs://' + data_path2)
-
-else:
-    local_fs2 = None
-###
-
-

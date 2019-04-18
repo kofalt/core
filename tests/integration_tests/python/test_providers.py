@@ -5,6 +5,14 @@ VALID_PROVIDER = {
     'provider_type': 'static',
     'label': 'My Provider',
     'config': {},
+    'creds': {}
+}
+VALID_STORAGE_PROVIDER = {
+    'provider_class': 'storage',
+    'provider_type': 'local',
+    'label': 'My Storage Provider',
+    'config': {'path': '/var'},
+    'creds': {}
 }
 
 def test_providers_initial_state(as_user, with_site_settings, api_db):
@@ -48,6 +56,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'other',
         'label': 'Label',
         'config': {},
+        'creds': {}
     })
     assert r.status_code == 422
 
@@ -57,6 +66,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'static',
         'label': 'Label',
         'config': {},
+        'creds': {}
     })
     assert r.status_code == 400  # Validated by enum type in schema
 
@@ -66,6 +76,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'static',
         'label': 'Label',
         'config': {'value': 'something'},
+        'creds': {}
     })
     assert r.status_code == 422
 
@@ -75,6 +86,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'static',
         'label': 'Label',
         'config': {},
+        'creds': {},
         'extra': True,
     })
     assert r.status_code == 400
@@ -90,7 +102,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         assert r_provider['provider_class'] == VALID_PROVIDER['provider_class']
         assert r_provider['provider_type'] == VALID_PROVIDER['provider_type']
         assert r_provider['label'] == VALID_PROVIDER['label']
-        assert 'config' not in r_provider
+        assert r_provider['config'] == {}
     finally:
         api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
 
@@ -106,7 +118,7 @@ def test_get_provider(api_db, as_admin, as_user, as_public):
         assert r_provider['provider_class'] == VALID_PROVIDER['provider_class']
         assert r_provider['provider_type'] == VALID_PROVIDER['provider_type']
         assert r_provider['label'] == VALID_PROVIDER['label']
-        assert 'config' not in r_provider
+        assert r_provider['config'] == {}
 
         r = as_user.get('/site/providers/' + provider_id)
         assert r.ok
@@ -175,8 +187,12 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
     provider_id = r.json()['_id']
     device_id = None
 
+    r = as_admin.post('/site/providers', json=VALID_STORAGE_PROVIDER)
+    assert r.ok
+    storage_provider_id = r.json()['_id']
+
     try:
-        api_db.providers.update({'_id': bson.ObjectId(provider_id)}, {'$set': {'config': {'top': 'secret'}}})
+        #api_db.providers.update({'_id': bson.ObjectId(provider_id)}, {'$set': {'config': {'top': 'secret'}}})
 
         r = as_public.get('/site/providers/' + provider_id + '/config')
         assert r.status_code == 403
@@ -211,15 +227,16 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
 
         r = as_device.get('/site/providers/' + provider_id + '/config')
         assert r.ok
-        assert r.json() == {'top': 'secret'}
+        # assert r.json() == {'top': 'secret'}
+        assert r.json() == {}
 
         # Still can't get storage config...
-        api_db.providers.update({'_id': bson.ObjectId(provider_id)}, {'$set': {'provider_class': 'storage'}})
-        r = as_device.get('/site/providers/' + provider_id + '/config')
+        r = as_device.get('/site/providers/' + storage_provider_id + '/config')
         assert r.status_code == 403
 
     finally:
         api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
+        api_db.providers.remove({'_id': bson.ObjectId(storage_provider_id)})
 
         # delete device
         if device_id is not None:

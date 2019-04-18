@@ -4,7 +4,7 @@ import uuid
 from flywheel_common import storage
 
 def test_py_fs_storage():
-    pyfs = storage.create_flywheel_fs(u'osfs:///tmp')
+    pyfs = storage.create_flywheel_fs(type_='osfs', config={'path': '/tmp'})
     assert pyfs._fs is not None
     assert pyfs.is_signed_url() == False
 
@@ -84,7 +84,7 @@ def test_py_fs_storage():
     assert hash_val == pyfs.get_file_hash(None, u'new_nested/nested/test.txt')
 
 def test_pyfs_directory_selection():
-    pyfs = storage.create_flywheel_fs(u'osfs:///tmp')
+    pyfs = storage.create_flywheel_fs(type_='osfs', config={'path': '/tmp'})
 
     #verify the file path is the uuid path
     uuid_ = unicode(str(uuid.uuid4))

@@ -13,7 +13,7 @@ import sys
 import pymongo
 
 from api import util
-from api.site.providers import get_provider_instance
+from api.site.providers import get_provider
 
 log = logging.getLogger('cleanup_deleted')
 cont_names = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses', 'collections']
@@ -225,9 +225,9 @@ def cleanup_files(remove_all, origins, project_id, job_phi):
 
                 if f.get('_id'):
                     uuid_path = util.path_from_uuid(f['_id'])
-                    storage_provider = get_provider_instance(f['provider_id'])
+                    storage_provider = get_provider(f['provider_id'])
                     if storage_provider.storage_plugin.get_file_info(f['_id'], uuid_path):
-                        log.debug('    removing from %s', storage_provider.provider_label)
+                        log.debug('    removing from %s', storage_provider.label)
                         storage_provider.storage_plugin.remove_file(f['_id'], uuid_path)
 
                     if not document_deleted:

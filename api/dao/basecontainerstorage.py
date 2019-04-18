@@ -464,7 +464,10 @@ class ContainerStorage(object):
 
             for item in permissions + notes:
                 uid = item.get('user', item['_id'])
-                user = users[uid]
+                user = users.get(uid)
+                if not user:
+                    log.critical('Permission or note is set on {} for an invalid user {}.'.format(container['label'], item['_id']))
+                    continue
                 item['avatar'] = user.get('avatar')
                 item['firstname'] = user.get('firstname', '')
                 item['lastname'] = user.get('lastname', '')

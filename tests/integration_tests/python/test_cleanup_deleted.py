@@ -22,7 +22,14 @@ def cleanup_deleted(mocker, monkeypatch, with_site_settings):
 
 def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_db, cleanup_deleted, with_site_settings):
     session_id = data_builder.create_session()
-
+    
+    # Projects must have a provider for job/gear uploads to work
+    r = as_admin.get('/sessions/' + session_id)
+    assert r.ok
+    project = r.json().get('parents').get('project')
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    
     file_name_1 = '%s.csv' % randstr()
     file_content_1 = randstr()
     as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))
@@ -178,11 +185,16 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     assert config.primary_storage.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is None
 
 
-def test_cleanup_single_project(data_builder, default_payload, randstr, file_form, as_admin, as_drone, api_db, cleanup_deleted):
+def test_cleanup_single_project(data_builder, default_payload, randstr, file_form, as_admin, as_drone, api_db, cleanup_deleted, with_site_settings):
     project_id = data_builder.create_project()
     session_id = data_builder.create_session()
     acquisition_id = data_builder.create_acquisition()
 
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project_id, json=update)
+    
+    
     file_name_1 = '%s.csv' % randstr()
     file_content_1 = randstr()
     as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))

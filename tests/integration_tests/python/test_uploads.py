@@ -647,7 +647,8 @@ def test_label_project_search(data_builder, file_form, as_device, as_user):
     data_builder.delete_group('unknown', recursive=True)
 
 
-def test_reaper_reupload_deleted(data_builder, as_device, file_form):
+def test_reaper_reupload_deleted(data_builder, as_device, file_form, with_site_settings, api_db):
+
     group = data_builder.create_group(_id='reupload')
     project = data_builder.create_project(label='reupload')
     reap_data = file_form('reaped.txt', meta={
@@ -990,7 +991,7 @@ def test_label_upload(data_builder, file_form, as_device):
     data_builder.delete_group(group, recursive=True)
 
 
-def test_master_subject_code_upload(data_builder, file_form, as_admin):
+def test_master_subject_code_upload(data_builder, file_form, as_admin, as_device):
     group = data_builder.create_group()
 
     metadata = {
@@ -1011,7 +1012,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
         }
     }
     # invalid master subject code
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata)
     )
@@ -1026,7 +1027,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
     master_code_1 = r.json()['code']
     metadata['session']['subject']['master_code'] = master_code_1
 
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata)
                       )
@@ -1054,7 +1055,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
     assert r.ok
     master_code_2 = r.json()['code']
     metadata['session']['subject']['master_code'] = master_code_2
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata))
     assert r.status_code == 409
@@ -1062,7 +1063,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
     # uploading a new file will go into the same subject if the master subject code is the same
     metadata['session']['subject']['master_code'] = master_code_1
     metadata['acquisition']['label'] = 'test_acquisition_label_2'
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata))
     assert r.ok

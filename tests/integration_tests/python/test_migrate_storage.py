@@ -9,7 +9,7 @@ import pymongo
 
 from api import config, util
 from api.site.storage_provider_service import StorageProviderService
-from api.site.providers import get_provider_instance
+from api.site.providers import get_provider
 from bson.objectid import ObjectId
 
 # When we move a file we also need to update the provider Id now
@@ -83,7 +83,7 @@ def gears_to_migrate(api_db, as_admin, randstr, file_form):
 
     for f_id, f_provider_id in files_to_delete:
         try:
-            source_fs = get_provider_instance(f_provider_id).storage_plugin
+            source_fs = get_provider(f_provider_id).storage_plugin
             source_fs.remove_file(f_id, None)
         except:
             pass
@@ -119,7 +119,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     # Delete the files but the session still exists in the DB with now missing data
     for f in files:
         try:
-            source_fs = get_provider_instance(f['provider_id']).storage_plugin
+            source_fs = get_provider(f['provider_id']).storage_plugin
             source_fs.remove_file(f['_id'], None)
         except:
             pass
@@ -133,8 +133,8 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage, second_
     # get file stored by uuid in storage
     (_, _, url_2, file_path_2, provider_id) = files_to_migrate[0]
 
-    source_fs = get_provider_instance(provider_id).storage_plugin
-    dest_fs = get_provider_instance(second_storage_provider).storage_plugin
+    source_fs = get_provider(provider_id).storage_plugin
+    dest_fs = get_provider(second_storage_provider).storage_plugin
 
     # get the ticket
     r = as_admin.get(url_2, params={'ticket': ''})
@@ -192,7 +192,7 @@ def test_migrate_gears(gears_to_migrate, as_admin, migrate_storage, with_site_se
     migrate_storage.main('--gears', '--destination' , second_storage_provider)
 
     #delete files from the source storage
-    source_fs = get_provider_instance(gear_file_provider_id_1).storage_plugin
+    source_fs = get_provider(gear_file_provider_id_1).storage_plugin
     source_fs.remove_file(gear_file_id_1, None)
 
     # get the files that will now be served from the new provider
@@ -206,7 +206,7 @@ def test_migrate_gears_error(gears_to_migrate, migrate_storage, second_storage_p
     (_, gear_file_id_2, gear_file_provider_id_2) = gears_to_migrate[0]
 
     # delete the file
-    source_fs = get_provider_instance(gear_file_provider_id_2).storage_plugin
+    source_fs = get_provider(gear_file_provider_id_2).storage_plugin
     source_fs.remove_file(gear_file_id_2, None)
 
     with pytest.raises(Exception):
@@ -256,7 +256,7 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     migrate_storage.main('--containers', '--destination', second_storage_provider)
 
     # delete files from the local storage
-    source_fs = get_provider_instance(provider_id_2).storage_plugin
+    source_fs = get_provider(provider_id_2).storage_plugin
     source_fs.remove_file(None, file_path_2)
 
     # get the ticket
@@ -287,5 +287,5 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     assert input_file_id == project_file_id
 
     #clean up the file on the disk but its still in the db so this will break future tests
-    dest_fs = get_provider_instance(second_storage_provider).storage_plugin
+    dest_fs = get_provider(second_storage_provider).storage_plugin
     dest_fs.remove_file(None, file_path_2)

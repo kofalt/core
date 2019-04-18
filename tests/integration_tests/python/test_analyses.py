@@ -5,12 +5,17 @@ import tarfile
 import bson
 
 
-def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, with_site_settings):
-    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, with_site_settings, site_gear):
+
     group = data_builder.create_group()
     project = data_builder.create_project()
     # Projects must have a provider for job/gear uploads to work
     update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+
+    # Update our specifc gear
+    api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'csv': {'base': 'file'}}}})
+    gear = site_gear
+
     r = as_admin.put('/projects/' + project, json=update)
     assert r.ok
     session = data_builder.create_session()
@@ -319,8 +324,10 @@ def test_analysis_download(data_builder, as_admin, as_root, file_form, api_db, w
         assert set(m.name for m in tar.getmembers()) == set(['legacy/input/input.csv', 'legacy/output/output.csv'])
 
 
-def test_analysis_inflate_job(data_builder, file_form, as_admin):
-    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+def test_analysis_inflate_job(data_builder, file_form, as_admin, api_db, site_gear):
+    # Update our specifc gear
+    api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'csv': {'base': 'file'}}}})
+    gear = site_gear
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
@@ -345,8 +352,10 @@ def test_analysis_inflate_job(data_builder, file_form, as_admin):
     assert all('id' in a.get('job', {}) for a in r.json())
 
 
-def test_analysis_join_origin(data_builder, file_form, as_admin, as_drone):
-    gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
+def test_analysis_join_origin(data_builder, file_form, as_admin, as_drone, api_db, site_gear):
+    # Update our specifc gear
+    api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'csv': {'base': 'file'}}}})
+    gear = site_gear
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok

@@ -23,7 +23,6 @@ class LocalStorageProvider(BaseStorageProvider):
 
     _schema = LocalStorageProviderSchema()
     _storage_plugin_type = 'osfs'
-    _creds = None
 
     def validate_permissions(self):
         #self._test_files()

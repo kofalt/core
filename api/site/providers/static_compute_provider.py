@@ -1,17 +1,32 @@
 """Provides the StaticComputeProvider class"""
-from flywheel_common.providers import ProviderClass
+from marshmallow import Schema, fields
 
-from ...web import errors
-from .base import BaseProvider
-from .factory import ProviderKey
+from flywheel_common.providers import BaseComputeProvider
+from flywheel_common.providers.provider import BaseProviderSchema
+from flywheel_common import errors
 
-class StaticComputeProvider(BaseProvider):
+
+#class StaticComputeConfigSchema(Schema):
+#    value = fields.String(required=True, allow_none=False, allow_blank=True)
+
+class StaticComputeProviderSchema(BaseProviderSchema):
+    """Schema definition for the object"""
+    #config = fields.Nested(StaticComputeConfigSchema, required=True, many=False)
+    config = fields.Dict(required=True, allow_none=True, allow_blank=True)
+    creds = fields.Dict(required=False, allow_none=True, allow_blank=True)
+
+
+
+# pylint: disable=too-few-public-methods
+class StaticComputeProvider(BaseComputeProvider):
     """The static compute provider object."""
 
-    def validate_config(self):
+    _schema = StaticComputeProviderSchema()
+
+    def validate(self):
         # Only empty configuration is valid
         if self.config:
-            raise errors.APIValidationException('Static Compute should have NO configuration!')
+            raise errors.ValidationError('Static Compute should have NO configuration!')
 
     def get_redacted_config(self):
         # There is no configuration, always return empty

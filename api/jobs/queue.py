@@ -17,6 +17,7 @@ from ..dao.containerutil import (
 )
 from .job_util import resolve_context_inputs
 from ..web import errors
+from flywheel_common import errors as flywheel_errors
 from ..site import providers
 
 
@@ -353,7 +354,10 @@ class Queue(object):
                     'gear={}, destination.id={}'.format(gear['_id'], destination.id))
         else:
             # Validate the provided compute provider
-            providers.validate_provider_class(compute_provider_id, 'compute')
+            try:
+                providers.validate_provider_class(compute_provider_id, 'compute')
+            except flywheel_errors.ResourceNotFound:
+                raise flywheel_errors.ValidationError('Provider id is not valid')
 
         # Initialize profile
         profile = {

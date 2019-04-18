@@ -1319,12 +1319,11 @@ def test_multi_input_rules(default_payload, data_builder, as_admin, as_root, fil
     r = as_admin.delete('/acquisitions/' + acquisition + '/files/test.csv')
     assert r.status_code == 403
 
-def test_project_rule_providers(compute_provider, data_builder, file_form, as_root, as_admin, as_user, as_drone, api_db, with_site_settings):
+def test_project_rule_providers(compute_provider, data_builder, file_form, as_root, as_admin, as_user, as_drone, api_db, with_site_settings, site_gear):
     # create versioned gear to cover code selecting latest gear
-    gear_name = data_builder.randstr()
-    gear_config = {'param': {'type': 'string', 'pattern': '^default|custom$', 'default': 'default'}}
-    gear = data_builder.create_gear(gear={'name': gear_name, 'version': '0.0.1', 'config': gear_config})
-
+    api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.config': {'param': {'type': 'string', 'pattern': '^default|custom$', 'default': 'default'}}}})
+    gear_name = 'site-gear'
+    gear = site_gear
     group = data_builder.create_group(providers={})
     project = data_builder.create_project()
 

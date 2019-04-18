@@ -29,6 +29,7 @@ from ..validators import validate_data, verify_payload_exists
 from ..dao.containerutil import pluralize, singularize
 from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
+from flywheel_common.errors import ResourceNotFound
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 from ..web.request import log_access, AccessType
 from ..site.providers import get_provider
@@ -575,7 +576,8 @@ class JobsHandler(base.RequestHandler):
         job = Queue.enqueue_job(payload, self.origin, perm_check_uid=None)
 
         # Retrieve the provider
-        return get_provider(job.compute_provider_id)
+        provider = get_provider(job.compute_provider_id)
+        return provider._schema.dump(provider).data
 
     @require_admin
     def stats(self):

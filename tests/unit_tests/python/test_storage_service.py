@@ -15,7 +15,7 @@ def test_provider_selection(mocker, with_site_settings):
 
     # return is an object with the document as a dictionary so we need to stub the same
     mocker.patch('api.site.storage_provider_service.get_site_settings', return_value=site_settings)
-    mocker.patch('api.site.providers.get_provider_instance', new=mocked_return)
+    mocker.patch('api.site.providers.get_provider', new=mocked_return)
     mocker.patch('api.jobs.jobs.Job.get', return_value=job)
     storage_service = StorageProviderService()
 

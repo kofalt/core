@@ -15,6 +15,40 @@ SCITRAN_CORE_DRONE_SECRET = os.environ['SCITRAN_CORE_DRONE_SECRET']
 SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
 
+
+@pytest.fixture(scope='function')
+def site_gear(session, api_db, with_site_settings):
+
+    gear = api_db.gears.insert_one({
+        'exchange': {
+            'git-commit': 'aex',
+            'rootfs-hash': 'sha384:oy',
+            'rootfs-url': 'https://test.test'
+        },
+        'gear': {
+            'author': 'test',
+            'config': {},
+            'description': 'test',
+            'inputs': {
+                'text': {
+                    'base': 'file',
+                    'name': {'pattern': '^.*.txt$'},
+                    'size': {'maximum': 100000}
+                }
+            },
+            'name': 'site-gear',
+            'label': 'Site Gear Test',
+            'license': 'BSD-2-Clause',
+            'source': 'https://test.test',
+            'url': 'https://test.test',
+            'version': '0.0.1',
+        }
+    })
+
+    yield str(gear.inserted_id)
+
+    api_db.gears.remove({'_id': gear.inserted_id})
+
 @pytest.fixture(scope='session')
 def second_storage_provider(session, api_db, with_site_settings):
 
@@ -23,12 +57,13 @@ def second_storage_provider(session, api_db, with_site_settings):
         os.mkdir(new_dir)
     provider = api_db.providers.insert_one({
         "origin": {"type":"system", "id":"system"},
-        "created":"2019-03-19T18:48:37.790Z",
+        "created": datetime.datetime.utcnow(),
         "config":{"path": new_dir},
-        "modified":"2019-03-19T18:48:37.790Z",
+        "modified": datetime.datetime.utcnow(),
         "label":"Local Storage Test",
         "provider_class":"storage",
-        "provider_type":"osfs"
+        "provider_type":"local",
+        "creds": {}
     })
 
     return str(provider.inserted_id)
@@ -36,7 +71,7 @@ def second_storage_provider(session, api_db, with_site_settings):
 @pytest.fixture(scope='session')
 def with_site_settings(session, api_db):
     """Create Default Site Settings which include a default storage provider"""
-    
+
     # Even with sesion level scope this fixture runs multiple times.
     # If we get that corrected we can remove this check and test will run a lot faster
     if not api_db.get_collection('providers'):
@@ -48,12 +83,13 @@ def with_site_settings(session, api_db):
         provider = api_db.providers.insert_one({
             "_id": bson.ObjectId("deadbeefdeadbeefdeadbeef"),
             "origin": {"type":"system", "id":"system"},
-            "created": "2019-03-19T18:48:37.790Z",
+            "created": datetime.datetime.utcnow(),
             "config": {"path":local_fs_url},
-            "modified": "2019-03-19T18:48:37.790Z",
+            "creds": {},
+            "modified": datetime.datetime.utcnow(),
             "label": "Local Storage",
             "provider_class": "storage",
-            "provider_type": "osfs"
+            "provider_type": "local"
         })
         storage_provider_id = provider.inserted_id
     else:
@@ -63,9 +99,10 @@ def with_site_settings(session, api_db):
     if not provider:
         provider = api_db.providers.insert_one({
             "origin": {"type":"system", "id":"system"},
-            "created": "2019-03-19T18:48:37.790Z",
-            "config": {"path":local_fs_url},
-            "modified": "2019-03-19T18:48:37.790Z",
+            "created": datetime.datetime.utcnow(),
+            "config": {},
+            "creds": {},
+            "modified": datetime.datetime.utcnow(),
             "label": "Default Compute Provider",
             "provider_class": "compute",
             "provider_type": "static"
@@ -77,9 +114,9 @@ def with_site_settings(session, api_db):
     api_db.singletons.update({'_id':'site'},
         {
             "_id": "site",
-            "center_gears": [],
-            "created": "2019-03-19T18:44:17.701078+00:00",
-            "modified": "2019-03-19T18:44:17.701094+00:00",
+            "center_gears": ['site-gear'],
+            "created": datetime.datetime.utcnow(),
+            "modified": datetime.datetime.utcnow(),
             "providers": {"storage": storage_provider_id, "compute": compute_provider_id}
         },
         True)
@@ -182,12 +219,16 @@ def default_payload():
         'compute_provider': {
             'provider_class': 'compute',
             'provider_type': 'static',
+            'label': 'test compute',
             'config': {},
+            'creds' : {}
         },
         'storage_provider': {
             'provider_class': 'storage',
-            'provider_type': 'static',
-            'config': {},
+            'provider_type': 'local',
+            'label': 'test storage',
+            'config': {'path': '/var'},
+            'creds': {}
         },
     })
 

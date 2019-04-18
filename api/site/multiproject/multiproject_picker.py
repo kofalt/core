@@ -1,5 +1,5 @@
 """Provides a picker that returns the provider based on multiproject policy"""
-from flywheel_common import ProviderClass
+from flywheel_common.providers import ProviderClass
 from .provider_picker import ProviderPicker
 from .. import mappers, models
 

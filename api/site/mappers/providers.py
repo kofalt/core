@@ -1,5 +1,6 @@
 """Provides data mapper for providers"""
 import datetime
+import dateutil.parser
 
 import bson
 import pymongo
@@ -29,6 +30,7 @@ class Providers(object):
         del raw['_id']
 
         result = self.dbc.insert_one(raw)
+
         # Update the instance id
         provider.provider_id = result.inserted_id
         provider._id = result.inserted_id
@@ -36,20 +38,19 @@ class Providers(object):
         return result.inserted_id
 
     def patch(self, provider_id, provider):
-        """Update the provider, with the given update fields in the doc.
+        """Update the provider, with the given update fields in the object.
 
         The modified time will be set automatically.
 
         Args:
             provider_id (str|ObjectId): The id of the provider to update
-            doc (dict): The set of updates to apply
+            provider (Provider): The set of updates to apply
         """
         # Create the upsert document
         raw = self._parse_raw(provider)
-        raw['label'] = provider.provider_label
         del raw['_id']
         update = {'$set': raw}
-        update['$set']['modified'] = datetime.datetime.now()
+        #update['$set']['modified'] = datetime.datetime.utcnow()
         self.dbc.update_one({'_id': bson.ObjectId(provider_id)}, update)
 
     def get(self, provider_id):
@@ -127,14 +128,22 @@ class Providers(object):
             config=doc['config'],
             creds=doc.get('creds'), #Creds is not required in local or gc currently,
             id_=doc['_id'])
+        provider.origin = doc['origin']
+        provider.modified = doc['modified']
+        provider.created = doc['created']
+
+        provider.validate()
+
         return provider
 
     def _parse_raw(self, provider):
 
         """ Parse out the unneeded field for the provider to raw doc mapping """
         raw = provider._schema.dump(provider).data
-        raw['label'] = provider.provider_label
 
-        del raw['provider_label']
+        # Pymongo expects the datatime to be valid datetime object to format the type correctly
+        raw['created'] = dateutil.parser.parse(raw['created'])
+        raw['modified'] = dateutil.parser.parse(raw['modified'])
         del raw['provider_id']
+
         return raw
