@@ -58,6 +58,8 @@
     responses:
       '200':
         description: ''
+        schema:
+          $ref: schemas/output/job-ask.json
 
 /jobs/next:
   get:

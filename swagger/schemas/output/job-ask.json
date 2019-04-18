@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "allOf":[{"$ref": "../definitions/job.json#/definitions/job-ask-response"}],
+  "example": {
+    "states": {
+      "pending": 1,
+      "running": 1,
+      "failed": 0,
+      "complete": 3,
+      "cancelled": 0
+    }
+  }
+}
