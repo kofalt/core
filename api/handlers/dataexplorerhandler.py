@@ -759,7 +759,7 @@ class DataExplorerHandler(base.RequestHandler):
         file_processor = FileProcessor(config.primary_storage)
 
         # Create a new file with a new uuid
-        _, fileobj = file_processor.create_new_file(None)
+        path, fileobj = file_processor.create_new_file(None)
         fileobj.write(json.dumps(formatted_search_results))
         #This seems to be empty on file create but verify this is correct
         metadata = None
@@ -771,7 +771,7 @@ class DataExplorerHandler(base.RequestHandler):
 
         fileobj.close()
 
-        file_fields = file_processor.create_file_fields(output_filename, fileobj.path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
+        file_fields = file_processor.create_file_fields(output_filename, path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
         file_attrs = upload.make_file_attrs(file_fields, self.origin)
 
         # Place the file
