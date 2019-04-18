@@ -260,3 +260,18 @@ For example:
 	catch ME
 	  fprintf('API Error: %s\n', ME.message);
 	end
+
+
+SSL CA Certificates
+-------------------
+By default the SDK uses an internal set of CA certificates for SSL validation.
+If desired, this behavior can be overridden, and a set of PEM encoded certificates
+can be used instead.
+
+To do this, set the ``FW_SSL_CERT_FILE`` to the absolute path of the certificates file.
+
+For example:
+
+::
+
+	export FW_SSL_CERT_FILE=/etc/ssl/cert.pem
