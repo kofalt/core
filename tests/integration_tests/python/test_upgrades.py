@@ -1219,32 +1219,55 @@ def test_64(api_db, database):
     api_db.subjects.drop_indexes()
     project_id = bson.ObjectId()
     project_id_2 = bson.ObjectId()
+
     api_db.subjects.insert_one({
         'code': 'test_1',
-        'project': project_id
+        'project': project_id,
+        'created': datetime.datetime(2019, 1, 1)
     })
     # same as above but deleted
     api_db.subjects.insert_one({
         'code': 'test_1',
         'project': project_id,
-        'deleted': datetime.datetime.now()
+        'deleted': datetime.datetime.now(),
+        'created': datetime.datetime(2019, 1, 1)
     })
+    # two subject with same code and project
+    subject_1 = bson.ObjectId()
     api_db.subjects.insert_one({
+        '_id': subject_1,
         'code': 'test_2',
-        'project': project_id
+        'project': project_id,
+        'created': datetime.datetime(2019, 1, 1)
+    })
+    subject_2 = bson.ObjectId()
+    api_db.subjects.insert_one({
+        '_id': subject_2,
+        'code': 'test_2',
+        'project': project_id,
+        'created': datetime.datetime(2019, 1, 2)
+    })
+    session_1 = bson.ObjectId()
+    api_db.sessions.insert_one({
+        '_id': session_1,
+        'project': project_id,
+        'subject': subject_1,
     })
     # same as above but in a differenet project
     api_db.subjects.insert_one({
         'code': 'test_2',
-        'project': project_id_2
+        'project': project_id_2,
+        'created': datetime.datetime(2019, 1, 3)
     })
     api_db.subjects.insert_one({
         'code': '',
-        'project': project_id
+        'project': project_id,
+        'created': datetime.datetime(2019, 1, 4)
     })
     api_db.subjects.insert_one({
         'code': None,
-        'project': project_id
+        'project': project_id,
+        'created': datetime.datetime(2019, 1, 4)
     })
 
     database.upgrade_to_64()
@@ -1255,4 +1278,16 @@ def test_64(api_db, database):
         {'deleted': 1, 'master_code': 1, 'project': 1}
     ]
 
+    # assertions that the merge was successfull
+    subjects = api_db.subjects.find({
+        'code': 'test_2',
+        'project': project_id
+    })
+    # there is only one subject
+    assert len(list(subjects)) == 1
+    # session ref is updated
+    s = api_db.sessions.find_one({'_id': session_1})
+    assert s['subject'] == subject_1
+
     api_db.subjects.delete_many({'project': {'$in': [project_id, project_id_2]}})
+    api_db.sessions.delete_one({'_id': session_1})
