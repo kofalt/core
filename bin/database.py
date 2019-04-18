@@ -2337,6 +2337,43 @@ def upgrade_to_64():
     '''
     # cleanup codes with empty and null value
     config.db.subjects.update_many({'code': {'$in': [None, '']}}, {'$unset': {'code': 1}})
+    # merge subjects with the same code
+    subject_groups = config.db.subjects.aggregate([
+        {'$match': {'deleted': {'$exists': False}, 'code': {'$exists': True}}},
+        {'$group': {'_id': {'code': '$code', 'project': '$project'}, 'subjects': {'$push': '$$ROOT'}, 'count': {'$sum': 1}}},
+        {'$match': {'count': {'$gt': 1}}},
+        {'$sort': collections.OrderedDict([('_id.project', 1), ('_id.code', 1)])}
+    ])
+
+    def merge_dict(a, b):
+        """Merge dict a and b in place, into a"""
+        for k in b:
+            if k not in a:  # add new key
+                a[k] = b[k]
+            elif a[k] == b[k]:  # skip unchanged
+                pass
+            elif b[k] in ('', None):  # skip setting empty
+                pass
+            elif a[k] in ('', None):  # replace null without storing history, alerting
+                a[k] = b[k]
+            elif type(a[k]) == type(b[k]) == dict:  # recurse in dict
+                merge_dict(a[k], b[k])
+            else:  # handle conflict
+                if k == '_id':
+                    return
+                logging.warning('merge conflict on key %s on subject %s', k, a.get('_id') or b.get('_id'))
+                a[k] = b[k]
+    for subject_group in subject_groups:
+        subjects = list(sorted(subject_group['subjects'], key=lambda s: s.get('created')))
+        merged_subject = {}
+        for subject in subjects:
+            # merge dict keeps the first subject's _id
+            merge_dict(merged_subject, subject)
+            config.db.subjects.delete_one({'_id': subject['_id']})
+            config.db.sessions.update_many({'subject': subject['_id']}, {'$set': {
+                'subject': merged_subject['_id']
+            }})
+        config.db.subjects.insert_one(merged_subject)
     # apply indexes
     config.db.subjects.create_index([('project', 1), ('code', 1), ('deleted', 1)],
         partialFilterExpression={'code': {'$exists': True}}, unique=True)
