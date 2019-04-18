@@ -41,9 +41,6 @@ public class RestClient {
      * @param apiKey The api key to use for authorization
      */
     public RestClient(URL baseUrl, String apiKey) {
-        // Perform one-time initializations
-        HttpClientInit.initialize();
-
         // Split API Key...
         // Set default header
         this.baseUrl = baseUrl;
@@ -53,6 +50,15 @@ public class RestClient {
         if( apiKey != null && !apiKey.isEmpty() ) {
             defaultHeaders.put("Authorization", "scitran-user " + apiKey);
         }
+    }
+
+    /**
+     * Setup RestClient to use the given certificate file
+     * @param sslCertFile The path to the certs file
+     */
+    public static void useCertFile(String sslCertFile) {
+        HttpsSocketFactory.setSSLCertFile(sslCertFile);
+        HttpsSocketFactory.register();
     }
 
     /**
