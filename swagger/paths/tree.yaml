@@ -25,6 +25,10 @@
 
       # Limit
       Joins can be limited to a the first N documents by specifying a limit in the subdocument.
+
+      # Join-origin
+      Passing `true` for the `join-origin` flag in the files subdocument will populates the
+      `join-origin` map for each container with files.
     operationId: fetch_tree
     x-fw-pagination: true
     parameters:

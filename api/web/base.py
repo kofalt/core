@@ -395,10 +395,12 @@ class RequestHandler(webapp2.RequestHandler):
         page['count'] = len(page['results'])
         return page
 
-    def handle_origin(self, container):
+    def handle_origin(self, containers):
         """Check for request param `join=origin` and call storage.join_origins(container) if present."""
         if 'origin' in self.request.params.getall('join'):
-            self.storage.join_origins(container)  # pylint: disable=no-member
+            if isinstance(containers, dict):
+                containers = [containers]
+            self.storage.join_origins(containers, set_gear_name=True, all_fields=True)  # pylint: disable=no-member
 
     def handle_exception(self, exception, debug, return_json=False): # pylint: disable=arguments-differ
         """

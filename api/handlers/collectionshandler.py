@@ -163,8 +163,7 @@ class CollectionsHandler(ContainerHandler):
 
         self._filter_all_permissions(sessions, self.uid)
 
-        for sess in sessions:
-            self.handle_origin(sess)
+        self.handle_origin(sessions)
         return sessions
 
     def get_acquisitions(self, cid):
@@ -192,8 +191,7 @@ class CollectionsHandler(ContainerHandler):
 
         self._filter_all_permissions(acquisitions, self.uid)
 
-        for acquisition in acquisitions:
-            self.handle_origin(acquisition)
+        self.handle_origin(acquisitions)
         return acquisitions
 
     def get_list_projection(self, container):

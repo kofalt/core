@@ -220,9 +220,10 @@ class ContainerHandler(base.RequestHandler):
         if self.is_true('counts'):
             self._add_results_counts(results, cont_name)
 
-        for result in results:
-            self.handle_origin(result)
-            if self.is_true('stats'):
+        self.handle_origin(results)
+
+        if self.is_true('stats'):
+            for result in results:
                 containerutil.get_stats(result, cont_name)
 
         if self.is_true('join_avatars'):
