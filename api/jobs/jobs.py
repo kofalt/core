@@ -23,8 +23,8 @@ class Job(object):
                  request=None, id_=None, config_=None, origin=None,
                  saved_files=None, produced_metadata=None, batch=None,
                  failed_output_accepted=False, profile=None,
-                 parents=None, failure_reason=None,
-                 transitions=None, related_container_ids=None, label=None):
+                 parents=None, failure_reason=None, transitions=None,
+                 related_container_ids=None, label=None, compute_provider_id=None):
         """
         Creates a job.
 
@@ -66,6 +66,10 @@ class Job(object):
         related_container_ids: list (optional)
             The set of all container ids related to inputs and destination of this job, as of
             job creation time. This field is not updated when containers are moved.
+        label: str (optional)
+            An optional label for the job
+        compute_provider_id: ObjectId (optional)
+            The compute provider id for job execution
         """
 
         # TODO: validate inputs against the manifest
@@ -131,6 +135,7 @@ class Job(object):
         self.transitions        = transitions
         self.related_container_ids = related_container_ids
         self.label              = label
+        self.compute_provider_id = bson.ObjectId(compute_provider_id) if compute_provider_id else None
 
     def intention_equals(self, other_job):
         """
@@ -208,7 +213,8 @@ class Job(object):
             failure_reason=d.get('failure_reason'),
             transitions=d.get('transitions', {}),
             related_container_ids=d.get('related_container_ids', []),
-            label = d.get('label')
+            label = d.get('label'),
+            compute_provider_id = d.get('compute_provider_id')
         )
 
     @classmethod

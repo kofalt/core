@@ -1,9 +1,10 @@
 """Provides repository-layer functions for loading/saving providers"""
 import bson
 
+from ... import config
 from ...web import errors
 from .factory import create_provider
-from .. import mappers, models
+from .. import mappers, models, multiproject
 
 
 COMPUTE_DISPATCHERS = [ 'cloud-scale', 'compute-dispatcher' ]
@@ -30,6 +31,27 @@ def get_provider(provider_id):
     if not result:
         raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
     return _scrub_config(result)
+
+
+def validate_provider_class(provider_id, provider_class):
+    """Validate that the given provider exists, and has the given class.
+
+    Args:
+        provider_id (str): The provider id
+        provider_class (str|ProviderClass): The provider class
+
+    Raises:
+        APIValidationException: If the provider either doesn't exist or is not of the specified class.
+    """
+    provider_class = models.ProviderClass(provider_class)
+    mapper = mappers.Providers()
+    result = mapper.get(provider_id)
+
+    if not result:
+        raise errors.APIValidationException('Provider {} does not exist'.format(provider_id))
+    if result.provider_class != provider_class:
+        raise errors.APIValidationException('Provider {} is not a {} provider!'.format(
+            provider_id, provider_class.value))
 
 
 def get_provider_config(provider_id, full=False):
@@ -199,6 +221,46 @@ def validate_provider_updates(container, provider_ids, is_admin):
         if storage_provider.provider_class != models.ProviderClass(provider_class):
             raise errors.APIValidationException('Invalid storage provider class: {}'.format(
                 storage_provider.provider_class))
+
+
+def get_provider_id_for_container(container, provider_class, site_settings=None):
+    """Get the effective provider of type provider_class for the given container.
+
+    Walks up the tree, as needed, stopping at site to determine the provider.
+
+    Args:
+        container (dict): The container under question.
+        provider_class (ProviderClass|str): The class of provider to retrieve.
+        site_settings (SiteSettings): Optional site_settings, if preloaded
+
+    Returns:
+        (bool, ObjectId): True if this is a site provider, and the provider id, if found, otherwise None
+    """
+    picker = _get_provider_picker()
+    return picker.get_provider_id_for_container(container, provider_class, site_settings=site_settings)
+
+
+def get_compute_provider_id_for_job(gear, destination, inputs):
+    """Determine the compute provider for the given job profile.
+
+    Args:
+        gear (dict): The resolved gear document
+        destination (dict): The destination container
+        inputs (list(dict)): The list of input containers, with origins
+
+    Returns:
+        ObjectId: The id of the provider, or None if no applicable provider was found.
+
+    Raises:
+        APIValidationException: If invalid args were passed
+    """
+    picker = _get_provider_picker()
+    return picker.get_compute_provider_id_for_job(gear, destination, inputs)
+
+
+def _get_provider_picker():
+    """Get the configured provider picker"""
+    return multiproject.create_provider_picker(config.is_multiproject_enabled())
 
 
 def _scrub_config(provider):

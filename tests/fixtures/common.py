@@ -108,6 +108,16 @@ def default_payload():
             },
         },
         'job': {'inputs': {}},
+        'compute_provider': {
+            'provider_class': 'compute',
+            'provider_type': 'static',
+            'config': {},
+        },
+        'storage_provider': {
+            'provider_class': 'storage',
+            'provider_type': 'static',
+            'config': {},
+        },
     })
 
 
@@ -218,11 +228,20 @@ class DataBuilder(object):
         # such fields are: [user._id, group._id, gear.gear.name]
         if resource == 'user' and '_id' not in payload:
             payload['_id'] = self.randstr() + '@user.com'
-        if resource == 'group' and '_id' not in payload:
-            payload['_id'] = self.randstr()
+        if resource == 'group':
+            if '_id' not in payload:
+                payload['_id'] = self.randstr()
+
+            if 'providers' not in payload:
+                # TODO: Add storage provider when appropriate
+                payload['providers'] = {
+                    'compute': self.get_or_create('compute_provider'),
+                }
         if resource == 'gear' and 'name' not in payload['gear']:
             payload['gear']['name'] = self.randstr()
         if resource == 'collection' and 'label' not in payload:
+            payload['label'] = self.randstr()
+        if resource in ('compute_provider', 'storage_provider') and 'label' not in payload:
             payload['label'] = self.randstr()
 
         # add missing label fields using randstr
@@ -254,6 +273,8 @@ class DataBuilder(object):
             create_url += '/' + payload['gear']['name']
         if resource == 'job':
             create_url += '/add'
+        if resource in ('compute_provider', 'storage_provider'):
+            create_url = '/site/providers'
 
         # handle user api keys (they are set via mongo directly)
         if resource == 'user':
@@ -312,6 +333,8 @@ class DataBuilder(object):
             self.api_db.jobs.remove({'gear_id': str(_id)})
         if resource == 'user':
             self.api_db.apikeys.delete_one({'origin.id': _id})
+        if resource in ('compute_provider', 'storage_provider'):
+            resource = 'provider'
         self.api_db[resource + 's'].remove({'_id': _id})
 
 

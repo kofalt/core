@@ -1,3 +1,4 @@
+import copy
 import bson
 import time
 
@@ -864,3 +865,258 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
 
     # must remove jobs manually because gears were added manually
     api_db.jobs.remove({'gear_id': {'$in': [gear, gear_v1]}})
+
+def test_batch_providers(site_providers, data_builder, api_db, as_user, as_admin, as_root, as_drone):
+    gear_id = data_builder.create_gear()
+    gear = as_admin.get('/gears/' + gear_id).json()
+
+    group = data_builder.create_group(providers={})
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    as_admin.post('/acquisitions/' + acquisition + '/files', files={
+        'file': ('test.txt', 'test\ncontent\n')})
+
+    site_provider = site_providers['compute']
+    override_provider = data_builder.create_compute_provider()
+
+    # Ensure that user is a project admin
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    }).ok
+
+    batch_jobs = [{
+        'gear_id': gear_id,
+        'config': { 'two-digit multiple of ten': 20 },
+        'inputs': {
+            'text': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.txt'
+            }
+        },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }]
+
+    # === Non-center gear ===
+    # Cannot run batch
+    r = as_admin.post('/batch', json={
+        'gear_id': gear_id,
+        'targets': [{'type': 'session', 'id': session}]
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.status_code == 412
+
+    # Cannot override provider_id on batch (if not admin)
+    r = as_user.post('/batch', json={
+        'gear_id': gear_id,
+        'compute_provider_id': override_provider,
+        'targets': [{'type': 'session', 'id': session}]
+    })
+    assert r.status_code == 403
+
+    # Validate overridden provider_id
+    r = as_admin.post('/batch', json={
+        'gear_id': gear_id,
+        'compute_provider_id': str(bson.ObjectId()),
+        'targets': [{'type': 'session', 'id': session}]
+    })
+    assert r.status_code == 422
+
+    # Can override provider_id on batch (if admin)
+    r = as_admin.post('/batch', json={
+        'gear_id': gear_id,
+        'compute_provider_id': override_provider,
+        'targets': [{'type': 'session', 'id': session}]
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == override_provider
+
+    r = as_admin.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
+    # Cannot create a batch with preconstructed jobs
+    r = as_admin.post('/batch/jobs', json={
+        'jobs': batch_jobs
+    })
+    assert r.status_code == 412
+
+    # Cannot create a batch with preconstructed jobs, overriding provider_id (if not admin)
+    batch_jobs_with_provider = copy.deepcopy(batch_jobs)
+    batch_jobs_with_provider[0]['compute_provider_id'] = override_provider
+    r = as_user.post('/batch/jobs', json={
+        'jobs': batch_jobs_with_provider
+    })
+    assert r.status_code == 403
+
+    # Can create a batch with preconstructed jobs, overriding provider_id (if admin)
+    r = as_admin.post('/batch/jobs', json={
+        'jobs': batch_jobs_with_provider
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == override_provider
+
+    r = as_admin.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
+    # === Center gears ===
+    assert as_admin.put('/site/settings', json={'center_gears': [ gear['gear']['name'] ]}).ok
+
+    # Can create batch (device origin)
+    api_db.acquisitions.update_one({'_id': bson.ObjectId(acquisition)}, {'$set': {'files.0.origin.type': 'device'}})
+
+    r = as_user.post('/batch', json={
+        'gear_id': gear_id,
+        'targets': [{'type': 'session', 'id': session}]
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_user.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    assert r.ok
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == site_provider
+
+    r = as_user.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
+    # Can override provider_id on batch (if admin)
+    r = as_admin.post('/batch', json={
+        'gear_id': gear_id,
+        'compute_provider_id': override_provider,
+        'targets': [{'type': 'session', 'id': session}]
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == override_provider
+
+    r = as_admin.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
+    # Can create a batch with preconstructed jobs
+    r = as_user.post('/batch/jobs', json={
+        'jobs': batch_jobs
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_user.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    assert r.ok
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == site_provider
+
+    r = as_user.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
+    # Cannot override provider_id if user
+    r = as_user.post('/batch/jobs', json={
+        'jobs': batch_jobs_with_provider
+    })
+    assert r.status_code == 403
+
+    # Can create a batch with preconstructed jobs, overriding provider_id (if admin)
+    r = as_admin.post('/batch/jobs', json={
+        'jobs': batch_jobs_with_provider
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == override_provider
+
+    r = as_admin.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
+    # === Non-center gear with project provider ===
+    # Revert to non-center gear
+    assert as_admin.put('/site/settings', json={'center_gears': []}).ok
+
+    # Create project provider
+    project_provider = data_builder.create_compute_provider()
+    r = as_admin.put('/projects/' + project, json={
+        'providers': {'compute': project_provider}
+    })
+    assert r.ok
+
+    # Can run batch gears as a user if there's a provider on project
+    r = as_user.post('/batch', json={
+        'gear_id': gear_id,
+        'targets': [{'type': 'session', 'id': session}]
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == project_provider
+
+    r = as_admin.post('/batch/' + batch_id + '/cancel')
+    assert r.ok
+
+    # Can run batch preconstructed jobs as user if there's a provider on project
+    r = as_user.post('/batch/jobs', json={
+        'jobs': batch_jobs
+    })
+    assert r.ok
+    batch_id = r.json()['_id']
+
+    r = as_admin.post('/batch/' + batch_id + '/run')
+    assert r.ok
+
+    r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
+    assert r.ok
+    r_jobs = r.json()
+    assert len(r_jobs) == 1
+    assert r_jobs[0]['compute_provider_id'] == project_provider
+
+    r = as_admin.post('/batch/' + batch_id + '/cancel')
+    assert r.ok

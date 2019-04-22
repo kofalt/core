@@ -248,6 +248,7 @@
         "previous_job_id":{"type":"string"},
         "inputs":{"$ref":"#/definitions/inputs-object"},
         "destination":{"$ref":"#/definitions/destination"},
+        "compute_provider_id": {"$ref":"common.json#/definitions/objectid"},
         "group": {"$ref":"common.json#/definitions/lowercase-string-id"},
         "project": {"$ref":"common.json#/definitions/objectid"},
         "tags":{"$ref":"#/definitions/tags"},
@@ -308,6 +309,7 @@
         "destination":{"$ref":"#/definitions/destination"},
         "tags":{"$ref":"#/definitions/tags"},
         "config":{"$ref":"#/definitions/config"},
+        "compute_provider_id": {"$ref":"common.json#/definitions/objectid"},
         "label":{"$ref":"common.json#/definitions/label"}
       },
       "required": ["gear_id"],

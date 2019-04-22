@@ -60,8 +60,9 @@ DEFAULT_CONFIG = {
     },
     'features': {
         # Permanent API features should exist here
-        'job_tickets': True,  #  Job completion tickets, which allow a new success/failure flow and advanced profiling.
-        'job_ask': True,      #  Job queue /jobs/ask route.
+        'job_tickets': True,   # Job completion tickets, which allow a new success/failure flow and advanced profiling.
+        'job_ask': True,       # Job queue /jobs/ask route.
+        'multiproject': False  # Multiproject support
     },
     'persistent': {
         'db_uri':     'mongodb://localhost:27017/scitran',
@@ -71,7 +72,7 @@ DEFAULT_CONFIG = {
         'data_path': os.path.join(os.path.dirname(__file__), '../persistent/data'),
         'elasticsearch_host': 'localhost:9200',
         'fs_url': None,
-        'support_legacy_fs': True
+        'support_legacy_fs': True,
     },
     'master_subject_code': {
         'size': '6',
@@ -257,6 +258,9 @@ def initialize_db():
     create_or_recreate_ttl_index('job_tickets', 'timestamp',       6 * 60 * 60) #  6 hours
     create_or_recreate_ttl_index('gear_tickets', 'timestamp', 1 * 24 * 60 * 60) #  1 day
 
+    from .site import site_settings
+    site_settings.initialize()
+
     now = datetime.datetime.utcnow()
     try_update_one(db,
                    'groups', {'_id': 'unknown'},
@@ -327,6 +331,8 @@ def get_version():
 
     return version_object
 
+def is_multiproject_enabled():
+    return get_feature('multiproject', False)
 
 def get_item(outer, inner):
     return get_config()[outer][inner]

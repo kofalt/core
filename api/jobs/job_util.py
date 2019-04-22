@@ -7,7 +7,9 @@ from ..config import log
 from ..auth import has_access
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
+from ..web import errors
 from ..web.request import AccessType
+from ..site.providers import validate_provider_class
 
 
 def remove_potential_phi_from_job(job_map):
@@ -147,3 +149,25 @@ def resolve_context_inputs(config, gear, cont_type, cont_id, uid, context=None):
                     'found': False
                 }
 
+def validate_job_compute_provider(job_map, request_handler, validate_provider=False):
+    """Verify that the user can set compute_provider_id, if provided.
+
+    Checks if compute_provider_id is set in job_map, and if so verifies that
+    the user has the correct permissions.
+
+    Returns:
+        str: The compute_provider_id if specified, otherwise None
+
+    Raises:
+        APIPermissionException: If a non-admin user attempts to override provider
+        APIValidataionException: If validate_provider is true and the provider either
+            doesn't exist, or is not a compute provider
+    """
+    compute_provider_id = job_map.get('compute_provider_id')
+    if compute_provider_id:
+        if not request_handler.user_is_admin:
+            raise errors.APIPermissionException('Only admin can override job provider!')
+        if validate_provider:
+            validate_provider_class(compute_provider_id, 'compute')
+
+    return compute_provider_id

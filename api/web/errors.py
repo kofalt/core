@@ -72,7 +72,6 @@ class APIRefreshTokenException(APIException):
     core_status_code = 'invalid_refresh_token'
     default_msg = 'User refresh token has expired.'
 
-
 ###
 # Input Validation Exceptions
 ###
@@ -174,6 +173,11 @@ class DBValidationException(APIException):
 class APIReportException(APIException):
     """A non-user error occurred while attempting to generate a report"""
     pass
+
+class APIPreconditionFailed(APIException):
+    """A precondition for the request was not met"""
+    status_code = 412
+    default_msg = 'Precondition Failed'
 
 class RangeNotSatisfiable(APIException):
     """

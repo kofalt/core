@@ -16,7 +16,8 @@ from ..dao.containerutil import (
     create_containerreference_from_filereference, FileReference
 )
 from .job_util import resolve_context_inputs
-from ..web.errors import InputValidationException, APIValidationException
+from ..web import errors
+from ..site import providers
 
 
 log = config.log
@@ -69,7 +70,7 @@ class Queue(object):
         """
 
         if job.state not in JOB_STATES_ALLOWED_MUTATE:
-            raise InputValidationException('Cannot mutate a job that is ' + job.state + '.')
+            raise errors.InputValidationException('Cannot mutate a job that is ' + job.state + '.')
 
         # TODO: This should use InputValidationException or similar
         if 'state' in mutation and not valid_transition(job.state, mutation['state']):
@@ -125,9 +126,9 @@ class Queue(object):
 
         if job.state in ['cancelled', 'complete']:
             if only_failed:
-                raise InputValidationException('Can only retry a job that is failed, please use only_failed parameter')
+                raise errors.InputValidationException('Can only retry a job that is failed, please use only_failed parameter')
         elif job.state != 'failed':
-            raise InputValidationException('Can not retry running or pending job')
+            raise errors.InputValidationException('Can not retry running or pending job')
 
 
         if job.request is None:
@@ -197,14 +198,14 @@ class Queue(object):
         # gear and config manifest check
         gear_id = job_map.get('gear_id')
         if not gear_id:
-            raise InputValidationException('Job must specify gear')
+            raise errors.InputValidationException('Job must specify gear')
 
         gear = get_gear(gear_id)
 
         # Invalid disables a gear from running entirely.
         # https://github.com/flywheel-io/gears/tree/master/spec#reserved-custom-keys
         if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
-            raise InputValidationException('Gear marked as invalid, will not run!')
+            raise errors.InputValidationException('Gear marked as invalid, will not run!')
 
         config_ = job_map.get('config', {})
         validate_gear_config(gear, config_)
@@ -215,7 +216,7 @@ class Queue(object):
 
             # Ensure input is in gear manifest
             if x not in gear['gear']['inputs']:
-                raise InputValidationException('Job input {} is not listed in gear manifest'.format(x))
+                raise errors.InputValidationException('Job input {} is not listed in gear manifest'.format(x))
 
             input_map = job_map['inputs'][x]
 
@@ -223,7 +224,7 @@ class Queue(object):
                 try:
                     inputs[x] = create_filereference_from_dictionary(input_map)
                 except KeyError:
-                    raise InputValidationException('Input {} does not have a properly formatted file reference.'.format(x))
+                    raise errors.InputValidationException('Input {} does not have a properly formatted file reference.'.format(x))
             else:
                 inputs[x] = input_map
 
@@ -246,9 +247,9 @@ class Queue(object):
                     break
 
             if not destination:
-                raise InputValidationException('Must specify destination if gear has no inputs.')
+                raise errors.InputValidationException('Must specify destination if gear has no inputs.')
             elif destination.type == 'analysis':
-                raise InputValidationException('Cannot use analysis for destination of a job, container was inferred.')
+                raise errors.InputValidationException('Cannot use analysis for destination of a job, container was inferred.')
 
         # Get parents from destination, also checks that destination exists
         destination_container = destination.get()
@@ -289,6 +290,8 @@ class Queue(object):
         related_containers = set()
         add_related_containers(related_containers, destination_container)
 
+        file_inputs = []
+
         for x in inputs:
             input_type = gear['gear']['inputs'][x]['base']
             if input_type == 'file':
@@ -296,6 +299,7 @@ class Queue(object):
                 input_container = inputs[x].get()
                 add_related_containers(related_containers, input_container)
                 obj = inputs[x].get_file(container=input_container)
+                file_inputs.append(obj)
                 cr = create_containerreference_from_filereference(inputs[x])
 
                 # Whitelist file fields passed to gear to those that are scientific-relevant
@@ -339,6 +343,18 @@ class Queue(object):
         parents = destination_container.get('parents', {})
         parents[destination.type] = bson.ObjectId(destination.id)
 
+        # Determine compute provider, if not provided
+        compute_provider_id = job_map.get('compute_provider_id')
+        if compute_provider_id is None:
+            compute_provider_id = providers.get_compute_provider_id_for_job(gear, destination_container, file_inputs)
+            # If compute provider is still undetermined, then we need to raise
+            if compute_provider_id is None:
+                raise errors.APIPreconditionFailed('Cannot determine compute provider for job. '
+                    'gear={}, destination.id={}'.format(gear['_id'], destination.id))
+        else:
+            # Validate the provided compute provider
+            providers.validate_provider_class(compute_provider_id, 'compute')
+
         # Initialize profile
         profile = {
             'total_input_files': input_file_count,
@@ -356,7 +372,7 @@ class Queue(object):
 
         job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n,
             previous_job_id=previous_job_id, origin=origin, batch=batch, parents=parents, profile=profile,
-            related_container_ids=list(related_containers), label=label)
+            related_container_ids=list(related_containers), label=label, compute_provider_id=compute_provider_id)
 
         return job
 
@@ -397,7 +413,7 @@ class Queue(object):
         result = {}
 
         if jobs <= 0 and not stats:
-            raise APIValidationException('Not asking for work or stats')
+            raise errors.APIValidationException('Not asking for work or stats')
 
         if jobs > 0:
             result['jobs'] = Queue.start_jobs(jobs, query['whitelist'], query['blacklist'], query['capabilities'], peek)
@@ -493,11 +509,11 @@ class Queue(object):
         """
 
         if max_jobs > 1:
-            raise InputValidationException('Starting multiple jobs not supported')
+            raise errors.InputValidationException('Starting multiple jobs not supported')
         if max_jobs < 1:
-            raise InputValidationException('Must start at least one job')
+            raise errors.InputValidationException('Must start at least one job')
         if peek and max_jobs > 1:
-            raise InputValidationException('Cannot peek more than one job')
+            raise errors.InputValidationException('Cannot peek more than one job')
 
         query['state'] = 'pending'
 

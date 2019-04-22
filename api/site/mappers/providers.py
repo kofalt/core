@@ -2,6 +2,7 @@
 import datetime
 
 import bson
+import pymongo
 
 from ... import config
 from .. import models
@@ -70,6 +71,24 @@ class Providers(object):
             query = {}
         return self._find_all(query)
 
+    def get_or_create_site_provider(self, provider):
+        """Upsert a site provider for the given class.
+
+        Args:
+            provider (Provider): The provider to upsert
+
+        Returns:
+            ObjectId: The provider id
+        """
+        cls = provider.provider_class.value
+
+        doc = provider.to_dict()
+        doc['_site'] = cls
+
+        result = self.dbc.find_one_and_update({'_site': cls}, {'$setOnInsert': doc}, upsert=True,
+                projection={'_id':1}, return_document=pymongo.collection.ReturnDocument.AFTER)
+        return result['_id']
+
     def _find_all(self, query, **kwargs):
         """Find all providers matching the given query.
 
@@ -87,5 +106,8 @@ class Providers(object):
         """Loads a single item from a mongo dictionary"""
         if doc is None:
             return None
+
+        # Remove site key
+        doc.pop('_site', None)
 
         return models.Provider.from_dict(doc)

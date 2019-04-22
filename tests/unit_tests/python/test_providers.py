@@ -1,17 +1,20 @@
 import datetime
 
+from mock import patch
+
 import bson
 import pytest
 
+from api import config
 from api.web import errors
-from api.site import models, mappers, providers
+from api.site import models, mappers, providers, multiproject
 from api.site.providers.factory import ProviderKey
 
 origin = { 'type': 'user', 'id': 'user@test.com' }
-config = { 'key': 'value' }
+provider_config = { 'key': 'value' }
 
 def _make_provider(cls=models.ProviderClass.compute):
-    return models.Provider(cls, 'sample', 'Sample Test', origin, config)
+    return models.Provider(cls, 'sample', 'Sample Test', origin, provider_config)
 
 
 class SampleProvider(providers.BaseProvider):
@@ -23,7 +26,7 @@ class SampleProvider(providers.BaseProvider):
             raise errors.APIValidationException('Expected "key" in config!')
 
     def get_redacted_config(self):
-        result = config.copy()
+        result = self.config.copy()
         result['key'] = None
         return result
 
@@ -61,7 +64,7 @@ def test_provider_mapper_insert(api_db):
         assert doc['provider_type'] == 'sample'
         assert doc['label'] == 'Sample Test'
         assert doc['origin'] == origin
-        assert doc['config'] == config
+        assert doc['config'] == provider_config
 
     finally:
         # Cleanup
@@ -126,14 +129,15 @@ def test_provider_mapper_find_all(api_db):
         assert results[0].to_dict() == storage_provider.to_dict()
 
         results = list(mapper.find_all('compute'))
-        assert len(results) == 1
-        assert results[0].to_dict() == compute_provider.to_dict()
+        assert len(results) >= 1
+        dict_results = map(lambda x: x.to_dict(), results)
+        assert compute_provider.to_dict() in dict_results
 
         results = list(mapper.find_all('nothing'))
         assert len(results) == 0
 
         results = list(mapper.find_all())
-        assert len(results) == 2
+        assert len(results) >= 2
 
     finally:
         # Cleanup
@@ -147,12 +151,10 @@ def test_provider_factory_error():
         provider = providers.create_provider(models.ProviderClass.storage, 'garbage', {})
 
 def test_provider_factory_static_compute():
-    config = {'key': 'value'}
-
     # Static compute
-    provider = providers.create_provider(models.ProviderClass.compute, 'static', config)
+    provider = providers.create_provider(models.ProviderClass.compute, 'static', provider_config)
     assert provider is not None
-    assert provider.config == config
+    assert provider.config == provider_config
 
     with pytest.raises(errors.APIValidationException):
         provider.validate_config()
@@ -163,12 +165,12 @@ def test_provider_factory_static_compute():
 # === Repository Tests ===
 def test_provider_repository_insert_and_update(api_db):
     # Invalid provider type
-    provider = models.Provider(models.ProviderClass.storage, 'garbage', 'Label', origin, config)
+    provider = models.Provider(models.ProviderClass.storage, 'garbage', 'Label', origin, {})
     with pytest.raises(errors.APIValidationException):
         providers.insert_provider(provider)
 
     # Invalid provider config
-    provider = models.Provider(models.ProviderClass.compute, 'static', 'Label', origin, config)
+    provider = models.Provider(models.ProviderClass.compute, 'static', 'Label', origin, provider_config)
     with pytest.raises(errors.APIValidationException):
         providers.insert_provider(provider)
 
@@ -232,12 +234,13 @@ def test_provider_repository_load(api_db):
 
         # Load all
         results = list(providers.get_providers())
-        assert len(results) == 2
+        assert len(results) >= 2
 
         # Load by type
         results = list(providers.get_providers('compute'))
-        assert len(results) == 1
-        assert results[0].to_dict() == expected
+        assert len(results) >= 1
+        dict_results = map(lambda x: x.to_dict(), results)
+        assert expected in dict_results
 
         # Load redacted config
         result = providers.get_provider_config(cid)
@@ -334,3 +337,19 @@ def test_validate_provider_updates(api_db):
         # Cleanup
         api_db.providers.remove({'_id': cid})
         api_db.providers.remove({'_id': sid})
+
+def test_get_provider_picker():
+    from api.site.multiproject.fixed_picker import FixedProviderPicker
+    from api.site.multiproject.multiproject_picker import MultiprojectProviderPicker
+
+    with patch('api.site.providers.repository.config') as patched_config:
+        patched_config.is_multiproject_enabled.return_value = True
+
+        picker = providers.repository._get_provider_picker()
+        assert isinstance(picker, MultiprojectProviderPicker)
+
+        patched_config.is_multiproject_enabled.return_value = False
+
+        picker = providers.repository._get_provider_picker()
+        assert patched_config.is_multiproject_enabled.called
+        assert isinstance(picker, FixedProviderPicker)

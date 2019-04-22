@@ -23,6 +23,7 @@
 			"properties":{
 				"job":         {"$ref":"job.json#/definitions/job-input"},
 				"description": {"$ref":"common.json#/definitions/description"},
+				"compute_provider_id": {"$ref":"common.json#/definitions/objectid"},
 				"label":       {"$ref":"common.json#/definitions/label"}
 			},
 		    "additionalProperties": false,
@@ -78,7 +79,7 @@
 						{"$ref":"common.json#/definitions/objectid"},
 						{"$ref": "job.json#/definitions/job-output"}
 					],
-					"x-sdk-schema": { 
+					"x-sdk-schema": {
 						"$ref": "job.json#/definitions/job-output"
 					}
 				},
@@ -130,7 +131,7 @@
 				"size":{"type":"integer"}
 			},
 			"additionalProperties":false,
-			"required":["ticket", "filename", "file_cnt", "size"]			
+			"required":["ticket", "filename", "file_cnt", "size"]
 		}
     }
 }

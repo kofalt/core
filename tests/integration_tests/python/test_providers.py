@@ -7,6 +7,23 @@ VALID_PROVIDER = {
     'config': {},
 }
 
+def test_providers_initial_state(as_user):
+    r = as_user.get('/site/providers')
+    assert r.ok
+
+    static_provider_id = None
+    for provider in r.json():
+        if provider['provider_class'] == 'compute' and provider['provider_type'] == 'static':
+            static_provider_id = provider['_id']
+
+    assert static_provider_id is not None
+
+    r = as_user.get('/site/settings')
+    assert r.ok
+    site_settings = r.json()
+
+    assert site_settings.get('providers', {}).get('compute') == static_provider_id
+
 def test_create_providers(api_db, as_admin, as_user, as_public):
     # Create and retrieve
     r = as_public.get('/site/providers')
@@ -213,40 +230,22 @@ def test_site_providers(api_db, data_builder, as_user, as_admin):
     assert r.ok
     provider_id = r.json()['_id']
 
-    # Reset site settings
-    current = api_db.singletons.find_one({'_id': 'site'})
-    api_db.singletons.remove({'_id': 'site'})
-
     try:
-        # Create a new group
-        group = data_builder.create_group()
+        r = as_admin.get('/site/settings')
+        site_compute_provider_id = r.json()['providers']['compute']
 
-        # Set the compute provider
-        r = as_user.get('/users/self')
-        assert r.ok
-        user = r.json()
-
-        # Can set providers as site admin
+        # Cannot override providers as site admin
         update = {'providers': {'compute': provider_id}}
         r = as_admin.put('/site/settings', json=update)
-        assert r.ok
+        assert r.status_code == 422
 
         # NOOP:
+        update = {'providers': {'compute': site_compute_provider_id}}
         r = as_admin.put('/site/settings', json=update)
         assert r.ok
 
-        # Get the group
-        r = as_admin.get('/site/settings')
-        assert r.ok
-        assert r.json()['providers'] == {'compute': provider_id}
     finally:
         api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
-
-        # Reset database
-        if current:
-            api_db.singletons.update({'_id': 'site'}, current)
-        else:
-            api_db.singletons.remove({'_id': 'site'})
 
 def test_group_providers(api_db, data_builder, as_user, as_admin):
     # Create a static compute provider
@@ -259,7 +258,7 @@ def test_group_providers(api_db, data_builder, as_user, as_admin):
         # of validate_provider_links
 
         # Create a new group
-        group = data_builder.create_group()
+        group = data_builder.create_group(providers={})
 
         # Set the compute provider
         r = as_user.get('/users/self')

@@ -72,6 +72,22 @@ def with_user(data_builder, randstr, as_public):
     session.headers.update({'Authorization': 'scitran-user ' + api_key})
     return attrdict.AttrDict(user=user, api_key=api_key, session=session)
 
+@pytest.fixture(scope='function')
+def site_providers(api_db, data_builder):
+    current_site_settings = api_db.singletons.find_one({'_id': 'site'})
+
+    # Set site providers
+    providers = {
+        'compute': data_builder.get_or_create('compute_provider'),
+    }
+    api_db.singletons.update({'_id': 'site'}, {'providers': providers}, upsert=True)
+
+    yield providers
+
+    if current_site_settings:
+        api_db.singletons.update({'_id': 'site'}, current_site_settings)
+    else:
+        api_db.singletons.remove({'_id': 'site'})
 
 @pytest.yield_fixture(scope='function')
 def legacy_cas_file(as_admin, api_db, data_builder, randstr, file_form):

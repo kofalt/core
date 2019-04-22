@@ -13,6 +13,7 @@ from .job_util import (
     resolve_context_inputs,
     get_context_for_destination,
     remove_potential_phi_from_job,
+    validate_job_compute_provider,
     log_job_access
 )
 from .. import config
@@ -30,6 +31,7 @@ from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 from ..web.request import log_access, AccessType
+from ..site import providers
 
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,
@@ -390,7 +392,6 @@ class RulesHandler(base.RequestHandler):
         validate_data(payload, 'rule-new.json', 'input', 'POST', optional=True)
         validate_regexes(payload)
 
-
         gear = get_gear(payload['gear_id'])
         validate_gear_config(gear, payload.get('config'))
         validate_fixed_inputs(gear, payload.get('fixed_inputs'))
@@ -416,6 +417,9 @@ class RulesHandler(base.RequestHandler):
             rule_config = payload.get('config')
 
             validate_auto_update(rule_config, gear_id, update_gear_is_latest, True, payload.get('fixed_inputs'))
+
+        # Check and raise if non-admin user attempts to override compute provider
+        validate_job_compute_provider(payload, self, validate_provider=True)
 
         payload['project_id'] = cid
         rule = models.Rule.from_dict(payload)
@@ -497,6 +501,9 @@ class RuleHandler(base.RequestHandler):
         if requires_read_write_key(get_gear(gear_id)):
             raise InputValidationException("Rule cannot use a gear that requires a read-write api-key.")
 
+        # Check and raise if non-admin user attempts to override compute provider
+        validate_job_compute_provider(updates, self, validate_provider=True)
+
         rule_updates = models.Rule.from_dict(updates)
         rule.update(rule_updates)
         if not (rule.any_ or rule.all_ or rule.not_):
@@ -542,6 +549,9 @@ class JobsHandler(base.RequestHandler):
         if payload.get('destination') and payload['destination']['type'] == 'analysis':
             raise InputValidationException('Cannot use analysis as destination for a job')
 
+        # Check and raise if non-admin user attempts to override compute provider
+        validate_job_compute_provider(payload, self)
+
         uid = None
         if not self.user_is_admin:
             uid = self.uid
@@ -550,6 +560,23 @@ class JobsHandler(base.RequestHandler):
         job.insert()
 
         return { '_id': job.id_ }
+
+    @require_login
+    def determine_provider(self):
+        """Determine the effective provider for a job"""
+        payload = self.request.json
+
+        if payload.get('destination') and payload['destination']['type'] == 'analysis':
+            raise InputValidationException('Cannot use analysis as destination for a job')
+
+        # Remove any existing provider
+        payload.pop('compute_provider_id', None)
+
+        # Raises precondition failed if provider could not be determined
+        job = Queue.enqueue_job(payload, self.origin, perm_check_uid=None)
+
+        # Retrieve the provider
+        return providers.get_provider(job.compute_provider_id)
 
     @require_admin
     def stats(self):
@@ -919,6 +946,13 @@ class JobHandler(base.RequestHandler):
                 if not self.user_is_admin and self.uid != j.origin['id']:
                     raise APIPermissionException('Only original scheduler or root user can retry a gear requiring an api key input')
 
+        compute_provider_id = self.get_param('computeProviderId')
+        if compute_provider_id:
+            # Check and raise if non-admin user attempts to override compute provider
+            validate_job_compute_provider({'compute_provider_id': compute_provider_id},
+                    self, validate_provider=True)
+            j.compute_provider_id = compute_provider_id
+
         new_id = Queue.retry(j, force=True, only_failed=not self.is_true('ignoreState'))
         return { "_id": new_id }
 
@@ -1024,6 +1058,9 @@ class BatchHandler(base.RequestHandler):
         if has_optional_input and optional_input_policy not in ['ignored', 'flexible', 'required']:
             self.abort(400, 'Gear has optional inputs but no policy on optional inputs was given, will not run!')
         validate_gear_config(gear, config_)
+
+        # Ensure that user is admin if compute_provider_id is set
+        compute_provider_id = validate_job_compute_provider(payload, self, validate_provider=True)
 
         container_ids = []
         container_type = None
@@ -1132,6 +1169,11 @@ class BatchHandler(base.RequestHandler):
                         'destination': { 'id': str(match['_id']), 'type': 'acquisition' }
                     })
 
+            # Override compute_provider_id if provided
+            if compute_provider_id is not None:
+                for job_map in batch_proposal['proposal']['jobs']:
+                    job_map['compute_provider_id'] = compute_provider_id
+
             batch.insert(batch_proposal)
             batch_proposal.pop('proposal')
 
@@ -1157,11 +1199,19 @@ class BatchHandler(base.RequestHandler):
         if not self.user_is_admin:
             uid = self.uid
 
+        batch_id = bson.ObjectId()
+
         for job_number, job_ in enumerate(jobs_):
             try:
+                # Ensure that user is admin if compute_provider_id is set
+                validate_job_compute_provider(job_, self)
+
+                job_['batch'] = str(batch_id)
                 Queue.enqueue_job(job_, self.origin, perm_check_uid=uid)
             except InputValidationException as e:
                 raise InputValidationException("Job {}: {}".format(job_number, str(e)))
+            except APIPermissionException as e:
+                raise APIPermissionException("Job {}: {}".format(job_number, str(e)))
 
         batch_proposal = {
             'proposal': {
@@ -1169,7 +1219,7 @@ class BatchHandler(base.RequestHandler):
             },
             'origin': self.origin,
             'state': 'pending',
-            '_id': bson.ObjectId()
+            '_id': batch_id
         }
         batch.insert(batch_proposal)
 
