@@ -32,6 +32,12 @@ CONTAINER_DEFAULTS.update({
     'info':         {}
 })
 
+JOIN_ORIGIN_FIELDS = {
+    'job': ('created', 'modified', 'gear_info', ),
+    'device': ('name', ),
+    'user': ('firstname', 'lastname', ),
+}
+
 
 class ContainerStorage(object):
     """
@@ -470,39 +476,82 @@ class ContainerStorage(object):
                 item['lastname'] = user.get('lastname', '')
 
     @staticmethod
-    def join_origins(container):
-        """Given a container, coalesce and merge origins for all of its files."""
+    def join_origins(containers, files_key='files', set_gear_name=False, all_fields=False):
+        """Given a list of containers, coalesce and merge origins for all of its files.
 
-        # Create a map of each type of origin to hold the join
-        container['join-origin'] = {
-            Origin.user.name:   {},
-            Origin.device.name: {},
-            Origin.job.name:    {}
+        Args:
+            containers (list): The list of containers to update
+            files_key (str): The files array key, default is files
+            set_gear_name (bool): Legacy behavior, copy gear_name to top-level key
+            all_fields (bool): Legacy behavior, return all fields on origin doc
+        """
+        # Global set of ids to fetch
+        fetch_ids = {
+            'user': set(),
+            'device': set(),
+            'job': set()
         }
 
-        for f in container.get('files', []):
-            origin = f.get('origin')
+        fetch_results = {
+            'user': {},
+            'device': {},
+            'job': {}
+        }
 
-            if origin is None:
-                # Backfill origin maps if none provided from DB
-                f['origin'] = {'type': str(Origin.unknown), 'id': None}
+        # Preflight, organize fetches
+        for container in containers:
+            for f in container.get(files_key, []):
+                origin = f.get('origin')
+                if origin is None:
+                    # Backfill origin maps if none provided from DB
+                    f['origin'] = {'type': str(Origin.unknown), 'id': None}
+                else:
+                    origin_type = f['origin']['type']
+                    origin_id = str(f['origin']['id'])
 
+                    if origin_type in fetch_ids:
+                        if bson.ObjectId.is_valid(origin_id):
+                            fetch_ids[origin_type].add(bson.ObjectId(origin_id))
+                        else:
+                            fetch_ids[origin_type].add(origin_id)
+
+        # Perform one fetch per container type
+        for container_type, ids in fetch_ids.items():
+            if not ids:
+                continue
+
+            if all_fields:
+                projection=None
             else:
-                j_type = f['origin']['type']
-                j_id   = str(f['origin']['id'])
-                j_id_b = bson.ObjectId(j_id) if bson.ObjectId.is_valid(j_id) else j_id
+                projection = JOIN_ORIGIN_FIELDS[container_type]
 
-                # Join from database if we haven't for this origin before
-                if j_type != 'unknown' and container['join-origin'][j_type].get(j_id) is None:
-                    j_types = containerutil.pluralize(j_type)
-                    join_doc = config.db[j_types].find_one({'_id': j_id_b})
+            collection_name = containerutil.pluralize(container_type)
 
+            query = {'_id': {'$in': list(ids)}}
+            results_map = fetch_results[container_type]
+
+            for join_doc in config.db[collection_name].find(query, projection):
+                if set_gear_name and container_type == 'job':
                     # Alias job.gear_info.name as job.gear_name until UI starts using gear_info.name directly
-                    if join_doc is not None and j_type == 'job':
-                        join_doc['gear_name'] = join_doc.get('gear_info', {}).get('name')
+                    join_doc['gear_name'] = join_doc.get('gear_info', {}).get('name')
+                results_map[str(join_doc['_id'])] = join_doc
 
-                    # Save to join table
-                    container['join-origin'][j_type][j_id] = join_doc
+        # Finally walk through all containers, joining with the fetched results
+        for container in containers:
+            container['join-origin'] = {
+                Origin.user.name:   {},
+                Origin.device.name: {},
+                Origin.job.name:    {}
+            }
+
+            for f in container.get(files_key, []):
+                origin_type = f['origin']['type']
+                origin_id = str(f['origin']['id'])
+
+                if origin_type in fetch_results:
+                    join_doc = fetch_results[origin_type].get(origin_id)
+                    container['join-origin'][origin_type][origin_id] = join_doc
+
 
     @staticmethod
     def join_subjects(sessions):

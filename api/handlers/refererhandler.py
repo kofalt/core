@@ -185,8 +185,7 @@ class AnalysesHandler(RefererHandler):
             for analysis in page['results']:
                 self.storage.inflate_job_info(analysis, remove_phi=True)
 
-        for analysis in page['results']:
-            self.handle_origin(analysis)
+        self.handle_origin(page['results'])
 
         if self.is_true('join_avatars'):
             self.storage.join_avatars(page['results'])

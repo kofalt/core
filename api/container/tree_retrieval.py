@@ -4,7 +4,7 @@ import collections
 import pymongo
 
 from .graph import GRAPH
-from ..dao.containerstorage import cs_factory
+from ..dao.containerstorage import cs_factory, ContainerStorage
 from ..web import errors
 from .. import util
 
@@ -33,6 +33,7 @@ class TreeRetrieval(object):
             "files": {
                 "sort": "name:asc",
                 "limit": 5,
+                "join-origin": true,
                 "fields": ["name", "size", "type"]
             }
         }})
@@ -250,10 +251,14 @@ class TreeRetrieval(object):
         input_update_fn = self._sort_and_limit_files_fn('inputs', collection_spec)
         if input_update_fn:
             map(input_update_fn, containers)
+            if collection_spec['inputs'].get('join-origin', False):
+                ContainerStorage.join_origins(containers, 'inputs')
 
         files_update_fn = self._sort_and_limit_files_fn('files', collection_spec)
         if files_update_fn:
             map(files_update_fn, containers)
+            if collection_spec['files'].get('join-origin', False):
+                ContainerStorage.join_origins(containers, 'files')
 
     @staticmethod
     def _sort_and_limit_files_fn(key, collection_spec):
@@ -295,6 +300,10 @@ class TreeRetrieval(object):
         # Ensure that _id is included in subdocs
         if '_id' not in fields:
             fields.append('_id')
+
+        # Ensure origin when join-origin is True
+        if spec.get('join-origin', False) and 'origin' not in fields:
+            fields.append('origin')
 
         def result_fn(cont):
             # Deleted files should already be removed
