@@ -103,6 +103,17 @@
       "type":"string",
       "enum": [ "pending", "running", "failed", "complete", "cancelled" ]
     },
+    "state-counts": {
+      "properties": {
+        "pending":   {"type": "integer"},
+        "running":   {"type": "integer"},
+        "failed":    {"type": "integer"},
+        "complete":  {"type": "integer"},
+        "cancelled": {"type": "integer"}
+      },
+      "required": [ "pending", "running", "failed", "complete", "cancelled" ],
+      "description": "The number of jobs matching the filter, for each job state"
+    },
     "attempt":{
       "type":"integer"
     },
@@ -468,6 +479,17 @@
       "additionalProperties":false,
       "required": [ "whitelist", "blacklist", "capabilities", "return" ],
       "description": "Describes how a job should be transitioned after outputs have been uploaded"
+    },
+    "job-ask-response": {
+        "type": "object",
+        "properties": {
+            "jobs": {
+                "type": "array",
+                "items": {"$ref": "#/definitions/job-output"}
+            },
+            "states": {"$ref": "#/definitions/state-counts"}
+        },
+        "description": "Return based on job-ask-return type"
     },
     "job-completion-input": {
       "type": "object",
