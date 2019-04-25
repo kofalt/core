@@ -895,9 +895,10 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
     }
 
     # Run QA gear when converter has complete
+    name = randstr()
     qa_rule = {
         'gear_id': qa_gear,
-        'name': 'qa-rule',
+        'name': name,
         'any': [
             {'type': 'file.classification', 'value': 'functional'}
         ],
@@ -914,7 +915,7 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
 
 
     # get project rules (verify rules were added)
-    r = as_admin.get('/projects/' + project + '/rules')
+    r = as_admin.get('/projects/' + project + '/rules?name=' + name)
     assert r.ok
     assert len(r.json()) == 3
 

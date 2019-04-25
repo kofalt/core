@@ -474,7 +474,7 @@ def test_53(randstr, default_payload, as_root, api_db, database):
 
 def test_54(randstr, api_db, database):
     # Create hierarchy
-    group = 'g1'
+    group = 'g1-test54'
     api_db.groups.insert_one({'_id': group})
     project_1 = bson.ObjectId()
     api_db.projects.insert_one({'_id': project_1, 'group': group})
@@ -1055,7 +1055,7 @@ def test_62(api_db, data_builder, database, default_payload, as_admin, file_form
 def test_ensure_parents(api_db, database):
 
     # Create hierarchy
-    group = 'g1'
+    group = 'g1-ensure-parents'
     api_db.groups.insert_one({'_id': group})
     project_1 = bson.ObjectId()
     api_db.projects.insert_one({'_id': project_1, 'group': group, 'parents': {}})
@@ -1114,7 +1114,7 @@ def test_fix_subject_age_62(api_db, fixes):
         return api_db.sessions.find_one({'_id': session_id})
 
     # Create hierarchy
-    group = 'g1'
+    group = 'g1-test-62-age'
     api_db.groups.insert_one({'_id': group})
     project = bson.ObjectId()
     api_db.projects.insert_one({'_id': project, 'group': group, 'parents': {}})
@@ -1197,7 +1197,7 @@ def test_63(api_db, database):
             }]
         }]
     }
-    group = 'g1'
+    group = 'g1-test-63'
     api_db.groups.insert_one({'_id': group})
     project_1 = bson.ObjectId()
     api_db.projects.insert_one({'_id': project_1, 'group': group, 'template': template})

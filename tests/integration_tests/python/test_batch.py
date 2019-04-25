@@ -594,10 +594,9 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, file_
     batch1 = r.json()
 
     assert len(batch1['matched']) == 2
-    assert batch1['matched'][0]['_id'] == acquisition
-    assert 'inputs' not in batch1['matched'][0]
-    assert batch1['matched'][1]['_id'] == acquisition2
-    assert 'inputs' not in batch1['matched'][1]
+    matched_ids = [ x['_id'] for x in batch1['matched'] ]
+    assert acquisition in matched_ids
+    assert acquisition2 in matched_ids
 
     batch_id = batch1['_id']
 
@@ -766,9 +765,12 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     batch1 = r.json()
 
     assert len(batch1['matched']) == 2
-    assert batch1['matched'][0]['_id'] == acquisition
+
+    assert len(batch1['matched']) == 2
+    matched_ids = [ x['_id'] for x in batch1['matched'] ]
+    assert acquisition in matched_ids
+    assert acquisition2 in matched_ids
     assert 'inputs' not in batch1['matched'][0]
-    assert batch1['matched'][1]['_id'] == acquisition2
     assert 'inputs' not in batch1['matched'][1]
 
     batch_id = batch1['_id']
@@ -801,9 +803,11 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     batch2 = r.json()
 
     assert len(batch2['matched']) == 2
-    assert batch2['matched'][0]['_id'] == acquisition
+
+    matched_ids = [ x['_id'] for x in batch2['matched'] ]
+    assert acquisition in matched_ids
+    assert acquisition2 in matched_ids
     assert 'inputs' not in batch2['matched'][0]
-    assert batch2['matched'][1]['_id'] == acquisition2
     assert 'inputs' not in batch2['matched'][1]
 
     batch_id = batch2['_id']

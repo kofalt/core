@@ -187,7 +187,7 @@ def test_provider_mapper_find_all(api_db):
 # === Factory Tests ===
 def test_provider_factory_error():
     # Non-existent storage
-    with pytest.raises(ValueError):
+    with pytest.raises(errors.ValidationError):
         provider = create_provider(ProviderClass.storage.value, 'garbage', 'garbage test', {}, {})
 
 def test_provider_factory_static_compute():
@@ -198,9 +198,9 @@ def test_provider_factory_static_compute():
     assert provider.config == test_config
 
     with pytest.raises(errors.ValidationError):
-        provider.validate_config()
+        provider.validate()
     provider.config = {}
-    provider.validate_config()  # Only empty config is valid for static
+    provider.validate()  # Only empty config is valid for static
 
 def test_provider_factory_storage(mocker):
     # spy_fs = mocker.spy(storage, 'create_flywheel_fs')

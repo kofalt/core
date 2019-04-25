@@ -31,7 +31,7 @@ def get_provider(provider_id, secure=False):
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.ResourceNotFound('Provider {} not found!'.format(provider_id))
+        raise errors.ResourceNotFound(provider_id, 'Provider {} not found!')
     if not secure:
         return _scrub_config(result)
     return result
@@ -51,7 +51,7 @@ def validate_provider_class(provider_id, provider_class):
     result = mapper.get(provider_id)
 
     if not result:
-        raise errors.ResourceNotFound('', 'Provider {} does not exist'.format(provider_id))
+        raise errors.ResourceNotFound(provider_id, 'Provider {} does not exist')
     if result.provider_class != provider_class:
         raise errors.ValidationError('Provider {} is not a {} provider!'.format(
             provider_id, provider_class.value))
@@ -72,12 +72,12 @@ def get_provider_config(provider_id, full=False):
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.ResourceNotFound('Provider {} not found!'.format(provider_id))
+        raise errors.ResourceNotFound(provider_id, 'Provider {} not found!')
 
     if full:
         # Cannot get storage provider config this way
         if result.provider_class != ProviderClass.compute.value:
-            raise errors.PermissionError('Only compute config can be retrieved with this method')
+            raise errors.PermissionError('Storage config', 'Only compute config can be retrieved with this method')
         return result.config
 
     return result.get_redacted_config()
@@ -145,7 +145,7 @@ def update_provider(provider_id, doc):
     current_provider = mapper.get(provider_id)
 
     if not current_provider:
-        raise errors.ResourceNotFound('Provider {} not found!'.format(provider_id))
+        raise errors.ResourceNotFound(provider_id, 'Provider {} not found!')
 
     # NOTE: We do NOT permit updating provider class or type
     if 'provider_class' in doc:
@@ -222,7 +222,7 @@ def validate_provider_updates(container, provider_ids, is_admin):
 
     # Verify that the user is admin
     if (updates['storage'] or updates['compute']) and not is_admin:
-        raise errors.PermissionError('Changing providers requires site-admin!')
+        raise errors.PermissionError('site admin', 'Changing providers requires site-admin!')
 
     # Verify that provider exists and is the correct type
     for provider_class in ('compute', 'storage'):
@@ -231,8 +231,7 @@ def validate_provider_updates(container, provider_ids, is_admin):
         provider = get_provider(provider_ids[provider_class])
 
         if provider.provider_class != ProviderClass(provider_class).value:
-            raise errors.ValidationError('Invalid provider class: {}'.format(
-                provider.provider_class))
+            raise errors.ValidationError(provider.provider_class, 'Invalid provider class: {}')
 
 
 def get_provider_id_for_container(container, provider_class, site_settings=None):

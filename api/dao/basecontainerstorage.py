@@ -523,8 +523,14 @@ class ContainerStorage(object):
         if sessions and sessions[0] is not None and 'subject' in sessions[0]:
             query = {'_id': {'$in': list(set(sess['subject'] for sess in sessions))}}
             subjects = {subj['_id']: subj for subj in storage.get_all_el(query, None, projection)}
+
             for session in sessions:
-                subject = subjects[session['subject']]
+                # There is a case were no subjects exist. Should this be allowed?
+                # We should validate the update/creation of subjects logic
+                try:
+                    subject = subjects[session['subject']]
+                except KeyError:
+                    subject = {}
                 if session.get('age'):
                     subject = copy.deepcopy(subject)
                     subject['age'] = session['age']

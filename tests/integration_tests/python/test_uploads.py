@@ -58,6 +58,7 @@ def upload_file_form(file_form, merge_dict, randstr):
 
 
 def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settings, as_device, as_user):
+
     group_1 = data_builder.create_group()
     prefix = randstr()
     project_label_1 = prefix + '-project-label-1'
@@ -458,7 +459,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
     data_builder.delete_project(named_unknown_project, recursive=True)
 
 
-def test_label_project_search(data_builder, file_form, as_device, as_user):
+def test_label_project_search(data_builder, file_form, as_device, as_user, randstr):
     """
     When attempting to find a project, we do a case insensitive lookup.
     Ensure that mongo regex works as expected.
@@ -475,11 +476,11 @@ def test_label_project_search(data_builder, file_form, as_device, as_user):
     """
 
     group_label_1 = 'Test with more info'
-    group_label_2 = 'TeSt'
-    group_label_3 = 'test'
+    group_label_2 = 'TeSt with longer string to avoid collision'
+    group_label_3 = 'test with longer string to avoid collision'
 
     expected_project_label_1 = 'Test with more info_'
-    expected_project_label_2 = 'TeSt_'
+    expected_project_label_2 = 'TeSt with longer string to avoid collision_'
 
     # Upload with group 1
     r = as_device.post('/upload/label', files=file_form(
@@ -647,15 +648,17 @@ def test_label_project_search(data_builder, file_form, as_device, as_user):
     data_builder.delete_group('unknown', recursive=True)
 
 
-def test_reaper_reupload_deleted(data_builder, as_device, file_form, with_site_settings, api_db):
+def test_reaper_reupload_deleted(data_builder, as_device, file_form, with_site_settings, api_db, randstr):
 
-    group = data_builder.create_group(_id='reupload')
-    project = data_builder.create_project(label='reupload')
+    label = randstr()
+    group = data_builder.create_group(label=label)
+    # use the same _ui for the discrete types, They will still be unique
+    project = data_builder.create_project(label=label)
     reap_data = file_form('reaped.txt', meta={
-        'group': {'_id': 'reupload'},
-        'project': {'label': 'reupload'},
-        'session': {'uid': 'reupload'},
-        'acquisition': {'uid': 'reupload',
+        'group': {'_id': group},
+        'project': {'label': label},
+        'session': {'uid': group},
+        'acquisition': {'uid': group,
                         'files': [{'name': 'reaped.txt'}]}
     })
 
@@ -665,14 +668,13 @@ def test_reaper_reupload_deleted(data_builder, as_device, file_form, with_site_s
 
     ### test acquisition recreation
     # get + delete acquisition
-    r = as_device.get('/acquisitions')
-
+    r = as_device.get('/acquisitions?filter=uid=' + group)
     assert r.ok
-    acquisition = next(a['_id'] for a in r.json() if a['uid'] == 'reupload')
+    acquisition = next(a['_id'] for a in r.json() if a['uid'] == group)
 
-    r = as_device.get('/acquisitions', params={'exhaustive': True})
+    r = as_device.get('/acquisitions?filter=uid=' + group, params={'exhaustive': True})
     assert r.ok
-    acquisition = next(a['_id'] for a in r.json() if a['uid'] == 'reupload')
+    acquisition = next(a['_id'] for a in r.json() if a['uid'] == group)
 
     r = as_device.delete('/acquisitions/' + acquisition)
     assert r.ok
@@ -682,23 +684,23 @@ def test_reaper_reupload_deleted(data_builder, as_device, file_form, with_site_s
     assert r.ok
 
     # check new acquisition
-    r = as_device.get('/acquisitions')
+    r = as_device.get('/acquisitions?filter=uid=' + group)
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
-    r = as_device.get('/acquisitions', params={'exhaustive': True})
+    r = as_device.get('/acquisitions?filter=uid=' + group, params={'exhaustive': True})
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
     ### test session recreation
     # get + delete session
-    r = as_device.get('/sessions')
+    r = as_device.get('/sessions?filter=group=' + group)
     assert r.ok
-    session = next(s['_id'] for s in r.json() if s['uid'] == 'reupload')
+    session = next(s['_id'] for s in r.json() if s['uid'] == group)
 
-    r = as_device.get('/sessions', params={'exhaustive': True})
+    r = as_device.get('/sessions?filter=group=' + group, params={'exhaustive': True})
     assert r.ok
-    session = next(s['_id'] for s in r.json() if s['uid'] == 'reupload')
+    session = next(s['_id'] for s in r.json() if s['uid'] == group)
 
     r = as_device.delete('/sessions/' + session)
     assert r.ok
@@ -708,21 +710,21 @@ def test_reaper_reupload_deleted(data_builder, as_device, file_form, with_site_s
     assert r.ok
 
     # check new session and acquisition
-    r = as_device.get('/sessions')
+    r = as_device.get('/sessions?filter=group=' + group)
     assert r.ok
-    assert next(s for s in r.json() if s['uid'] == 'reupload')
+    assert next(s for s in r.json() if s['uid'] == group)
 
-    r = as_device.get('/sessions', params={'exhaustive': True})
+    r = as_device.get('/sessions?filter=group=' + group, params={'exhaustive': True})
     assert r.ok
-    assert next(s for s in r.json() if s['uid'] == 'reupload')
+    assert next(s for s in r.json() if s['uid'] == group)
 
-    r = as_device.get('/acquisitions')
+    r = as_device.get('/acquisitions?filter=uid=' + group)
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
-    r = as_device.get('/acquisitions', params={'exhaustive': True})
+    r = as_device.get('/acquisitions?filter=uid=' + group, params={'exhaustive': True})
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
     # cleanup
     data_builder.delete_group(group, recursive=True)

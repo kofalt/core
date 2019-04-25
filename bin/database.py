@@ -2394,7 +2394,7 @@ def upgrade_to_64():
 ### END RESERVED UPGRADE SECTION
 ###
 
-def upgrade_to_64():
+def upgrade_to_65():
     '''
     All project templates should be list of templates
     '''

@@ -59,7 +59,7 @@ def test_filtered_files():
     assert result == set([('output', 'test.csv'), ('output', 'test2.csv'), ('output', 'test.nii')])
 
 
-def test_archive_stream(mocker, data_builder, file_form, as_drone, with_site_settings):
+def test_archive_stream(mocker, data_builder, file_form, as_drone, randstr, with_site_settings):
     class MockRead:
         def __init__(self):
             self._read = False

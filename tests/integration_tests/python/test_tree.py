@@ -65,6 +65,11 @@ def test_fetch_tree_k(data_builder, as_admin):
     assert len(subjects) == 1
 
     assert len(subjects[0]['sessions']) == 2
+    # swap order if random Ids are reversed
+    if subjects[0]['sessions'][0]['_id'] != session:
+        subjects[0]['sessions'][1], subjects[0]['sessions'][0] \
+                = subjects[0]['sessions'][0], subjects[0]['sessions'][1]
+
     assert subjects[0]['sessions'][0]['_id'] == session
     assert subjects[0]['sessions'][0]['label'] == 'session1'
     assert 'subject' not in subjects[0]['sessions'][0]
@@ -82,12 +87,16 @@ def test_fetch_tree_k(data_builder, as_admin):
     sessions = r.json()
 
     assert len(sessions) == 2
+    if sessions[0]['_id'] != session:
+        sessions[1], sessions[0] = sessions[0], sessions[1]
     assert sessions[0]['_id'] == session
     assert sessions[0]['label'] == 'session1'
     assert len(sessions[0]['acquisitions']) == 2
+    # we cant be guranteed order based on id
+    assert sessions[0]['acquisitions'][0]['_id'] in (acquisition, acquisition2)
+    assert sessions[0]['acquisitions'][1]['_id'] in (acquisition, acquisition2)
+    assert sessions[0]['acquisitions'][0]['_id'] != sessions[0]['acquisitions'][1]['_id']
 
-    assert sessions[0]['acquisitions'][0]['_id'] == acquisition2
-    assert sessions[0]['acquisitions'][1]['_id'] == acquisition
 
     assert sessions[1]['_id'] == session2
     assert sessions[1]['label'] == 'session2'
@@ -106,15 +115,18 @@ def test_fetch_tree_k(data_builder, as_admin):
 
     subjects = r.json()
     assert len(subjects) == 1
-
     sessions = subjects[0]['sessions']
     assert len(sessions) == 2
+    if sessions[0]['_id'] != session:
+        sessions[1], sessions[0] = sessions[0], sessions[1]
+
     assert sessions[0]['_id'] == session
     assert sessions[0]['label'] == 'session1'
     assert len(sessions[0]['acquisitions']) == 2
 
-    assert sessions[0]['acquisitions'][0]['_id'] == acquisition2
-    assert sessions[0]['acquisitions'][1]['_id'] == acquisition
+    assert sessions[0]['acquisitions'][0]['_id'] in (acquisition, acquisition2)
+    assert sessions[0]['acquisitions'][1]['_id'] in (acquisition, acquisition2)
+    assert sessions[0]['acquisitions'][0]['_id'] != sessions[0]['acquisitions'][1]['_id']
 
     assert sessions[1]['_id'] == session2
     assert sessions[1]['label'] == 'session2'
@@ -278,6 +290,9 @@ def test_fetch_tree_parent(data_builder, as_admin):
     sessions = r.json()
 
     assert len(sessions) == 2
+
+    if sessions[0]['_id'] != session:
+        sessions[1], sessions[0] = sessions[0], sessions[1]
 
     assert sessions[0]['_id'] == session
     assert sessions[0]['label'] == 'session1'
@@ -482,14 +497,17 @@ def test_fetch_tree_analyses(data_builder, as_admin, file_form):
     analyses = r.json()
     assert len(analyses) == 2
 
-    assert analyses[0]['session']['_id'] == session
-    assert analyses[0]['session']['label'] == 'session1'
-    assert analyses[0]['acquisition'] == None
+    if analyses[0]['session']['_id'] != session:
+        analyses[1], analyses[0] = analyses[0], analyses[1]
 
-    assert analyses[1]['session']['_id'] == session
-    assert analyses[1]['session']['label'] == 'session1'
-    assert analyses[1]['acquisition']['_id'] == acquisition
-    assert analyses[1]['acquisition']['label'] == 'acquisition1'
+        assert analysis[0]['session']['_id'] == session
+        assert analysis[0]['session']['label'] == 'session1'
+        assert analyses[0]['acquisition'] == None
+
+        assert analyses[1]['session']['_id'] == session
+        assert analyses[1]['session']['label'] == 'session1'
+        assert analyses[1]['acquisition']['_id'] == acquisition
+        assert analyses[1]['acquisition']['label'] == 'acquisition1'
 
 
 def test_fetch_tree_jobs(data_builder, default_payload, as_admin, file_form):

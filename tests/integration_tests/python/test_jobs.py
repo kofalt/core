@@ -18,7 +18,7 @@ def test_jobs_access(as_user):
     r = as_user.get('/jobs/test-job/config.json')
     assert r.status_code == 403
 
-def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
+def test_jobs_full(data_builder, default_payload, as_public, as_user, as_admin, api_db, file_form):
     """
     Can be removed in favor of test_jobs_ask when /jobs/next is retired.
     """

@@ -51,7 +51,7 @@ def test_devices(as_public, as_user, as_admin, as_drone, api_db):
     assert 'key' in r.json()
 
     # try to do device check-in as user
-    r = as_admin.put('/devices/self')
+    r = as_user.put('/devices/self')
     assert r.status_code == 403
 
     # do empty device check-in (implicit last_seen update)
