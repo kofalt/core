@@ -474,7 +474,7 @@ class Queue(object):
         query_copy = copy.deepcopy(query)
         for state in JOB_STATES:
             query_copy['state'] = state
-            by_state[state] = config.db.jobs.count_documents(query_copy)
+            by_state[state] = config.db.jobs.estimated_document_count(query=query_copy)
 
         return by_state
 
