@@ -469,18 +469,12 @@ class Queue(object):
 
         query = Queue.lists_to_query(whitelist, blacklist, capabilities)
 
-        # Pipeline aggregation
-        result = list(config.db.jobs.aggregate([
-            {'$match': query },
-            {'$group': {
-                '_id': '$state',
-                'count': {'$sum': 1}}
-            }
-        ]))
-
-        # Map the mongo result to something useful
-        by_state = {s: 0 for s in JOB_STATES}
-        by_state.update({r['_id']: r['count'] for r in result})
+        # Use count documents for faster resolution
+        by_state = {}
+        query_copy = copy.deepcopy(query)
+        for state in JOB_STATES:
+            query_copy['state'] = state
+            by_state[state] = config.db.jobs.count_documents(query_copy)
 
         return by_state
 
