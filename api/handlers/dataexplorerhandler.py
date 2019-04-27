@@ -221,6 +221,13 @@ FACET_QUERY = {
                         "missing": "null"
                     }
                 },
+                "file.modality" : {
+                    "terms" : {
+                        "field" : "file.modality.raw",
+                        "size" : 15,
+                        "missing": "null"
+                    }
+                },
                 "file.type" : {
                     "terms" : {
                         "field" : "file.type.raw",
