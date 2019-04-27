@@ -288,6 +288,7 @@ def get_public_config():
     auth = copy.deepcopy(cfg.get('auth'))
     for values in auth.itervalues():
         values.pop('client_secret', None)
+        values.pop('mail_format', None)
 
     return {
         'created': __config.get('created'),
