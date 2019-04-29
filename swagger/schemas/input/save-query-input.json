@@ -1,13 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
-  "allOf":[{"$ref":"../definitions/search.json#/definitions/save-search-update"}],
-  "required": ["label", "search"],
+  "allOf":[{"$ref":"../definitions/search.json#/definitions/save-search-input"}],
+  "required": ["label", "search", "parent"],
   "example": {
   		"label": "Search_1",
   		"search": {
 			"return_type": "session",
 	  		"search_string": "amyg"
-		}
+		},
+        "parent": {"type": "group", "id": "core"}
 	}
 }

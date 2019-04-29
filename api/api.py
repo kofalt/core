@@ -312,7 +312,7 @@ endpoints = [
 
         # Collections / Projects
 
-        prefix('/<cont_name:collections|projects|dataexplorer/queries>', [
+        prefix('/<cont_name:collections|projects>', [
             prefix('/<cid:{oid}>', [
                 route('/<list_name:permissions>',                          PermissionsListHandler, m=['POST']),
                 route('/<list_name:permissions>/<_id:{uid}>',              PermissionsListHandler, m=['GET', 'PUT', 'DELETE']),
