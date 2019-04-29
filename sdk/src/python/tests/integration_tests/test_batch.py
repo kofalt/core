@@ -16,7 +16,7 @@ class BatchTestCases(SdkTestCase):
         self.fw.delete_gear(self.gear_id)
 
     def test_batch(self):
-        fw = self.fw
+        fw = self.fw_device
 
         poem = 'The falcon cannot hear the falconer;'
         fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
@@ -32,7 +32,7 @@ class BatchTestCases(SdkTestCase):
         self.assertNotEmpty(proposal.id)
         self.assertEquals(proposal.gear_id, self.gear_id)
         self.assertIsNotNone(proposal.origin)
-        self.assertEqual(proposal.origin.type, 'user')
+        self.assertEqual(proposal.origin.type, 'device')
         self.assertNotEmpty(proposal.origin.id)
 
         self.assertEqual(len(proposal.matched), 1)
@@ -72,7 +72,7 @@ class BatchTestCases(SdkTestCase):
         self.assertEqual(cancelled, 1)
 
     def test_batch_with_jobs(self):
-        fw = self.fw
+        fw = self.fw_device
 
         gear = fw.get_gear(self.gear_id)
         self.assertIsNotNone(gear)
@@ -117,7 +117,7 @@ class BatchTestCases(SdkTestCase):
         # Gear Id should be none, each job already knows its gear
         self.assertIsNone(proposal.gear_id)
         self.assertIsNotNone(proposal.origin)
-        self.assertEqual(proposal.origin.type, 'user')
+        self.assertEqual(proposal.origin.type, 'device')
         self.assertNotEmpty(proposal.origin.id)
 
         self.assertTimestampBeforeNow(proposal.created)

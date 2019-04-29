@@ -15,12 +15,14 @@ def utcnow():
     return datetime.utcnow().replace(tzinfo=TZ_UTC)
 
 def get_api_key():
+    device_key = None
     if init_db.SCITRAN_PERSISTENT_DB_URI:
         # Initialize database first
         init_db.init_db()
 
         site_url = urlparse(os.environ['SCITRAN_SITE_API_URL'])
         api_key = '{}:__force_insecure:{}'.format(site_url.netloc, init_db.SCITRAN_ADMIN_API_KEY)
+        device_key = '{}:__force_insecure:{}'.format(site_url.netloc, init_db.SCITRAN_DEVICE_API_KEY)
     else:
         api_key = os.environ.get('SdkTestKey')
 
@@ -28,12 +30,14 @@ def get_api_key():
         print('Could not initialize test case, no api_key. Try setting the SdkTestKey environment variable!')
         exit(1)
 
-    return api_key
+    return api_key, device_key
 
 def make_clients():
-    api_key = get_api_key()
+    api_key, device_key = get_api_key()
 
     fw = flywheel.Flywheel(api_key)
+    if device_key:
+        fw_device = flywheel.Flywheel(device_key)
     fw.enable_feature('beta')
 
     # Mock cli login
@@ -52,10 +56,10 @@ def make_clients():
     shutil.rmtree(tmp_path)
     os.environ['HOME'] = home
 
-    return fw, client
+    return fw, client, fw_device
 
 class SdkTestCase(unittest.TestCase):
-    fw, client = make_clients()
+    fw, client, fw_device = make_clients()
 
     @classmethod
     def rand_string_lower(self, length=10):

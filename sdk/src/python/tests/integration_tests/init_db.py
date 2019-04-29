@@ -5,6 +5,7 @@ import bson
 
 SCITRAN_PERSISTENT_DB_URI = os.environ.get('SCITRAN_PERSISTENT_DB_URI')
 SCITRAN_ADMIN_API_KEY = binascii.hexlify(os.urandom(10)).decode('utf-8')
+SCITRAN_DEVICE_API_KEY = binascii.hexlify(os.urandom(10)).decode('utf-8')
 SCITRAN_PERSISTENT_DATA_PATH = os.environ.get('SCITRAN_PERSISTENT_DATA_PATH')
 
 def create_user(db, _id, api_key, **kwargs):
@@ -32,6 +33,17 @@ def create_user(db, _id, api_key, **kwargs):
         'origin': {'type': 'user', 'id': _id}
     }, upsert=True)
 
+def create_device_key(db, api_key, **kwargs):
+    # Insert API Key
+    print('Create API Key...')
+    db.apikeys.replace_one({'_id': api_key}, {
+        '_id': api_key,
+        'created': datetime.datetime.utcnow(),
+        'last_seen': None,
+        'type': 'device',
+        'origin': {'type': 'device', 'id': 'test-device'}
+    }, upsert=True)
+
 def create_site(db, path, **kwargs):
 
     """Create Default Site Settings which include a default storage provider"""
@@ -45,12 +57,12 @@ def create_site(db, path, **kwargs):
         storage_provider = db.providers.insert_one({
             "_id": bson.ObjectId("deadbeefdeadbeefdeadbeef"),
             "origin": {"type":"system", "id":"system"},
-            "created":"2019-03-19T18:48:37.790Z",
+            "created": datetime.datetime.utcnow(),
             "config":{"path": path},
-            "modified":"2019-03-19T18:48:37.790Z",
+            "modified": datetime.datetime.utcnow(),
             "label":"Local Storage",
             "provider_class":"storage",
-            "provider_type":"osfs"
+            "provider_type":"local"
         })
         storage_provider_id = storage_provider.inserted_id
     else:
@@ -60,9 +72,9 @@ def create_site(db, path, **kwargs):
     if not provider:
         compute_provider = db.providers.insert_one({
             "origin": {"type":"system", "id":"system"},
-            "created": "2019-03-19T18:48:37.790Z",
+            "created": datetime.datetime.utcnow(),
             "config": {"path":path},
-            "modified": "2019-03-19T18:48:37.790Z",
+            "modified": datetime.datetime.utcnow(),
             "label": "Default Compute Provider",
             "provider_class": "compute",
             "provider_type": "static"
@@ -74,9 +86,9 @@ def create_site(db, path, **kwargs):
     db.singletons.update({'_id':'site'},
         {
             "_id": "site",
-            "center_gears": [],
-            "created": "2019-03-19T18:44:17.701078+00:00",
-            "modified": "2019-03-19T18:44:17.701094+00:00",
+            "center_gears": ['site-gear'],
+            "created": datetime.datetime.now(),
+            "modified": datetime.datetime.now(),
             "providers": {
                 "storage": storage_provider_id,
                 'compute': compute_provider_id}
@@ -97,4 +109,5 @@ def init_db():
     db = pymongo.MongoClient(SCITRAN_PERSISTENT_DB_URI).get_default_database()
     create_user(db, 'admin@user.com', SCITRAN_ADMIN_API_KEY, root=True)
     create_site(db, SCITRAN_PERSISTENT_DATA_PATH)
+    create_device_key(db, SCITRAN_DEVICE_API_KEY)
 

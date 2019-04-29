@@ -231,7 +231,7 @@ def validate_provider_updates(container, provider_ids, is_admin):
         provider = get_provider(provider_ids[provider_class])
 
         if provider.provider_class != ProviderClass(provider_class).value:
-            raise errors.ValidationError(provider.provider_class, 'Invalid provider class: {}')
+            raise errors.ValidationError('Invalid provider class: {}'.format(provider.provider_class))
 
 
 def get_provider_id_for_container(container, provider_class, site_settings=None):

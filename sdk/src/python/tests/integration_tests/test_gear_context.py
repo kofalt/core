@@ -154,7 +154,7 @@ INVOCATION = {
 
         'an_api_key': {
             'base': 'api-key',
-            'key': get_api_key()
+            'key': get_api_key()[1]
         }
     },
     'destination': {

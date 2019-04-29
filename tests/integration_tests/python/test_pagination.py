@@ -287,7 +287,8 @@ def test_after_id(data_builder, as_admin, file_form, with_site_settings, randstr
     assert (aq1 in results) != (aq2 in results)
 
     assert len(as_admin.get('/sessions/' + s1 + '/acquisitions').json()) > 1
-    assert len(as_admin.get('/sessions/' + s1 + '/acquisitions?after_id=' + aq1).json()) == 1
+    results = as_admin.get('/sessions/' + s1 + '/acquisitions?after_id=' + min(aq1, aq2)).json()
+    assert (aq1 in results) != (aq2 in results)
 
     an1 = as_admin.post('/sessions/' + s1 + '/analyses', files=file_form(
         'a.csv', meta={'label': 'no-job', 'inputs': [{'name': 'a.csv'}]})).json()['_id']

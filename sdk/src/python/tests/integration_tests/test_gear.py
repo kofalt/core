@@ -13,9 +13,10 @@ class GearTestCases(SdkTestCase):
 
     def test_gears(self):
         fw = self.fw
-        
+
         gear = flywheel.Gear(
-            name=self.rand_string_lower(),
+            #name=self.rand_string_lower(),
+            name='site-gear',
             label=self.rand_string(),
             description=self.rand_string(),
             version=self.rand_string(),
@@ -65,7 +66,8 @@ def create_test_gear(category='utility'):
     ## Do not modify the below gear document without checking the other callees!
     #
     gear = flywheel.Gear(
-        name=SdkTestCase.rand_string_lower(),
+        #name=SdkTestCase.rand_string_lower(),
+        name='site-gear',
         label=SdkTestCase.rand_string(),
         description=SdkTestCase.rand_string(),
         version=SdkTestCase.rand_string(),
