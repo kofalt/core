@@ -102,7 +102,7 @@ class JWTAuthProvider(AuthProvider):
         r = requests.post(self.config['verify_endpoint'], data={'token': token}, verify=self.config.get('check_ssl', True))
         if not r.ok:
             raise APIAuthProviderException('User token not valid')
-        uid = json.loads(r.content).get('mail')
+        uid = self._get_uid(json.loads(r.content))
         if not uid:
             raise APIAuthProviderException('Auth provider did not provide user email')
 
@@ -110,6 +110,16 @@ class JWTAuthProvider(AuthProvider):
         self.set_user_gravatar(uid, uid)
 
         return uid
+
+    def _get_uid(self, token_data):
+        mail_format = self.config.get('mail_format')
+        if mail_format:
+            try:
+                return mail_format.format(**token_data)
+            except KeyError:
+                return None
+        return token_data.get('mail')
+
 
 class GoogleOAuthProvider(AuthProvider):
 

@@ -10,7 +10,6 @@ from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
 from ..web.request import AccessType
 from ..site.providers import validate_provider_class
-from ..web.request import AccessType
 
 
 def remove_potential_phi_from_job(job_map):

@@ -56,6 +56,7 @@ def validate_provider_class(provider_id, provider_class):
         raise errors.ValidationError('Provider {} is not a {} provider!'.format(
             provider_id, provider_class.value))
 
+
 def get_provider_config(provider_id, full=False):
     """Get the provider configuration matching provider_id, or None if not found.
 
@@ -232,6 +233,46 @@ def validate_provider_updates(container, provider_ids, is_admin):
 
         if provider.provider_class != ProviderClass(provider_class).value:
             raise errors.ValidationError('Invalid provider class: {}'.format(provider.provider_class))
+
+
+def get_provider_id_for_container(container, provider_class, site_settings=None):
+    """Get the effective provider of type provider_class for the given container.
+
+    Walks up the tree, as needed, stopping at site to determine the provider.
+
+    Args:
+        container (dict): The container under question.
+        provider_class (ProviderClass|str): The class of provider to retrieve.
+        site_settings (SiteSettings): Optional site_settings, if preloaded
+
+    Returns:
+        (bool, ObjectId): True if this is a site provider, and the provider id, if found, otherwise None
+    """
+    picker = _get_provider_picker()
+    return picker.get_provider_id_for_container(container, provider_class, site_settings=site_settings)
+
+
+def get_compute_provider_id_for_job(gear, destination, inputs):
+    """Determine the compute provider for the given job profile.
+
+    Args:
+        gear (dict): The resolved gear document
+        destination (dict): The destination container
+        inputs (list(dict)): The list of input containers, with origins
+
+    Returns:
+        ObjectId: The id of the provider, or None if no applicable provider was found.
+
+    Raises:
+        APIValidationException: If invalid args were passed
+    """
+    picker = _get_provider_picker()
+    return picker.get_compute_provider_id_for_job(gear, destination, inputs)
+
+
+def _get_provider_picker():
+    """Get the configured provider picker"""
+    return multiproject.create_provider_picker(config.is_multiproject_enabled())
 
 
 def get_provider_id_for_container(container, provider_class, site_settings=None):

@@ -367,6 +367,7 @@ def test_fetch_tree_files(data_builder, file_form, as_admin, as_root, api_db):
         'files': {
             'sort': 'name:asc',
             'limit': 2,
+            'join-origin': True,
             'fields': ['name', 'size', 'type']
         }
     }}, params={'filter': filter_str})
@@ -378,6 +379,17 @@ def test_fetch_tree_files(data_builder, file_form, as_admin, as_root, api_db):
     assert len(acquisitions[0]['files']) == 2
     names = [ f['name'] for f in acquisitions[0]['files'] ]
     assert names == [ 'test1.csv', 'test1.txt' ]
+
+    # Expect to get user back on join origin
+    assert 'join-origin' in acquisitions[0]
+    join_users = acquisitions[0]['join-origin']['user']
+
+    assert 'admin@user.com' in join_users
+    assert join_users['admin@user.com'] == {
+        '_id': 'admin@user.com',
+        'firstname': 'Test',
+        'lastname': 'Admin'
+    }
 
     # Test sort descending
     r = as_admin.post('/tree', json={'acquisitions': {

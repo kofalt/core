@@ -58,6 +58,26 @@
     responses:
       '200':
         description: ''
+        schema:
+          $ref: schemas/output/job-ask.json
+
+/jobs/determine_provider:
+  post:
+    summary: Determine the effective compute provider for a proposed job.
+    operationId: determine_provider_for_job
+    tags:
+    - jobs
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/job-new.json
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/provider.json
 
 /jobs/determine_provider:
   post:

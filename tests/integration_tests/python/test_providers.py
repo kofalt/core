@@ -32,6 +32,23 @@ def test_providers_initial_state(as_user, with_site_settings, api_db):
     site_settings = r.json()
     assert site_settings.get('providers', {}).get('compute') == static_provider_id
 
+def test_providers_initial_state(as_user):
+    r = as_user.get('/site/providers')
+    assert r.ok
+
+    static_provider_id = None
+    for provider in r.json():
+        if provider['provider_class'] == 'compute' and provider['provider_type'] == 'static':
+            static_provider_id = provider['_id']
+
+    assert static_provider_id is not None
+
+    r = as_user.get('/site/settings')
+    assert r.ok
+    site_settings = r.json()
+
+    assert site_settings.get('providers', {}).get('compute') == static_provider_id
+
 def test_create_providers(api_db, as_admin, as_user, as_public):
 
     # Create and retrieve

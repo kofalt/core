@@ -20,6 +20,10 @@
                 "sort": {
                     "type": "string",
                     "description": "The optional, comma-separated, sort specification"
+                },
+                "join-origin": {
+                    "type": "boolean",
+                    "description": "Whether or not to join file origins, default is false"
                 }
             },
             "required": ["fields"],

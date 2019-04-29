@@ -88,6 +88,9 @@ class AnalysesHandler(RefererHandler):
         # Check and raise if non-admin user attempts to override compute provider
         job_util.validate_job_compute_provider(analysis.get('job', {}), self)
 
+        # Check and raise if non-admin user attempts to override compute provider
+        job_util.validate_job_compute_provider(analysis.get('job', {}), self)
+
         uid = None if self.user_is_admin else self.uid
         result = self.storage.create_el(analysis, cont_name, cid, self.origin, uid)
         return {'_id': result.inserted_id}
@@ -191,8 +194,7 @@ class AnalysesHandler(RefererHandler):
             for analysis in page['results']:
                 self.storage.inflate_job_info(analysis, remove_phi=True)
 
-        for analysis in page['results']:
-            self.handle_origin(analysis)
+        self.handle_origin(page['results'])
 
         if self.is_true('join_avatars'):
             self.storage.join_avatars(page['results'])

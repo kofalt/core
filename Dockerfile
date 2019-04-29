@@ -33,7 +33,7 @@ WORKDIR /src/core
 ENV SCITRAN_PERSISTENT_DATA_PATH=/var/scitran/data
 COPY docker/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "--reload", "-c" "/src/core/gunicorn_config.py", "api.app"]
+CMD ["gunicorn", "--reload", "-c", "/src/core/gunicorn_config.py", "api.app"]
 
 # dist - install requirements & core
 FROM base as dist
@@ -60,6 +60,9 @@ RUN pip install -r /src/core/tests/requirements.txt
 COPY . /src/core
 RUN pip install --no-deps -e /src/core
 VOLUME "/src/core/core.egg-info"
+
+FROM testing as live
+COPY docker/live-entrypoint.sh /entrypoint.sh
 
 # TODO uncomment once compatible with fly/fly
 # # make dist the last (default) build target

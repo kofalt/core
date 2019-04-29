@@ -222,6 +222,13 @@ FACET_QUERY = {
                         "missing": "null"
                     }
                 },
+                "file.modality" : {
+                    "terms" : {
+                        "field" : "file.modality.raw",
+                        "size" : 15,
+                        "missing": "null"
+                    }
+                },
                 "file.type" : {
                     "terms" : {
                         "field" : "file.type.raw",
@@ -582,8 +589,7 @@ class DataExplorerHandler(base.RequestHandler):
     def search_fields(self):
         field_query = self.request.json_body.get('field')
         return self._suggest_fields(field_query)
-
-
+    
     def _suggest_fields(self, field_query, count=15):
         es_query = {
             "size": count,

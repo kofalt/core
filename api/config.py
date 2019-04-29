@@ -278,6 +278,9 @@ def initialize_db():
     create_or_recreate_ttl_index('job_tickets', 'timestamp',       6 * 60 * 60) #  6 hours
     create_or_recreate_ttl_index('gear_tickets', 'timestamp', 1 * 24 * 60 * 60) #  1 day
 
+    from .site import site_settings
+    site_settings.initialize()
+
     now = datetime.datetime.utcnow()
     try_update_one(db,
                    'groups', {'_id': 'unknown'},
@@ -327,6 +330,7 @@ def get_public_config():
     auth = copy.deepcopy(cfg.get('auth'))
     for values in auth.itervalues():
         values.pop('client_secret', None)
+        values.pop('mail_format', None)
 
     return {
         'created': __config.get('created'),
