@@ -232,7 +232,7 @@ def default_payload():
         },
     })
 
-@pytest.fixture(scope='session')
+#@pytest.fixture(scope='session')
 def merge_dict():
     def merge_dict(a, b):
         """Merge two dicts into the first recursively"""
@@ -333,22 +333,22 @@ class DataBuilder(object):
         self.randstr = randstr
         self.resources = []
 
-    def __getattr__(self, name):
+    def __getattr__(self, name, default_payload):
         """Return resource specific create_* or delete_* method"""
         if name.startswith('create_') or name.startswith('delete_'):
             method, resource = name.split('_', 1)
-            if resource not in _default_payload:
+            if resource not in default_payload:
                 raise Exception('Unknown resource type {} (from {})'.format(resource, name))
             def resource_method(*args, **kwargs):
                 return getattr(self, method)(resource, *args, **kwargs)
             return resource_method
         raise AttributeError
 
-    def create(self, resource, **kwargs):
+    def create(self, resource, default_payload, **kwargs):
         """Create resource in api and return it's _id"""
 
         # merge any kwargs on top of the default payload
-        payload = copy.deepcopy(_default_payload[resource])
+        payload = copy.deepcopy(default_payload[resource])
 
         _merge_dict(payload, kwargs)
 
@@ -391,7 +391,7 @@ class DataBuilder(object):
             for i in payload.get('inputs', {}).keys():
                 gear_inputs[i] = {'base': 'file'}
 
-            gear_doc = copy.deepcopy(_default_payload['gear']['gear'])
+            gear_doc = copy.deepcopy(default_payload['gear']['gear'])
             gear_doc['inputs'] = gear_inputs
             payload['gear_id'] = self.create('gear', gear=gear_doc)
 
@@ -466,5 +466,5 @@ class DataBuilder(object):
         self.api_db[resource + 's'].remove({'_id': _id})
 
 
-_default_payload = default_payload()
+#_default_payload = default_payload()
 _merge_dict = merge_dict()

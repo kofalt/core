@@ -1,7 +1,7 @@
 """Provides the StaticComputeProvider class"""
 from marshmallow import Schema, fields
 
-from flywheel_common.providers import BaseComputeProvider
+from flywheel_common.providers.compute.base import BaseComputeProvider
 from flywheel_common.providers.provider import BaseProviderSchema
 from flywheel_common import errors
 
