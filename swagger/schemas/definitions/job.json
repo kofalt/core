@@ -543,6 +543,16 @@
           "executor": {"$ref":"#/definitions/executor-info"}
       },
       "additionalProperties": false
+    },
+    "job-stats-by-state": {
+      "type": "object",
+      "properties": {
+        "pending": {"type":"integer"},
+        "running": {"type":"integer"},
+        "failed": {"type":"integer"},
+        "complete": {"type":"integer"},
+        "cancelled": {"type":"integer"}
+      }
     }
   }
 }

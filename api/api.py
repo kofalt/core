@@ -138,6 +138,9 @@ endpoints = [
             route('/self',                 UserHandler, h='self',            m=['GET']),
             route('/self/avatar',          UserHandler, h='self_avatar',     m=['GET']),
             route('/self/key',             UserHandler, h='generate_api_key',m=['POST']),
+            route('/self/info',            UserHandler, h='get_info',        m=['GET']),
+            route('/self/info',            UserHandler, h='modify_info',     m=['POST']),
+            route('/self/jobs',            UserHandler, h='get_jobs',     m=['GET']),
 
             route('/<_id:{uid}>',                       UserHandler),
             route('/<uid:{uid}>/groups',                GroupHandler,                h='get_all',               m=['GET']),
