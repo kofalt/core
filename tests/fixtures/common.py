@@ -180,7 +180,7 @@ def data_builder(as_root, api_db, randstr, with_site_settings):
     data_builder.teardown()
 
 
-@pytest.fixture(scope='function')
+#@pytest.fixture(scope='function')
 def default_payload():
     """Return default test resource creation payloads"""
     return attrdict.AttrDict({
@@ -257,6 +257,10 @@ def bootstrap_users(session, api_db):
         SCITRAN_ADMIN_API_KEY = r.json['key']
     _session.headers.update({'Authorization': 'scitran-user {}'.format(SCITRAN_ADMIN_API_KEY)})
     data_builder = DataBuilder(_session, api_db)
+    print('we have a key')
+    print(SCITRAN_USER_API_KEY)
+    import sys
+    sys.stdout.flush()
     data_builder.create_user(_id='user@user.com', api_key=SCITRAN_USER_API_KEY)
     yield data_builder
     api_db.users.delete_many({})
@@ -333,22 +337,22 @@ class DataBuilder(object):
         self.randstr = randstr
         self.resources = []
 
-    def __getattr__(self, name, default_payload):
+    def __getattr__(self, name):
         """Return resource specific create_* or delete_* method"""
         if name.startswith('create_') or name.startswith('delete_'):
             method, resource = name.split('_', 1)
-            if resource not in default_payload:
+            if resource not in _default_payload:
                 raise Exception('Unknown resource type {} (from {})'.format(resource, name))
             def resource_method(*args, **kwargs):
                 return getattr(self, method)(resource, *args, **kwargs)
             return resource_method
         raise AttributeError
 
-    def create(self, resource, default_payload, **kwargs):
+    def create(self, resource, **kwargs):
         """Create resource in api and return it's _id"""
 
         # merge any kwargs on top of the default payload
-        payload = copy.deepcopy(default_payload[resource])
+        payload = copy.deepcopy(_default_payload[resource])
 
         _merge_dict(payload, kwargs)
 
@@ -391,7 +395,7 @@ class DataBuilder(object):
             for i in payload.get('inputs', {}).keys():
                 gear_inputs[i] = {'base': 'file'}
 
-            gear_doc = copy.deepcopy(default_payload['gear']['gear'])
+            gear_doc = copy.deepcopy(_default_payload['gear']['gear'])
             gear_doc['inputs'] = gear_inputs
             payload['gear_id'] = self.create('gear', gear=gear_doc)
 
@@ -466,5 +470,5 @@ class DataBuilder(object):
         self.api_db[resource + 's'].remove({'_id': _id})
 
 
-#_default_payload = default_payload()
+_default_payload = default_payload()
 _merge_dict = merge_dict()
