@@ -1,5 +1,4 @@
 """Provides data mapper for providers"""
-import datetime
 import dateutil.parser
 
 import bson
@@ -7,7 +6,6 @@ import pymongo
 
 from flywheel_common.providers import create_provider, ProviderClass
 from ... import config
-from .. import models
 
 class Providers(object):
     """Data mapper for providers"""
@@ -50,7 +48,6 @@ class Providers(object):
         raw = self._parse_raw(provider)
         del raw['_id']
         update = {'$set': raw}
-        #update['$set']['modified'] = datetime.datetime.utcnow()
         self.dbc.update_one({'_id': bson.ObjectId(provider_id)}, update)
 
     def get(self, provider_id):

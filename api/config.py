@@ -6,7 +6,6 @@ import pymongo
 import datetime
 import elasticsearch
 
-from flywheel_common.storage import create_flywheel_fs
 from flywheel_common import logging as flylogging
 
 from . import util
@@ -377,10 +376,6 @@ def get_release_version():
         except IOError:
             pass
     return release_version
-
-# Storage configuration
-#primary_storage = create_flywheel_fs(__config['persistent']['fs_url'])
-# primary_storage = create_flywheel_fs(__config['persistent']['data_path'])
 
 # This is used for the temp storage and must be set
 local_fs_url = __config['persistent']['data_path']

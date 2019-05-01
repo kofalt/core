@@ -1,6 +1,5 @@
 """API Handlers for providers"""
 from flywheel_common.providers import create_provider
-from flywheel_common.errors import ValidationError
 
 from ... import validators
 from ...web import base
