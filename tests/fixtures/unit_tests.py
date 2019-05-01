@@ -10,6 +10,7 @@ from requests.structures import CaseInsensitiveDict
 import api.config
 
 SCITRAN_CORE_DRONE_SECRET = os.environ['SCITRAN_CORE_DRONE_SECRET']
+prometheus_multiproc_dir = os.environ['prometheus_multiproc_dir']
 
 
 @pytest.fixture(scope='session')
@@ -42,6 +43,7 @@ def es(app):
 def app():
     """Return api instance that uses mocked os.environ, ElasticSearch and MongoClient"""
     test_env = {
+        'prometheus_multiproc_dir': prometheus_multiproc_dir,
         'SCITRAN_CORE_DRONE_SECRET': SCITRAN_CORE_DRONE_SECRET,
         'TERM': 'xterm', # enable terminal features - useful for pdb sessions
     }
