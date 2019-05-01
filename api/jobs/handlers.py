@@ -576,6 +576,7 @@ class JobsHandler(base.RequestHandler):
 
         # Retrieve the provider
         provider = get_provider(job.compute_provider_id)
+        # pylint: disable=W0212
         return provider._schema.dump(provider).data
 
     @require_admin

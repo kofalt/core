@@ -1,5 +1,5 @@
 """Provides the StaticComputeProvider class"""
-from marshmallow import Schema, fields
+from marshmallow import fields
 
 from flywheel_common.providers.compute.base import BaseComputeProvider
 from flywheel_common.providers.provider import BaseProviderSchema
@@ -31,3 +31,6 @@ class StaticComputeProvider(BaseComputeProvider):
     def get_redacted_config(self):
         # There is no configuration, always return empty
         return {}
+
+    def validate_permissions(self):
+        return true

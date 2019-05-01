@@ -27,6 +27,7 @@ class ProviderHandler(base.RequestHandler):
 
         results = []
         for provider in get_providers(provider_class=provider_class):
+            # pylint: disable=W0212
             results.append(provider._schema.dump(provider).data)
 
         return results
@@ -34,6 +35,7 @@ class ProviderHandler(base.RequestHandler):
     @require_login
     def get(self, _id):
         provider = get_provider(_id)
+        # pylint: disable=W0212
         return provider._schema.dump(provider).data
 
     @require_admin
