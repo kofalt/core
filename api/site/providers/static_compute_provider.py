@@ -33,4 +33,4 @@ class StaticComputeProvider(BaseComputeProvider):
         return {}
 
     def validate_permissions(self):
-        return true
+        pass
