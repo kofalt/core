@@ -28,7 +28,7 @@ from api.jobs import batch
 from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fixes
 from process_cursor import process_cursor
 
-CURRENT_DATABASE_VERSION = 64 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 65 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2414,7 +2414,7 @@ def upgrade_to_65():
     config.db.singletons.insert_one({
         "_id": "site",
         "center_gears": [],
-        "created": datetime.datetimne.now(),
+        "created": datetime.datetime.now(),
         "modified": datetime.datetime.now(),
         "providers": {"storage": provider.inserted_id}
     })
