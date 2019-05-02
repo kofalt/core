@@ -452,6 +452,32 @@ def test_rules_mapper_get_rule(api_db):
     api_db.project_rules.delete_one({'_id': rule_2_id})
 
 
+def test_rules_mapper_get_rule(api_db):
+    # Add rules to db
+    rule_1_id = api_db.project_rules.insert_one({
+        'gear_id': 'gear_id',
+        'name': 'rule_name',
+        'any': [],
+        'not': None,
+        'project_id': 'site'
+    }).inserted_id
+
+    rules_mapper = mappers.RulesMapper(db=api_db)
+
+    # Find a single rule by id
+    rule_1 = rules_mapper.get(rule_1_id)
+    assert isinstance(rule_1, models.Rule)
+    assert rule_1.rule_id == rule_1_id
+
+    # Make sure all rule eval values are lists
+    assert isinstance(rule_1.not_, list)
+    assert isinstance(rule_1.all_, list)
+    assert isinstance(rule_1.any_, list)
+
+    # Clean Up
+    api_db.project_rules.delete_one({'_id': rule_1_id})
+
+
 def test_rules_mapper_get_rule_that_does_not_exist(api_db):
     rules_mapper = mappers.RulesMapper(db=api_db)
 
