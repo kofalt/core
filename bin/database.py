@@ -2402,13 +2402,23 @@ def upgrade_to_65():
     config.db.create_collection('providers')
 
     provider = config.db.providers.insert_one({
-        "origin": {"type":"system","id":"system"},
+        "origin": {"type": "system", "id": "system"},
         "created": datetime.datetime.now(),
-        "config":{"path":config.local_fs_url},
+        "config": {"path":config.local_fs_url},
         "modified": datetime.datetime.now(),
         "label":"Local Storage",
         "provider_class":"storage",
-        "provider_type":"osfs"
+        "provider_type":"local"
+    })
+
+    provider = config.db.providers.insert_one({
+        "origin": {"type": "system", "id": "system"},
+        "created": datetime.datetime.now(),
+        "config": {},
+        "modified": datetime.datetime.now(),
+        "label":"Static Compute",
+        "provider_class":"compute",
+        "provider_type":"static"
     })
 
     config.db.singletons.insert_one({
