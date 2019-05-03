@@ -303,7 +303,9 @@ class UserHandler(base.RequestHandler):
         scope = self.get_param('scope', '')
         if scope:
             query['scopes'] = {'$all': scope.split(' ')}
-        return config.db.authtokens_2.find(query, {'_id': 1, 'identity': 1, 'auth_type': 1}).sort('timestamp', pymongo.DESCENDING)
+        return config.db.authtokens_2.find(
+            query, {'_id': 1, 'identity': 1, 'auth_type': 1}
+        ).sort('timestamp', pymongo.DESCENDING)
 
     @require_login
     def get_auth_token(self, _id):
