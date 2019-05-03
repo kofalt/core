@@ -307,6 +307,7 @@ class UserHandler(base.RequestHandler):
 
     @require_login
     def get_auth_token(self, _id):
+        # TODO use authtokens collection
         token = config.db.authtokens_2.find_one({'_id': ObjectId(_id), 'uid': self.uid})
         if token is None:
             raise APINotFoundException('Token not found')
@@ -328,4 +329,5 @@ class UserHandler(base.RequestHandler):
     def delete_auth_token(self, _id):
         # TODO revoke token
         # TODO delete refresh-token too
+        # TODO use authtokens collection
         config.db.authtokens_2.delete_one({'_id': ObjectId(_id), 'uid': self.uid})
