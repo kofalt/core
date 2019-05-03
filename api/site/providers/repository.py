@@ -31,7 +31,7 @@ def get_provider(provider_id, secure=False):
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.ResourceNotFound(provider_id, 'Provider {} not found!')
+        raise errors.ResourceNotFound(provider_id, 'Provider {path} not found!')
     if not secure:
         return _scrub_config(result)
     return result
@@ -51,7 +51,7 @@ def validate_provider_class(provider_id, provider_class):
     result = mapper.get(provider_id)
 
     if not result:
-        raise errors.ResourceNotFound(provider_id, 'Provider {} does not exist')
+        raise errors.ResourceNotFound(provider_id, 'Provider {path} does not exist')
     if result.provider_class != provider_class:
         raise errors.ValidationError('Provider {} is not a {} provider!'.format(
             provider_id, provider_class.value))
@@ -73,7 +73,7 @@ def get_provider_config(provider_id, full=False):
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.ResourceNotFound(provider_id, 'Provider {} not found!')
+        raise errors.ResourceNotFound(provider_id, 'Provider {path} not found!')
 
     if full:
         # Cannot get storage provider config this way
@@ -146,7 +146,7 @@ def update_provider(provider_id, doc):
     current_provider = mapper.get(provider_id)
 
     if not current_provider:
-        raise errors.ResourceNotFound(provider_id, 'Provider {} not found!')
+        raise errors.ResourceNotFound(provider_id, 'Provider {path} not found!')
 
     # NOTE: We do NOT permit updating provider class or type
     if 'provider_class' in doc:
@@ -223,7 +223,7 @@ def validate_provider_updates(container, provider_ids, is_admin):
 
     # Verify that the user is admin
     if (updates['storage'] or updates['compute']) and not is_admin:
-        raise errors.PermissionError('site admin', 'Changing providers requires site-admin!')
+        raise errors.PermissionError('Changing providers requires site-admin!')
 
     # Verify that provider exists and is the correct type
     for provider_class in ('compute', 'storage'):
