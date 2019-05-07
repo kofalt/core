@@ -192,15 +192,15 @@ FACET_QUERY = {
             "filter": {
                 "bool" : {
                   "must" : [
-                     {"range": {"subject.age": {"gte": -31556952, "lte": 3155695200}}},
+                     {"range": {"session.age": {"gte": -31556952, "lte": 3155695200}}},
                      {"term": {"container_type": "session"}}
                   ]
                 }
             },
             "aggs": {
-                "subject.age" : {
+                "session.age" : {
                     "histogram" : {
-                        "field" : "subject.age",
+                        "field" : "session.age",
                         "interval" : 31556952,
                         "extended_bounds" : {
                             "min" : -31556952,
@@ -482,7 +482,7 @@ class DataExplorerHandler(base.RequestHandler):
         # This aggregation needs an extra filter to filter out outliers (only shows ages between -1 and 100)
         # Add it back in to the session aggregation node
         age_node = aggs.pop('session_age')
-        aggs['by_session']['subject.age'] = age_node['subject.age']
+        aggs['by_session']['session.age'] = age_node['session.age']
         return {'facets': aggs}
 
     def search_size(self, return_type, filters=None):
