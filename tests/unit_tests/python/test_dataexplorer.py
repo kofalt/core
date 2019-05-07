@@ -334,16 +334,16 @@ def test_get_facets(as_public, as_drone, es):
     assert r.status_code == 403
 
     # get facets w/o sending body
-    subject_age = 'test'
+    session_age = 'test'
     es.search.return_value = {'aggregations': {
-        'session_age': {'subject.age': subject_age},
+        'session_age': {'session.age': session_age},
         'by_session': {}}}
     r = as_drone.post('/dataexplorer/facets')
     body = copy.deepcopy(deh.FACET_QUERY)
     body.update({'query': {'match_all': {}}})
     es.search.assert_called_with(body=body, doc_type='flywheel', index='data_explorer')
     assert r.ok
-    assert r.json == {'facets': {'by_session': {'subject.age': subject_age}}}
+    assert r.json == {'facets': {'by_session': {'session.age': session_age}}}
 
 
 def test_search_fields(as_public, as_drone, es):
