@@ -2431,7 +2431,8 @@ def upgrade_to_65():
                 "storage": storage.inserted_id,
                 "compute": compute.inserted_id
             }}
-        })
+        },
+        upsert=True)
 
     #Check if any file does not have a vaild _id
     if config.db.acquistions.find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
