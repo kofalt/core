@@ -31,6 +31,7 @@ JOB_STATES = [
     'cancelled' # Job has been cancelled (via a bulk job cancellation)
 ]
 
+# SHADOW: Perimeter JOB_STATES_ALLOWED_MUTATE
 JOB_STATES_ALLOWED_MUTATE = [
     'pending',
     'running',
@@ -68,6 +69,8 @@ class Queue(object):
     def mutate(job, mutation):
         """
         Validate and save a job mutation
+
+        SHADOW: Perimeter HeartbeatJob, for empty mutations only
         """
 
         if job.state not in JOB_STATES_ALLOWED_MUTATE:
@@ -494,6 +497,8 @@ class Queue(object):
     def job_states(whitelist, blacklist, capabilities):
         """
         Return job state count for a given set of parameters.
+
+        SHADOW: Perimeter JobStates
         """
 
         query = Queue.lists_to_query(whitelist, blacklist, capabilities)
