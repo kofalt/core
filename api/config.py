@@ -379,5 +379,7 @@ def get_release_version():
 
 # This is used for the temp storage and must be set
 local_fs_url = __config['persistent']['data_path']
+# This is the primary storage location. Its used only in the migration to providers and can be deprecated afterwards
+persistent_fs_url = __config['persistent']['fs_url']
 
 support_legacy_fs = __config['persistent']['support_legacy_fs']

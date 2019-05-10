@@ -2414,13 +2414,12 @@ def upgrade_to_65():
     storage = config.db.providers.insert_one({
         "origin": {"type": "system", "id": "system"},
         "created": datetime.datetime.now(),
-        "config": {"path":config.local_fs_url},
+        "config": {"path":config.persistent_fs_url},
         "modified": datetime.datetime.now(),
         "label":"Local Storage",
         "provider_class":"storage",
         "provider_type":"local"
     })
-
 
     config.db.singletons.update_one({"_id": "site"},
         {"$set": {
