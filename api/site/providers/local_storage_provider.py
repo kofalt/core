@@ -1,8 +1,8 @@
 """ Provides the local PyFs Storage Provider """
-from marshmallow import Schema, fields, ValidationError
+from marshmallow import Schema, fields
 import uuid
 
-from flywheel_common.providers import BaseStorageProvider
+from flywheel_common.providers.storage.base import BaseStorageProvider
 from flywheel_common.providers.provider import BaseProviderSchema
 from flywheel_common import errors
 

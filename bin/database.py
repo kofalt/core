@@ -28,7 +28,7 @@ from api.jobs import batch
 from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fixes
 from process_cursor import process_cursor
 
-CURRENT_DATABASE_VERSION = 64 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 65 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2399,75 +2399,106 @@ def upgrade_to_65():
     All project templates should be list of templates
     '''
 
-    config.db.create_collection('providers')
+    #config.db.create_collection('providers')
 
-    provider = config.db.providers.insert_one({
-        "origin": {"type":"system","id":"system"},
+    compute = config.db.providers.insert_one({
+        "origin": {"type": "system", "id": "system"},
         "created": datetime.datetime.now(),
-        "config":{"path":config.local_fs_url},
+        "config": {},
+        "modified": datetime.datetime.now(),
+        "label":"Static Compute",
+        "provider_class":"compute",
+        "provider_type":"static"
+    })
+
+    storage = config.db.providers.insert_one({
+        "origin": {"type": "system", "id": "system"},
+        "created": datetime.datetime.now(),
+        "config": {"path":config.persistent_fs_url},
         "modified": datetime.datetime.now(),
         "label":"Local Storage",
         "provider_class":"storage",
-        "provider_type":"osfs"
+        "provider_type":"local"
     })
 
-    config.db.singletons.insert_one({
-        "_id": "site",
-        "center_gears": [],
-        "created": datetime.datetimne.now(),
-        "modified": datetime.datetime.now(),
-        "providers": {"storage": provider.inserted_id}
-    })
-    
-    # validate that all files have _ids
-    config.db.acquisitions.files.find_one(
-        {'_id': {'$exists': None}}
-    )
+    config.db.singletons.update_one({"_id": "site"},
+        {"$set": {
+            "center_gears": [],
+            "created": datetime.datetime.now(),
+            "modified": datetime.datetime.now(),
+            "providers": {
+                "storage": storage.inserted_id,
+                "compute": compute.inserted_id
+            }}
+        },
+        upsert=True)
 
     #Check if any file does not have a vaild _id
-    if config.db.acquistions.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all aquistion files have a file._id'
-    if config.db.analysis.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all analysis files have a file._id'
-    if config.db.acquistions.find_one({'inputs': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all aquistion files have a file._id'
-    if config.db.collections.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all collection files have a file._id'
-    if config.db.projects.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all project files have a file._id'
-    if config.db.sessions.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all session files have a file._id'
-    if config.db.subjects.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all subject files have a file._id'
-    if config.db.gears.find_one({'files': {'$elemMatch': { "_id": {'$exists': False }}}}):
-        raise 'Not all subject files have a file._id'
+    if config.db.acquistions.find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all aquistion files have a file._id')
+    if config.db.analyses.find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all analyses files have a file._id')
+    if config.db.acquistions.find_one({'inputs': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all aquistion inputs have a file._id')
+    if config.db.collections.find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all collection files have a file._id')
+    if config.db.collections.find_one({'inputs': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all collections inputs have a file._id')
+    if config.db.projects.find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all project files have a file._id')
+    if config.db.sessions.find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all session files have a file._id')
+    if config.db.subjects.find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        raise RuntimeError('Not all subject files have a file._id')
 
-    # TODO: update all files to have the provider id.  
-    config.db.acquisitions.update_many(
-        {'files._id': {'$exists': True}},
-        {'$set': {'files.$.provider_id': provider.inserted_id}})
-    config.db.analysis.update_many(
-        {'files._id': {'$exists': True}},
-        {'$set': {'files.$.provider_id': provider.inserted_id}})
-    config.db.analysis.update_many(
-        {'inputs._id': {'$exists': True}},
-        {'$set': {'inputs.$.provider_id': provider.inserted_id}})
-    config.db.collections.update_many(
-        {'files._id': {'$exists': True}},
-        {'$set': {'files.$.provider_id': provider.inserted_id}})
-    config.db.projects.update_many(
-        {'files._id': {'$exists': True}},
-        {'$set': {'files.$.provider_id': provider.inserted_id}})
-    config.db.sessions.update_many(
-        {'files._id': {'$exists': True}},
-        {'$set': {'files.$.provider_id': provider.inserted_id}})
-    config.db.subject.update_many(
-        {},
-        {'$set': {'files.$.provider_id': provider.inserted_id}})
+    # if config.db.gears.find_one({'exchange': {'$elemMatch': {"rootfs-id": {'$exists': False}}}}):
+    #    raise RuntimeError('Not all gear exchange files have a rootfs-id')
 
-    config.db.gears.update_many(
-        {'exchange.rootfs-id': {'$exists': True}},
-        {'$set': {'exchange.rootfs-provider-id': provider.inserted_id}})
+    # update all files to have the provider id
+    results = config.db.acquisitions.find({})
+    for result in results:
+        for file_ in result.get('files', []):
+            file_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        config.db.acquisitions.update({'_id': result['_id']}, result)
+
+    results = config.db.analyses.find({})
+    for result in results:
+        for file_ in result.get('files', []):
+            file_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        for input_ in result.get('inputs', []):
+            input_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        config.db.analyses.update({'_id': result['_id']}, result)
+
+    results = config.db.collections.find({})
+    for result in results:
+        for file_ in result.get('files', []):
+            file_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        for input_ in result.get('inputs', []):
+            input_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        config.db.collections.update({'_id': result['_id']}, result)
+
+    results = config.db.projects.find({})
+    for result in results:
+        for file_ in result.get('files', []):
+            file_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        config.db.projects.update({'_id': result['_id']}, result)
+
+    results = config.db.sessions.find({})
+    for result in results:
+        for file_ in result.get('files', []):
+            file_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        config.db.sessions.update({'_id': result['_id']}, result)
+
+    results = config.db.subjects.find({})
+    for result in results:
+        for file_ in result.get('files', []):
+            file_['provider_id'] = bson.ObjectId(storage.inserted_id)
+        config.db.subjects.update({'_id': result['_id']}, result)
+
+    results = config.db.gears.find({'exchange.rootfs-id': {'$exists': True}})
+    for result in results:
+        result['exchange']['rootfs-provider-id'] = bson.ObjectId(storage.inserted_id)
+        config.db.gears.update({'_id': result['_id']}, result)
 
 def upgrade_schema(force_from = None):
     """

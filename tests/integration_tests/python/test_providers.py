@@ -15,24 +15,7 @@ VALID_STORAGE_PROVIDER = {
     'creds': {}
 }
 
-def test_providers_initial_state(as_user, with_site_settings, api_db):
-
-    r = as_user.get('/site/providers')
-    assert r.ok
-
-    static_provider_id = None
-    for provider in r.json():
-        if provider['provider_class'] == 'compute' and provider['label'] == 'Default Compute Provider':
-            static_provider_id = provider['_id']
-
-    assert static_provider_id is not None
-
-    r = as_user.get('/site/settings')
-    assert r.ok
-    site_settings = r.json()
-    assert site_settings.get('providers', {}).get('compute') == static_provider_id
-
-def test_providers_initial_state(as_user):
+def test_providers_initial_state(as_user, with_site_settings):
     r = as_user.get('/site/providers')
     assert r.ok
 

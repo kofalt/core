@@ -106,10 +106,10 @@ main() {
         fi
 
         log "INFO: Running unit tests ..."
-        py.test --exitfirst --cov=api --cov-report= tests/unit_tests/python "$@" || allow_skip_all
+        python -m pytest --exitfirst --cov=api --cov-report= tests/unit_tests/python "$@" || allow_skip_all
 
         log "INFO: Running integration tests ..."
-        py.test --exitfirst tests/integration_tests/python "$@" || allow_skip_all || tail_logs_and_exit
+        python -m pytest --exitfirst tests/integration_tests/python "$@" || allow_skip_all || tail_logs_and_exit
 
         log "INFO: Stopping core ..."
         kill $CORE_PID || true

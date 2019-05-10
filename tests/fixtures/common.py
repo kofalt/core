@@ -12,6 +12,7 @@ import pytest
 from api.config import local_fs_url
 
 SCITRAN_CORE_DRONE_SECRET = os.environ['SCITRAN_CORE_DRONE_SECRET']
+prometheus_multiproc_dir = os.environ['prometheus_multiproc_dir']
 SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
 
@@ -95,7 +96,7 @@ def with_site_settings(session, api_db):
     else:
         storage_provider_id = provider['_id']
 
-    provider = api_db.providers.find_one({'label': 'Default Compute Provider'})
+    provider = api_db.providers.find_one({'label': 'Static Compute'})
     if not provider:
         provider = api_db.providers.insert_one({
             "origin": {"type":"system", "id":"system"},
@@ -103,7 +104,7 @@ def with_site_settings(session, api_db):
             "config": {},
             "creds": {},
             "modified": datetime.datetime.utcnow(),
-            "label": "Default Compute Provider",
+            "label": "Static Compute",
             "provider_class": "compute",
             "provider_type": "static"
         })
