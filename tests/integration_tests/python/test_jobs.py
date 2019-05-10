@@ -2800,9 +2800,23 @@ def test_job_providers(compute_provider, data_builder, default_payload, as_publi
     assert r.ok
     assert r.json()['compute_provider_id'] == override_provider
 
+    # Ask with non-existent provider
+    r = as_admin.post('/jobs/ask', json=question({
+        'whitelist': {
+            'gear-name': [gear_name],
+            'compute-provider': [str(bson.ObjectId())]
+        },
+        'return': {'jobs': 1},
+    }))
+    assert r.ok
+    assert len(r.json()['jobs']) == 0
+
     # Retried job should have the original provider id by default
     r = as_admin.post('/jobs/ask', json=question({
-        'whitelist': {'gear-name': [gear_name]},
+        'whitelist': {
+            'gear-name': [gear_name],
+            'compute-provider': [override_provider]
+        },
         'return': {'jobs': 1},
     }))
     assert r.ok
@@ -2838,6 +2852,27 @@ def test_job_providers(compute_provider, data_builder, default_payload, as_publi
     r = as_admin.get('/jobs/' + retried_job_id2)
     assert r.ok
     assert r.json()['compute_provider_id'] == site_provider
+
+    r = as_admin.post('/jobs/ask', json=question({
+        'whitelist': {
+            'gear-name': [gear_name],
+            'compute-provider': [override_provider]
+        },
+        'return': {'jobs': 1},
+    }))
+    assert r.ok
+    assert len(r.json()['jobs']) == 0
+
+    r = as_admin.post('/jobs/ask', json=question({
+        'whitelist': {
+            'gear-name': [gear_name],
+            'compute-provider': [site_provider]
+        },
+        'return': {'jobs': 1},
+    }))
+    assert r.ok
+    assert r.json()['jobs'][0]['id'] == retried_job_id2
+    assert r.json()['jobs'][0]['compute_provider_id'] == site_provider
 
     # Cannot create analysis
     job_data = copy.deepcopy(job_data_orig)

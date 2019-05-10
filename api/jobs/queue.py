@@ -6,7 +6,8 @@ import bson
 import copy
 import pymongo
 import datetime
-import json
+
+from pprint import pformat
 
 from .. import config
 from .jobs import Job, Logs, JobTicket
@@ -390,11 +391,13 @@ class Queue(object):
                 "group": [],
                 "gear-name": [],
                 "tag": [],
+                "compute-provider": [],
             },
             "blacklist": {
                 "group": [],
                 "gear-name": [],
                 "tag": [],
+                "compute-provider": [],
             },
             "capabilities": [],
             "return": {
@@ -436,6 +439,7 @@ class Queue(object):
             'group': {},
             'gear-name': {},
             'tag': {},
+            "compute-provider": {},
         }
 
         # Fill out the request
@@ -447,6 +451,10 @@ class Queue(object):
                 if xlist.get(key):
                     match[key][modifier] = xlist[key]
 
+            if xlist.get('compute-provider'):
+                match['compute-provider'][modifier] = [bson.ObjectId(provider) for provider in xlist['compute-provider']]
+
+
         query = {}
 
         # Translate to mongo keys
@@ -456,6 +464,8 @@ class Queue(object):
             query['gear_info.name'] = match['gear-name']
         if match['tag']:
             query['tags'] = match['tag']
+        if match['compute-provider']:
+            query['compute_provider_id'] = match['compute-provider']
 
         # Bit unintuitive: match documents that do NOT, have an ELEMENT, that is NOT, in the capabilities.
         # Or, translated:  match documents whose capabilities are a subset of the query.
@@ -467,7 +477,7 @@ class Queue(object):
             }
         }
 
-        log.debug('Job query is: %s', json.dumps(query))
+        log.debug('Job query is: %s', pformat(query))
         return query
 
     @staticmethod
