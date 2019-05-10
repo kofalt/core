@@ -9,6 +9,7 @@ bin_path = os.path.join(os.getcwd(), "bin")
 sys.path.insert(0, bin_path)
 import database
 import fixes
+import checks
 
 from api import config
 
@@ -26,11 +27,11 @@ def test_CDV_was_bumped():
 
 @patch('api.config.get_version', Mock(return_value=None))
 def test_get_empty_db_version_from_config():
-    assert database.get_db_version() == (0, {})
+    assert database.get_db_version() == (0, {}, {})
 
 @patch('api.config.get_version', Mock(return_value={'database': 5}))
 def test_get_db_version_from_config():
-    assert database.get_db_version() == (5, {})
+    assert database.get_db_version() == (5, {}, {})
 
 
 @pytest.fixture(scope='function')
@@ -44,7 +45,10 @@ def database_mock_setup():
         for fix_id in available_fixes:
             setattr(fixes, fix_id, Mock())
 
-@patch('database.get_db_version', Mock(return_value=(0, {})))
+    for check_id in checks.AVAILABLE_CHECKS:
+        setattr(checks, check_id, Mock())
+
+@patch('database.get_db_version', Mock(return_value=(0, {}, {})))
 def test_all_upgrade_scripts_ran(database_mock_setup):
     with pytest.raises(SystemExit):
         database.upgrade_schema()
@@ -56,7 +60,10 @@ def test_all_upgrade_scripts_ran(database_mock_setup):
         for fix_id in available_fixes:
             assert getattr(fixes, fix_id).called
 
-@patch('database.get_db_version', Mock(return_value=(CDV-4, {})))
+    for check_id in checks.AVAILABLE_CHECKS:
+        assert getattr(checks, check_id).called
+
+@patch('database.get_db_version', Mock(return_value=(CDV-4, {}, {})))
 def test_necessary_upgrade_scripts_ran(database_mock_setup):
     with pytest.raises(SystemExit):
         database.upgrade_schema()
@@ -81,6 +88,9 @@ def test_necessary_upgrade_scripts_ran(database_mock_setup):
         available_fixes = fixes.AVAILABLE_FIXES.get(i, [])
         for fix_id in available_fixes:
             assert getattr(fixes, fix_id).called is False
+
+    for check_id in checks.AVAILABLE_CHECKS:
+        assert getattr(checks, check_id).called
 
 def test_has_unappliable_fixes():
     # Single test case - we know that 62 has fixes

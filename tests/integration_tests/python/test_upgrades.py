@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+import uuid
 
 import bson
 import copy
@@ -21,6 +22,13 @@ def fixes(mocker):
     mocker.patch('sys.path', [bin_path] + sys.path)
     import fixes
     return fixes
+
+@pytest.fixture(scope='function')
+def checks(mocker):
+    bin_path = os.path.join(os.getcwd(), 'bin')
+    mocker.patch('sys.path', [bin_path] + sys.path)
+    import checks
+    return checks
 
 
 def test_42(data_builder, api_db, as_admin, database):
@@ -1291,3 +1299,21 @@ def test_64(api_db, database):
 
     api_db.subjects.delete_many({'project': {'$in': [project_id, project_id_2]}})
     api_db.sessions.delete_one({'_id': session_1})
+
+def test_check_for_cas_files(api_db, checks):
+    # Requires clean state
+    for collection_name in [ 'acquisitions', 'sessions', 'subjects', 'projects', 'analyses', 'collections' ]:
+        api_db[collection_name].remove({})
+
+    # Create acquisition
+    result = api_db.acquisitions.insert_one({'session': bson.ObjectId(), 'files': [{'type': 'text', 'name': 'cas.txt', 'hash': 'v0-nil-1234'}]})
+    acquisition_id = result.inserted_id
+
+    # Run DB Check, expect raises
+    with pytest.raises(RuntimeError):
+        checks.check_for_cas_files()
+
+    api_db.acquisitions.update({'_id': acquisition_id}, {'$set': {'files.0._id': str(uuid.uuid4())}})
+    checks.check_for_cas_files()
+
+    api_db.acquisitions.delete_one({'_id': acquisition_id})
