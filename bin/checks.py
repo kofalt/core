@@ -2,6 +2,7 @@
 
 Checks will be applied after all upgrades, regardless of version.
 """
+import datetime
 
 from api import config
 
@@ -66,7 +67,7 @@ def check_for_cas_files():
     Check that all CAS files have been migrated in a system.
     """
     for collection_name in [ 'acquisitions', 'sessions', 'subjects', 'projects', 'analyses', 'collections' ]:
-        cursor = config.db[collection_name].find({'files._id': {'$exists': 0}})
+        cursor = config.db[collection_name].find({'files': {'$exists': 1}, 'files._id': {'$exists': 0}})
         if cursor.count():
             print('\n')
             print('='*80)

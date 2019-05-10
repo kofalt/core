@@ -1305,6 +1305,10 @@ def test_check_for_cas_files(api_db, checks):
     for collection_name in [ 'acquisitions', 'sessions', 'subjects', 'projects', 'analyses', 'collections' ]:
         api_db[collection_name].remove({})
 
+    # Create session without files
+    result = api_db.sessions.insert_one({'project': bson.ObjectId(), 'label': 'Test Session'})
+    session_id = result.inserted_id
+
     # Create acquisition
     result = api_db.acquisitions.insert_one({'session': bson.ObjectId(), 'files': [{'type': 'text', 'name': 'cas.txt', 'hash': 'v0-nil-1234'}]})
     acquisition_id = result.inserted_id
@@ -1317,3 +1321,4 @@ def test_check_for_cas_files(api_db, checks):
     checks.check_for_cas_files()
 
     api_db.acquisitions.delete_one({'_id': acquisition_id})
+    api_db.sessions.delete_one({'_id': session_id})
