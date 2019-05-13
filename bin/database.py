@@ -2421,7 +2421,7 @@ def upgrade_schema(force_from = None):
         logging.error('The stored db schema version of %s is incompatible with required version %s',
                        str(db_version), CURRENT_DATABASE_VERSION)
         sys.exit(43)
-    elif db_version == CURRENT_DATABASE_VERSION and not available_fixes:
+    elif db_version == CURRENT_DATABASE_VERSION and not available_fixes and not available_checks:
         logging.error('Database already up to date.')
         sys.exit(43)
 
