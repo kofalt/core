@@ -399,7 +399,7 @@ class EnginePlacer(Placer):
             lines = ['The following project rules could not be evaluated:\n']
             for rule in self.failed_rules:
                 lines.append('  - {}: {}\n'.format(rule['_id'], rule.get('name')))
-            if job:
+            if job is not None:
                 Logs.add_system_logs(job.id_, lines)
 
         self.recalc_session_compliance()

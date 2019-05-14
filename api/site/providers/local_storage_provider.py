@@ -5,7 +5,7 @@ import uuid
 from flywheel_common.providers.storage.base import BaseStorageProvider
 from flywheel_common.providers.provider import BaseProviderSchema
 from flywheel_common import errors
-
+from api.config import log
 
 class LocalStorageConfigSchema(Schema):
     # Is blank a valid path?  Root??
@@ -28,17 +28,6 @@ class LocalStorageProvider(BaseStorageProvider):
         #self._test_files()
         return True
 
-    def validate_config(self):
-        """
-            Confirms the minimum required config is set
-        """
-
-        if not self.config:
-            raise errors.ValidationError('Local storage configuration is required')
-
-        if not self.config.get('path'):
-            raise errors.ValidationError('Local Storage requires path be set')
-
     def get_redacted_config(self):
         return {
             'id': self.provider_id,
@@ -57,6 +46,7 @@ class LocalStorageProvider(BaseStorageProvider):
             test_file.write('This is a permissions test')
             test_file.close()
         except:
+            log.debug('Provider Error: Unable to write files to the local path')
             raise errors.PermissionError('Unable to write files to the local path')
 
         try:
@@ -64,9 +54,11 @@ class LocalStorageProvider(BaseStorageProvider):
             test_file.read()
             test_file.close()
         except:
+            log.debug('Provider Error: Unable to read files on the local path')
             raise errors.PermissionError('Unable to read file on the local path')
 
         try:
             self._storage_plugin.remove_file(test_uuid)
         except:
+            log.debug('Provider Error: Unable to remove files to the local path')
             raise errors.PermissionError('Unable to remove files on the local path')

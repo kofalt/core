@@ -21,6 +21,7 @@ def get_provider(provider_id, secure=False):
 
     Args:
         provider_id (str): The provider id
+        secure (boolean): If true secrets are not scrubbed from the object
 
     Returns:
         The provider object (without config)

@@ -87,7 +87,6 @@ main() {
         --env SCITRAN_PERSISTENT_DB_LOG_URI=mongodb://core-test-mongo:27017/logs \
         --env FLYWHEEL_FEATURE_MULTIPROJECT=true \
         --env SYSLOG_HOST=localhost \
-        --env SCITRAN_PERSISTENT_MULTIPROJECT=true \
         --workdir /src/core \
         flywheel/core:testing \
         tests/bin/tests.sh "$@"
