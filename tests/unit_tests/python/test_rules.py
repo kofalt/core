@@ -49,6 +49,22 @@ def test_eval_match_file_type():
     result = rules.eval_match(*args)
     assert result == False
 
+def test_eval_match_file_modality():
+    part = rulePart(match_type='file.modality', match_param='MR')
+
+    args = part.gen(file_={'modality': 'mr' })
+    result = rules.eval_match(*args)
+    assert result == True
+
+    args = part.gen(file_={'modality': 'CT' })
+    result = rules.eval_match(*args)
+    assert result == False
+
+    # Check match returns false without raising when not given a file.modality
+    args = part.gen(file_={'a': 'b'}, container={'a': 'b'})
+    result = rules.eval_match(*args)
+    assert result == False
+
 def test_eval_match_file_type_regex():
     part = rulePart(match_type='file.type', file_={'type': 'dicom'}, regex=True)
 

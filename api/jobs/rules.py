@@ -38,6 +38,10 @@ log = config.log
 #             'value': '*.dcm'
 #         },
 #         {
+#             'type': 'file.modality', # Match the file's modaliy
+#             'value': 'MR'
+#         },
+#         {
 #             'type': 'file.classification', # Match any of the file's classification
 #             'value': 'diffusion'
 #         },
@@ -85,6 +89,14 @@ def eval_match(match_type, match_param, file_, container, regex=False):
             return match(file_type)
         else:
             _log_file_key_error(file_, container, 'has no type')
+            return False
+
+    # Match the file's modality
+    if match_type == 'file.modality':
+        file_modality = file_.get('modality')
+        if file_modality:
+            return match(file_modality)
+        else:
             return False
 
     # Match a shell glob for the file name

@@ -11,6 +11,7 @@
                         "enum": [
                             "file.type",
                             "file.name",
+                            "file.modality",
                             "file.classification",
                             "container.has-type",
                             "container.has-classification"

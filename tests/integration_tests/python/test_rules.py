@@ -538,6 +538,54 @@ def test_project_rules(randstr, data_builder, file_form, as_root, as_admin, with
     r = as_admin.delete('/projects/' + project + '/rules/' + rule3)
     assert r.ok
 
+    # add modality rule
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'file-modality-rule',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.modality', 'value': 'mr'},
+        ]
+    })
+    assert r.ok
+    rule4 = r.json()['_id']
+
+    # upload file that doesn't match rule
+    r = as_admin.post('/projects/' + project + '/files', files=file_form('test_modality.txt'))
+    assert r.ok
+
+    # test that job was not created via rule
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 4 # still 4 from before
+
+    # update test_modality.txt's metadata to include a valid classification to spawn job
+    metadata = {
+        'project':{
+            'label': 'rule project',
+            'files': [
+                {
+                    'name': 'test_modality.txt',
+                    'modality': "MR"
+                }
+            ]
+        }
+    }
+
+    r = as_admin.post('/engine',
+        params={'level': 'project', 'id': project},
+        files=file_form(meta=metadata)
+    )
+    assert r.ok
+
+    # test that job was created via regex rule
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 5
+
+    # delete rule
+    r = as_admin.delete('/projects/' + project + '/rules/' + rule4)
+    assert r.ok
+
 
 def test_context_input_rule(randstr, data_builder, default_payload, api_db, as_admin, file_form):
     project = data_builder.create_project()
