@@ -1534,3 +1534,95 @@ def test_save_data_view_to_container(data_builder, file_form, as_admin, as_user,
     assert rows[0]['acquisition.id'] == acquisition
     assert rows[0]['acquisition.label'] == 'scout'
 
+
+def test_adhoc_data_view_deleted_container(data_builder, file_form, as_admin):
+    project = data_builder.create_project(label='test-project')
+    session1 = data_builder.create_session(project=project)
+    acquisition1 = data_builder.create_acquisition(session=session1)
+    session2 = data_builder.create_session(project=project)
+    acquisition2 = data_builder.create_acquisition(session=session2)
+
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files',
+                         files=file_form(('test.txt'))).ok
+    assert as_admin.post('/acquisitions/' + acquisition1 + '/files/test.txt/info', json={
+        'replace': {
+            'Key': 'Value 1'
+        }
+    })
+
+    assert as_admin.post('/acquisitions/' + acquisition2 + '/files',
+                         files=file_form(('test.txt'))).ok
+    assert as_admin.post('/acquisitions/' + acquisition2 + '/files/test.txt/info', json={
+        'replace': {
+            'Key': 'Value 2'
+        }
+    })
+
+
+    # Control Test that files show up with two rows
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition' },
+            { 'src': 'file.info.Key', 'dst': 'file'}
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.txt' },
+            'match': 'all'
+        }
+    })
+    assert r.ok
+    assert r.headers['content-disposition'] == 'attachment; filename="view-data.json"'
+    rows = r.json()['data']
+    assert len(rows) == 2
+    assert rows[0]['file'] == 'Value 1'
+
+
+    # Test that deleting the file doesn't remove the row, but the file fields don't show up
+    assert as_admin.delete('/acquisitions/' + acquisition1 + '/files/test.txt').ok
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition' },
+            { 'src': 'file.info.key', 'dst': 'file'}
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.txt' },
+            'match': 'all'
+        }
+    })
+    assert r.ok
+    assert r.headers['content-disposition'] == 'attachment; filename="view-data.json"'
+    rows = r.json()['data']
+    assert len(rows) == 2
+    assert rows[0]['file'] == None
+
+
+    # Test that deleting the container removes the rows altogether
+    assert as_admin.delete('/sessions/' + session2).ok
+
+    r = as_admin.post('/views/data?containerId={}'.format(project), json={
+        'includeLabels': False,
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project' },
+            { 'src': 'acquisition.label', 'dst': 'acquisition' },
+            { 'src': 'file.info.Key', 'dst': 'file'}
+        ],
+        'fileSpec': {
+            'container': 'acquisition',
+            'filter': { 'value': '*.txt' },
+            'match': 'all'
+        }
+    })
+    assert r.ok
+    assert r.headers['content-disposition'] == 'attachment; filename="view-data.json"'
+    rows = r.json()['data']
+    assert len(rows) == 1
+    # Only the row first the first session that wasn't deleted should be returned
+    assert rows[0]['session.id'] == session1
+

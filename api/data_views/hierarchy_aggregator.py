@@ -96,18 +96,21 @@ class HierarchyAggregator(object):
                 id_field = '_meta.{}._id'.format(coll_singular)
                 label_field = '_meta.{}.label'.format(coll_singular)
                 sort_field = '_meta.{}._sort_key'.format(coll_singular)
+                deleted_field = '_meta.{}.deleted'.format(coll_singular)
 
                 projection = {
                     '_id': 0,
                     id_field: '${}_id'.format(proj_pfx),
                     label_field: '${}label'.format(proj_pfx),
-                    sort_field: '${}{}'.format(proj_pfx, stage.sort_key)
+                    sort_field: '${}{}'.format(proj_pfx, stage.sort_key),
+                    deleted_field: '${}deleted'.format(proj_pfx)
                 }
 
                 projection.update(carryover)
                 carryover[id_field] = 1
                 carryover[label_field] = 1
                 carryover[sort_field] = 1
+                carryover[deleted_field] = 1
 
                 for src in stage.fields:
                     if isinstance(src, tuple):
@@ -120,13 +123,23 @@ class HierarchyAggregator(object):
                     carryover[field] = 1
 
                 pipeline.append({'$project': projection})
-            
+
             # Add sort key
             sort_keys[sort_field] = stage.sort_order
 
             parent = coll_singular
             parent_id = id_field
-           
+
+            # Add a filter for deleted containers
+            pipeline.append({
+                '$match': {
+                    '_meta.subject.deleted': None,
+                    '_meta.session.deleted': None,
+                    '_meta.acquisition.deleted': None,
+                    '_meta.analysis.deleted': None
+                }
+            })
+
         # Add sorting
         pipeline.append({'$sort': sort_keys})
 
