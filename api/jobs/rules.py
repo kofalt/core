@@ -328,10 +328,7 @@ def get_rules_for_container(db, container):
     Recursively walk the hierarchy until the project object is found.
     """
 
-    if 'project' in container.get('parents') and container['parents'].get('project'):
-        project = db.projects.find_one({'_id': container['parents']['project']})
-        return get_rules_for_container(db, project)
-    elif 'session' in container:
+    if 'session' in container:
         session = db.sessions.find_one({'_id': container['session']})
         return get_rules_for_container(db, session)
     elif 'project' in container:
