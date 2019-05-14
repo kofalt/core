@@ -151,3 +151,71 @@ def test_collections(data_builder, as_admin, as_user, as_public):
     # test if collection is listed at acquisition
     r = as_user.get('/acquisitions/' + acquisition)
     assert collection not in r.json()['collections']
+
+
+def test_collection_stats(data_builder, as_admin, as_user, as_public):
+    project = data_builder.create_project()
+    subject_1 = data_builder.create_subject(project=project, label='subject1')
+    subject_2 = data_builder.create_subject(project=project, label='subject2')
+    session_1 = data_builder.create_session(subject={'_id': subject_1})
+    session_2 = data_builder.create_session(subject={'_id': subject_2})
+    acquisition_1 = data_builder.create_acquisition(session=session_1)
+    acquisition_2 = data_builder.create_acquisition(session=session_2)
+
+    # === Empty Collection
+    # create collection
+    r = as_admin.post('/collections', json={
+        'label': 'SciTran/TestingStats'
+    })
+    assert r.ok
+    collection = r.json()['_id']
+
+    # get all collections w/ stats=true
+    r = as_admin.get('/collections', params={'stats': 'true'})
+    assert r.ok
+    assert all('session_count' in coll for coll in r.json())
+
+    # Check stats results
+    coll_results = {coll['_id']: coll for coll in r.json()}
+    assert collection in coll_results
+    assert coll_results[collection]['session_count'] == 0
+    assert coll_results[collection]['subject_count'] == 0
+
+    # add session to collection
+    r = as_admin.put('/collections/' + collection, json={
+        'contents': {
+            'operation': 'add',
+            'nodes': [
+                {'level': 'session', '_id': session_1},
+                {'level': 'session', '_id': session_2}
+            ],
+        }
+    })
+    assert r.ok
+
+    # get all collections w/ stats=true
+    r = as_admin.get('/collections', params={'stats': 'true'})
+    assert r.ok
+    assert all('session_count' in coll for coll in r.json())
+
+    # Check stats results
+    coll_results = {coll['_id']: coll for coll in r.json()}
+    assert collection in coll_results
+    assert coll_results[collection]['session_count'] == 2
+    assert coll_results[collection]['subject_count'] == 2
+
+    # === Delete subject_2
+    r = as_admin.delete('/subjects/' + subject_2)
+    assert r.ok
+
+    r = as_admin.get('/collections', params={'stats': 'true'})
+    assert r.ok
+    coll_results = {coll['_id']: coll for coll in r.json()}
+
+    assert collection in coll_results
+    assert coll_results[collection]['session_count'] == 1
+    assert coll_results[collection]['subject_count'] == 1
+
+    # delete collection
+    r = as_admin.delete('/collections/' + collection)
+    assert r.ok

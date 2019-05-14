@@ -125,7 +125,7 @@ class CollectionsHandler(ContainerHandler):
             self.storage.join_avatars(results)
         if self.is_true('stats'):
             for result in results:
-                containerutil.get_stats(result, 'collections')
+                containerutil.get_collection_stats(result)
         return self.format_page(page)
 
     def curators(self):
