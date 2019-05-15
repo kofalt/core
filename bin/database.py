@@ -2421,7 +2421,7 @@ def upgrade_to_65():
         "provider_type":"local"
     })
 
-    if not config.db.find_one({"_id": "site"}):
+    if not config.db.singletons.find_one({"_id": "site"}):
         config.db.singletons.insert_one({"_id": "site"},
             {"$set": {
                 "center_gears": [],
@@ -2442,6 +2442,7 @@ def upgrade_to_65():
                     "compute": compute.inserted_id
                 }}
             })
+
     upgrade_provider_id(storage.inserted_id)
 
 def upgrade_provider_id(storage_id):
@@ -2462,7 +2463,7 @@ def upgrade_provider_id(storage_id):
 
     # update all files to have the provider id
     storage_id = bson.ObjectId(storage_id)
-    for collection in file_collections - input_collections:
+    for collection in set(file_collections) - set(input_collections):
         results = config.db[collection].find({'files.0': {'$exists': True}})
         for result in results:
             for file_ in result.get('files', []):
