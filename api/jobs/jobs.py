@@ -500,7 +500,7 @@ class Logs(object):
         log = config.db.job_logs.find_one({'_id': _id})
 
         if log is None:
-            yield '<span class="fd--1">No logs were found for this job.</span>'
+            yield 'No logs were found for this job.'
         else:
             for stanza in log['logs']:
                 msg = stanza['msg']
