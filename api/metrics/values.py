@@ -28,37 +28,37 @@ LOG_MESSAGE_COUNT = Counter(prefix + 'log_message_count', 'Observed log statemen
 # ===== DB Stats =====
 
 # DB Version
-DB_VERSION = Gauge(prefix + 'db_version', 'The database version', [], multiprocess_mode='max')
+DB_VERSION = Gauge(prefix + 'db_version', 'The database version', [], multiprocess_mode='livesum')
 
 # Api Version
-RELEASE_VERSION = Gauge(prefix + 'release_version', 'The api release version', ['version'], multiprocess_mode='max')
+RELEASE_VERSION = Gauge(prefix + 'release_version', 'The api release version', ['version'], multiprocess_mode='livesum')
 
 # App Version
-FLYWHEEL_VERSION = Gauge(prefix + 'flywheel_version', 'The app release version', ['version'], multiprocess_mode='max')
+FLYWHEEL_VERSION = Gauge(prefix + 'flywheel_version', 'The app release version', ['version'], multiprocess_mode='livesum')
 
 # Job Counts (label=state)
-JOBS_BY_STATE = Gauge(prefix + 'jobs', 'Total number of jobs in each state', ['state'], multiprocess_mode='max')
+JOBS_BY_STATE = Gauge(prefix + 'job_stats', 'Total number of jobs in each state', ['state'], multiprocess_mode='livesum')
 
 # Gear versions
-GEAR_VERSIONS = Gauge(prefix + 'gear', 'Number of jobs for a gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='max')
+GEAR_VERSIONS = Gauge(prefix + 'gear', 'Number of jobs for a gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='livesum')
 
 # Counts: Users, Groups, Projects, Subjects, Sessions, Gears, Devices
-COLLECTION_COUNT = Gauge(prefix + 'collection_count', 'Total number of documents in each collection', ['collection'], multiprocess_mode='max')
+COLLECTION_COUNT = Gauge(prefix + 'collection_count', 'Total number of documents in each collection', ['collection'], multiprocess_mode='livesum')
 
 # Device last seen
-DEVICE_TIME_SINCE_LAST_SEEN = Gauge(prefix + 'device_since_last_seen_seconds', 'Time since a device was last seen, in seconds', ['type', 'name', 'id'], multiprocess_mode='max')
+DEVICE_TIME_SINCE_LAST_SEEN = Gauge(prefix + 'device_since_last_seen_seconds', 'Time since a device was last seen, in seconds', ['type', 'name', 'id'], multiprocess_mode='livesum')
 
 # Device interval
-DEVICE_INTERVAL = Gauge(prefix + 'device_interval_seconds', 'The device interval, in seconds', ['type', 'name', 'id'], multiprocess_mode='max')
+DEVICE_INTERVAL = Gauge(prefix + 'device_interval_seconds', 'The device interval, in seconds', ['type', 'name', 'id'], multiprocess_mode='livesum')
 
 # Total number of active / passive devices
-DEVICE_STATUS_COUNT = Gauge(prefix + 'device_status_counts', 'The number of devices by type and status', ['type', 'status'], multiprocess_mode='max')
+DEVICE_STATUS_COUNT = Gauge(prefix + 'device_status_counts', 'The number of devices by type and status', ['type', 'status'], multiprocess_mode='livesum')
 
 # Total number of logins
-USER_LOGIN_COUNT = Gauge(prefix + 'user_login_count', 'The number of access logs of type user_login', [], multiprocess_mode='max')
+USER_LOGIN_COUNT = Gauge(prefix + 'user_login_count', 'The number of access logs of type user_login', [], multiprocess_mode='livesum')
 
 # Last Event Timestamps: events: session_created, user_login, job_queued[_by_system, by_user]
-LAST_EVENT_TIME = Gauge(prefix + 'last_event_time', 'The seconds since an event as happened', ['event'], multiprocess_mode='max')
+LAST_EVENT_TIME = Gauge(prefix + 'last_event_time', 'The seconds since an event as happened', ['event'], multiprocess_mode='livesum')
 
 # ===== Meta =====
 COLLECT_METRICS_TIME = Summary(prefix + 'collect_metrics_time_seconds', 'Observed time to collect metrics, in seconds', [])

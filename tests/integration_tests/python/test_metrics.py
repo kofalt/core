@@ -1,7 +1,7 @@
 from prometheus_client.parser import text_string_to_metric_families
 
 def test_metrics(as_drone, set_env, ensure_version_singleton):
-    r = as_drone.get('/metrics')
+    r = as_drone.get('/metrics?force_collect=True')
     assert r.ok
     assert len(r.text) > 0
 
