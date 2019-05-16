@@ -212,7 +212,7 @@ class Upload(base.RequestHandler):
         final_storage = storage_service.determine_provider(self.origin, container)
 
         if not final_storage.storage_plugin.is_signed_url():
-            self.abort(405, 'Signed URLs are not supported with the current storage backend')
+            return None
 
 
         signed_urls = {}

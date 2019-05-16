@@ -1,4 +1,6 @@
 def test_signed_url_reaper_upload(as_drone, mocker, api_db, with_site_settings):
+    
+    # Upload without signed URLs returns 200 with None as the content
     payload = {
         'metadata': {
             'group': {'_id': 'scitran'},
@@ -24,7 +26,9 @@ def test_signed_url_reaper_upload(as_drone, mocker, api_db, with_site_settings):
     r = as_drone.post('/upload/reaper?ticket=',
                      json=payload)
 
-    assert r.status_code == 405
+    # return should be None which is empty content when no signed urls
+    assert r.ok
+    assert r.content_length == 0
 
     mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
     mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')
@@ -65,7 +69,8 @@ def test_signed_url_label_upload(as_drone, data_builder, mocker):
     r = as_drone.post('/upload/label?ticket=',
                      json=payload)
 
-    assert r.status_code == 405
+    assert r.status_code == 200
+    assert r.content_length == 0
 
     mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
     mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')
@@ -107,10 +112,12 @@ def test_signed_url_engine_upload(as_drone, data_builder, mocker):
         ]
     }
 
+    # upload without signed url should return None
     r = as_drone.post('/engine?upload_ticket=&level=%s&id=%s' % ('project', project),
                      json=payload)
 
-    assert r.status_code == 405
+    assert r.status_code == 200
+    assert r.content_length == 0
 
     mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
     mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')
@@ -152,10 +159,12 @@ def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mo
         ]
     }
 
+    # Non Signed Url upload will return None 
     r = as_drone.post('/engine?upload_ticket=&level=%s&id=%s' % ('analysis', session_analysis),
                       json=payload)
 
-    assert r.status_code == 405
+    assert r.status_code == 200
+    assert r.content_length == 0
 
     mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
     mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')

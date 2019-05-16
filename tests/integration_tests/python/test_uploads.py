@@ -57,15 +57,17 @@ def upload_file_form(file_form, merge_dict, randstr):
     return create_form
 
 
-def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settings, as_device, as_user):
+def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settings, as_device, as_user, api_db):
 
     group_1 = data_builder.create_group()
     prefix = randstr()
     project_label_1 = prefix + '-project-label-1'
-    session_uid = prefix + '-session-uid'
     session_uid = unicode(bson.ObjectId())
 
     project_1 = data_builder.create_project(label=project_label_1, group=group_1)
+
+    # Due to the order of tests the upgrade to 65 may have changed the assumed site storage provider
+    site_provider = api_db.singletons.find_one({'_id': 'site'})['providers']['storage']
 
     # reaper-upload files to group_1/project_label_1 using session_uid
     r = as_device.post('/upload/reaper', files=upload_file_form(
@@ -74,6 +76,9 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settin
         session={'uid': session_uid},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
     # reaper-upload files to group_1/project_label_1 using session_uid without any files
     file_form = upload_file_form(
@@ -120,6 +125,16 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settin
         session={'uid': session_uid},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
+
+    r = as_user.post('/upload/reaper', files=upload_file_form(
+        group={'_id': group_1},
+        project={'label': project_label_1},
+        session={'uid': session_uid},
+    ))
+    assert r.status_code == 403
 
     # verify no new sessions were created and that group/project was ignored
     # NOTE uploaded project file is NOT stored in this scenario!
@@ -137,6 +152,9 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settin
         session={'uid': session_uid+'1'},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
     # get session created by the upload
     r = as_device.get('/groups/unknown/projects')
@@ -155,6 +173,9 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settin
         session={'uid': session_uid+'2'},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
     # get session created by the upload
     r = as_device.get('/groups/unknown/projects')
@@ -191,6 +212,9 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settin
         session={'uid': session_uid+'4'},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
     # get session created by the upload
     r = as_device.get('/groups/' + group_3 + '/projects')
     assert r.ok
@@ -241,6 +265,9 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, with_site_settin
         }
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
 
     # Test saving raw EM4 subject at session info

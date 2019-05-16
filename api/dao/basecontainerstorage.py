@@ -579,6 +579,7 @@ class ContainerStorage(object):
                 try:
                     subject = subjects[session['subject']]
                 except KeyError:
+                    log.critical('session has no subjects {}'.format(session.get('_id')))
                     subject = {}
                 if session.get('age'):
                     subject = copy.deepcopy(subject)

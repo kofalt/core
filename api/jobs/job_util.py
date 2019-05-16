@@ -171,6 +171,6 @@ def validate_job_compute_provider(job_map, request_handler, validate_provider=Fa
             try:
                 validate_provider_class(compute_provider_id, 'compute')
             except errors.ResourceNotFound:
-                raise errors.ValidationError('Provider id is not valid')
+                raise errors.ValidationError('Provider id is not a regsitered provider on this system')
 
     return compute_provider_id

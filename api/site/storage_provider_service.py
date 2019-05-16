@@ -15,7 +15,6 @@ class StorageProviderService(object):
         Determines which storage provider to use based on the origin of the file
 
         :param Origin origin: A dict with the following definition {type: string, id: string}
-        :param dict job: A dict with the following definition
         :param dict container: the container in which the file is being placed
         :param int file_size: Size of the file, will not be known for signed urls.
         :param bool force_site_provider: Override that forces site provider selection
@@ -40,19 +39,17 @@ class StorageProviderService(object):
 
             if job.gear_info['name'] in site_doc.center_gears:
                 return providers.get_provider(site_doc.providers['storage'])
-            provider_choice = providers.get_provider_id_for_container(container, ProviderClass.storage, site_doc)
+            is_site_provider, provider_id = providers.get_provider_id_for_container(container, ProviderClass.storage, site_doc)
 
-            # Return is a tuple indicating if a site provider was returned. We dont allow bubbling up to site.
-            if not provider_choice[0]:
-                return providers.get_provider(provider_choice[1])
+            if not is_site_provider:
+                return providers.get_provider(provider_id)
 
             raise ValueError('No storage provider assigned for this job action')
 
         if origin['type'] == Origin.user.value:
-            provider_choice = providers.get_provider_id_for_container(container, ProviderClass.storage, site_doc)
-            if not provider_choice[0]:
-                return providers.get_provider(provider_choice[1])
-
+            is_site_provider, provider_id = providers.get_provider_id_for_container(container, ProviderClass.storage, site_doc)
+            if not is_site_provider:
+                return providers.get_provider(provider_id)
             # TODO: We should only allow site if the quota is not exceeded but for now just default to site provider
             return providers.get_provider(site_doc.providers['storage'])
             #if file_size and file_size < group.storage_quota:

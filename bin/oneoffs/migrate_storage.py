@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Migrate storage backend from one Provider to anohter Provider
+Migrate storage backend from one Provider to another Provider
 """
 
 import argparse
@@ -42,7 +42,7 @@ def main(*argv):
     log.info('Using mongo URI: %s', db_uri)
     db = pymongo.MongoClient(db_uri).get_default_database()
 
-    sources = {}; #Just so we dont have to keep loading all the source types
+    sources = {} # Just so we dont have to keep loading all the source types
     try:
         dest_storage = get_provider(args.destination)
     except: 
@@ -55,7 +55,7 @@ def main(*argv):
     delete_source = False
     if args.delete_files:
         log.info('Deleting source files')
-        delete_source = True;
+        delete_source = True
 
     filter_source = None
     if args.source:

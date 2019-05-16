@@ -3,7 +3,7 @@ cachetools==3.0.0
 elasticsearch==5.3.0
 enum==0.4.6
 fs==2.0.16
--e git://github.com/flywheel-io/flywheel-common.git@4a33f216d18a141c0bcb0f0242a4c9a8af542b24#egg=flywheel-common
+flywheel-common[gevent]==1.1.1.dev7
 ipython==5.7.0
 jsonschema==2.6.0
 Markdown==2.6.11

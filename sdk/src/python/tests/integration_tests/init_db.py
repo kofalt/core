@@ -85,13 +85,18 @@ def create_site(db, path, **kwargs):
 
     db.singletons.update({'_id':'site'},
         {
-            "_id": "site",
-            "center_gears": ['site-gear'],
-            "created": datetime.datetime.now(),
-            "modified": datetime.datetime.now(),
-            "providers": {
-                "storage": storage_provider_id,
-                'compute': compute_provider_id}
+            "$addToSet": {"center_gears": "site-gear"},
+            "$set": {
+                "providers": {
+                    "storage": storage_provider_id,
+                    "compute": compute_provider_id
+                },
+                "modified": datetime.datetime.now()
+            },
+            "$setOnInsert": {
+                '_id': 'site',
+                'created': datetime.datetime.now()
+            }
         },
         True)
 
