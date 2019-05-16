@@ -2421,27 +2421,21 @@ def upgrade_to_65():
         "provider_type":"local"
     })
 
-    if not config.db.singletons.find_one({"_id": "site"}):
-        config.db.singletons.insert_one({"_id": "site"},
-            {"$set": {
-                "center_gears": [],
-                "created": datetime.datetime.now(),
-                "modified": datetime.datetime.now(),
+    config.db.singletons.update({'_id':'site'},
+        {
+            "$addToSet": {"center_gears": "site-gear"},
+            "$set": {
                 "providers": {
                     "storage": storage.inserted_id,
                     "compute": compute.inserted_id
-                }}
-            })
-    else:
-        config.db.singletons.update_one({"_id": "site"},
-            {"$set": {
-                "created": datetime.datetime.now(),
-                "modified": datetime.datetime.now(),
-                "providers": {
-                    "storage": storage.inserted_id,
-                    "compute": compute.inserted_id
-                }}
-            })
+                },
+                "modified": datetime.datetime.now()
+            },
+            "$setOnInsert": {
+                'created': datetime.datetime.now()
+            }
+        },
+        True)
 
     upgrade_provider_id(storage.inserted_id)
 
