@@ -13,10 +13,6 @@ from api.jobs.queue import JOB_STATES
 log = logging.getLogger('flywheel.metrics')
 
 
-# The list of collections to collect raw counts for
-COUNT_COLLECTIONS = ['users', 'groups', 'projects', 'sessions']
-
-
 def collect_db_metrics():
     """Collect metrics from mongodb, including version and job states"""
     try:
@@ -32,15 +28,27 @@ def collect_db_metrics():
             flywheel_version = version_info.get('flywheel_release', 'UNKNOWN')
             values.FLYWHEEL_VERSION.labels(flywheel_version).set(1)
 
+        # Get raw DB stats
+        db_stats = config.db.command('dbstats')
+        values.DB_DATA_SIZE.set(db_stats['dataSize'])
+        values.DB_STORAGE_SIZE.set(db_stats['storageSize'])
+        values.DB_OBJECTS.set(db_stats['objects'])
+
         # Get jobs info
         for state in JOB_STATES:
             count = config.db.jobs.count({'state': state})
             values.JOBS_BY_STATE.labels(state).set(count)
 
-        # Get raw collection counts
-        for collection_name in COUNT_COLLECTIONS:
-            count = config.db[collection_name].count()
-            values.COLLECTION_COUNT.labels(collection_name).set(count)
+        # Get raw collection stats
+        for collection_name in config.db.list_collection_names():
+            stats = config.db.command('collstats', collection_name)
+
+            values.COLLECTION_COUNT.labels(collection_name).set(stats['count'])
+            values.COLLECTION_SIZE.labels(collection_name).set(stats['size'])
+            values.COLLECTION_STORAGE_SIZE.labels(collection_name).set(stats['storageSize'])
+            for index_name, index_size in stats.get('indexSizes', {}).items():
+                values.COLLECTION_INDEX_SIZE.labels(collection_name, index_name).set(index_size)
+            values.COLLECTION_TOTAL_INDEX_SIZE.labels(collection_name).set(stats['totalIndexSize'])
 
         # Get access logs of type user login
         login_count = config.log_db.access_log.find({'access_type': 'user_login', 'origin.id': {'$regex': '@(?!flywheel\\.io)'}}).count()

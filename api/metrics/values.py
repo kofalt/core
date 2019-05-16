@@ -30,6 +30,15 @@ LOG_MESSAGE_COUNT = Counter(prefix + 'log_message_count', 'Observed log statemen
 # DB Version
 DB_VERSION = Gauge(prefix + 'db_version', 'The database version', [], multiprocess_mode='livesum')
 
+# DB Size
+DB_DATA_SIZE = Gauge(prefix + 'db_data_size', 'The total size of uncompressed data in the database', [], multiprocess_mode='livesum')
+
+# DB Size on disk
+DB_STORAGE_SIZE = Gauge(prefix + 'db_storage_size', 'The total amount of space allocated to collections in the database', [], multiprocess_mode='livesum')
+
+# DB Total Object Count
+DB_OBJECTS = Gauge(prefix + 'db_objects', 'The total count of objects across all collections in the database', [], multiprocess_mode='livesum')
+
 # Api Version
 RELEASE_VERSION = Gauge(prefix + 'release_version', 'The api release version', ['version'], multiprocess_mode='livesum')
 
@@ -42,8 +51,20 @@ JOBS_BY_STATE = Gauge(prefix + 'job_stats', 'Total number of jobs in each state'
 # Gear versions
 GEAR_VERSIONS = Gauge(prefix + 'gear', 'Number of jobs for a gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='livesum')
 
-# Counts: Users, Groups, Projects, Subjects, Sessions, Gears, Devices
-COLLECTION_COUNT = Gauge(prefix + 'collection_count', 'Total number of documents in each collection', ['collection'], multiprocess_mode='livesum')
+# Collection document count
+COLLECTION_COUNT = Gauge(prefix + 'collection_count', 'Total number of documents in a collection', ['collection'], multiprocess_mode='livesum')
+
+# Total collection size
+COLLECTION_SIZE = Gauge(prefix + 'collection_size', 'Total uncompressed size in memory of all documents in a collection', ['collection'], multiprocess_mode='livesum')
+
+# Total collection size on disk
+COLLECTION_STORAGE_SIZE = Gauge(prefix + 'collection_storage_size', 'Total amount of storage allocated to this collection', ['collection'], multiprocess_mode='livesum')
+
+# Individual index size
+COLLECTION_INDEX_SIZE = Gauge(prefix + 'collection_index_size', 'Total size of an index on this collection', ['collection', 'name'], multiprocess_mode='livesum')
+
+# Total collection index size
+COLLECTION_TOTAL_INDEX_SIZE = Gauge(prefix + 'collection_total_index_size', 'Total size of all indexes on this collection', ['collection'], multiprocess_mode='livesum')
 
 # Device last seen
 DEVICE_TIME_SINCE_LAST_SEEN = Gauge(prefix + 'device_since_last_seen_seconds', 'Time since a device was last seen, in seconds', ['type', 'name', 'id'], multiprocess_mode='livesum')
