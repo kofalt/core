@@ -2456,7 +2456,7 @@ def upgrade_provider_id(storage_id):
     input_collections = ['analyses']
     for collection in input_collections:
         if config.db[collection].find_one({'inputs': {'$elemMatch': {"_id": {'$exists': False}}}}):
-            raise RuntimeError('Not all {} files have a file._id'.format(collection))
+            raise RuntimeError('Not all {} inputs have aa input._id'.format(collection))
 
     # if config.db.gears.find_one({'exchange': {'$elemMatch': {"rootfs-id": {'$exists': False}}}}):
     #    raise RuntimeError('Not all gear exchange files have a rootfs-id')

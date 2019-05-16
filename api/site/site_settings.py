@@ -42,17 +42,11 @@ def update_site_settings(doc, log):
         # Get current settings
         current_site = get_site_settings()
         providers.validate_provider_updates(current_site, doc['providers'], True)
-        # Patch will override the array if we dont supply all provider types
-        for class_ in ProviderClass:
-            if not doc['providers'].get(class_.value):
-                doc['providers'][class_.value] = current_site['providers'][class_.value]
+        log.info('Updating site providers to: %s', doc['providers'])
 
     # Log critical path updates
     if 'center_gears' in doc:
         log.info('Updating center gears to: %s', doc['center_gears'])
-
-    if 'providers' in doc:
-        log.info('Updating site providers to: %s', doc['providers'])
 
     mapper = mappers.SiteSettings()
     return mapper.patch(doc)

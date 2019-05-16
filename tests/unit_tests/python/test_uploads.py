@@ -199,7 +199,8 @@ def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
 
     r = as_drone.post('/projects/' + project + '/files?ticket=', json=payload)
 
-    assert  r.status_code == 405
+    assert  r.ok
+    assert r.content_length == 0
 
     mock_is_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.is_signed_url', return_value=True)
     mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')

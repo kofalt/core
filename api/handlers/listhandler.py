@@ -349,7 +349,7 @@ class FileListHandler(ListHandler):
 
     def _create_upload_ticket(self, storage_provider):
         if not storage_provider.storage_plugin.is_signed_url():
-            self.abort(405, 'Signed URLs are not supported with the current storage backend')
+            return None
 
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
