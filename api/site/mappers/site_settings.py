@@ -32,6 +32,14 @@ class SiteSettings(object):
         }
         update['$set']['modified'] = now
 
+        # We only want to update the providers specified in the object, not overwrite all on patch
+        for class_ in doc.get('providers'):
+            if not update['$set'].get('providers'):
+                update['$set']['providers'] = {}
+            update['$set']['providers.' + class_] = doc['providers'][class_]
+        if doc.get('providers'):
+            doc.pop('providers')
+
         self.dbc.update_one({'_id': SITE_SINGLETON_ID}, update, upsert=True)
 
     def ensure_provider(self, provider_class, default_provider_id):

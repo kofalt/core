@@ -94,7 +94,6 @@ def create_site(db, path, **kwargs):
                 "modified": datetime.datetime.now()
             },
             "$setOnInsert": {
-                '_id': 'site',
                 'created': datetime.datetime.now()
             }
         },
