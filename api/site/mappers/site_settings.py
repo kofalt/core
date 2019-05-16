@@ -33,7 +33,7 @@ class SiteSettings(object):
         update['$set']['modified'] = now
 
         # We only want to update the providers specified in the object, not overwrite all on patch
-        for class_ in doc.get('providers'):
+        for class_ in doc.get('providers', {}):
             if not update['$set'].get('providers'):
                 update['$set']['providers'] = {}
             update['$set']['providers.' + class_] = doc['providers'][class_]
