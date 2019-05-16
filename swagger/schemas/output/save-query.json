@@ -3,7 +3,6 @@
     "type":"object",
     "allOf":[{"$ref":"../definitions/search.json#/definitions/save-search"}],
     "required":[
-        "_id", "uid", "label", "search",
-        "created", "modified", "permissions"
+        "_id", "label", "search", "parent"
     ]
 }

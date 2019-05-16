@@ -10,8 +10,12 @@ class MetricsHandler(base.RequestHandler):
     def get(self):
         """ Generate the latest metrics for the Prometheus Scraper """
         def metrics_handler(_, start_response):
-            # Run metrics collection
-            collect_metrics()
+            # Collect (if force_collect=true)
+            if self.is_true('force_collect'):
+                # NOTE: This flag should be used for testing only
+                # It will cause metrics to be incorrect if used in production
+                self.log.critical('Serving metrics after forced collection!')
+                collect_metrics()
 
             # Fulfill the request
             registry = CollectorRegistry()

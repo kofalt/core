@@ -11,7 +11,7 @@ Gradle is used to build the various components of the SDK. Docker shortcuts are 
 (e.g `docker/run-in-docker.sh /bin/bash` to then run `gradle build` and keep the gradle daemon alive)
 
 # Building
-Running `sdk/make.sh [version number]` will build the matlab toolbox and python wheel in the `sdk/dist` folder.
+Running `sdk/make.sh [version number]` will build the matlab toolbox and python wheel in the `sdk/dist` folder.  Beware that the one must run `swagger/make.sh` beforehand in order for this build to be successful.
 
 # Testing
 After running make.sh (above), tests can be run by invoking `sdk/scripts/docker-tests.sh`

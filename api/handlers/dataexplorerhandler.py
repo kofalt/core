@@ -12,7 +12,7 @@ from ..site.storage_provider_service import StorageProviderService
 from ..web import base, errors
 from .. import config, validators
 from ..dao import noop, hierarchy
-from ..auth import require_login, groupauth, require_admin
+from ..auth import require_login, containerauth, require_admin
 from ..dao.containerstorage import QueryStorage, ContainerStorage
 
 log = config.log
@@ -193,15 +193,15 @@ FACET_QUERY = {
             "filter": {
                 "bool" : {
                   "must" : [
-                     {"range": {"subject.age": {"gte": -31556952, "lte": 3155695200}}},
+                     {"range": {"session.age": {"gte": -31556952, "lte": 3155695200}}},
                      {"term": {"container_type": "session"}}
                   ]
                 }
             },
             "aggs": {
-                "subject.age" : {
+                "session.age" : {
                     "histogram" : {
-                        "field" : "subject.age",
+                        "field" : "session.age",
                         "interval" : 31556952,
                         "extended_bounds" : {
                             "min" : -31556952,
@@ -483,7 +483,7 @@ class DataExplorerHandler(base.RequestHandler):
         # This aggregation needs an extra filter to filter out outliers (only shows ages between -1 and 100)
         # Add it back in to the session aggregation node
         age_node = aggs.pop('session_age')
-        aggs['by_session']['subject.age'] = age_node['subject.age']
+        aggs['by_session']['session.age'] = age_node['session.age']
         return {'facets': aggs}
 
     def search_size(self, return_type, filters=None):
@@ -1066,38 +1066,80 @@ class QueryHandler(base.RequestHandler):
     @require_login
     def post(self):
         payload = self.request.json_body
+
+        # Validate payload
         validators.validate_data(payload, 'save-query-input.json', 'input', 'POST')
-        payload['uid'] = self.uid
-        payload['permissions'] = [{"_id": self.uid, "access": "admin"}]
+
+        # Check permissions
+        parent_container = self.storage.get_parent(None, cont=payload)
+        self.permcheck('POST', parent_container=parent_container)
+
         result = self.storage.create_el(payload)
         if result.inserted_id:
             return {'_id': result.inserted_id}
         else:
             raise errors.APIStorageException("Failed to save the search")
 
+    @require_login
     def get_all(self):
-        return self.storage.get_all_el({}, {'_id': self.uid}, {'label': 1})
+        if self.complete_list:
+            # This will bypass any permission checking for the results
+            user = None
+        else:
+            user = {'_id': self.uid, 'root': self.user_is_admin}
+        return self.storage.get_all_el({}, user, {'label': 1})
 
+    @require_login
     def get(self, sid):
-        return self.storage.get_container(sid)
+        # Retrieve the query
+        search_query = self.storage.get_container(sid)
 
+        # Check Permissions
+        self.permcheck('GET', referer=search_query)
+
+        return search_query
+
+    @require_login
     def delete(self, sid):
+        # Check permissions
         record = self.storage.get_container(sid)
-        permchecker = groupauth.default(self, record)
-        result = permchecker(self.storage.exec_op)('DELETE', sid)
+        self.permcheck('DELETE', record)
+
+        # Delete the document
+        result = self.storage.delete_el(sid)
         if result.deleted_count == 1:
             return {'deleted': result.deleted_count}
         else:
-            self.abort(404, 'Group {} not removed'.format(sid))
+            self.abort(404, 'Search query {} not removed'.format(sid))
         return result
 
+    @require_login
     def put(self, sid):
+        # Validate update
         payload = self.request.json_body
         validators.validate_data(payload, 'save-query-update.json', 'input', 'PUT')
-        permchecker = groupauth.default(self, payload)
-        permchecker(noop)('PUT', sid)
+
+        # Check permissions
+        search_query = self.storage.get_container(sid)
+        self.permcheck('PUT', search_query)
+
+        # Execute the update
         result = self.storage.update_el(sid, payload)
         if result.matched_count == 1:
             return {'modified': result.modified_count}
         else:
             self.abort(404, 'Search query {} not updated'.format(sid))
+
+    def permcheck(self, method, referer=None, parent_container=None):
+        """Perform permission check for saved search query storage operations
+
+        Arguments:
+            referer (dict): The optional query
+            parent_container (dict,str): The parent container, one of "site", user, group or container
+        """
+        if parent_container is None:
+            referer_id = referer.get('_id') if referer is not None else None
+            parent_container = self.storage.get_parent(referer_id, cont=referer)
+        permchecker = containerauth.any_referer(self, container=referer, parent_container=parent_container)
+        permchecker(noop)(method)
+

@@ -7,10 +7,12 @@ from ..web import base
 from .. import util
 from .. import config
 from .. import validators
-from ..auth import userauth, require_admin
+from ..auth import userauth, require_admin, require_login
 from ..auth.apikeys import UserApiKey
 from ..dao import containerstorage
 from ..dao import noop
+from ..dao import dbutil
+from ..jobs.queue import Queue
 
 from ..web.errors import APIStorageException
 
@@ -26,9 +28,11 @@ class UserHandler(base.RequestHandler):
     def get(self, _id):
         user = self._get_user(_id)
         permchecker = userauth.default(self, user)
-        projection = None
+        projection = {}
         if not self.user_is_admin:
-            projection = {'wechat': 0}
+            projection['wechat'] = 0
+        if not (self.uid == _id or self.user_is_admin):
+            projection['info'] = 0
         result = permchecker(self.storage.exec_op)('GET', _id, projection=projection or None)
         if result is None:
             self.abort(404, 'User does not exist')
@@ -52,7 +56,7 @@ class UserHandler(base.RequestHandler):
 
     def get_all(self):
         permchecker = userauth.list_permission_checker(self)
-        projection = {'preferences': 0, 'api_key': 0}
+        projection = {'preferences': 0, 'api_key': 0, 'info': 0}
         if not self.user_is_admin:
             projection['wechat'] = 0
         page = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
@@ -204,3 +208,39 @@ class UserHandler(base.RequestHandler):
             return user
         else:
             self.abort(404, 'user {} not found'.format(_id))
+
+    @require_login
+    def get_info(self):
+        result = self.storage.get_el(self.uid, projection={'info': 1}).get('info', {})
+        if self.get_param('fields', None):
+            filtered = {}
+            for field in self.get_param('fields').split(','):
+                if result.get(field):
+                    filtered[field] = result[field]
+            result = filtered
+        return result
+
+    @require_login
+    @validators.verify_payload_exists
+    def modify_info(self):
+        payload = self.request.json_body
+        validators.validate_data(payload, 'info_update.json', 'input', 'POST')
+        result = self.storage.modify_info(self.uid, payload)
+        return {'modified': result.modified_count}
+
+    @require_login
+    def get_jobs(self):
+        whitelist = {'created-by': [self.uid]}
+        if self.get_param('gear', None):
+            whitelist['gear-name'] = [self.get_param('gear')]
+
+        query = Queue.lists_to_query(whitelist, {}, [])
+        page = dbutil.paginate_find(config.db.jobs, {'filter': query}, self.pagination)
+
+        result = {
+            'stats': Queue.job_states(whitelist, {}, []),
+            'total': page['total'],
+            'jobs': page['results']
+        }
+
+        return result

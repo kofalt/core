@@ -52,11 +52,12 @@ setup(
     Getting Started
     ===============
 
-    .. sourcecode:: python
+    .. code-block:: python
+
         import flywheel
         from pprint import pprint
 
-        fw = flywheel.Flywheel('api-key')
+        fw = flywheel.Client('api-key')
 
         user = fw.get_current_user()
         pprint(user)

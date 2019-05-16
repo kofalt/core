@@ -542,6 +542,54 @@ def test_project_rules(randstr, data_builder, file_form, as_root, as_admin, with
     r = as_admin.delete('/projects/' + project + '/rules/' + rule3)
     assert r.ok
 
+    # add modality rule
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gear,
+        'name': 'file-modality-rule',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.modality', 'value': 'mr'},
+        ]
+    })
+    assert r.ok
+    rule4 = r.json()['_id']
+
+    # upload file that doesn't match rule
+    r = as_admin.post('/projects/' + project + '/files', files=file_form('test_modality.txt'))
+    assert r.ok
+
+    # test that job was not created via rule
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 4 # still 4 from before
+
+    # update test_modality.txt's metadata to include a valid classification to spawn job
+    metadata = {
+        'project':{
+            'label': 'rule project',
+            'files': [
+                {
+                    'name': 'test_modality.txt',
+                    'modality': "MR"
+                }
+            ]
+        }
+    }
+
+    r = as_admin.post('/engine',
+        params={'level': 'project', 'id': project},
+        files=file_form(meta=metadata)
+    )
+    assert r.ok
+
+    # test that job was created via regex rule
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 5
+
+    # delete rule
+    r = as_admin.delete('/projects/' + project + '/rules/' + rule4)
+    assert r.ok
+
 
 def test_context_input_rule(randstr, data_builder, default_payload, api_db, as_admin, file_form):
     project = data_builder.create_project()
@@ -1421,3 +1469,46 @@ def test_project_rule_providers(compute_provider, data_builder, file_form, as_ro
 
     assert as_drone.post('/projects/' + project + '/files', files=file_form('test4.csv')).ok
     check_job_provider(site_provider)
+
+
+def test_analysis_gear_rules(data_builder, as_admin, file_form, api_db):
+    # create versioned gear to cover code selecting latest gear
+    gear_config = {'param': {'type': 'string', 'pattern': '^default|custom$', 'default': 'default'}}
+    gear = data_builder.create_gear(gear={'version': '0.0.1', 'config': gear_config})
+    project = data_builder.create_project()
+    session = data_builder.create_session(project=project)
+
+    r = as_admin.post('/sessions/' + session + '/analyses', json={
+        'label': 'Test-Rule-Analysis'
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+    rule_json = {
+        'gear_id': '000000000000000000000000',
+        'name': 'csv-job-trigger-rule',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.type', 'value': 'tabular data'},
+        ]
+    }
+
+    rule_json['gear_id'] = gear
+
+    # add project rule w/ proper gear id
+    # NOTE this is a legacy rule
+    from pprint import pprint
+    pprint(rule_json)
+    r = as_admin.post('/projects/' + project + '/rules', json=rule_json)
+    assert r.ok
+    rule = r.json()['_id']
+
+    # upload file that matches rule
+    r = as_admin.post('/analyses/' + analysis + '/files', files=file_form('test2.csv'))
+    assert r.ok
+
+    # test that no jobs were created
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 0
+

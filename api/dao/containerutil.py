@@ -188,27 +188,60 @@ def get_project_groups(uid):
     ]
     return [doc['_id'] for doc in config.db.projects.aggregate(pipeline)]
 
-
-def get_stats(cont, cont_type):
+def get_project_stats(project_list):
     """
-    Add a session, subject, non-compliant session and attachment count to a project or collection
+    Add a session, subject, non-compliant session and attachment count to a list of projects
     """
+    project_ids = [proj['_id'] for proj in project_list]
 
-    if cont_type not in ['projects', 'collections']:
-        return cont
+    match_q = {
+        'project': {'$in': project_ids},
+        'deleted': {'$exists': False}
+    }
 
+    # Get session / compliance counts
+    pipeline = [
+        {'$match': match_q},
+        {'$project': {'_id': 1, 'project': 1, 'non_compliant':  {'$cond': [{'$eq': ['$satisfies_template', False]}, 1, 0]}}},
+        {'$group': {'_id': '$project', 'noncompliant_count': {'$sum': '$non_compliant'}, 'total': {'$sum': 1}}}
+    ]
+    session_results_map = {row['_id']: row for row in config.db.sessions.aggregate(pipeline)}
+
+    # Get subject count
+    pipeline = [
+        {'$match': match_q},
+        {'$group': {'_id': '$project', 'total': {'$sum': 1}}}
+    ]
+    subject_results_map = {row['_id']: row for row in config.db.subjects.aggregate(pipeline)}
+
+    for proj in project_list:
+        session_result = session_results_map.get(proj['_id'], {})
+        proj['session_count'] = session_result.get('total', 0)
+        proj['noncompliant_session_count'] = session_result.get('noncompliant_count', 0)
+        proj['subject_count'] = subject_results_map.get(proj['_id'], {}).get('total', 0)
+
+
+def get_collection_stats(cont):
+    """
+    Add a session, subject, non-compliant session and attachment count to a collection
+    """
     # Get attachment count from file array length
     cont['attachment_count'] = len(cont.get('files', []))
 
     # Get session and non-compliant session count
-    match_q = {}
-    if cont_type == 'projects':
-        match_q = {'project': cont['_id'], 'deleted': {'$exists': False}}
-    elif cont_type == 'collections':
-        result = config.db.acquisitions.find({'collections': cont['_id'], 'deleted': {'$exists': False}}, {'session': 1})
-        session_ids = list(set([s['session'] for s in result]))
-        match_q = {'_id': {'$in': session_ids}}
+    session_ids = set()
+    subject_ids = set()
+    for row in config.db.acquisitions.find({'collections': cont['_id'],
+            'deleted': {'$exists': False}}, {'session': 1, 'parents.subject': 1}):
+        session_ids.add(row['session'])
+        subject_id = row.get('parents', {}).get('subject')
+        if subject_id is not None:
+            subject_ids.add(subject_id)
 
+    session_ids = list(session_ids)
+    subject_ids = list(subject_ids)
+
+    match_q = {'_id': {'$in': session_ids}, 'deleted': {'$exists': False}}
     pipeline = [
         {'$match': match_q},
         {'$project': {'_id': 1, 'non_compliant':  {'$cond': [{'$eq': ['$satisfies_template', False]}, 1, 0]}}},
@@ -216,7 +249,6 @@ def get_stats(cont, cont_type):
     ]
 
     result = list(config.db.sessions.aggregate(pipeline))
-
     if len(result) > 0:
         cont['session_count'] = result[0].get('total', 0)
         cont['noncompliant_session_count'] = result[0].get('noncompliant_count', 0)
@@ -224,25 +256,12 @@ def get_stats(cont, cont_type):
         # If there are no sessions, return zero'd out stats
         cont['session_count'] = 0
         cont['noncompliant_session_count'] = 0
-        cont['subject_count'] = 0
-        return cont
 
     # Get subject count
-    match_q['subject'] = {'$ne': None}
-    pipeline = [
-        {'$match': match_q},
-        {'$group': {'_id': '$subject'}},
-        {'$group': {'_id': 1, 'count': { '$sum': 1 }}}
-    ]
-
-    result = list(config.db.sessions.aggregate(pipeline))
-
-    if len(result) > 0:
-        cont['subject_count'] = result[0].get('count', 0)
-    else:
-        cont['subject_count'] = 0
-
+    match_q = {'_id': {'$in': subject_ids}, 'deleted': {'$exists': False}}
+    cont['subject_count'] = config.db.subjects.count_documents(match_q)
     return cont
+
 
 def sanitize_info(info):
     """
