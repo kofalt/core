@@ -102,3 +102,23 @@ $template_arguments:
   $template: templates/analysis-notes.yaml
 /containers/{ContainerId}/analyses/{AnalysisId}/notes/{NoteId}:
   $template: templates/analysis-notes-item.yaml
+
+# ===== UIDs =====
+/uids:
+  post:
+    summary: Check for existence of UIDs system-wide
+    operationId: check_uids_exist
+    tags:
+    - containers
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/uidcheck-input.json
+    responses:
+      '200':
+        description: UID Check result
+        $ref: schemas/output/uidcheck-output.json
+      '400':
+        $ref: '#/responses/400:invalid-body-json'

@@ -18,6 +18,11 @@
           "type": "string",
           "description": "A user database ID"
         },
+        "uidlist": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/uid"},
+          "description": "A list of UIDs"
+        },
         "timestamp":    {"type": ["string", "null"], "format": "date-time"},
         "timezone":     {"type": "string"},
         "container-type": {
@@ -147,6 +152,15 @@
         "container-update": {
           "type": "object",
           "description": "Generic input, should be validated by the correct schema later on"
+        },
+        "container-uidcheck": {
+          "type": "object",
+          "properties": {
+            "sessions": {"$ref": "#/definitions/uidlist"},
+            "acquisitions": {"$ref": "#/definitions/uidlist"}
+          },
+          "description": "Input for checking the existence of UIDs",
+          "additionalProperties": false
         }
     }
 }

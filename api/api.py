@@ -15,6 +15,7 @@ from .handlers.resolvehandler           import ResolveHandler
 from .handlers.roothandler              import RootHandler
 from .handlers.schemahandler            import SchemaHandler
 from .handlers.userhandler              import UserHandler
+from .handlers.uidhandler               import UIDHandler
 from .master_subject_code.handlers      import MasterSubjectCodeHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
@@ -258,11 +259,13 @@ endpoints = [
             route('/<_id:{oid}>/data', DataViewHandler, h='execute_saved',     m=['GET'])
         ]),
 
+        # UID Checks
+
+        route('/uids', UIDHandler, h='check_uids', m=['POST']),
 
         # Abstract container
 
         route('/containers/<cid:{gid}|{oid}><extra:.*>', AbstractContainerHandler, h='handle'),
-
 
         # Groups
 
