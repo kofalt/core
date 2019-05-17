@@ -1,6 +1,7 @@
 from .pipeline import PipelineStage
 from ..util import filtered_container_list, file_filter_to_regex, nil_value, is_nil
 
+
 def pop_collection(cont, key):
     """Nested pop of key from container.
 
@@ -14,7 +15,7 @@ def pop_collection(cont, key):
         list: The popped value, or an empty list
     """
     result = []
-    parts = key.split('.')
+    parts = key.split(".")
 
     for part in parts[:-1]:
         cont = cont.get(part)
@@ -26,6 +27,7 @@ def pop_collection(cont, key):
 
     return result
 
+
 class MatchContainers(PipelineStage):
     """Extracts a list of containers from each row, producing a row for each matched container.
 
@@ -33,6 +35,7 @@ class MatchContainers(PipelineStage):
     Emits a list of rows, which have been unwound for each container matched. 
     If no match was found, then the original row will be included at the end of the list of rows.
     """
+
     def __init__(self, collection_key, output_key, filters, match_type):
         """Initialize this pipeline stage.
 
@@ -46,7 +49,7 @@ class MatchContainers(PipelineStage):
 
         self.collection_key = collection_key
         self.output_key = output_key
-        
+
         # Compile filters
         self.filters = []
         for name, filter_spec in filters:
@@ -69,7 +72,7 @@ class MatchContainers(PipelineStage):
                 # Emit one row per match
                 for entry in containers:
                     new_row = row.copy()
-                    new_row[self.output_key] = entry 
+                    new_row[self.output_key] = entry
                     rows.append(new_row)
             else:
                 new_row = row.copy()
@@ -77,4 +80,3 @@ class MatchContainers(PipelineStage):
                 unmatched.append(new_row)
 
         self.emit(rows + unmatched)
-

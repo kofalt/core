@@ -9,10 +9,9 @@ log = config.log
 
 
 class ModalityHandler(base.RequestHandler):
-
     def __init__(self, request=None, response=None):
         super(ModalityHandler, self).__init__(request, response)
-        self.storage = containerstorage.ContainerStorage('modalities', use_object_id=False)
+        self.storage = containerstorage.ContainerStorage("modalities", use_object_id=False)
 
     @require_login
     def get(self, modality_name):
@@ -25,25 +24,25 @@ class ModalityHandler(base.RequestHandler):
     @require_admin
     def post(self):
         payload = self.request.json_body
-        validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
+        validate_data(payload, "modality.json", "input", "POST", optional=True)
 
         result = self.storage.create_el(payload)
-        return {'_id': result.inserted_id}
+        return {"_id": result.inserted_id}
 
     @require_admin
     def put(self, modality_name):
         payload = self.request.json_body
-        validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
+        validate_data(payload, "modality.json", "input", "POST", optional=True)
 
         result = self.storage.replace_el(modality_name, payload)
         if result.matched_count != 1:
-            raise APINotFoundException('Modality with name {} not found, modality not updated'.format(modality_name))
+            raise APINotFoundException("Modality with name {} not found, modality not updated".format(modality_name))
 
     @require_admin
     def delete(self, modality_name):
         result = self.storage.delete_el(modality_name)
         if result.deleted_count != 1:
-            raise APINotFoundException('Modality with name {} not found, modality not deleted'.format(modality_name))
+            raise APINotFoundException("Modality with name {} not found, modality not deleted".format(modality_name))
 
 
 class APIClassificationException(APIValidationException):
@@ -52,7 +51,7 @@ class APIClassificationException(APIValidationException):
         if not modality:
             error_msg = 'Unknown modality. Classification must be set under "custom" key'
         else:
-            error_msg = 'Classification does not match format for modality {}. Unallowable key-value pairs: {}'.format(modality, errors)
+            error_msg = "Classification does not match format for modality {}. Unallowable key-value pairs: {}".format(modality, errors)
 
         super(APIClassificationException, self).__init__(error_msg, unaccepted_keys=errors)
 
@@ -121,24 +120,24 @@ def check_and_format_classification(modality_name, classification_map):
         }
     """
     try:
-        modality = containerstorage.ContainerStorage('modalities', use_object_id=False).get_container(modality_name)
+        modality = containerstorage.ContainerStorage("modalities", use_object_id=False).get_container(modality_name)
     except APINotFoundException:
         keys = classification_map.keys()
-        if len(keys) == 1 and keys[0].lower() == 'custom':
+        if len(keys) == 1 and keys[0].lower() == "custom":
             # for unknown modalities allow only list of custom values
             return classification_map
         else:
             raise APIClassificationException(None, [])
 
-    classifications = modality.get('classification', {})
+    classifications = modality.get("classification", {})
 
-    formatted_map = {} # the formatted map that will be returned
-    bad_kvs = [] # a list of errors to report, formatted like ['k:v', 'k:v', 'k:v']
+    formatted_map = {}  # the formatted map that will be returned
+    bad_kvs = []  # a list of errors to report, formatted like ['k:v', 'k:v', 'k:v']
 
-    for k,array in classification_map.iteritems():
-        if k.lower() == 'custom':
+    for k, array in classification_map.iteritems():
+        if k.lower() == "custom":
             # any unique value is allowed in custom list
-            formatted_map['Custom'] = array
+            formatted_map["Custom"] = array
 
         else:
             for v in array:
@@ -152,14 +151,9 @@ def check_and_format_classification(modality_name, classification_map):
                         formatted_map[fk] = [fv]
 
                 else:
-                    bad_kvs.append(k+':'+v)
+                    bad_kvs.append(k + ":" + v)
 
     if bad_kvs:
         raise APIClassificationException(modality_name, bad_kvs)
 
     return formatted_map
-
-
-
-
-

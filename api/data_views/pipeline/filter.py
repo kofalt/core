@@ -5,12 +5,14 @@ import re
 from .pipeline import PipelineStage, EndOfPayload
 from ...util import datetime_from_str
 
+
 class Filter(PipelineStage):
     """Filter stage for pipeline, filters out rows that don't match the filter spec
 
     Expects a single flat row.
     Emits a single row
     """
+
     def __init__(self, filter_spec):
         """Initialize the pipeline stage, with the filter spec from pagination.
 
@@ -38,6 +40,7 @@ class Filter(PipelineStage):
 
         self.emit(payload)
 
+
 def make_filter_fn(key, op, value):
     """Create a filter function that checks the value of key in context against value.
 
@@ -46,18 +49,18 @@ def make_filter_fn(key, op, value):
         op (str): The operation (e.g. $lt)
         value: The value to compare against
     """
-    compare_fn_name = 'compare_fn_{}'.format(op.lstrip('$'))
+    compare_fn_name = "compare_fn_{}".format(op.lstrip("$"))
     if compare_fn_name not in globals():
         # If this is encountered, it's probably because a new filter operation was added to pagination
-        raise RuntimeError('Invalid filter operation: {}'.format(op))
-    if op == '$regex':
+        raise RuntimeError("Invalid filter operation: {}".format(op))
+    if op == "$regex":
         value = re.compile(value)
     compare_fn = globals()[compare_fn_name](value)
 
     # Type coercion for value type
     coerce_fn = get_coerce_fn(type(value))
 
-    key = '_filter.{}'.format(key)
+    key = "_filter.{}".format(key)
 
     def filter_fn(context):
         rhs = coerce_fn(context.pop(key, None))
@@ -65,41 +68,53 @@ def make_filter_fn(key, op, value):
 
     return filter_fn
 
+
 def compare_fn_lt(rhs):
     """Compare lhs < rhs"""
     return lambda lhs: lhs < rhs
+
 
 def compare_fn_lte(rhs):
     """Compare lhs <= rhs"""
     return lambda lhs: lhs <= rhs
 
+
 def compare_fn_eq(rhs):
     """Compare lhs == rhs"""
+
     def equal_or_in(lhs):
         if isinstance(lhs, list):
             return rhs in lhs
         return lhs == rhs
+
     return equal_or_in
+
 
 def compare_fn_ne(rhs):
     """Compare lhs != rhs"""
+
     def not_equal_or_in(lhs):
         if isinstance(lhs, list):
             return rhs not in lhs
         return lhs != rhs
+
     return not_equal_or_in
+
 
 def compare_fn_gte(rhs):
     """Compare lhs >= rhs"""
     return lambda lhs: lhs >= rhs
 
+
 def compare_fn_gt(rhs):
     """Compare lhs > rhs"""
     return lambda lhs: lhs > rhs
 
+
 def compare_fn_regex(rhs):
     """Check that regex matches"""
     return lambda lhs: bool(rhs.match(lhs))
+
 
 def get_coerce_fn(cls):
     """Get a function that coerces values into the given type"""
@@ -113,12 +128,14 @@ def get_coerce_fn(cls):
         return coerce_str
     # pylint: disable=unnecessary-lambda
     return lambda x: x
-        
+
+
 def coerce_float(value):
     """Attempt to coerce value to a float"""
     if isinstance(value, list):
         return [safe_float(x) for x in value]
     return safe_float(value)
+
 
 def coerce_datetime(value):
     """Attempt to coerce value to a datetime"""
@@ -126,11 +143,13 @@ def coerce_datetime(value):
         return value
     return datetime_from_str(str(value)) or value
 
+
 def coerce_objectid(value):
     """Attempt to coerce value to an ObjectId"""
     if bson.ObjectId.is_valid(value):
         return bson.ObjectId(value)
     return value
+
 
 def coerce_str(value):
     """Attempt to coerce value to a str"""
@@ -138,10 +157,10 @@ def coerce_str(value):
         return [str(x) for x in value]
     return str(value)
 
+
 def safe_float(value):
     """Safely try to convert val to float"""
     try:
         return float(value)
     except ValueError:
         return value
-

@@ -1,2 +1,2 @@
-def noop(*args, **kwargs): # pylint: disable=unused-argument
+def noop(*args, **kwargs):  # pylint: disable=unused-argument
     pass

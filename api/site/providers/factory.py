@@ -4,13 +4,13 @@ import collections
 # Lookup key for provider classes
 #     provider_class (ProviderClass): The provider class (compute or storage)
 #     provider_type (str): A provider type string
-ProviderKey = collections.namedtuple('ProviderKey',
-    ['provider_class', 'provider_type'])
+ProviderKey = collections.namedtuple("ProviderKey", ["provider_class", "provider_type"])
 
 # Association of providers:
 # Keys: ProviderKey
 # Values: Class
 PROVIDERS = {}
+
 
 def create_provider(provider_class, provider_type, config):
     """Create a new provider instance.
@@ -30,6 +30,6 @@ def create_provider(provider_class, provider_type, config):
 
     cls = PROVIDERS.get(key)
     if cls is None:
-        raise ValueError('Unknown provider: {}'.format(key))
+        raise ValueError("Unknown provider: {}".format(key))
 
     return cls(config)

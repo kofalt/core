@@ -4,6 +4,7 @@ from test_acquisition import create_test_acquisition
 
 import flywheel
 
+
 class CollectionsTestCases(SdkTestCase):
     def setUp(self):
         self.project_ids = []
@@ -22,9 +23,9 @@ class CollectionsTestCases(SdkTestCase):
 
     def test_collections(self):
         fw = self.fw
-        
+
         collection_name = self.rand_string()
-        collection = flywheel.Collection(label=collection_name, description=self.rand_string()) 
+        collection = flywheel.Collection(label=collection_name, description=self.rand_string())
 
         # Add
         self.collection_id = collection_id = fw.add_collection(collection)
@@ -68,7 +69,7 @@ class CollectionsTestCases(SdkTestCase):
         self.project_ids.append(project_id)
         saved_collection.add_sessions(session_id2)
         saved_collection = saved_collection.reload()
-        
+
         # Get sessions
         saved_sessions = saved_collection.sessions()
         self.assertEqual(len(saved_sessions), 2)
@@ -101,39 +102,39 @@ class CollectionsTestCases(SdkTestCase):
         self.assertEqual(changed_collection.created, saved_collection.created)
         self.assertGreater(changed_collection.modified, saved_collection.modified)
 
-        # Add note 
-        message = 'This is a note'
+        # Add note
+        message = "This is a note"
         saved_collection.add_note(message)
-        
-        tag = 'example-tag'
+
+        tag = "example-tag"
         saved_collection.add_tag(tag)
 
         # Replace Info
-        saved_collection.replace_info({ 'foo': 3, 'bar': 'qaz' })
+        saved_collection.replace_info({"foo": 3, "bar": "qaz"})
 
         # Set Info
-        saved_collection.update_info({ 'foo': 42, 'hello': 'world' })
+        saved_collection.update_info({"foo": 42, "hello": "world"})
 
         # Check
         changed_collection = saved_collection.reload()
 
         self.assertEqual(len(changed_collection.notes), 1)
         self.assertEqual(changed_collection.notes[0].text, message)
-        
+
         self.assertEqual(len(changed_collection.tags), 1)
         self.assertEqual(changed_collection.tags[0], tag)
 
-        self.assertEqual(changed_collection.info['foo'], 42)
-        self.assertEqual(changed_collection.info['bar'], 'qaz')
-        self.assertEqual(changed_collection.info['hello'], 'world')
+        self.assertEqual(changed_collection.info["foo"], 42)
+        self.assertEqual(changed_collection.info["bar"], "qaz")
+        self.assertEqual(changed_collection.info["hello"], "world")
 
         # Delete info fields
-        saved_collection.delete_info(['foo', 'bar'])
+        saved_collection.delete_info(["foo", "bar"])
 
         changed_collection = saved_collection.reload()
-        self.assertNotIn('foo', changed_collection.info)
-        self.assertNotIn('bar', changed_collection.info)
-        self.assertEqual(changed_collection.info['hello'], 'world')
+        self.assertNotIn("foo", changed_collection.info)
+        self.assertNotIn("bar", changed_collection.info)
+        self.assertEqual(changed_collection.info["hello"], "world")
 
         # Delete
         fw.delete_collection(collection_id)
@@ -145,36 +146,33 @@ class CollectionsTestCases(SdkTestCase):
 
     def test_collection_files(self):
         fw = self.fw
-        
+
         collection = flywheel.Collection(label=self.rand_string())
         self.collection_id = collection_id = fw.add_collection(collection)
 
         # Upload a file
-        poem = 'Things fall apart; the centre cannot hold;'
-        fw.upload_file_to_collection(collection_id, flywheel.FileSpec('yeats.txt', poem))
+        poem = "Things fall apart; the centre cannot hold;"
+        fw.upload_file_to_collection(collection_id, flywheel.FileSpec("yeats.txt", poem))
 
         # Check that the file was added to the collection
         r_collection = fw.get_collection(collection_id)
         self.assertEqual(len(r_collection.files), 1)
-        self.assertEqual(r_collection.files[0].name, 'yeats.txt')
+        self.assertEqual(r_collection.files[0].name, "yeats.txt")
         self.assertEqual(r_collection.files[0].size, 42)
-        self.assertEqual(r_collection.files[0].mimetype, 'text/plain')
+        self.assertEqual(r_collection.files[0].mimetype, "text/plain")
 
         # Download the file and check content
-        self.assertDownloadFileTextEquals(fw.download_file_from_collection_as_data, collection_id, 'yeats.txt', poem)
-        
+        self.assertDownloadFileTextEquals(fw.download_file_from_collection_as_data, collection_id, "yeats.txt", poem)
+
         # Test unauthorized download with ticket for the file
-        self.assertDownloadFileTextEqualsWithTicket(fw.get_collection_download_url, collection_id, 'yeats.txt', poem)
+        self.assertDownloadFileTextEqualsWithTicket(fw.get_collection_download_url, collection_id, "yeats.txt", poem)
 
         # Test file attributes
         self.assertEqual(r_collection.files[0].modality, None)
         self.assertEmpty(r_collection.files[0].classification)
-        self.assertEqual(r_collection.files[0].type, 'text')
+        self.assertEqual(r_collection.files[0].type, "text")
 
-        resp = fw.modify_collection_file(collection_id, 'yeats.txt', flywheel.FileEntry(
-            modality='modality',
-            type='type'
-        ))
+        resp = fw.modify_collection_file(collection_id, "yeats.txt", flywheel.FileEntry(modality="modality", type="type"))
 
         # Check that no jobs were triggered, and attrs were modified
         self.assertEqual(resp.jobs_spawned, 0)
@@ -182,90 +180,64 @@ class CollectionsTestCases(SdkTestCase):
         r_collection = fw.get_collection(collection_id)
         self.assertEqual(r_collection.files[0].modality, "modality")
         self.assertEmpty(r_collection.files[0].classification)
-        self.assertEqual(r_collection.files[0].type, 'type')
+        self.assertEqual(r_collection.files[0].type, "type")
 
         # Test classifications
-        resp = fw.modify_collection_file_classification(collection_id, 'yeats.txt', {
-            'replace': {
-                'Custom': ['measurement1', 'measurement2'],
-            }
-        })
+        resp = fw.modify_collection_file_classification(collection_id, "yeats.txt", {"replace": {"Custom": ["measurement1", "measurement2"]}})
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
         r_collection = fw.get_collection(collection_id)
-        self.assertEqual(r_collection.files[0].classification, {
-            'Custom': ['measurement1', 'measurement2']
-        });
+        self.assertEqual(r_collection.files[0].classification, {"Custom": ["measurement1", "measurement2"]})
 
-        resp = fw.modify_collection_file_classification(collection_id, 'yeats.txt', {
-            'add': {
-                'Custom': ['HelloWorld'],
-            },
-            'delete': {
-                'Custom': ['measurement2']
-            }
-        })
+        resp = fw.modify_collection_file_classification(collection_id, "yeats.txt", {"add": {"Custom": ["HelloWorld"]}, "delete": {"Custom": ["measurement2"]}})
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
         r_collection = fw.get_collection(collection_id)
-        self.assertEqual(r_collection.files[0].classification, {
-            'Custom': ['measurement1', 'HelloWorld'],
-        });
+        self.assertEqual(r_collection.files[0].classification, {"Custom": ["measurement1", "HelloWorld"]})
 
         # Test file info
         self.assertEmpty(r_collection.files[0].info)
-        fw.replace_collection_file_info(collection_id, 'yeats.txt', {
-            'a': 1,
-            'b': 2,
-            'c': 3,
-            'd': 4
-        })
+        fw.replace_collection_file_info(collection_id, "yeats.txt", {"a": 1, "b": 2, "c": 3, "d": 4})
 
-        fw.set_collection_file_info(collection_id, 'yeats.txt', {
-            'c': 5
-        })
+        fw.set_collection_file_info(collection_id, "yeats.txt", {"c": 5})
 
         r_collection = fw.get_collection(collection_id)
-        self.assertEqual(r_collection.files[0].info['a'], 1)
-        self.assertEqual(r_collection.files[0].info['b'], 2)
-        self.assertEqual(r_collection.files[0].info['c'], 5)
-        self.assertEqual(r_collection.files[0].info['d'], 4)
-    
-        fw.delete_collection_file_info_fields(collection_id, 'yeats.txt', ['c', 'd'])  
-        r_collection = fw.get_collection(collection_id)
-        self.assertEqual(r_collection.files[0].info['a'], 1)
-        self.assertEqual(r_collection.files[0].info['b'], 2)
-        self.assertNotIn('c', r_collection.files[0].info)
-        self.assertNotIn('d', r_collection.files[0].info)
+        self.assertEqual(r_collection.files[0].info["a"], 1)
+        self.assertEqual(r_collection.files[0].info["b"], 2)
+        self.assertEqual(r_collection.files[0].info["c"], 5)
+        self.assertEqual(r_collection.files[0].info["d"], 4)
 
-        fw.replace_collection_file_info(collection_id, 'yeats.txt', {})
+        fw.delete_collection_file_info_fields(collection_id, "yeats.txt", ["c", "d"])
+        r_collection = fw.get_collection(collection_id)
+        self.assertEqual(r_collection.files[0].info["a"], 1)
+        self.assertEqual(r_collection.files[0].info["b"], 2)
+        self.assertNotIn("c", r_collection.files[0].info)
+        self.assertNotIn("d", r_collection.files[0].info)
+
+        fw.replace_collection_file_info(collection_id, "yeats.txt", {})
         r_collection = fw.get_collection(collection_id)
         self.assertEmpty(r_collection.files[0].info)
 
         # Delete file
-        fw.delete_collection_file(collection_id, 'yeats.txt')
+        fw.delete_collection_file(collection_id, "yeats.txt")
         r_collection = fw.get_collection(collection_id)
         self.assertEmpty(r_collection.files)
 
     def test_collection_analysis(self):
         fw = self.fw
-        
-        collection = flywheel.Collection(label=self.rand_string()) 
+
+        collection = flywheel.Collection(label=self.rand_string())
 
         # Add
         self.collection_id = collection_id = fw.add_collection(collection)
         self.assertNotEmpty(collection_id)
 
-        poem = 'A shape with lion body and the head of a man,'
-        fw.upload_file_to_collection(collection_id, flywheel.FileSpec('yeats.txt', poem))
+        poem = "A shape with lion body and the head of a man,"
+        fw.upload_file_to_collection(collection_id, flywheel.FileSpec("yeats.txt", poem))
 
-        file_ref = flywheel.FileReference(
-            id=collection_id,
-            type='collection',
-            name='yeats.txt'
-        )
+        file_ref = flywheel.FileReference(id=collection_id, type="collection", name="yeats.txt")
 
         analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), inputs=[file_ref])
 
@@ -276,7 +248,7 @@ class CollectionsTestCases(SdkTestCase):
         # Get the list of analyses in the collection
         r_collection = fw.get_collection(collection_id)
         self.assertEqual(len(r_collection.analyses), 1)
-        
+
         r_analysis = r_collection.analyses[0]
 
         self.assertEqual(r_analysis.id, analysis_id)
@@ -286,12 +258,10 @@ class CollectionsTestCases(SdkTestCase):
         self.assertGreaterEqual(r_analysis.modified, r_analysis.created)
 
         self.assertEqual(len(r_analysis.inputs), 1)
-        self.assertEqual(r_analysis.inputs[0].name, 'yeats.txt')
+        self.assertEqual(r_analysis.inputs[0].name, "yeats.txt")
 
     def sanitize_for_collection(self, collection, info_exists=True):
-        # workaround: all-container endpoints skip some fields, single-container does not. this sets up the equality check 
+        # workaround: all-container endpoints skip some fields, single-container does not. this sets up the equality check
         collection.files = []
         collection.info_exists = info_exists
         collection.analyses = None
-
-

@@ -3,6 +3,7 @@ import bson
 from api import config
 from api.dao import containerutil
 
+
 def test_container_search(data_builder):
     assert config.db is not None
 
@@ -15,20 +16,18 @@ def test_container_search(data_builder):
     acquisition_id = bson.ObjectId(acquisition)
 
     # Should get a single match on session, with early return
-    results = containerutil.container_search({'_id': session_id}, {'_id':1})
-    assert results == [('sessions', [{'_id': session_id}])]
+    results = containerutil.container_search({"_id": session_id}, {"_id": 1})
+    assert results == [("sessions", [{"_id": session_id}])]
 
     # Search for non-existent value
-    assert [] == containerutil.container_search({'_id': 'DOES_NOT_EXIST'})
+    assert [] == containerutil.container_search({"_id": "DOES_NOT_EXIST"})
 
     # Search for multiple return
-    results = containerutil.container_search({'label': 'label'}, {'_id':1}, early_return=False)
+    results = containerutil.container_search({"label": "label"}, {"_id": 1}, early_return=False)
     assert len(results) == 2
-    assert ('sessions', [{'_id': session_id}]) in results
-    assert ('acquisitions', [{'_id': acquisition_id}]) in results
+    assert ("sessions", [{"_id": session_id}]) in results
+    assert ("acquisitions", [{"_id": acquisition_id}]) in results
 
     # Get first result from a defined set of containers
-    results = containerutil.container_search({'label': 'label'}, {'_id':1}, collections=['sessions', 'acquisitions'])
-    assert results == [('sessions', [{'_id': session_id}])]
-
-
+    results = containerutil.container_search({"label": "label"}, {"_id": 1}, collections=["sessions", "acquisitions"])
+    assert results == [("sessions", [{"_id": session_id}])]

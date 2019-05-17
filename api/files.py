@@ -15,7 +15,8 @@ from flywheel_common import storage
 
 from . import config, util
 
-DEFAULT_HASH_ALG = 'sha384'
+DEFAULT_HASH_ALG = "sha384"
+
 
 class FileProcessor(object):
     def __init__(self, persistent_fs):
@@ -43,7 +44,7 @@ class FileProcessor(object):
 
         path = util.path_from_uuid(new_uuid)
 
-        fileobj = self._persistent_fs.open(new_uuid, path, 'wb', **kwargs)
+        fileobj = self._persistent_fs.open(new_uuid, path, "wb", **kwargs)
         fileobj.filename = filename
 
         return path, FileHasherWriter(fileobj)
@@ -70,14 +71,14 @@ class FileProcessor(object):
 
         # If chunked encoding, indicate that the input will be terminated via EOF
         # before getting the request body
-        if request.headers.get('Transfer-Encoding', None) == 'chunked':
-            request.environ['wsgi.input_terminated'] = True
+        if request.headers.get("Transfer-Encoding", None) == "chunked":
+            request.environ["wsgi.input_terminated"] = True
 
         # Copied from WebOb source:
         # https://github.com/Pylons/webob/blob/cb9c0b4f51542a7d0ed5cc5bf0a73f528afbe03e/webob/request.py#L790
         env = request.environ.copy()
-        env.setdefault('CONTENT_LENGTH', '0')
-        env['QUERY_STRING'] = ''
+        env.setdefault("CONTENT_LENGTH", "0")
+        env["QUERY_STRING"] = ""
 
         # We only use the tempdir_name for Token and Placer strategy
         if tempdir_name:
@@ -87,14 +88,11 @@ class FileProcessor(object):
         else:
             field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
 
-        form = field_storage_class(
-            fp=request.body_file, environ=env, keep_blank_values=True
-        )
+        form = field_storage_class(fp=request.body_file, environ=env, keep_blank_values=True)
 
         form.file = FileHasherWriter(form.file)
 
         return form
-
 
     def create_file_fields(self, filename, filepath, size, hash_, uuid_=None, mimetype=None, modified=None):
         """
@@ -106,17 +104,7 @@ class FileProcessor(object):
         if not mimetype:
             mimetype = util.guess_mimetype(filename)
 
-        return util.obj_from_map({
-            'uuid': uuid_,
-            'filename': filename,
-            'path': filepath,
-            'filepath': filepath, # Some placers use path others use filepath
-            'size': size,
-            'hash': hash_,
-            'mimetype': mimetype,
-            'modified': modified
-        })
-
+        return util.obj_from_map({"uuid": uuid_, "filename": filename, "path": filepath, "filepath": filepath, "size": size, "hash": hash_, "mimetype": mimetype, "modified": modified})  # Some placers use path others use filepath
 
     @property
     def persistent_fs(self):
@@ -134,6 +122,7 @@ class FileProcessor(object):
         # We will require the placer to clean up files as needed when the request flows are finished
         pass
 
+
 class FileHasherWriter(object):
     """File wrapper that hashes while writing to a file
 
@@ -142,6 +131,7 @@ class FileHasherWriter(object):
         object only for local files and normal file objects in all other cases
 
     """
+
     def __init__(self, fileobj, hash_alg=None):
         """Create a new file hasher/writer
 
@@ -187,6 +177,7 @@ class FileHasherWriter(object):
     def close(self):
         self.fileobj.close()
 
+
 def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=False):
     # pylint: disable=attribute-defined-outside-init
 
@@ -223,13 +214,11 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             else:
                 self.filename = os.path.basename(self.filename)
 
-
-
             # move this to a utility function and use it in both places.
             # It needs to be changed in the placers that assume temp dir locations, only PackFile that I am aware of
             if tempdir_name:
                 # If using the tempdir we assume we are going to pack them up with the original filenames
-                self.filepath = tempdir_name + '/' + self.filename
+                self.filepath = tempdir_name + "/" + self.filename
             else:
                 self.filepath = util.path_from_uuid(self._uuid)
 
@@ -239,7 +228,7 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
 
-            self.open_file = file_system.open(self._uuid, self.filepath, 'wb')
+            self.open_file = file_system.open(self._uuid, self.filepath, "wb")
 
             return self.open_file
 
@@ -250,7 +239,7 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             if self._FieldStorage__file is not None:
                 # Always write fields of type "file" to disk for consistent renaming behavior
                 if self.filename:
-                    self.file = self.make_file('')
+                    self.file = self.make_file("")
                     self.file.write(self._FieldStorage__file.getvalue())
                     self.hasher.update(self._FieldStorage__file.getvalue())
                 self._FieldStorage__file = None
@@ -264,16 +253,18 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
 
     return SingleFileFieldStorage
 
+
 # File extension --> scitran file type detection hueristics.
 # Listed in precendence order.
-with open(os.path.join(os.path.dirname(__file__), 'filetypes.json')) as fd:
+with open(os.path.join(os.path.dirname(__file__), "filetypes.json")) as fd:
     TYPE_MAP = json.load(fd)
 
 KNOWN_FILETYPES = {ext: filetype for filetype, extensions in TYPE_MAP.iteritems() for ext in extensions}
 
+
 def guess_type_from_filename(filename):
-    particles = filename.split('.')[1:]
-    extentions = ['.' + '.'.join(particles[i:]) for i in range(len(particles))]
+    particles = filename.split(".")[1:]
+    extentions = ["." + ".".join(particles[i:]) for i in range(len(particles))]
     for ext in extentions:
         filetype = KNOWN_FILETYPES.get(ext.lower())
         if filetype:
@@ -295,7 +286,7 @@ def get_valid_file(file_info):
     :return: (<file's path>, <filesystem>)
     """
 
-    file_id = file_info.get('_id', '')
+    file_id = file_info.get("_id", "")
     file_path = get_file_path(file_info)
     return file_path, get_fs_by_file_path(file_id, file_path)
 
@@ -307,8 +298,8 @@ def get_file_path(file_info):
     :param file_info: dict, contains the _id and the hash of the file
     :return: <file's path>
     """
-    file_id = file_info.get('_id', '')
-    file_hash = file_info.get('hash', '')
+    file_id = file_info.get("_id", "")
+    file_hash = file_info.get("hash", "")
     file_uuid_path = None
     file_hash_path = None
 
@@ -349,6 +340,4 @@ def get_fs_by_file_path(file_id, file_path):
     ###
 
     else:
-        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
-
-
+        raise fs.errors.ResourceNotFound("File not found: %s" % file_path)

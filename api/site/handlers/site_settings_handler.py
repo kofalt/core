@@ -5,6 +5,7 @@ from ... import validators
 
 from ..site_settings import get_site_settings, update_site_settings
 
+
 class SiteSettingsHandler(base.RequestHandler):
     """Handler for admin editable site-wide configuration"""
 
@@ -19,7 +20,7 @@ class SiteSettingsHandler(base.RequestHandler):
         """Patch site setting values"""
         # Validate Input
         payload = self.request.json
-        validators.validate_data(payload, 'site-settings.json', 'input', 'PUT')
+        validators.validate_data(payload, "site-settings.json", "input", "PUT")
 
         # Update/upsert
         update_site_settings(payload, self.log)

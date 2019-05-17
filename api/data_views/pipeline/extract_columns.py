@@ -1,12 +1,14 @@
 from .pipeline import PipelineStage, EndOfPayload
 from ..util import extract_json_property, nil_value, convert_to_datatype
 
+
 class ExtractColumns(PipelineStage):
     """Pipeline stage that extracts values from a context into a flattened row.
 
     Expects a single row (the input context).
     Emits a single row of flattened values
     """
+
     def __init__(self, config):
         super(ExtractColumns, self).__init__()
         self.config = config
@@ -29,7 +31,7 @@ class ExtractColumns(PipelineStage):
                     # Apply expression, if specified
                     if value != nil_value and col.expr is not None:
                         # Expression has been validated, shouldn't encounter errors
-                        value = col.expr.eval({'x': value})
+                        value = col.expr.eval({"x": value})
 
                     # Convert the property, if a datatype was specified
                     if col.datatype is not None:
@@ -37,7 +39,4 @@ class ExtractColumns(PipelineStage):
                     # Add to the flattened row
                     row[col.dst] = value
 
-
             self.emit(row)
-
-    

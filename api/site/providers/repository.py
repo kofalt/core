@@ -7,7 +7,8 @@ from .factory import create_provider
 from .. import mappers, models, multiproject
 
 
-COMPUTE_DISPATCHERS = [ 'cloud-scale', 'compute-dispatcher' ]
+COMPUTE_DISPATCHERS = ["cloud-scale", "compute-dispatcher"]
+
 
 def is_compute_dispatcher(device_type):
     """Whether or not the given device_type is a compute dispatcher"""
@@ -29,7 +30,7 @@ def get_provider(provider_id):
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+        raise errors.APINotFoundException("Provider {} not found!".format(provider_id))
     return _scrub_config(result)
 
 
@@ -48,10 +49,9 @@ def validate_provider_class(provider_id, provider_class):
     result = mapper.get(provider_id)
 
     if not result:
-        raise errors.APIValidationException('Provider {} does not exist'.format(provider_id))
+        raise errors.APIValidationException("Provider {} does not exist".format(provider_id))
     if result.provider_class != provider_class:
-        raise errors.APIValidationException('Provider {} is not a {} provider!'.format(
-            provider_id, provider_class.value))
+        raise errors.APIValidationException("Provider {} is not a {} provider!".format(provider_id, provider_class.value))
 
 
 def get_provider_config(provider_id, full=False):
@@ -70,7 +70,7 @@ def get_provider_config(provider_id, full=False):
     mapper = mappers.Providers()
     result = mapper.get(provider_id)
     if not result:
-        raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+        raise errors.APINotFoundException("Provider {} not found!".format(provider_id))
 
     if full:
         # Cannot get storage provider config this way
@@ -79,8 +79,7 @@ def get_provider_config(provider_id, full=False):
         return result.config
 
     # Create provider instance
-    provider_inst = create_provider(result.provider_class,
-        result.provider_type, result.config)
+    provider_inst = create_provider(result.provider_class, result.provider_type, result.config)
 
     return provider_inst.get_redacted_config()
 
@@ -114,8 +113,7 @@ def insert_provider(provider):
     """
     try:
         # Try to create a provider of the given type
-        provider_inst = create_provider(provider.provider_class,
-            provider.provider_type, provider.config)
+        provider_inst = create_provider(provider.provider_class, provider.provider_type, provider.config)
 
         # Then validation the configuration
         provider_inst.validate_config()
@@ -145,19 +143,18 @@ def update_provider(provider_id, doc):
     current_provider = mapper.get(provider_id)
 
     if not current_provider:
-        raise errors.APINotFoundException('Provider {} not found!'.format(provider_id))
+        raise errors.APINotFoundException("Provider {} not found!".format(provider_id))
 
     # NOTE: We do NOT permit updating provider class or type
-    if 'provider_class' in doc:
-        raise errors.APIValidationException('Cannot change provider class!')
+    if "provider_class" in doc:
+        raise errors.APIValidationException("Cannot change provider class!")
 
-    if 'provider_type' in doc:
-        raise errors.APIValidationException('Cannot change provider type!')
+    if "provider_type" in doc:
+        raise errors.APIValidationException("Cannot change provider type!")
 
-    if 'config' in doc:
+    if "config" in doc:
         # Validate the new configuration
-        provider_inst = create_provider(current_provider.provider_class,
-            current_provider.provider_type, doc['config'])
+        provider_inst = create_provider(current_provider.provider_class, current_provider.provider_type, doc["config"])
         provider_inst.validate_config()
 
     mapper.patch(provider_id, doc)
@@ -195,9 +192,9 @@ def validate_provider_updates(container, provider_ids, is_admin):
 
     # First check if this is a change
     updates = {}
-    current_provider_ids = container.get('providers') or {}
+    current_provider_ids = container.get("providers") or {}
 
-    for provider_class in ('compute', 'storage'):
+    for provider_class in ("compute", "storage"):
         updates[provider_class] = False
         if provider_class in provider_ids:
             # Ensure ObjectId
@@ -205,22 +202,21 @@ def validate_provider_updates(container, provider_ids, is_admin):
             current_id = current_provider_ids.get(provider_class)
             if current_id != provider_ids[provider_class]:
                 if current_id:
-                    raise errors.APIValidationException('Cannot change {} provider once set!'.format(provider_class))
+                    raise errors.APIValidationException("Cannot change {} provider once set!".format(provider_class))
 
                 updates[provider_class] = True
 
     # Verify that the user is admin
-    if (updates['storage'] or updates['compute']) and not is_admin:
-        raise errors.APIPermissionException('Changing providers requires site-admin!')
+    if (updates["storage"] or updates["compute"]) and not is_admin:
+        raise errors.APIPermissionException("Changing providers requires site-admin!")
 
     # Verify that provider exists and is the correct type
-    for provider_class in ('compute', 'storage'):
+    for provider_class in ("compute", "storage"):
         if not updates[provider_class]:
             continue
         storage_provider = get_provider(provider_ids[provider_class])
         if storage_provider.provider_class != models.ProviderClass(provider_class):
-            raise errors.APIValidationException('Invalid storage provider class: {}'.format(
-                storage_provider.provider_class))
+            raise errors.APIValidationException("Invalid storage provider class: {}".format(storage_provider.provider_class))
 
 
 def get_provider_id_for_container(container, provider_class, site_settings=None):

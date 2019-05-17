@@ -6,8 +6,10 @@ from ... import config
 from ...web import errors
 from ...dao import containerstorage
 
+
 class MultiprojectProviderPicker(ProviderPicker):
     """Multiproject picker strategy for providers"""
+
     def __init__(self):
         super(MultiprojectProviderPicker, self).__init__()
         self.site_settings_mapper = mappers.SiteSettings()
@@ -19,13 +21,13 @@ class MultiprojectProviderPicker(ProviderPicker):
             provider_key = provider_class
 
         # In case we started with group or project
-        result = container.get('providers', {}).get(provider_key)
+        result = container.get("providers", {}).get(provider_key)
         is_site = False
 
         if result is None:
             # Search stack (project then group)
-            next_levels = ['group', 'project']
-            parents = container.get('parents', {})
+            next_levels = ["group", "project"]
+            parents = container.get("parents", {})
 
             while next_levels and result is None:
                 parent_type = next_levels.pop()
@@ -36,11 +38,10 @@ class MultiprojectProviderPicker(ProviderPicker):
                 parent = parent_storage.get_el(parents[parent_type])
 
                 if not parent:
-                    config.log.warn('Could not find %s for container: %s',
-                            parent_type, container.get('_id'))
+                    config.log.warn("Could not find %s for container: %s", parent_type, container.get("_id"))
                     continue
 
-                result = parent.get('providers', {}).get(provider_key)
+                result = parent.get("providers", {}).get(provider_key)
 
         # Load site config
         if result is None:
@@ -54,9 +55,9 @@ class MultiprojectProviderPicker(ProviderPicker):
         return is_site, result
 
     def get_compute_provider_id_for_job(self, gear, destination, inputs):
-        gear_name = gear.get('gear', {}).get('name')
+        gear_name = gear.get("gear", {}).get("name")
         if gear_name is None:
-            raise errors.APIValidationException('Gear {} has no name!'.format(gear.get('_id')))
+            raise errors.APIValidationException("Gear {} has no name!".format(gear.get("_id")))
 
         site_settings = self.site_settings_mapper.get() or models.SiteSettings(None, None)
 
@@ -66,18 +67,17 @@ class MultiprojectProviderPicker(ProviderPicker):
             # Check inputs to see if there are any device origins
             center_pays = False
             for inp in inputs:
-                origin_type = inp.get('origin', {}).get('type')
-                if origin_type == 'device':
+                origin_type = inp.get("origin", {}).get("type")
+                if origin_type == "device":
                     center_pays = True
                     break
 
             if center_pays:
-                return site_settings.get('providers', {}).get('compute')
+                return site_settings.get("providers", {}).get("compute")
 
         # Otherwise lookup effective provider id
-        is_site, provider_id = self.get_provider_id_for_container(destination, 'compute', site_settings=site_settings)
+        is_site, provider_id = self.get_provider_id_for_container(destination, "compute", site_settings=site_settings)
         if is_site:
-            config.log.info('Rejecting job for gear_name=%s, destination=%s because there is no valid provider',
-                gear_name, destination['_id'])
+            config.log.info("Rejecting job for gear_name=%s, destination=%s because there is no valid provider", gear_name, destination["_id"])
             return None
         return provider_id

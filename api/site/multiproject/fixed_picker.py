@@ -2,8 +2,10 @@
 from .provider_picker import ProviderPicker
 from .. import mappers, models
 
+
 class FixedProviderPicker(ProviderPicker):
     """Fixed picker strategy for providers"""
+
     def __init__(self):
         super(FixedProviderPicker, self).__init__()
         self.site_settings_mapper = mappers.SiteSettings()
@@ -18,7 +20,7 @@ class FixedProviderPicker(ProviderPicker):
         return bool(provider_id), provider_id
 
     def get_compute_provider_id_for_job(self, gear, destination, inputs):
-        return self._get_provider('compute')
+        return self._get_provider("compute")
 
     def _get_provider(self, provider_key, site_settings=None):
         """Get the site provider for the given key"""

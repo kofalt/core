@@ -4,6 +4,7 @@ from jsonschema import ValidationError
 # Base Exception
 ###
 
+
 class APIException(Exception):
     """Base core exception class"""
 
@@ -16,7 +17,7 @@ class APIException(Exception):
     core_status_code = None
 
     # default response msg
-    default_msg = 'There was an error processing the request.'
+    default_msg = "There was an error processing the request."
 
     def __init__(self, msg=None, errors=None, log=False, log_msg=None):
         """Construct an APIException
@@ -41,46 +42,59 @@ class APIException(Exception):
 
         self.log_msg = log_msg if log_msg else msg
 
+
 ###
 # Auth Exceptions
 ###
 
+
 class APIAuthProviderException(APIException):
     """Authentication through 3rd party, session token, or API key failed"""
+
     status_code = 401
-    default_msg = 'Unsuccessful authentication.'
+    default_msg = "Unsuccessful authentication."
+
     def __init__(self, msg=None, errors=None, log=True, log_msg=None):
         """Override default log to True"""
         super(APIAuthProviderException, self).__init__(msg=msg, errors=errors, log=log, log_msg=log_msg)
 
+
 class APIUnknownUserException(APIException):
     """Authentication was successful but user was not found or disabled"""
+
     status_code = 402
-    default_msg = 'User could not be found or is disabled.'
+    default_msg = "User could not be found or is disabled."
+
 
 class APIPermissionException(APIException):
     """User does not have permission to perform requested action"""
+
     status_code = 403
-    default_msg = 'User does not have permission to perform requested action.'
+    default_msg = "User does not have permission to perform requested action."
+
 
 class APIRefreshTokenException(APIException):
     """
     Specifically alert a client when the user's refresh token expires
     Note: for some 3rd party auth providers, requires client to ask for `offline=true` permission to receive a new one
     """
+
     status_code = 401
-    core_status_code = 'invalid_refresh_token'
-    default_msg = 'User refresh token has expired.'
+    core_status_code = "invalid_refresh_token"
+    default_msg = "User refresh token has expired."
+
 
 ###
 # Input Validation Exceptions
 ###
 
+
 class InputValidationException(APIException):
     """Payload for a POST or PUT does not match input json schema"""
+
     status_code = 400
-    core_status_code = 'input_validation_error'
-    default_msg = 'Input does not match input schema.'
+    core_status_code = "input_validation_error"
+    default_msg = "Input does not match input schema."
 
     def __init__(self, msg=None, reason=None, key=None, error=None, cause=None, **kwargs):
         """Construct an InputValidationException
@@ -102,9 +116,9 @@ class InputValidationException(APIException):
             # Extract validation error details from cause
             if isinstance(cause, ValidationError):
                 if not reason:
-                    reason = 'Object does not match schema'
+                    reason = "Object does not match schema"
 
-                key = 'none'
+                key = "none"
                 if len(cause.relative_path) > 0:
                     key = cause.relative_path[0]
 
@@ -117,73 +131,94 @@ class InputValidationException(APIException):
         # Error Details
         details = dict(kwargs)
         if reason:
-            details['reason'] = reason
+            details["reason"] = reason
         if key:
-            details['key'] = key
+            details["key"] = key
         if error:
-            details['error'] = error
+            details["error"] = error
 
         super(InputValidationException, self).__init__(msg=msg, errors=(details if details else None))
+
 
 # Probably doesn't need to be it's own class, should use InputValidationException
 class APIReportParamsException(APIException):
     """Invalid or missing parameters for a report request"""
+
     status_code = 400
-    default_msg = 'Report parameters are invalid.'
+    default_msg = "Report parameters are invalid."
+
 
 class APIValidationException(InputValidationException):
     """Specially formatted reponse to allow clients to provide detailed information about input vaidation issue"""
+
     status_code = 422
+
 
 class FileFormException(APIException):
     """File Form for upload requests made by client is incorrect"""
+
     status_code = 400
-    default_msg = 'File form upload request is incorrect.'
+    default_msg = "File form upload request is incorrect."
 
 
 ###
 # API Server Exceptions
 ###
 
+
 class APINotFoundException(APIException):
     """The requested object could not be found"""
+
     status_code = 404
-    default_msg = 'The resource could not be found.'
+    default_msg = "The resource could not be found."
+
 
 class APIConflictException(APIException):
     """
     There was an attempt to create a new object with the same unique key as another object
     Usually _id, but not limited to that key
     """
+
     status_code = 409
-    default_msg = 'A resource with the same unique identification key already exists.'
+    default_msg = "A resource with the same unique identification key already exists."
+
 
 class APIConsistencyException(APIException):
     """Legacy db consistency exception"""
+
     status_code = 400
+
 
 class APIStorageException(APIException):
     """An error occurred while performing a CRUD action in the storage layer"""
+
     status_code = 400
+
 
 class DBValidationException(APIException):
     """Legacy exception: payload did not match mongo json schema due to developer error"""
+
     pass
+
 
 class APIReportException(APIException):
     """A non-user error occurred while attempting to generate a report"""
+
     pass
+
 
 class APIPreconditionFailed(APIException):
     """A precondition for the request was not met"""
+
     status_code = 412
-    default_msg = 'Precondition Failed'
+    default_msg = "Precondition Failed"
+
 
 class RangeNotSatisfiable(APIException):
     """
     The requested file content range (via header Content-Range) is not satisfiable.
     Usually raised the first byte requested is larger than the file size.
     """
-    status_code = 416
-    default_msg = 'The requested range is not satisfiable.'
 
+    status_code = 416
+    default_msg = "The requested range is not satisfiable."

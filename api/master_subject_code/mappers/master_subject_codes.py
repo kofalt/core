@@ -40,7 +40,7 @@ class MasterSubjectCodes(object):
             **kwargs -- Fields to update/set
         """
 
-        self.dbc.update_one({'_id': msc_id}, {'$set': kwargs})
+        self.dbc.update_one({"_id": msc_id}, {"$set": kwargs})
 
     def get_by_id(self, msc_id):
         """Get msc by id.
@@ -52,7 +52,7 @@ class MasterSubjectCodes(object):
             MasterSubjectCode -- The loaded msc or None
         """
 
-        return self._load_msc(self.dbc.find_one({'_id': msc_id}))
+        return self._load_msc(self.dbc.find_one({"_id": msc_id}))
 
     def find(self, **kwargs):
         """Find master subject codes.

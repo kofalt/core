@@ -5,8 +5,10 @@ import uuid
 from ... import models
 from .download_target import DownloadTarget
 
+
 class DownloadTicket(models.Base):
     """Represents a single ticket for a download summary or retrieval."""
+
     def __init__(self, download_type, ip, origin, filename, targets, size):
         """Create a new download ticket
 
@@ -53,5 +55,5 @@ class DownloadTicket(models.Base):
     def from_dict(cls, dct):
         # Perform additional conversion of child attributes
         result = super(DownloadTicket, cls).from_dict(dct)
-        result.targets = [DownloadTarget.from_dict(target) for target in dct.get('targets', [])]
+        result.targets = [DownloadTarget.from_dict(target) for target in dct.get("targets", [])]
         return result

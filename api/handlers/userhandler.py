@@ -20,7 +20,6 @@ log = config.log
 
 
 class UserHandler(base.RequestHandler):
-
     def __init__(self, request=None, response=None):
         super(UserHandler, self).__init__(request, response)
         self.storage = containerstorage.UserStorage()
@@ -30,50 +29,46 @@ class UserHandler(base.RequestHandler):
         permchecker = userauth.default(self, user)
         projection = {}
         if not self.user_is_admin:
-            projection['wechat'] = 0
+            projection["wechat"] = 0
         if not (self.uid == _id or self.user_is_admin):
-            projection['info'] = 0
-        result = permchecker(self.storage.exec_op)('GET', _id, projection=projection or None)
+            projection["info"] = 0
+        result = permchecker(self.storage.exec_op)("GET", _id, projection=projection or None)
         if result is None:
-            self.abort(404, 'User does not exist')
+            self.abort(404, "User does not exist")
         return result
 
     def self(self):
         """Return details for the current User."""
         if not self.uid:
-            self.abort(400, 'no user is logged in')
-        user = self.storage.exec_op('GET', self.uid)
+            self.abort(400, "no user is logged in")
+        user = self.storage.exec_op("GET", self.uid)
         if not user:
-            self.abort(403, 'user does not exist')
+            self.abort(403, "user does not exist")
         api_key = UserApiKey.get(self.uid)
         if api_key:
-            user['api_key'] = {
-                'key': api_key['_id'],
-                'created': api_key['created'],
-                'last_used': api_key['last_used']
-            }
+            user["api_key"] = {"key": api_key["_id"], "created": api_key["created"], "last_used": api_key["last_used"]}
         return user
 
     def get_all(self):
         permchecker = userauth.list_permission_checker(self)
-        projection = {'preferences': 0, 'api_key': 0, 'info': 0}
+        projection = {"preferences": 0, "api_key": 0, "info": 0}
         if not self.user_is_admin:
-            projection['wechat'] = 0
-        page = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
-        if page['results'] is None:
-            self.abort(404, 'Not found')
+            projection["wechat"] = 0
+        page = permchecker(self.storage.exec_op)("GET", projection=projection, pagination=self.pagination)
+        if page["results"] is None:
+            self.abort(404, "Not found")
         return self.format_page(page)
 
     def delete(self, _id):
         user = self._get_user(_id)
         permchecker = userauth.default(self, user)
         # Check for authZ before cleaning up user permissions
-        permchecker(noop)('DELETE', _id)
-        result = self.storage.exec_op('DELETE', _id)
+        permchecker(noop)("DELETE", _id)
+        result = self.storage.exec_op("DELETE", _id)
         if result.deleted_count == 1:
-            return {'deleted': result.deleted_count}
+            return {"deleted": result.deleted_count}
         else:
-            self.abort(404, 'User {} not removed'.format(_id))
+            self.abort(404, "User {} not removed".format(_id))
         return result
 
     @validators.verify_payload_exists
@@ -83,65 +78,65 @@ class UserHandler(base.RequestHandler):
         permchecker = userauth.default(self, user)
         payload = self.request.json_body
         if not payload:
-            self.abort(400, 'PUT request body cannot be empty')
-        mongo_schema_uri = validators.schema_uri('mongo', 'user.json')
+            self.abort(400, "PUT request body cannot be empty")
+        mongo_schema_uri = validators.schema_uri("mongo", "user.json")
         mongo_validator = validators.decorator_from_schema_path(mongo_schema_uri)
-        payload_schema_uri = validators.schema_uri('input', 'user-update.json')
+        payload_schema_uri = validators.schema_uri("input", "user-update.json")
         payload_validator = validators.from_schema_path(payload_schema_uri)
-        payload_validator(payload, 'PUT')
+        payload_validator(payload, "PUT")
 
-        payload['modified'] = datetime.datetime.utcnow()
-        result = mongo_validator(permchecker(self.storage.exec_op))('PUT', _id=_id, payload=payload)
+        payload["modified"] = datetime.datetime.utcnow()
+        result = mongo_validator(permchecker(self.storage.exec_op))("PUT", _id=_id, payload=payload)
         if result.modified_count == 1:
-            if payload.get('disabled', False) and self.is_true('clear_permissions'):
+            if payload.get("disabled", False) and self.is_true("clear_permissions"):
                 self.storage.cleanup_user_permissions(_id)
-            return {'modified': result.modified_count}
+            return {"modified": result.modified_count}
         else:
-            self.abort(404, 'User {} not updated'.format(_id))
+            self.abort(404, "User {} not updated".format(_id))
 
     def post(self):
         """Add user"""
         permchecker = userauth.default(self)
         payload = self.request.json_body
-        if self.is_true('wechat'):
-            payload['wechat'] = {'registration_code': base64.urlsafe_b64encode(os.urandom(42))}
-        mongo_schema_uri = validators.schema_uri('mongo', 'user.json')
+        if self.is_true("wechat"):
+            payload["wechat"] = {"registration_code": base64.urlsafe_b64encode(os.urandom(42))}
+        mongo_schema_uri = validators.schema_uri("mongo", "user.json")
         mongo_validator = validators.decorator_from_schema_path(mongo_schema_uri)
-        payload_schema_uri = validators.schema_uri('input', 'user-new.json')
+        payload_schema_uri = validators.schema_uri("input", "user-new.json")
         payload_validator = validators.from_schema_path(payload_schema_uri)
-        payload_validator(payload, 'POST')
-        payload['created'] = payload['modified'] = datetime.datetime.utcnow()
-        payload['root'] = payload.get('root', False)
-        payload.setdefault('email', payload['_id'])
-        payload.setdefault('avatars', {})
+        payload_validator(payload, "POST")
+        payload["created"] = payload["modified"] = datetime.datetime.utcnow()
+        payload["root"] = payload.get("root", False)
+        payload.setdefault("email", payload["_id"])
+        payload.setdefault("avatars", {})
 
         if self.public_request and config.db.users.count() == 0:
             try:
-                config.db.singletons.insert_one({'_id': 'bootstrap', 'uid': payload['_id']})
+                config.db.singletons.insert_one({"_id": "bootstrap", "uid": payload["_id"]})
             except pymongo.errors.DuplicateKeyError:
                 pass
             else:
-                payload['root'] = True
-                result = mongo_validator(self.storage.exec_op)('POST', payload=payload)
+                payload["root"] = True
+                result = mongo_validator(self.storage.exec_op)("POST", payload=payload)
                 if result.acknowledged:
-                    api_key = UserApiKey.generate(payload['_id'])
-                    return {'_id': result.inserted_id, 'key': api_key}
+                    api_key = UserApiKey.generate(payload["_id"])
+                    return {"_id": result.inserted_id, "key": api_key}
                 else:
-                    config.db.singletons.delete_one({'_id': 'bootstrap'})
+                    config.db.singletons.delete_one({"_id": "bootstrap"})
 
-        result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload)
+        result = mongo_validator(permchecker(self.storage.exec_op))("POST", payload=payload)
         if result.acknowledged:
-            return {'_id': result.inserted_id}
+            return {"_id": result.inserted_id}
         else:
-            self.abort(404, 'User {} not created'.format(payload['_id']))
+            self.abort(404, "User {} not created".format(payload["_id"]))
 
     def avatar(self, uid):
-        self.resolve_avatar(uid, default=self.request.GET.get('default'))
+        self.resolve_avatar(uid, default=self.request.GET.get("default"))
 
     def self_avatar(self):
         if self.uid is None:
-            self.abort(404, 'not a logged-in user')
-        self.resolve_avatar(self.uid, default=self.request.GET.get('default'))
+            self.abort(404, "not a logged-in user")
+        self.resolve_avatar(self.uid, default=self.request.GET.get("default"))
 
     def resolve_avatar(self, email, default=None):
         """
@@ -155,66 +150,52 @@ class UserHandler(base.RequestHandler):
         except APIStorageException:
             user = {}
 
-        avatar  = user.get('avatar', None)
+        avatar = user.get("avatar", None)
 
         # If the user exists but has no set avatar, try to get one
         if user and avatar is None:
             gravatar = util.resolve_gravatar(email)
 
             if gravatar is not None:
-                user = config.db['users'].find_one_and_update({
-                        '_id': email,
-                    }, {
-                        '$set': {
-                            'avatar': gravatar,
-                            'avatars.gravatar': gravatar,
-                        }
-                    },
-                    return_document=pymongo.collection.ReturnDocument.AFTER
-                )
+                user = config.db["users"].find_one_and_update({"_id": email}, {"$set": {"avatar": gravatar, "avatars.gravatar": gravatar}}, return_document=pymongo.collection.ReturnDocument.AFTER)
 
-        if user.get('avatar', None):
+        if user.get("avatar", None):
             # Our data is unicode, but webapp2 wants a python-string for its headers.
-            self.redirect(str(user['avatar']), code=307)
+            self.redirect(str(user["avatar"]), code=307)
         elif default is not None:
             self.redirect(str(default), code=307)
         else:
-            self.abort(404, 'no avatar')
+            self.abort(404, "no avatar")
 
     def generate_api_key(self):
         if not self.uid:
-            self.abort(400, 'no user is logged in')
+            self.abort(400, "no user is logged in")
         generated_key = UserApiKey.generate(self.uid)
-        return {'key': generated_key}
+        return {"key": generated_key}
 
     @require_admin
     def reset_registration(self, uid):
         new_registration_code = base64.urlsafe_b64encode(os.urandom(42))
-        update = {
-            'modified': datetime.datetime.utcnow(),
-            'wechat': {
-                'registration_code': new_registration_code
-            }
-        }
-        result = self.storage.exec_op('PUT', _id=uid, payload=update)
+        update = {"modified": datetime.datetime.utcnow(), "wechat": {"registration_code": new_registration_code}}
+        result = self.storage.exec_op("PUT", _id=uid, payload=update)
         if result.modified_count == 1:
-            return {'registration_code': new_registration_code}
+            return {"registration_code": new_registration_code}
         else:
-            self.abort(404, 'User {} not updated'.format(uid))
+            self.abort(404, "User {} not updated".format(uid))
 
     def _get_user(self, _id):
         user = self.storage.get_container(_id)
         if user is not None:
             return user
         else:
-            self.abort(404, 'user {} not found'.format(_id))
+            self.abort(404, "user {} not found".format(_id))
 
     @require_login
     def get_info(self):
-        result = self.storage.get_el(self.uid, projection={'info': 1}).get('info', {})
-        if self.get_param('fields', None):
+        result = self.storage.get_el(self.uid, projection={"info": 1}).get("info", {})
+        if self.get_param("fields", None):
             filtered = {}
-            for field in self.get_param('fields').split(','):
+            for field in self.get_param("fields").split(","):
                 if result.get(field):
                     filtered[field] = result[field]
             result = filtered
@@ -224,23 +205,19 @@ class UserHandler(base.RequestHandler):
     @validators.verify_payload_exists
     def modify_info(self):
         payload = self.request.json_body
-        validators.validate_data(payload, 'info_update.json', 'input', 'POST')
+        validators.validate_data(payload, "info_update.json", "input", "POST")
         result = self.storage.modify_info(self.uid, payload)
-        return {'modified': result.modified_count}
+        return {"modified": result.modified_count}
 
     @require_login
     def get_jobs(self):
-        whitelist = {'created-by': [self.uid]}
-        if self.get_param('gear', None):
-            whitelist['gear-name'] = [self.get_param('gear')]
+        whitelist = {"created-by": [self.uid]}
+        if self.get_param("gear", None):
+            whitelist["gear-name"] = [self.get_param("gear")]
 
         query = Queue.lists_to_query(whitelist, {}, [])
-        page = dbutil.paginate_find(config.db.jobs, {'filter': query}, self.pagination)
+        page = dbutil.paginate_find(config.db.jobs, {"filter": query}, self.pagination)
 
-        result = {
-            'stats': Queue.job_states(whitelist, {}, []),
-            'total': page['total'],
-            'jobs': page['results']
-        }
+        result = {"stats": Queue.job_states(whitelist, {}, []), "total": page["total"], "jobs": page["results"]}
 
         return result

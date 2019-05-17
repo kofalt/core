@@ -14,6 +14,7 @@ class Aggregate(PipelineStage):
     The list of rows will have a _meta object that contains container labels and ids,
     and a list of analyses or files as configured in the pipeline.
     """
+
     def __init__(self, config):
         super(Aggregate, self).__init__()
         self.config = config
@@ -21,8 +22,8 @@ class Aggregate(PipelineStage):
     def build_aggregator(self, tree):
         config = self.config
 
-        cont_type = tree[-1]['cont_type']
-        cont_id = tree[-1]['_id']
+        cont_type = tree[-1]["cont_type"]
+        cont_id = tree[-1]["_id"]
 
         # Determine the total depth
         aggregator = HierarchyAggregator()
@@ -33,7 +34,7 @@ class Aggregate(PipelineStage):
             if not aggregator.stages:
                 # Setup initial filtering
                 key_name = containerutil.singularize(cont_type)
-                aggregator.filter_spec = { key_name: cont_id }
+                aggregator.filter_spec = {key_name: cont_id}
 
             stage = AggregationStage(child_cont_type)
             for col in config.column_map.get(child_cont_type_singular, []):
@@ -45,11 +46,11 @@ class Aggregate(PipelineStage):
                 if config.analysis_filter:
                     aggregator.stages.append(stage)
 
-                    stage = AggregationStage('analyses', parent_key='parent.id', unwind=False)
+                    stage = AggregationStage("analyses", parent_key="parent.id", unwind=False)
                 else:
-                    stage.fields.append( ('files', 'files') )
+                    stage.fields.append(("files", "files"))
 
-            aggregator.stages.append(stage) 
+            aggregator.stages.append(stage)
 
             # Advance cont_type
             cont_type = child_cont_type
@@ -60,9 +61,9 @@ class Aggregate(PipelineStage):
         # Build the initial context from payload
         context = {}
         for cont in payload:
-            cont_type = containerutil.singularize(cont['cont_type'])
+            cont_type = containerutil.singularize(cont["cont_type"])
             context[cont_type] = cont
-        
+
         # Start by building the pipeline
         aggregator = self.build_aggregator(payload)
 
@@ -76,5 +77,3 @@ class Aggregate(PipelineStage):
         # NOTE: We pass the rows all together because the access logger processes
         # and logs everything in bulk before passing to the next stage
         self.emit(rows)
-
-

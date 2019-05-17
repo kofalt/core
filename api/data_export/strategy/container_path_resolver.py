@@ -4,23 +4,17 @@ import pytz
 from ... import util
 
 
-CONTAINERS = ['group', 'project', 'subject', 'session', 'acquisition']
-CONTAINERS_WITHOUT_GROUP = ['project', 'subject', 'session', 'acquisition']
+CONTAINERS = ["group", "project", "subject", "session", "acquisition"]
+CONTAINERS_WITHOUT_GROUP = ["project", "subject", "session", "acquisition"]
 
-CONTAINER_FOLDERS = {
-    'subject': 'SUBJECTS',
-    'session': 'SESSIONS',
-    'acquisition': 'ACQUISITIONS',
-    'analysis': 'ANALYSES',
-    'files': 'FILES'
-}
+CONTAINER_FOLDERS = {"subject": "SUBJECTS", "session": "SESSIONS", "acquisition": "ACQUISITIONS", "analysis": "ANALYSES", "files": "FILES"}
 
 
 def _get_parent_type_list(container_type, include_group):
     """Get the top-down list of parents, including container_type"""
     containers = CONTAINERS if include_group else CONTAINERS_WITHOUT_GROUP
     idx = containers.index(container_type)
-    return containers[0:idx+1]
+    return containers[0 : idx + 1]
 
 
 class ContainerPathResolver(object):
@@ -70,9 +64,9 @@ class ContainerPathResolver(object):
             path = self._prefix
 
             # If this is an analysis, resolve the parents first
-            is_analysis = container_type == 'analysis'
+            is_analysis = container_type == "analysis"
             if is_analysis:
-                container_type = parents['analysis']['parent']['type']
+                container_type = parents["analysis"]["parent"]["type"]
 
             # Normal container hierarchy
             for container_type in _get_parent_type_list(container_type, self._include_group):
@@ -80,14 +74,14 @@ class ContainerPathResolver(object):
 
             if is_analysis:
                 # Add final analysis path
-                path = self._add_path_component(path, 'analysis', parents)
+                path = self._add_path_component(path, "analysis", parents)
 
         return path
 
     def _add_path_component(self, prefix, container_type, parents):
         """Add the path component for the given container_type to prefix"""
         parent = parents.get(container_type)
-        container_id = parent.get('_id') if parent else None
+        container_id = parent.get("_id") if parent else None
 
         # Add folder prefixes, if specified
         if self._prefix_containers:
@@ -96,7 +90,7 @@ class ContainerPathResolver(object):
                 prefix = prefix + (folder_name,)
 
         if container_id is None:
-            return prefix + ('unknown',)
+            return prefix + ("unknown",)
 
         # Cached lookup
         path = self._container_path_map.get(container_id)
@@ -104,30 +98,30 @@ class ContainerPathResolver(object):
             return path
 
         # Otherwise resolve a unique component
-        part = ''
-        if not part and parent.get('label'):
-            part = util.sanitize_string_to_filename(parent['label'])
-        if not part and parent.get('timestamp'):
-            timezone = parent.get('timezone')
+        part = ""
+        if not part and parent.get("label"):
+            part = util.sanitize_string_to_filename(parent["label"])
+        if not part and parent.get("timestamp"):
+            timezone = parent.get("timezone")
             if timezone:
-                part = pytz.timezone('UTC').localize(parent['timestamp']).astimezone(pytz.timezone(timezone)).strftime('%Y%m%d_%H%M')
+                part = pytz.timezone("UTC").localize(parent["timestamp"]).astimezone(pytz.timezone(timezone)).strftime("%Y%m%d_%H%M")
             else:
-                part = parent['timestamp'].strftime('%Y%m%d_%H%M')
-        if not part and parent.get('uid'):
-            part = parent['uid']
-        if not part and parent.get('code'):
-            part = parent['code']
+                part = parent["timestamp"].strftime("%Y%m%d_%H%M")
+        if not part and parent.get("uid"):
+            part = parent["uid"]
+        if not part and parent.get("code"):
+            part = parent["code"]
 
         if part:
-            part = part.encode('ascii', errors='ignore')
+            part = part.encode("ascii", errors="ignore")
         else:
-            part = 'unknown_{}'.format(container_type)
+            part = "unknown_{}".format(container_type)
 
         # Ensure a unique value for this container
         path = prefix + (part,)
         suffix = 0
         while path in self._used_paths:
-            path = prefix + ('{}_{}'.format(part, suffix), )
+            path = prefix + ("{}_{}".format(part, suffix),)
             suffix += 1
 
         # Populate cache

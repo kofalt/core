@@ -5,6 +5,7 @@ from testfixtures import LogCapture
 
 import api.web.request
 
+
 class TestRequest(unittest.TestCase):
     def setUp(self):
         self.log_capture = LogCapture()
@@ -15,4 +16,3 @@ class TestRequest(unittest.TestCase):
 
     def test_request_id(self):
         self.assertEqual(len(self.request.id), 19)
-

@@ -18,10 +18,10 @@ log = config.log
 
 BATCH_JOB_TRANSITIONS = {
     # To  <-------  #From
-    'failed':       'running',
-    'complete':     'running',
-    'running':      'pending',
-    'cancelled':    'running'
+    "failed": "running",
+    "complete": "running",
+    "running": "pending",
+    "cancelled": "running",
 }
 
 
@@ -31,7 +31,8 @@ def get_all(query, projection=None, pagination=None):
     """
     find_kwargs = dict(filter=query, projection=projection)
     page = dbutil.paginate_find(config.db.batch, find_kwargs, pagination)
-    return page['results'] if pagination is None else page
+    return page["results"] if pagination is None else page
+
 
 def get(batch_id, projection=None, get_jobs=False):
     """
@@ -40,22 +41,22 @@ def get(batch_id, projection=None, get_jobs=False):
 
     if isinstance(batch_id, str):
         batch_id = bson.ObjectId(batch_id)
-    batch_job = config.db.batch.find_one({'_id': batch_id}, projection)
+    batch_job = config.db.batch.find_one({"_id": batch_id}, projection)
 
     if batch_job is None:
-        raise APINotFoundException('Batch job {} not found.'.format(batch_id))
+        raise APINotFoundException("Batch job {} not found.".format(batch_id))
 
     if get_jobs:
         jobs = []
-        for jid in batch_job.get('jobs', []):
+        for jid in batch_job.get("jobs", []):
             job = Job.get(jid).remove_potential_phi_from_job()
             jobs.append(job)
-        batch_job['jobs'] = jobs
+        batch_job["jobs"] = jobs
 
     return batch_job
 
-def find_matching_conts(gear, containers, container_type, optional_input_policy,
-                        context_inputs=False, uid=None):
+
+def find_matching_conts(gear, containers, container_type, optional_input_policy, context_inputs=False, uid=None):
     """
     Give a gear and a list of containers, find files that:
       - have no solution to the gear's input schema (not matched)
@@ -73,9 +74,9 @@ def find_matching_conts(gear, containers, container_type, optional_input_policy,
 
     for c in containers:
         if context_inputs:
-            context = job_util.get_context_for_destination(container_type, str(c['_id']), uid)
+            context = job_util.get_context_for_destination(container_type, str(c["_id"]), uid)
 
-        files = c.get('files')
+        files = c.get("files")
         if files:
             suggestions = gears.suggest_for_files(gear, files, context=context)
 
@@ -83,9 +84,9 @@ def find_matching_conts(gear, containers, container_type, optional_input_policy,
             ambiguous = False  # Are any of the inputs ambiguous?
             not_matched = False
             for input_name, files in suggestions.iteritems():
-                is_optional_input = gear['gear']['inputs'][input_name].get('optional', False)
-                opt_ignore = optional_input_policy == 'ignored' and is_optional_input
-                opt_required = optional_input_policy == 'required' or not is_optional_input
+                is_optional_input = gear["gear"]["inputs"][input_name].get("optional", False)
+                opt_ignore = optional_input_policy == "ignored" and is_optional_input
+                opt_required = optional_input_policy == "required" or not is_optional_input
 
                 # Skip ambiguity check for this input if the policy is to ignore and the input is optional
                 if len(files) > 1 and not opt_ignore:
@@ -105,24 +106,21 @@ def find_matching_conts(gear, containers, container_type, optional_input_policy,
                 # Create input map of file refs
                 inputs = {}
                 for input_name, suggested_inputs in suggestions.iteritems():
-                    is_optional_input = gear['gear']['inputs'][input_name].get('optional', False)
-                    no_suggested_inputs = optional_input_policy == 'ignored' or len(suggested_inputs) == 0
+                    is_optional_input = gear["gear"]["inputs"][input_name].get("optional", False)
+                    no_suggested_inputs = optional_input_policy == "ignored" or len(suggested_inputs) == 0
 
                     if no_suggested_inputs and is_optional_input:
                         continue
-                    elif suggested_inputs[0]['base'] == 'file':
-                        inputs[input_name] = {'type': container_type, 'id': str(c['_id']), 'name': suggested_inputs[0]['name']}
+                    elif suggested_inputs[0]["base"] == "file":
+                        inputs[input_name] = {"type": container_type, "id": str(c["_id"]), "name": suggested_inputs[0]["name"]}
                     else:
                         inputs[input_name] = suggested_inputs[0]
-                c['inputs'] = inputs
+                c["inputs"] = inputs
                 matched_conts.append(c)
         else:
             not_matched_conts.append(c)
-    return {
-        'matched': matched_conts,
-        'not_matched': not_matched_conts,
-        'ambiguous': ambiguous_conts
-    }
+    return {"matched": matched_conts, "not_matched": not_matched_conts, "ambiguous": ambiguous_conts}
+
 
 def insert(batch_proposal):
     """
@@ -130,9 +128,10 @@ def insert(batch_proposal):
     """
 
     time_now = datetime.datetime.utcnow()
-    batch_proposal['created'] = time_now
-    batch_proposal['modified'] = time_now
+    batch_proposal["created"] = time_now
+    batch_proposal["modified"] = time_now
     return config.db.batch.insert(batch_proposal)
+
 
 def update(batch_id, payload):
     """
@@ -141,84 +140,79 @@ def update(batch_id, payload):
 
     time_now = datetime.datetime.utcnow()
     bid = bson.ObjectId(batch_id)
-    query = {'_id': bid}
-    payload['modified'] = time_now
-    if payload.get('state'):
+    query = {"_id": bid}
+    payload["modified"] = time_now
+    if payload.get("state"):
         # Require that the batch job has the previous state
-        query['state'] = BATCH_JOB_TRANSITIONS[payload.get('state')]
-    result = config.db.batch.update_one({'_id': bid}, {'$set': payload})
+        query["state"] = BATCH_JOB_TRANSITIONS[payload.get("state")]
+    result = config.db.batch.update_one({"_id": bid}, {"$set": payload})
     if result.modified_count != 1:
-        raise Exception('Batch job not updated')
+        raise Exception("Batch job not updated")
+
 
 def run(batch_job):
     """
     Creates jobs from proposed inputs, returns jobs enqueued.
     """
 
-    proposal = batch_job.get('proposal')
+    proposal = batch_job.get("proposal")
     if not proposal:
-        raise APIStorageException('The batch job is not formatted correctly.')
+        raise APIStorageException("The batch job is not formatted correctly.")
 
-    elif 'jobs' in proposal:
-        proposed_jobs = proposal.get('jobs', [])
+    elif "jobs" in proposal:
+        proposed_jobs = proposal.get("jobs", [])
 
-        gear_id = batch_job['gear_id']
+        gear_id = batch_job["gear_id"]
         gear = gears.get_gear(gear_id)
-        gear_name = gear['gear']['name']
+        gear_name = gear["gear"]["name"]
 
-        config_ = batch_job.get('config')
-        origin = batch_job.get('origin')
-        tags = proposal.get('tags', [])
-        tags.append('batch')
+        config_ = batch_job.get("config")
+        origin = batch_job.get("origin")
+        tags = proposal.get("tags", [])
+        tags.append("batch")
 
-        if gear.get('category') == 'analysis':
-            analysis_base = proposal.get('analysis', {})
-            if not analysis_base.get('label'):
+        if gear.get("category") == "analysis":
+            analysis_base = proposal.get("analysis", {})
+            if not analysis_base.get("label"):
                 time_now = datetime.datetime.utcnow()
-                analysis_base['label'] = {'label': '{} {}'.format(gear_name, time_now)}
+                analysis_base["label"] = {"label": "{} {}".format(gear_name, time_now)}
             an_storage = AnalysisStorage()
             acq_storage = AcquisitionStorage()
 
         jobs = []
         job_ids = []
 
-        job_defaults = {
-            'config':   config_,
-            'gear_id':  gear_id,
-            'tags':     tags,
-            'batch':    str(batch_job.get('_id')),
-            'inputs':   {}
-        }
+        job_defaults = {"config": config_, "gear_id": gear_id, "tags": tags, "batch": str(batch_job.get("_id")), "inputs": {}}
 
         for proposed_job in proposed_jobs:
             job_map = copy.deepcopy(job_defaults)
-            if 'inputs' in proposed_job:
-                job_map['inputs'] = proposed_job['inputs']
+            if "inputs" in proposed_job:
+                job_map["inputs"] = proposed_job["inputs"]
 
-            if 'destination' not in proposed_job:
-                raise APIStorageException('Destination is required for all proposed jobs')
-            job_map['destination'] = proposed_job['destination']
+            if "destination" not in proposed_job:
+                raise APIStorageException("Destination is required for all proposed jobs")
+            job_map["destination"] = proposed_job["destination"]
 
-            if 'compute_provider_id' in proposed_job:
-                job_map['compute_provider_id'] = proposed_job['compute_provider_id']
+            if "compute_provider_id" in proposed_job:
+                job_map["compute_provider_id"] = proposed_job["compute_provider_id"]
 
-            if gear.get('category') == 'analysis':
+            if gear.get("category") == "analysis":
                 analysis = copy.deepcopy(analysis_base)
 
                 # Create analysis
                 # NOTE: Batch destinations *MUST* be a session or acquisition
-                if job_map['destination']['type'] == 'acquisition':
-                    acquisition_id = job_map['destination']['id']
-                    session_id = acq_storage.get_container(acquisition_id, projection={'session': 1}).get('session')
+                if job_map["destination"]["type"] == "acquisition":
+                    acquisition_id = job_map["destination"]["id"]
+                    session_id = acq_storage.get_container(acquisition_id, projection={"session": 1}).get("session")
                 else:
-                    session_id = bson.ObjectId(job_map['destination']['id'])
+                    session_id = bson.ObjectId(job_map["destination"]["id"])
 
-                analysis['job'] = job_map
-                result = an_storage.create_el(analysis, 'sessions', session_id, origin, None)
+                analysis["job"] = job_map
+                result = an_storage.create_el(analysis, "sessions", session_id, origin, None)
 
                 analysis = an_storage.get_el(result.inserted_id)
                 an_storage.inflate_job_info(analysis)
-                job = analysis.get('job')
+                job = analysis.get("job")
                 job_id = bson.ObjectId(job.id_)
 
             else:
@@ -229,12 +223,12 @@ def run(batch_job):
             jobs.append(job)
             job_ids.append(job_id)
 
-    elif 'preconstructed_jobs' in proposal:
-        preconstructed_jobs = proposal.get('preconstructed_jobs')
+    elif "preconstructed_jobs" in proposal:
+        preconstructed_jobs = proposal.get("preconstructed_jobs")
 
         # If Running a batch from already-constructed jobs
         if preconstructed_jobs:
-            origin = batch_job.get('origin')
+            origin = batch_job.get("origin")
             jobs = []
             job_ids = []
 
@@ -245,29 +239,31 @@ def run(batch_job):
                 jobs.append(job)
                 job_ids.append(job_id)
     else:
-        raise APIStorageException('The batch job is not formatted correctly.')
+        raise APIStorageException("The batch job is not formatted correctly.")
 
-    update(batch_job['_id'], {'state': 'running', 'jobs': job_ids})
+    update(batch_job["_id"], {"state": "running", "jobs": job_ids})
     return jobs
+
 
 def cancel(batch_job):
     """
     Cancels all pending jobs, returns number of jobs cancelled.
     """
 
-    pending_jobs = config.db.jobs.find({'state': 'pending', '_id': {'$in': batch_job.get('jobs')}})
+    pending_jobs = config.db.jobs.find({"state": "pending", "_id": {"$in": batch_job.get("jobs")}})
     cancelled_jobs = 0
     for j in pending_jobs:
         job = Job.load(j)
         try:
-            Queue.mutate(job, {'state': 'cancelled'})
+            Queue.mutate(job, {"state": "cancelled"})
             cancelled_jobs += 1
-        except Exception: # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             # if the cancellation fails, move on to next job
             continue
 
-    update(batch_job['_id'], {'state': 'cancelled'})
+    update(batch_job["_id"], {"state": "cancelled"})
     return cancelled_jobs
+
 
 def check_state(batch_id):
     """
@@ -277,19 +273,20 @@ def check_state(batch_id):
 
     batch = get(str(batch_id))
 
-    if batch.get('state') == 'cancelled':
+    if batch.get("state") == "cancelled":
         return None
 
-    batch_jobs = config.db.jobs.find({'_id':{'$in': batch.get('jobs', [])}, 'state': {'$nin': ['complete', 'failed', 'cancelled']}})
-    non_failed_batch_jobs = config.db.jobs.find({'_id':{'$in': batch.get('jobs', [])}, 'state': {'$ne': 'failed'}})
+    batch_jobs = config.db.jobs.find({"_id": {"$in": batch.get("jobs", [])}, "state": {"$nin": ["complete", "failed", "cancelled"]}})
+    non_failed_batch_jobs = config.db.jobs.find({"_id": {"$in": batch.get("jobs", [])}, "state": {"$ne": "failed"}})
 
     if batch_jobs.count() == 0:
         if non_failed_batch_jobs.count() > 0:
-            return 'complete'
+            return "complete"
         else:
-            return 'failed'
+            return "failed"
     else:
         return None
+
 
 def get_stats():
     """
@@ -297,11 +294,13 @@ def get_stats():
     """
     raise NotImplementedError()
 
+
 def resume():
     """
     Move cancelled jobs back to pending.
     """
     raise NotImplementedError()
+
 
 def delete():
     """

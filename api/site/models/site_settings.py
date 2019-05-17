@@ -3,8 +3,10 @@ import datetime
 
 from ... import models
 
+
 class SiteSettings(models.Base):
     """Represents the global site configuration"""
+
     def __init__(self, center_gears, providers):
         """Create a new site settings.
 

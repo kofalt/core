@@ -39,21 +39,18 @@ class ListStorage(object):
         """
         if self.use_object_id:
             _id = bson.objectid.ObjectId(_id)
-        query = {'_id': _id}
+        query = {"_id": _id}
         projection = None
         if query_params:
-            query[self.list_name] = {
-                '$elemMatch': query_params
-            }
-            projection = {self.list_name + '.$': 1, 'permissions': 1, 'public': 1}
+            query[self.list_name] = {"$elemMatch": query_params}
+            projection = {self.list_name + ".$": 1, "permissions": 1, "public": 1}
         return self.dbc.find_one(query, projection)
 
     def get_list_item(self, _id, query_params):
         try:
             return self.get_container(_id, query_params)[self.list_name][0]
         except IndexError:
-            raise APINotFoundException('Could not find item in {}'.format(self.list_name))
-
+            raise APINotFoundException("Could not find item in {}".format(self.list_name))
 
     def exec_op(self, action, _id=None, query_params=None, payload=None, exclude_params=None):
         """
@@ -67,188 +64,159 @@ class ListStorage(object):
                 _id = bson.objectid.ObjectId(_id)
             except bson.errors.InvalidId as e:
                 raise APIStorageException(e.message)
-        if action == 'GET':
+        if action == "GET":
             return self._get_el(_id, query_params)
-        if action == 'DELETE':
+        if action == "DELETE":
             return self._delete_el(_id, query_params)
-        if action == 'PUT':
+        if action == "PUT":
             return self._update_el(_id, query_params, payload, exclude_params)
-        if action == 'POST':
+        if action == "POST":
             return self._create_el(_id, payload, exclude_params)
-        raise ValueError('action should be one of GET, POST, PUT, DELETE')
+        raise ValueError("action should be one of GET, POST, PUT, DELETE")
 
     def _create_el(self, _id, payload, exclude_params):
-        query = {'_id': _id}
+        query = {"_id": _id}
         if exclude_params:
-            query[self.list_name] = {'$not': {'$elemMatch': exclude_params} }
-        update = {
-            '$push': {self.list_name: payload},
-            '$set': {'modified': datetime.datetime.utcnow()}
-        }
+            query[self.list_name] = {"$not": {"$elemMatch": exclude_params}}
+        update = {"$push": {self.list_name: payload}, "$set": {"modified": datetime.datetime.utcnow()}}
         result = self.dbc.update_one(query, update)
         if result.matched_count < 1:
-            raise APIConflictException('Item already exists in list.')
+            raise APIConflictException("Item already exists in list.")
         return result
 
     def _update_el(self, _id, query_params, payload, exclude_params):
         mod_elem = {}
-        for k,v in payload.items():
-            mod_elem[self.list_name + '.$.' + k] = v
-        query = {'_id': _id }
+        for k, v in payload.items():
+            mod_elem[self.list_name + ".$." + k] = v
+        query = {"_id": _id}
         if exclude_params is None:
-            query[self.list_name] = {'$elemMatch': query_params}
+            query[self.list_name] = {"$elemMatch": query_params}
         else:
-            query['$and'] = [
-                {self.list_name: {'$elemMatch': query_params}},
-                {self.list_name: {'$not': {'$elemMatch': exclude_params} }}
-            ]
-        mod_elem['modified'] = datetime.datetime.utcnow()
-        update = {
-            '$set': mod_elem
-        }
+            query["$and"] = [{self.list_name: {"$elemMatch": query_params}}, {self.list_name: {"$not": {"$elemMatch": exclude_params}}}]
+        mod_elem["modified"] = datetime.datetime.utcnow()
+        update = {"$set": mod_elem}
         return self.dbc.update_one(query, update)
 
     def _delete_el(self, _id, query_params):
-        query = {'_id': _id}
-        update = {
-            '$pull': {self.list_name: query_params},
-            '$set': {'modified': datetime.datetime.utcnow()}
-        }
+        query = {"_id": _id}
+        update = {"$pull": {self.list_name: query_params}, "$set": {"modified": datetime.datetime.utcnow()}}
         return self.dbc.update_one(query, update)
 
     def _get_el(self, _id, query_params):
-        query = {'_id': _id, self.list_name: {'$elemMatch': query_params}}
-        projection = {self.list_name + '.$': 1}
+        query = {"_id": _id, self.list_name: {"$elemMatch": query_params}}
+        projection = {self.list_name + ".$": 1}
         result = self.dbc.find_one(query, projection)
         if result and result.get(self.list_name):
             return result.get(self.list_name)[0]
 
     def _update_session_compliance(self, _id):
-        if self.cont_name in ['sessions', 'acquisitions']:
-            if self.cont_name == 'sessions':
+        if self.cont_name in ["sessions", "acquisitions"]:
+            if self.cont_name == "sessions":
                 session_id = _id
             else:
-                session_id = AcquisitionStorage().get_container(_id).get('session')
+                session_id = AcquisitionStorage().get_container(_id).get("session")
             SessionStorage().recalc_session_compliance(session_id)
 
 
 class FileStorage(ListStorage):
-
     def __init__(self, cont_name):
-        super(FileStorage,self).__init__(cont_name, 'files', use_object_id=True)
+        super(FileStorage, self).__init__(cont_name, "files", use_object_id=True)
 
     def _create_jobs(self, container_before):
-        container_after = self.get_container(container_before['_id'])
+        container_after = self.get_container(container_before["_id"])
         container_type = containerutil.singularize(self.cont_name)
-        return rules.create_jobs(config.db, container_before, container_after,
-                                 container_type)
+        return rules.create_jobs(config.db, container_before, container_after, container_type)
 
     def _update_el(self, _id, query_params, payload, exclude_params):
         container_before = self.get_container(_id)
         if not container_before:
-            raise APINotFoundException('Could not find {} {}, file not updated.'.format(
-                    _id, self.cont_name
-                ))
+            raise APINotFoundException("Could not find {} {}, file not updated.".format(_id, self.cont_name))
 
         mod_elem = {}
         update = {}
 
-        if 'modality' in payload:
+        if "modality" in payload:
             # Check to see if they are setting a new modality. If so, clear everything but the custom fields
             file_ = self.get_list_item(_id, query_params)
-            if file_.get('modality') and file_['modality'] != payload['modality']:
-                if file_.get('classification'):
-                    payload['classification'] = {}
-                    if file_['classification'].get('Custom'):
-                        payload['classification'] = {'Custom': file_['classification']['Custom']}
+            if file_.get("modality") and file_["modality"] != payload["modality"]:
+                if file_.get("classification"):
+                    payload["classification"] = {}
+                    if file_["classification"].get("Custom"):
+                        payload["classification"] = {"Custom": file_["classification"]["Custom"]}
 
                 # Unset measurements if modality changes
-                update['$unset'] = { self.list_name + '.$.measurements': True }
+                update["$unset"] = {self.list_name + ".$.measurements": True}
 
-        for k,v in payload.items():
-            mod_elem[self.list_name + '.$.' + k] = v
-        query = {'_id': _id }
+        for k, v in payload.items():
+            mod_elem[self.list_name + ".$." + k] = v
+        query = {"_id": _id}
         if exclude_params is None:
-            query[self.list_name] = {'$elemMatch': query_params}
+            query[self.list_name] = {"$elemMatch": query_params}
         else:
-            query['$and'] = [
-                {self.list_name: {'$elemMatch': query_params}},
-                {self.list_name: {'$not': {'$elemMatch': exclude_params} }}
-            ]
-        mod_elem['modified'] = datetime.datetime.utcnow()
-        update['$set'] = mod_elem
+            query["$and"] = [{self.list_name: {"$elemMatch": query_params}}, {self.list_name: {"$not": {"$elemMatch": exclude_params}}}]
+        mod_elem["modified"] = datetime.datetime.utcnow()
+        update["$set"] = mod_elem
 
         self.dbc.find_one_and_update(query, update)
         self._update_session_compliance(_id)
         jobs_spawned = self._create_jobs(container_before)
 
-        return {
-            'modified': 1,
-            'jobs_spawned': len(jobs_spawned)
-        }
+        return {"modified": 1, "jobs_spawned": len(jobs_spawned)}
 
     def _delete_el(self, _id, query_params):
-        files = self.get_container(_id).get('files', [])
+        files = self.get_container(_id).get("files", [])
         for f in files:
-            if f['name'].encode('utf-8') == query_params['name']:
-                f['deleted'] = datetime.datetime.utcnow()
-        result = self.dbc.update_one({'_id': _id}, {'$set': {'files': files, 'modified': datetime.datetime.utcnow()}})
+            if f["name"].encode("utf-8") == query_params["name"]:
+                f["deleted"] = datetime.datetime.utcnow()
+        result = self.dbc.update_one({"_id": _id}, {"$set": {"files": files, "modified": datetime.datetime.utcnow()}})
         self._update_session_compliance(_id)
         return result
 
     def _get_el(self, _id, query_params):
         query_params_nondeleted = query_params.copy()
-        query_params_nondeleted['deleted'] = {'$exists': False}
-        query = {'_id': _id, 'files': {'$elemMatch': query_params_nondeleted}}
-        projection = {'files.$': 1}
+        query_params_nondeleted["deleted"] = {"$exists": False}
+        query = {"_id": _id, "files": {"$elemMatch": query_params_nondeleted}}
+        projection = {"files.$": 1}
         result = self.dbc.find_one(query, projection)
         if result and result.get(self.list_name):
             return result.get(self.list_name)[0]
 
     def modify_info(self, _id, query_params, payload):
         update = {}
-        set_payload = payload.get('set')
-        delete_payload = payload.get('delete')
-        replace_payload = payload.get('replace')
+        set_payload = payload.get("set")
+        delete_payload = payload.get("delete")
+        replace_payload = payload.get("replace")
 
         if (set_payload or delete_payload) and replace_payload is not None:
-            raise APIStorageException('Cannot set or delete AND replace info fields.')
+            raise APIStorageException("Cannot set or delete AND replace info fields.")
 
         if replace_payload is not None:
-            update = {
-                '$set': {
-                    self.list_name + '.$.info': util.mongo_sanitize_fields(replace_payload)
-                }
-            }
+            update = {"$set": {self.list_name + ".$.info": util.mongo_sanitize_fields(replace_payload)}}
 
         else:
             if set_payload:
-                update['$set'] = {}
-                for k,v in set_payload.items():
-                    update['$set'][self.list_name + '.$.info.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
+                update["$set"] = {}
+                for k, v in set_payload.items():
+                    update["$set"][self.list_name + ".$.info." + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
             if delete_payload:
-                update['$unset'] = {}
+                update["$unset"] = {}
                 for k in delete_payload:
-                    update['$unset'][self.list_name + '.$.info.' + util.mongo_sanitize_fields(str(k))] = ''
+                    update["$unset"][self.list_name + ".$.info." + util.mongo_sanitize_fields(str(k))] = ""
 
         if self.use_object_id:
             _id = bson.objectid.ObjectId(_id)
-        query = {'_id': _id }
-        query[self.list_name] = {'$elemMatch': query_params}
+        query = {"_id": _id}
+        query[self.list_name] = {"$elemMatch": query_params}
 
-        if not update.get('$set'):
-            update['$set'] = {'files.$.modified': datetime.datetime.utcnow()}
+        if not update.get("$set"):
+            update["$set"] = {"files.$.modified": datetime.datetime.utcnow()}
         else:
-            update['$set']['files.$.modified'] = datetime.datetime.utcnow()
+            update["$set"]["files.$.modified"] = datetime.datetime.utcnow()
 
         result = self.dbc.update_one(query, update)
         self._update_session_compliance(_id)
 
-        return {
-            'modified': result.modified_count,
-            'jobs_spawned': 0
-        }
-
+        return {"modified": result.modified_count, "jobs_spawned": 0}
 
     def modify_classification(self, _id, query_params, payload):
         """
@@ -262,31 +230,28 @@ class FileStorage(ListStorage):
         NOTE: add and/or delete OR replace can be specified, never both in the same payload
         """
         container_before = self.get_container(_id)
-        update = {
-            '$set': {'modified': datetime.datetime.utcnow()},
-            '$unset': {self.list_name + '.$.measurements': True}
-        }
+        update = {"$set": {"modified": datetime.datetime.utcnow()}, "$unset": {self.list_name + ".$.measurements": True}}
 
         if self.use_object_id:
             _id = bson.objectid.ObjectId(_id)
-        query = {'_id': _id }
-        query[self.list_name] = {'$elemMatch': query_params}
+        query = {"_id": _id}
+        query[self.list_name] = {"$elemMatch": query_params}
 
-        if 'modality' in payload:
-            modality = payload['modality']
-            update['$set'][self.list_name + '.$.modality'] = modality
+        if "modality" in payload:
+            modality = payload["modality"]
+            update["$set"][self.list_name + ".$.modality"] = modality
         else:
-            modality = self.get_list_item(_id, query_params)['modality']
+            modality = self.get_list_item(_id, query_params)["modality"]
 
-        add_payload = payload.get('add')
-        delete_payload = payload.get('delete')
-        replace_payload = payload.get('replace')
+        add_payload = payload.get("add")
+        delete_payload = payload.get("delete")
+        replace_payload = payload.get("replace")
 
         if replace_payload is not None:
             replace_payload = check_and_format_classification(modality, replace_payload)
 
             r_update = copy.deepcopy(update)
-            r_update['$set'][self.list_name + '.$.classification'] = util.mongo_sanitize_fields(replace_payload)
+            r_update["$set"][self.list_name + ".$.classification"] = util.mongo_sanitize_fields(replace_payload)
 
             self.dbc.update_one(query, r_update)
 
@@ -295,9 +260,9 @@ class FileStorage(ListStorage):
                 add_payload = check_and_format_classification(modality, add_payload)
 
                 a_update = copy.deepcopy(update)
-                a_update['$addToSet'] = {}
-                for k,v in add_payload.iteritems():
-                    a_update['$addToSet'][self.list_name + '.$.classification.' + k] = {'$each': v}
+                a_update["$addToSet"] = {}
+                for k, v in add_payload.iteritems():
+                    a_update["$addToSet"][self.list_name + ".$.classification." + k] = {"$each": v}
 
                 self.dbc.update_one(query, a_update)
 
@@ -305,20 +270,16 @@ class FileStorage(ListStorage):
                 delete_payload = check_and_format_classification(modality, delete_payload)
 
                 d_update = copy.deepcopy(update)
-                d_update['$pullAll'] = {}
-                for k,v in delete_payload.iteritems():
-                    d_update['$pullAll'][self.list_name + '.$.classification.' + k] = v
+                d_update["$pullAll"] = {}
+                for k, v in delete_payload.iteritems():
+                    d_update["$pullAll"][self.list_name + ".$.classification." + k] = v
 
                 self.dbc.update_one(query, d_update)
 
         self._update_session_compliance(_id)
         jobs_spawned = self._create_jobs(container_before)
 
-        return {
-            'modified': 1,
-            'jobs_spawned': len(jobs_spawned)
-        }
-
+        return {"modified": 1, "jobs_spawned": len(jobs_spawned)}
 
 
 class StringListStorage(ListStorage):
@@ -329,14 +290,14 @@ class StringListStorage(ListStorage):
 
     def get_container(self, _id, query_params=None):
         if self.dbc is None:
-            raise RuntimeError('collection not initialized before calling get_container')
+            raise RuntimeError("collection not initialized before calling get_container")
         if self.use_object_id:
             try:
                 _id = bson.objectid.ObjectId(_id)
             except bson.errors.InvalidId as e:
                 raise APIStorageException(e.message)
-        query = {'_id': _id}
-        projection = {self.list_name : 1, 'permissions': 1, 'public': 1}
+        query = {"_id": _id}
+        projection = {self.list_name: 1, "permissions": 1, "public": 1}
         return self.dbc.find_one(query, projection)
 
     def exec_op(self, action, _id=None, query_params=None, payload=None, exclude_params=None):
@@ -344,41 +305,29 @@ class StringListStorage(ListStorage):
         This method "flattens" the query parameter and the payload to handle string lists
         """
         if query_params is not None:
-            query_params = query_params['value']
+            query_params = query_params["value"]
         if payload is not None:
-            payload = payload.get('value')
+            payload = payload.get("value")
             if payload is None:
                 raise ValueError('payload Key "value" should be defined')
         return super(StringListStorage, self).exec_op(action, _id, query_params, payload, exclude_params)
 
     def _create_el(self, _id, payload, exclude_params):
-        query = {'_id': _id, self.list_name: {'$ne': payload}}
-        update = {
-            '$push': {self.list_name: payload},
-            '$set': {'modified': datetime.datetime.utcnow()}
-        }
+        query = {"_id": _id, self.list_name: {"$ne": payload}}
+        update = {"$push": {self.list_name: payload}, "$set": {"modified": datetime.datetime.utcnow()}}
         result = self.dbc.update_one(query, update)
         if result.matched_count < 1:
-            raise APIConflictException('Item already exists in list.')
+            raise APIConflictException("Item already exists in list.")
         return result
 
     def _update_el(self, _id, query_params, payload, exclude_params):
-        query = {
-            '_id': _id,
-            '$and':[
-                {self.list_name: query_params},
-                {self.list_name: {'$ne': payload} }
-            ]
-        }
-        update = {
-            '$set': {self.list_name + '.$': payload,
-            'modified': datetime.datetime.utcnow()}
-        }
+        query = {"_id": _id, "$and": [{self.list_name: query_params}, {self.list_name: {"$ne": payload}}]}
+        update = {"$set": {self.list_name + ".$": payload, "modified": datetime.datetime.utcnow()}}
         return self.dbc.update_one(query, update)
 
     def _get_el(self, _id, query_params):
-        query = {'_id': _id, self.list_name: query_params}
-        projection = {self.list_name + '.$': 1}
+        query = {"_id": _id, self.list_name: query_params}
+        projection = {self.list_name + ".$": 1}
         result = self.dbc.find_one(query, projection)
         if result and result.get(self.list_name):
             return result.get(self.list_name)[0]

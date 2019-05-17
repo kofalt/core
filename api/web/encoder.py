@@ -7,11 +7,12 @@ import pytz
 from .. import models
 from ..jobs.jobs import Job
 
+
 def custom_json_serializer(obj):
     if isinstance(obj, bson.objectid.ObjectId):
         return str(obj)
     elif isinstance(obj, datetime.datetime):
-        return pytz.timezone('UTC').localize(obj).isoformat()
+        return pytz.timezone("UTC").localize(obj).isoformat()
     elif isinstance(obj, models.Base):
         return obj.to_dict()
     elif isinstance(obj, Job):
@@ -30,22 +31,24 @@ def sse_pack(d):
     For reading on the format:  https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#Event_stream_format
     """
 
-    buffer_ = ''
+    buffer_ = ""
 
-    for k in ['retry', 'id', 'event', 'data']:
+    for k in ["retry", "id", "event", "data"]:
         if k in d.keys():
-            buffer_ += '%s: %s\n' % (k, d[k])
+            buffer_ += "%s: %s\n" % (k, d[k])
 
-    return buffer_ + '\n'
+    return buffer_ + "\n"
+
 
 def json_sse_pack(d):
     """
     Variant of sse_pack that will json-encode your data blob.
     """
 
-    d['data'] = json.dumps(d['data'], default=custom_json_serializer)
+    d["data"] = json.dumps(d["data"], default=custom_json_serializer)
 
     return sse_pack(d)
+
 
 def pseudo_consistent_json_encode(d):
     """
@@ -53,4 +56,4 @@ def pseudo_consistent_json_encode(d):
     This implementation is not guaranteed to be consistent, but it's good enough for now.
     """
 
-    return json.dumps(d, sort_keys=True, indent=4, separators=(',', ': ')) + '\n'
+    return json.dumps(d, sort_keys=True, indent=4, separators=(",", ": ")) + "\n"

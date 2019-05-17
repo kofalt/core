@@ -7,15 +7,12 @@ import operator
 # https://stackoverflow.com/questions/26505420/evaluate-math-equations-from-unsafe-user-input-in-python
 # Restricted even further to only allow arithmetic operations
 
-SAFE_OPS = {
-    ast.Add: operator.add,
-    ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
-    ast.Div: operator.div
-}
+SAFE_OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.div}
+
 
 class CompiledExpression(object):
     """Represents a prepared safe expression, ready for evaluation"""
+
     def __init__(self, node):
         """Create a compiled expression instance.
 
@@ -33,7 +30,8 @@ class CompiledExpression(object):
         try:
             return _safe_eval_expr(self.node, variables)
         except KeyError:
-            raise ValueError('Unknown variable')
+            raise ValueError("Unknown variable")
+
 
 def compile_expr(expr, variables=None):
     """Compile string expr into a CompiledExpression
@@ -45,14 +43,15 @@ def compile_expr(expr, variables=None):
     """
     # Parse
     try:
-        node = ast.parse(expr, '<string>', 'eval').body
+        node = ast.parse(expr, "<string>", "eval").body
     except SyntaxError as ex:
-        raise ValueError('Invalid syntax: {}'.format(ex))
+        raise ValueError("Invalid syntax: {}".format(ex))
 
     # Quick validation of operations
     _validate_expr(node, variables)
 
     return CompiledExpression(node)
+
 
 def _validate_expr(node, variables=None):
     """Validate that the AST uses only supported operations and variables.
@@ -66,17 +65,18 @@ def _validate_expr(node, variables=None):
 
     if isinstance(node, ast.Name):
         if variables and node.id not in variables:
-            raise ValueError('Unexpected variable: {}'.format(node.id))
+            raise ValueError("Unexpected variable: {}".format(node.id))
         return
 
     if isinstance(node, ast.BinOp):
         if node.op.__class__ not in SAFE_OPS:
-            raise ValueError('Unsafe operator')
+            raise ValueError("Unsafe operator")
         _validate_expr(node.left, variables)
         _validate_expr(node.right, variables)
         return
 
-    raise ValueError('Unsafe operation')
+    raise ValueError("Unsafe operation")
+
 
 def _safe_eval_expr(node, variables):
     """Evaluate an expression, returning a result.

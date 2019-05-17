@@ -11,10 +11,7 @@ import json
 from .. import config
 from .jobs import Job, Logs, JobTicket
 from .gears import get_gear, validate_gear_config, fill_gear_default_values
-from ..dao.containerutil import (
-    create_filereference_from_dictionary, create_containerreference_from_dictionary,
-    create_containerreference_from_filereference, FileReference
-)
+from ..dao.containerutil import create_filereference_from_dictionary, create_containerreference_from_dictionary, create_containerreference_from_filereference, FileReference
 from .job_util import resolve_context_inputs
 from ..web import errors
 from ..site import providers
@@ -23,46 +20,40 @@ from ..site import providers
 log = config.log
 
 JOB_STATES = [
-    'pending',  # Job is queued
-    'running',  # Job has been handed to an engine and is being processed
-    'failed',   # Job has an expired heartbeat (orphaned) or has suffered an error
-    'complete', # Job has successfully completed
-    'cancelled' # Job has been cancelled (via a bulk job cancellation)
+    "pending",  # Job is queued
+    "running",  # Job has been handed to an engine and is being processed
+    "failed",  # Job has an expired heartbeat (orphaned) or has suffered an error
+    "complete",  # Job has successfully completed
+    "cancelled",  # Job has been cancelled (via a bulk job cancellation)
 ]
 
-JOB_STATES_ALLOWED_MUTATE = [
-    'pending',
-    'running',
-]
+JOB_STATES_ALLOWED_MUTATE = ["pending", "running"]
 
-JOB_TRANSITIONS = [
-    'pending --> running',
-    'pending --> cancelled',
-    'running --> cancelled',
-    'running --> failed',
-    'running --> complete',
-]
+JOB_TRANSITIONS = ["pending --> running", "pending --> cancelled", "running --> cancelled", "running --> failed", "running --> complete"]
 
 # How many times a job should be retried
 def max_attempts():
-    return config.get_item('queue', 'max_retries')
+    return config.get_item("queue", "max_retries")
+
 
 # Should a job be retried when explicitly failed.
 # Does not affect orphaned jobs.
 def retry_on_explicit_fail():
-    return config.get_item('queue', 'retry_on_fail')
+    return config.get_item("queue", "retry_on_fail")
+
 
 def valid_transition(from_state, to_state):
-    return (from_state + ' --> ' + to_state) in JOB_TRANSITIONS or from_state == to_state
+    return (from_state + " --> " + to_state) in JOB_TRANSITIONS or from_state == to_state
+
 
 def add_related_containers(dest, container):
     """Add container and parents to dest set"""
-    dest.add(str(container['_id']))
-    for _, v in  container.get('parents', {}).iteritems():
+    dest.add(str(container["_id"]))
+    for _, v in container.get("parents", {}).iteritems():
         dest.add(str(v))
 
-class Queue(object):
 
+class Queue(object):
     @staticmethod
     def mutate(job, mutation):
         """
@@ -70,47 +61,44 @@ class Queue(object):
         """
 
         if job.state not in JOB_STATES_ALLOWED_MUTATE:
-            raise errors.InputValidationException('Cannot mutate a job that is ' + job.state + '.')
+            raise errors.InputValidationException("Cannot mutate a job that is " + job.state + ".")
 
         # TODO: This should use InputValidationException or similar
-        if 'state' in mutation and not valid_transition(job.state, mutation['state']):
-            raise Exception('Mutating job from ' + job.state + ' to ' + mutation['state'] + ' not allowed.')
+        if "state" in mutation and not valid_transition(job.state, mutation["state"]):
+            raise Exception("Mutating job from " + job.state + " to " + mutation["state"] + " not allowed.")
 
         now = datetime.datetime.utcnow()
 
         # Special case: when starting a job, actually start it. Should not be called this way.
-        if 'state' in mutation:
-            if mutation['state'] == 'running':
+        if "state" in mutation:
+            if mutation["state"] == "running":
 
                 # !!!
                 # !!! DUPE WITH Queue.run_jobs_with_query
                 # !!!
 
-                mutation['request'] = job.generate_request(get_gear(job.gear_id))
-            elif mutation['state'] in ('complete', 'failed', 'cancelled') and job.state == 'running':
-                if job.transitions and 'running' in job.transitions:
-                    mutation['profile.total_time_ms'] = int((now - job.transitions['running']).total_seconds() * 1000)
+                mutation["request"] = job.generate_request(get_gear(job.gear_id))
+            elif mutation["state"] in ("complete", "failed", "cancelled") and job.state == "running":
+                if job.transitions and "running" in job.transitions:
+                    mutation["profile.total_time_ms"] = int((now - job.transitions["running"]).total_seconds() * 1000)
 
             # Set transition timestamp
-            mutation['transitions.{}'.format(mutation['state'])] = now
-            log.info('Transitioning job %s from %s to %s', job.id_, job.state, mutation['state'])
+            mutation["transitions.{}".format(mutation["state"])] = now
+            log.info("Transitioning job %s from %s to %s", job.id_, job.state, mutation["state"])
 
         # Any modification must be a timestamp update
-        mutation['modified'] = now
+        mutation["modified"] = now
 
         # Create an object with all the fields that must not have changed concurrently.
-        job_query =  {
-            '_id': bson.ObjectId(job.id_),
-            'state': job.state,
-        }
+        job_query = {"_id": bson.ObjectId(job.id_), "state": job.state}
 
-        result = config.db.jobs.update_one(job_query, {'$set': mutation})
+        result = config.db.jobs.update_one(job_query, {"$set": mutation})
         if result.modified_count != 1:
-            raise Exception('Job modification not saved')
+            raise Exception("Job modification not saved")
 
         # If the job did not succeed, check to see if job should be retried.
-        if 'state' in mutation and mutation['state'] == 'failed' and retry_on_explicit_fail():
-            job.state = 'failed'
+        if "state" in mutation and mutation["state"] == "failed" and retry_on_explicit_fail():
+            job.state = "failed"
             Queue.retry(job)
 
     @staticmethod
@@ -121,29 +109,28 @@ class Queue(object):
         """
 
         if job.attempt >= max_attempts() and not force:
-            log.info('Permanently failed job %s (after %d attempts)', job.id_, job.attempt)
+            log.info("Permanently failed job %s (after %d attempts)", job.id_, job.attempt)
             return
 
-        if job.state in ['cancelled', 'complete']:
+        if job.state in ["cancelled", "complete"]:
             if only_failed:
-                raise errors.InputValidationException('Can only retry a job that is failed, please use only_failed parameter')
-        elif job.state != 'failed':
-            raise errors.InputValidationException('Can not retry running or pending job')
-
+                raise errors.InputValidationException("Can only retry a job that is failed, please use only_failed parameter")
+        elif job.state != "failed":
+            raise errors.InputValidationException("Can not retry running or pending job")
 
         if job.request is None:
-            raise Exception('Cannot retry a job without a request')
+            raise Exception("Cannot retry a job without a request")
 
         # Race condition: jobs should only be marked as failed once a new job has been spawned for it (if any).
         # No transactions in our database, so we can't do that.
         # Instead, make a best-hope attempt.
-        check = config.db.jobs.find_one({'previous_job_id': job.id_ })
+        check = config.db.jobs.find_one({"previous_job_id": job.id_})
         if check is not None:
             found = Job.load(check)
-            raise Exception('Job ' + job.id_ + ' has already been retried as ' + str(found.id_))
+            raise Exception("Job " + job.id_ + " has already been retried as " + str(found.id_))
 
         new_job_map = job.map()
-        new_job_map['config'] = new_job_map['config']['config']
+        new_job_map["config"] = new_job_map["config"]["config"]
         new_job = Queue.enqueue_job(new_job_map, dict(job.origin))
         new_job.previous_job_id = job.id_
         new_job.attempt += 1
@@ -151,31 +138,26 @@ class Queue(object):
         new_job.id_ = bson.ObjectId()
 
         # update input uris that reference the old job id
-        for i in new_job.request['inputs']+new_job.request['outputs']:
-            i['uri'] = i['uri'].replace(str(job.id_), str(new_job.id_))
+        for i in new_job.request["inputs"] + new_job.request["outputs"]:
+            i["uri"] = i["uri"].replace(str(job.id_), str(new_job.id_))
 
-        if new_job.destination.type == 'analysis':
-            config.db.analyses.update_one({'_id': bson.ObjectId(new_job.destination.id)},
-                                          {'$set': {'job': str(new_job.id_),
-                                                    'modified': new_job.created}})
+        if new_job.destination.type == "analysis":
+            config.db.analyses.update_one({"_id": bson.ObjectId(new_job.destination.id)}, {"$set": {"job": str(new_job.id_), "modified": new_job.created}})
 
-        result = config.db.jobs.update_one({"_id": bson.ObjectId(job.id_)}, {'$set': {"retried": new_job.created}})
+        result = config.db.jobs.update_one({"_id": bson.ObjectId(job.id_)}, {"$set": {"retried": new_job.created}})
         if result.modified_count != 1:
-            log.error('Could not set retried time for job {}'.format(job.id_))
+            log.error("Could not set retried time for job {}".format(job.id_))
 
         new_id = new_job.insert(ignore_insertion_block=True)
-        log.info('respawned job %s as %s (attempt %d)', job.id_, new_id, new_job.attempt)
+        log.info("respawned job %s as %s (attempt %d)", job.id_, new_id, new_job.attempt)
 
         # If job is part of batch job run, update batch jobs list
-        batch = config.db.batch.find_one({'jobs': job.id_})
+        batch = config.db.batch.find_one({"jobs": job.id_})
         if batch:
-            batch['jobs'].remove(job.id_)
-            batch['jobs'].append(new_id)
-            config.db.batch.update_one(
-                {'jobs': job.id_},
-                {'$set': {'jobs': batch['jobs']}}
-            )
-            log.info('updated batch job list, replacing {} with {}'.format(job.id_, new_id))
+            batch["jobs"].remove(job.id_)
+            batch["jobs"].append(new_id)
+            config.db.batch.update_one({"jobs": job.id_}, {"$set": {"jobs": batch["jobs"]}})
+            log.info("updated batch job list, replacing {} with {}".format(job.id_, new_id))
 
         return new_id
 
@@ -196,49 +178,49 @@ class Queue(object):
         """
 
         # gear and config manifest check
-        gear_id = job_map.get('gear_id')
+        gear_id = job_map.get("gear_id")
         if not gear_id:
-            raise errors.InputValidationException('Job must specify gear')
+            raise errors.InputValidationException("Job must specify gear")
 
         gear = get_gear(gear_id)
 
         # Invalid disables a gear from running entirely.
         # https://github.com/flywheel-io/gears/tree/master/spec#reserved-custom-keys
-        if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
-            raise errors.InputValidationException('Gear marked as invalid, will not run!')
+        if gear.get("gear", {}).get("custom", {}).get("flywheel", {}).get("invalid", False):
+            raise errors.InputValidationException("Gear marked as invalid, will not run!")
 
-        config_ = job_map.get('config', {})
+        config_ = job_map.get("config", {})
         validate_gear_config(gear, config_)
 
         # Translate maps to FileReferences
         inputs = {}
-        for x in job_map.get('inputs', {}).keys():
+        for x in job_map.get("inputs", {}).keys():
 
             # Ensure input is in gear manifest
-            if x not in gear['gear']['inputs']:
-                raise errors.InputValidationException('Job input {} is not listed in gear manifest'.format(x))
+            if x not in gear["gear"]["inputs"]:
+                raise errors.InputValidationException("Job input {} is not listed in gear manifest".format(x))
 
-            input_map = job_map['inputs'][x]
+            input_map = job_map["inputs"][x]
 
-            if gear['gear']['inputs'][x]['base'] == 'file':
+            if gear["gear"]["inputs"][x]["base"] == "file":
                 try:
                     inputs[x] = create_filereference_from_dictionary(input_map)
                 except KeyError:
-                    raise errors.InputValidationException('Input {} does not have a properly formatted file reference.'.format(x))
+                    raise errors.InputValidationException("Input {} does not have a properly formatted file reference.".format(x))
             else:
                 inputs[x] = input_map
 
         # Add job tags, config, attempt number, and/or previous job ID, if present
-        tags            = job_map.get('tags', [])
-        attempt_n       = job_map.get('attempt_n', 1)
-        previous_job_id = job_map.get('previous_job_id', None)
-        batch           = job_map.get('batch', None) # A batch id if this job is part of a batch run
-        label           = job_map.get('label', "")
+        tags = job_map.get("tags", [])
+        attempt_n = job_map.get("attempt_n", 1)
+        previous_job_id = job_map.get("previous_job_id", None)
+        batch = job_map.get("batch", None)  # A batch id if this job is part of a batch run
+        label = job_map.get("label", "")
 
         # Add destination container, or select one
         destination = None
-        if job_map.get('destination', None) is not None:
-            destination = create_containerreference_from_dictionary(job_map['destination'])
+        if job_map.get("destination", None) is not None:
+            destination = create_containerreference_from_dictionary(job_map["destination"])
         else:
             destination = None
             for key in inputs.keys():
@@ -247,9 +229,9 @@ class Queue(object):
                     break
 
             if not destination:
-                raise errors.InputValidationException('Must specify destination if gear has no inputs.')
-            elif destination.type == 'analysis':
-                raise errors.InputValidationException('Cannot use analysis for destination of a job, container was inferred.')
+                raise errors.InputValidationException("Must specify destination if gear has no inputs.")
+            elif destination.type == "analysis":
+                raise errors.InputValidationException("Cannot use analysis for destination of a job, container was inferred.")
 
         # Get parents from destination, also checks that destination exists
         destination_container = destination.get()
@@ -257,19 +239,12 @@ class Queue(object):
         # Permission check
         if perm_check_uid:
             for x in inputs:
-                if hasattr(inputs[x], 'check_access'):
-                    inputs[x].check_access(perm_check_uid, 'ro')
-            destination.check_access(perm_check_uid, 'rw', cont=destination_container)
+                if hasattr(inputs[x], "check_access"):
+                    inputs[x].check_access(perm_check_uid, "ro")
+            destination.check_access(perm_check_uid, "rw", cont=destination_container)
 
         # Config options are stored on the job object under the "config" key
-        config_ = {
-            'config': fill_gear_default_values(gear, config_),
-            'inputs': { },
-            'destination': {
-                'type': destination.type,
-                'id': destination.id,
-            }
-        }
+        config_ = {"config": fill_gear_default_values(gear, config_), "inputs": {}, "destination": {"type": destination.type, "id": destination.id}}
 
         # Implementation notes: with regard to sending the gear file information, we have two options:
         #
@@ -293,8 +268,8 @@ class Queue(object):
         file_inputs = []
 
         for x in inputs:
-            input_type = gear['gear']['inputs'][x]['base']
-            if input_type == 'file':
+            input_type = gear["gear"]["inputs"][x]["base"]
+            if input_type == "file":
 
                 input_container = inputs[x].get()
                 add_related_containers(related_containers, input_container)
@@ -303,76 +278,62 @@ class Queue(object):
                 cr = create_containerreference_from_filereference(inputs[x])
 
                 # Whitelist file fields passed to gear to those that are scientific-relevant
-                whitelisted_keys = ['info', 'tags', 'measurements', 'classification', 'mimetype', 'type', 'modality', 'size']
-                obj_projection = { key: obj.get(key) for key in whitelisted_keys }
+                whitelisted_keys = ["info", "tags", "measurements", "classification", "mimetype", "type", "modality", "size"]
+                obj_projection = {key: obj.get(key) for key in whitelisted_keys}
 
                 input_file_count += 1
-                input_file_size_bytes += obj.get('size', 0)
+                input_file_size_bytes += obj.get("size", 0)
 
                 ###
                 # recreate `measurements` list on object
                 # Can be removed when `classification` key has been adopted everywhere
 
-                if not obj_projection.get('measurements', None):
-                    obj_projection['measurements'] = []
-                if obj_projection.get('classification'):
-                    for v in obj_projection['classification'].itervalues():
-                        obj_projection['measurements'].extend(v)
+                if not obj_projection.get("measurements", None):
+                    obj_projection["measurements"] = []
+                if obj_projection.get("classification"):
+                    for v in obj_projection["classification"].itervalues():
+                        obj_projection["measurements"].extend(v)
                 #
                 ###
 
-                config_['inputs'][x] = {
-                    'base': 'file',
-                    'hierarchy': cr.__dict__,
-                    'location': {
-                        'name': obj['name'],
-                        'path': '/flywheel/v0/input/' + x + '/' + obj['name'],
-                    },
-                    'object': obj_projection,
-                }
-            elif input_type == 'context':
-                config_['inputs'][x] = inputs[x]
+                config_["inputs"][x] = {"base": "file", "hierarchy": cr.__dict__, "location": {"name": obj["name"], "path": "/flywheel/v0/input/" + x + "/" + obj["name"]}, "object": obj_projection}
+            elif input_type == "context":
+                config_["inputs"][x] = inputs[x]
             else:
                 # Note: API key inputs should not be passed as input
-                raise Exception('Non-file input base type')
+                raise Exception("Non-file input base type")
 
         # Populate any context inputs for the gear
         resolve_context_inputs(config_, gear, destination.type, destination.id, perm_check_uid)
 
         # Populate parents (including destination)
-        parents = destination_container.get('parents', {})
+        parents = destination_container.get("parents", {})
         parents[destination.type] = bson.ObjectId(destination.id)
 
         # Determine compute provider, if not provided
-        compute_provider_id = job_map.get('compute_provider_id')
+        compute_provider_id = job_map.get("compute_provider_id")
         if compute_provider_id is None:
             compute_provider_id = providers.get_compute_provider_id_for_job(gear, destination_container, file_inputs)
             # If compute provider is still undetermined, then we need to raise
             if compute_provider_id is None:
-                raise errors.APIPreconditionFailed('Cannot determine compute provider for job. '
-                    'gear={}, destination.id={}'.format(gear['_id'], destination.id))
+                raise errors.APIPreconditionFailed("Cannot determine compute provider for job. " "gear={}, destination.id={}".format(gear["_id"], destination.id))
         else:
             # Validate the provided compute provider
-            providers.validate_provider_class(compute_provider_id, 'compute')
+            providers.validate_provider_class(compute_provider_id, "compute")
 
         # Initialize profile
-        profile = {
-            'total_input_files': input_file_count,
-            'total_input_size_bytes': input_file_size_bytes
-        }
+        profile = {"total_input_files": input_file_count, "total_input_size_bytes": input_file_size_bytes}
 
         release_version = config.get_release_version()
         if release_version:
-            profile['versions'] = { 'core': release_version }
+            profile["versions"] = {"core": release_version}
 
-        gear_name = gear['gear']['name']
+        gear_name = gear["gear"]["name"]
 
         if gear_name not in tags:
             tags.append(gear_name)
 
-        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n,
-            previous_job_id=previous_job_id, origin=origin, batch=batch, parents=parents, profile=profile,
-            related_container_ids=list(related_containers), label=label, compute_provider_id=compute_provider_id)
+        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n, previous_job_id=previous_job_id, origin=origin, batch=batch, parents=parents, profile=profile, related_container_ids=list(related_containers), label=label, compute_provider_id=compute_provider_id)
 
         return job
 
@@ -406,19 +367,19 @@ class Queue(object):
         }
         """
 
-        peek  = query['return'].get('peek',   False)
-        jobs  = query['return'].get('jobs',   0)
-        stats = query['return'].get('states', False)
+        peek = query["return"].get("peek", False)
+        jobs = query["return"].get("jobs", 0)
+        stats = query["return"].get("states", False)
 
         result = {}
 
         if jobs <= 0 and not stats:
-            raise errors.APIValidationException('Not asking for work or stats')
+            raise errors.APIValidationException("Not asking for work or stats")
 
         if jobs > 0:
-            result['jobs'] = Queue.start_jobs(jobs, query['whitelist'], query['blacklist'], query['capabilities'], peek)
+            result["jobs"] = Queue.start_jobs(jobs, query["whitelist"], query["blacklist"], query["capabilities"], peek)
         if stats:
-            result['states'] = Queue.job_states(query['whitelist'], query['blacklist'], query['capabilities'])
+            result["states"] = Queue.job_states(query["whitelist"], query["blacklist"], query["capabilities"])
 
         return result
 
@@ -428,45 +389,34 @@ class Queue(object):
         Translate a whitelist and blacklist to job database query.
         """
 
-        match = {
-            'group': {},
-            'gear-name': {},
-            'tag': {},
-            'created-by': {},
-        }
+        match = {"group": {}, "gear-name": {}, "tag": {}, "created-by": {}}
 
         # Fill out the request
         for xlist in [whitelist, blacklist]:
             # Mongo operator
-            modifier = '$in' if xlist is whitelist else '$nin'
+            modifier = "$in" if xlist is whitelist else "$nin"
 
-            for key in ['group', 'gear-name', 'tag', 'created-by']:
+            for key in ["group", "gear-name", "tag", "created-by"]:
                 if xlist.get(key):
                     match[key][modifier] = xlist[key]
 
         query = {}
 
         # Translate to mongo keys
-        if match['group']:
-            query['parents.group'] = match['group']
-        if match['gear-name']:
-            query['gear_info.name'] = match['gear-name']
-        if match['tag']:
-            query['tags'] = match['tag']
-        if match['created-by']:
-            query['origin.id'] = match['created-by']
+        if match["group"]:
+            query["parents.group"] = match["group"]
+        if match["gear-name"]:
+            query["gear_info.name"] = match["gear-name"]
+        if match["tag"]:
+            query["tags"] = match["tag"]
+        if match["created-by"]:
+            query["origin.id"] = match["created-by"]
 
         # Bit unintuitive: match documents that do NOT, have an ELEMENT, that is NOT, in the capabilities.
         # Or, translated:  match documents whose capabilities are a subset of the query.
-        query['gear_info.capabilities'] = {
-            '$not': {
-                '$elemMatch': {
-                    '$nin': capabilities
-                }
-            }
-        }
+        query["gear_info.capabilities"] = {"$not": {"$elemMatch": {"$nin": capabilities}}}
 
-        log.debug('Job query is: %s', json.dumps(query))
+        log.debug("Job query is: %s", json.dumps(query))
         return query
 
     @staticmethod
@@ -489,17 +439,11 @@ class Queue(object):
         query = Queue.lists_to_query(whitelist, blacklist, capabilities)
 
         # Pipeline aggregation
-        result = list(config.db.jobs.aggregate([
-            {'$match': query },
-            {'$group': {
-                '_id': '$state',
-                'count': {'$sum': 1}}
-            }
-        ]))
+        result = list(config.db.jobs.aggregate([{"$match": query}, {"$group": {"_id": "$state", "count": {"$sum": 1}}}]))
 
         # Map the mongo result to something useful
         by_state = {s: 0 for s in JOB_STATES}
-        by_state.update({r['_id']: r['count'] for r in result})
+        by_state.update({r["_id"]: r["count"] for r in result})
 
         return by_state
 
@@ -512,32 +456,23 @@ class Queue(object):
         """
 
         if max_jobs > 1:
-            raise errors.InputValidationException('Starting multiple jobs not supported')
+            raise errors.InputValidationException("Starting multiple jobs not supported")
         if max_jobs < 1:
-            raise errors.InputValidationException('Must start at least one job')
+            raise errors.InputValidationException("Must start at least one job")
         if peek and max_jobs > 1:
-            raise errors.InputValidationException('Cannot peek more than one job')
+            raise errors.InputValidationException("Cannot peek more than one job")
 
-        query['state'] = 'pending'
+        query["state"] = "pending"
 
         now = datetime.datetime.utcnow()
-        modification = { '$set': {
-            'state': 'running',
-            'transitions.running': now,
-            'modified': now
-        }}
+        modification = {"$set": {"state": "running", "transitions.running": now, "modified": now}}
 
         if peek:
             # placeholder noop
-            modification = {'$setOnInsert': {'1': 1}}
+            modification = {"$setOnInsert": {"1": 1}}
 
         # Search ordering by FIFO
-        result = config.db.jobs.find_one_and_update(
-            query,
-            modification,
-            sort=[('modified', 1)],
-            return_document=pymongo.collection.ReturnDocument.AFTER
-        )
+        result = config.db.jobs.find_one_and_update(query, modification, sort=[("modified", 1)], return_document=pymongo.collection.ReturnDocument.AFTER)
 
         if result is None:
             return []
@@ -546,14 +481,14 @@ class Queue(object):
 
         if peek:
             gear = get_gear(job.gear_id)
-            for key in gear['gear']['inputs']:
-                if gear['gear']['inputs'][key] == 'api-key':
+            for key in gear["gear"]["inputs"]:
+                if gear["gear"]["inputs"][key] == "api-key":
                     # API-key gears cannot be peeked
                     return []
 
         # Return if there is a job request already
         if job.request is not None:
-            log.info('Job %s already has a request, so not generating', job.id_)
+            log.info("Job %s already has a request, so not generating", job.id_)
             return [job]
 
         # Create a new request formula
@@ -568,21 +503,13 @@ class Queue(object):
             return [job]
 
         # Save and return
-        result = config.db.jobs.find_one_and_update(
-            {
-                '_id': bson.ObjectId(job.id_)
-            },
-            { '$set': {
-                'request': request }
-            },
-            return_document=pymongo.collection.ReturnDocument.AFTER
-        )
+        result = config.db.jobs.find_one_and_update({"_id": bson.ObjectId(job.id_)}, {"$set": {"request": request}}, return_document=pymongo.collection.ReturnDocument.AFTER)
 
         if result is None:
-            raise Exception('Marked job as running but could not generate and save formula')
+            raise Exception("Marked job as running but could not generate and save formula")
 
-        Logs.add_system_logs(job.id_, 'Gear Name: {}, Gear Version: {}\n'.format(gear['gear']['name'], gear['gear']['version']))
-        log.info('Starting Job {}. Gear Name: {}, Gear Version: {}'.format(job.id_, gear['gear']['name'], gear['gear']['version']))
+        Logs.add_system_logs(job.id_, "Gear Name: {}, Gear Version: {}\n".format(gear["gear"]["name"], gear["gear"]["version"]))
+        log.info("Starting Job {}. Gear Name: {}, Gear Version: {}".format(job.id_, gear["gear"]["name"], gear["gear"]["version"]))
 
         return [Job.load(result)]
 
@@ -602,22 +529,17 @@ class Queue(object):
 
         filters = []
         for cont_type, containers in conts_by_type.iteritems():
-            filters.extend([
-                {'inputs.id': {'$in': [cont.id for cont in containers]}, 'inputs.type': cont_type},
-                {'destination.id': {'$in': [cont.id for cont in containers]}, 'destination.type': cont_type},
-            ])
-        query = {'$or': filters}
+            filters.extend([{"inputs.id": {"$in": [cont.id for cont in containers]}, "inputs.type": cont_type}, {"destination.id": {"$in": [cont.id for cont in containers]}, "destination.type": cont_type}])
+        query = {"$or": filters}
 
         if states is not None and len(states) > 0:
-            query['state'] = {"$in": states}
+            query["state"] = {"$in": states}
 
         if tags is not None and len(tags) > 0:
-            query['tags'] = {"$in": tags}
+            query["tags"] = {"$in": tags}
 
         # For now, mandate reverse-crono sort
-        return config.db.jobs.find(query).sort([
-            ('modified', pymongo.DESCENDING)
-        ])
+        return config.db.jobs.find(query).sort([("modified", pymongo.DESCENDING)])
 
     @staticmethod
     def scan_for_orphans():
@@ -629,15 +551,10 @@ class Queue(object):
         orphaned = 0
         ticketed_jobs = []
 
-
         # When the backend is busy / crashing / being upgraded, heartbeats can take a very long time or fail.
         # The default engine heartbeats every 30 seconds. Be careful when lowering this interval.
 
-        query = {
-            'state': 'running',
-            'modified': {'$lt': datetime.datetime.utcnow() - datetime.timedelta(seconds=300)},
-            '_id': { '$nin': ticketed_jobs },
-        }
+        query = {"state": "running", "modified": {"$lt": datetime.datetime.utcnow() - datetime.timedelta(seconds=300)}, "_id": {"$nin": ticketed_jobs}}
 
         while True:
             orphan_candidate = config.db.jobs.find_one(query)
@@ -645,31 +562,24 @@ class Queue(object):
                 break
 
             # If the job is currently attempting to complete, do not orphan.
-            ticket = JobTicket.find(orphan_candidate['_id'])
+            ticket = JobTicket.find(orphan_candidate["_id"])
             if ticket is not None and len(ticket) > 0:
-                ticketed_jobs.append(orphan_candidate['_id'])
+                ticketed_jobs.append(orphan_candidate["_id"])
                 continue
 
             # CAS this job, since it does not have a ticket
-            select = { '_id': orphan_candidate['_id'] }
+            select = {"_id": orphan_candidate["_id"]}
 
-            doc = config.db.jobs.find_one_and_update(
-                dict(query, **select),
-                {
-                    '$set': {
-                        'state': 'failed', },
-                },
-                return_document=pymongo.collection.ReturnDocument.AFTER
-            )
+            doc = config.db.jobs.find_one_and_update(dict(query, **select), {"$set": {"state": "failed"}}, return_document=pymongo.collection.ReturnDocument.AFTER)
 
             if doc is None:
-                log.info('Job %s was heartbeat during a ticket lookup and thus not orhpaned', orphan_candidate['_id'])
+                log.info("Job %s was heartbeat during a ticket lookup and thus not orhpaned", orphan_candidate["_id"])
             else:
                 orphaned += 1
                 j = Job.load(doc)
-                Logs.add_system_logs(j.id_, 'The job did not report in for a long time and was canceled. ')
+                Logs.add_system_logs(j.id_, "The job did not report in for a long time and was canceled. ")
                 new_id = Queue.retry(j)
-                Logs.add_system_logs(j.id_, 'Retried job as ' + str(new_id) if new_id else 'Job retries exceeded maximum allowed')
+                Logs.add_system_logs(j.id_, "Retried job as " + str(new_id) if new_id else "Job retries exceeded maximum allowed")
 
         return orphaned
 
@@ -688,16 +598,16 @@ class Queue(object):
         if tags is None:
             tags = []
 
-        inclusive_tags = filter(lambda x: not x.startswith('!'), tags)
-        exclusive_tags =  map(lambda x: x[1:], filter(lambda x: x.startswith('!'), tags)) # strip the '!' prefix
+        inclusive_tags = filter(lambda x: not x.startswith("!"), tags)
+        exclusive_tags = map(lambda x: x[1:], filter(lambda x: x.startswith("!"), tags))  # strip the '!' prefix
 
-        whitelist = { }
-        blacklist = { }
+        whitelist = {}
+        blacklist = {}
 
         if len(inclusive_tags) > 0:
-            whitelist['tag'] = inclusive_tags
+            whitelist["tag"] = inclusive_tags
         if len(exclusive_tags) > 0:
-            blacklist['tag'] = exclusive_tags
+            blacklist["tag"] = exclusive_tags
 
         return whitelist, blacklist
 
@@ -716,7 +626,7 @@ class Queue(object):
         if len(result) == 0:
             return None
         elif len(result) != 1:
-            raise Exception('Expected start_jobs with max_jobs 1 to return 0 or 1 jobs')
+            raise Exception("Expected start_jobs with max_jobs 1 to return 0 or 1 jobs")
         else:
             return result[0]
 
@@ -734,22 +644,15 @@ class Queue(object):
         whitelist, blacklist = Queue.legacy_tag_parse(tags)
         capabilities = []
 
-        results = { }
-        results['states'] = Queue.job_states(whitelist, blacklist, capabilities)
+        results = {}
+        results["states"] = Queue.job_states(whitelist, blacklist, capabilities)
 
         # List unique tags
         if unique:
-            results['unique'] = sorted(config.db.jobs.distinct('tags'))
+            results["unique"] = sorted(config.db.jobs.distinct("tags"))
 
         # List recently modified jobs for each state
         if last is not None:
-            results['recent'] = {s: config.db.jobs.find({
-                '$and': [
-                    Queue.lists_to_query(whitelist, blacklist, capabilities),
-                    {'state': s}
-                ]
-                }, {
-                    'modified':1
-                }).sort([('modified', pymongo.DESCENDING)]).limit(last) for s in JOB_STATES}
+            results["recent"] = {s: config.db.jobs.find({"$and": [Queue.lists_to_query(whitelist, blacklist, capabilities), {"state": s}]}, {"modified": 1}).sort([("modified", pymongo.DESCENDING)]).limit(last) for s in JOB_STATES}
 
         return results

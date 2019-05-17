@@ -25,7 +25,7 @@ class AccessLogReport(Report):
     """
 
     # What to name csvs generated from this report
-    filename = 'accesslog'
+    filename = "accesslog"
 
     columns = [
         "_id",
@@ -56,7 +56,7 @@ class AccessLogReport(Report):
         "context.ticket_id",
         "context.job.id",
         "request_method",
-        "request_path"
+        "request_path",
     ]
 
     def __init__(self, params):
@@ -75,41 +75,41 @@ class AccessLogReport(Report):
 
         super(AccessLogReport, self).__init__(params)
 
-        start_date = params.get('start_date')
-        end_date = params.get('end_date')
-        uid = params.get('user')
-        limit= params.get('limit', 100)
-        subject = params.get('subject', None)
-        project = params.get('project', None)
-        access_types = params.getall('access_type')
+        start_date = params.get("start_date")
+        end_date = params.get("end_date")
+        uid = params.get("user")
+        limit = params.get("limit", 100)
+        subject = params.get("subject", None)
+        project = params.get("project", None)
+        access_types = params.getall("access_type")
 
         if start_date:
             start_date = dateutil.parser.parse(start_date)
         if end_date:
             end_date = dateutil.parser.parse(end_date)
         if end_date and start_date and end_date < start_date:
-            raise APIReportParamsException('End date {} is before start date {}'.format(end_date, start_date))
+            raise APIReportParamsException("End date {} is before start date {}".format(end_date, start_date))
         if uid and not util.is_user_id(uid):
-            raise APIReportParamsException('Invalid user.')
+            raise APIReportParamsException("Invalid user.")
         try:
             limit = int(limit)
         except (TypeError, ValueError):
-            raise APIReportParamsException('Limit must be an integer greater than 0.')
+            raise APIReportParamsException("Limit must be an integer greater than 0.")
         if limit < 1:
-            raise APIReportParamsException('Limit must be an integer greater than 0.')
+            raise APIReportParamsException("Limit must be an integer greater than 0.")
         elif limit > 10000:
-            raise APIReportParamsException('Limit exceeds 10,000 entries, please contact admin to run script.')
+            raise APIReportParamsException("Limit exceeds 10,000 entries, please contact admin to run script.")
         for access_type in access_types:
             if access_type not in AccessTypeList:
-                raise APIReportParamsException('Not a valid access type')
+                raise APIReportParamsException("Not a valid access type")
 
-        self.start_date     = start_date
-        self.end_date       = end_date
-        self.uid            = uid
-        self.limit          = limit
-        self.subject        = subject
-        self.project        = project
-        self.access_types   = access_types
+        self.start_date = start_date
+        self.end_date = end_date
+        self.uid = uid
+        self.limit = limit
+        self.subject = subject
+        self.project = project
+        self.access_types = access_types
 
     def user_can_generate(self, uid):
         """
@@ -121,23 +121,23 @@ class AccessLogReport(Report):
         query = {}
 
         if self.uid:
-            query['origin.id'] = self.uid
+            query["origin.id"] = self.uid
         if self.start_date or self.end_date:
-            query['timestamp'] = {}
+            query["timestamp"] = {}
         if self.start_date:
-            query['timestamp']['$gte'] = self.start_date
+            query["timestamp"]["$gte"] = self.start_date
         if self.end_date:
-            query['timestamp']['$lte'] = self.end_date
+            query["timestamp"]["$lte"] = self.end_date
         if self.subject:
-            query['context.subject.label'] = self.subject
+            query["context.subject.label"] = self.subject
         if self.project:
-            query['context.project.id'] = self.project
+            query["context.project.id"] = self.project
         if self.access_types:
-            query['access_type'] = {'$in': self.access_types}
+            query["access_type"] = {"$in": self.access_types}
 
-        return config.log_db.access_log.find(query).limit(self.limit).sort('timestamp', pymongo.DESCENDING).batch_size(1000)
+        return config.log_db.access_log.find(query).limit(self.limit).sort("timestamp", pymongo.DESCENDING).batch_size(1000)
 
     def format_row(self, row, out_format):
-        if out_format == 'csv' or out_format == 'tsv':
+        if out_format == "csv" or out_format == "tsv":
             # Format timestamp as ISO UTC
-            row['timestamp'] = pytz.timezone('UTC').localize(row['timestamp']).isoformat()
+            row["timestamp"] = pytz.timezone("UTC").localize(row["timestamp"]).isoformat()

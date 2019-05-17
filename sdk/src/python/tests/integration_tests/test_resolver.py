@@ -5,8 +5,10 @@ from test_gear import create_test_gear
 
 import flywheel
 
+
 def idz(s):
-    return '<id:{0}>'.format(s)
+    return "<id:{0}>".format(s)
+
 
 class ResolverTestCases(SdkTestCase):
     def setUp(self):
@@ -30,8 +32,8 @@ class ResolverTestCases(SdkTestCase):
         self.assertIsNotNone(gear)
 
         # Upload file acquisition
-        poem = 'The Second Coming! Hardly are those words out'
-        fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
+        poem = "The Second Coming! Hardly are those words out"
+        fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec("yeats.txt", poem))
 
         # Resolve group children
         result = fw.resolve([group_id])
@@ -45,7 +47,7 @@ class ResolverTestCases(SdkTestCase):
         self.assertEqual(r_project.id, self.project_id)
 
         # Resolve project children
-        result = fw.resolve('{0}/{1}'.format(group_id, r_project.label))
+        result = fw.resolve("{0}/{1}".format(group_id, r_project.label))
         self.assertEqual(len(result.path), 2)
         self.assertEqual(result.path[0], r_group)
         self.assertEqual(result.path[1], r_project)
@@ -56,7 +58,7 @@ class ResolverTestCases(SdkTestCase):
         self.assertEqual(r_subject.id, self.subject_id)
 
         # Resolve subject children (using id string)
-        result = fw.resolve('{0}/{1}/<id:{2}>'.format(group_id, r_project.label, self.subject_id))
+        result = fw.resolve("{0}/{1}/<id:{2}>".format(group_id, r_project.label, self.subject_id))
         self.assertEqual(len(result.path), 3)
         self.assertEqual(result.path[0], r_group)
         self.assertEqual(result.path[1], r_project)
@@ -69,8 +71,7 @@ class ResolverTestCases(SdkTestCase):
         self.assertEqual(r_session.id, self.session_id)
 
         # Resolve session children (using id string)
-        result = fw.resolve('{0}/{1}/<id:{2}>/<id:{3}>'.format(group_id, r_project.label, 
-            self.subject_id, self.session_id))
+        result = fw.resolve("{0}/{1}/<id:{2}>/<id:{3}>".format(group_id, r_project.label, self.subject_id, self.session_id))
         self.assertEqual(len(result.path), 4)
         self.assertEqual(result.path[0], r_group)
         self.assertEqual(result.path[1], r_project)
@@ -93,13 +94,13 @@ class ResolverTestCases(SdkTestCase):
 
         self.assertEqual(len(result.children), 1)
         r_file = result.children[0]
-        self.assertEqual(r_file.name, 'yeats.txt')
+        self.assertEqual(r_file.name, "yeats.txt")
         self.assertEqual(r_file.size, len(poem))
 
         # TODO: Test Analyses
 
         # Test resolve gears
-        result = fw.resolve('gears')
+        result = fw.resolve("gears")
         self.assertEmpty(result.path)
         self.assertGreaterEqual(len(result.children), 1)
         found = False
@@ -130,52 +131,48 @@ class ResolverTestCases(SdkTestCase):
         self.assertIsNotNone(gear)
 
         # Upload file acquisition
-        poem = 'The Second Coming! Hardly are those words out'
-        fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
+        poem = "The Second Coming! Hardly are those words out"
+        fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec("yeats.txt", poem))
 
-        # Resolve group 
+        # Resolve group
         r_group = fw.lookup([group_id])
         self.assertEqual(r_group.id, group_id)
         self.assertIsNotNone(r_group.label)
         self.assertNotEmpty(r_group.permissions)
 
-        # Resolve project 
-        r_project = fw.lookup('{0}/{1}'.format(group_id, project.label))
+        # Resolve project
+        r_project = fw.lookup("{0}/{1}".format(group_id, project.label))
         self.assertEqual(r_project.id, self.project_id)
 
-        # Resolve subject 
-        r_subject = fw.lookup('{0}/{1}/<id:{2}>'.format(group_id, project.label, 
-            self.subject_id))
+        # Resolve subject
+        r_subject = fw.lookup("{0}/{1}/<id:{2}>".format(group_id, project.label, self.subject_id))
         self.assertEqual(r_subject.id, self.subject_id)
 
         # Resolve session
-        r_session = fw.lookup('{0}/{1}/<id:{2}>/<id:{3}>'.format(group_id, project.label, 
-            self.subject_id, self.session_id))
+        r_session = fw.lookup("{0}/{1}/<id:{2}>/<id:{3}>".format(group_id, project.label, self.subject_id, self.session_id))
         self.assertEqual(r_session.id, self.session_id)
 
-        # Resolve acquisition 
+        # Resolve acquisition
         r_acquisition = fw.lookup([group_id, project.label, subject.label, session.label, acquisition.label])
         self.assertEqual(r_acquisition.id, self.acquisition_id)
 
         # Resolve acquisition file
-        r_file = fw.lookup([group_id, project.label, subject.label, session.label, 
-            acquisition.label, 'files', 'yeats.txt'])
-        self.assertEqual(r_file.name, 'yeats.txt')
+        r_file = fw.lookup([group_id, project.label, subject.label, session.label, acquisition.label, "files", "yeats.txt"])
+        self.assertEqual(r_file.name, "yeats.txt")
         self.assertEqual(r_file.size, len(poem))
 
         # Test not found
         try:
-            fw.lookup('NOT-A-GROUP/NOT-A-PROJECT')
-            self.fail('Expected ApiException!')
+            fw.lookup("NOT-A-GROUP/NOT-A-PROJECT")
+            self.fail("Expected ApiException!")
         except flywheel.ApiException as e:
             self.assertEqual(e.status, 404)
 
         # TODO: Test Analyses
 
         # Test resolve gears
-        r_gear = fw.lookup(['gears', gear.gear.name])
+        r_gear = fw.lookup(["gears", gear.gear.name])
         self.assertEqual(r_gear.gear, gear.gear)
-
 
     def test_resolver_permissions(self):
         fw = self.fw
@@ -209,7 +206,7 @@ class ResolverTestCases(SdkTestCase):
         self.assertEqual(r_project.id, self.project_id)
 
         # Resolve project children
-        result = fw.resolve('{0}/{1}'.format(group_id, r_project.label), exhaustive=True)
+        result = fw.resolve("{0}/{1}".format(group_id, r_project.label), exhaustive=True)
         self.assertEqual(len(result.path), 2)
 
         self.assertEqual(result.path[0].to_dict(), r_group.to_dict())
@@ -219,5 +216,3 @@ class ResolverTestCases(SdkTestCase):
         r_subject = result.children[0]
         self.assertEqual(r_subject.project, self.project_id)
         self.assertEqual(r_subject.id, self.subject_id)
-
-

@@ -10,9 +10,8 @@ from api import config
 
 from process_cursor import process_cursor
 
-AVAILABLE_FIXES = {
-    62: [ 'fix_subject_age_62' ]
-}
+AVAILABLE_FIXES = {62: ["fix_subject_age_62"]}
+
 
 def get_available_fixes(db_version, applied_fixes):
     """Get a list of fixes that should be applied for the given db version.
@@ -33,6 +32,7 @@ def get_available_fixes(db_version, applied_fixes):
 
     return result
 
+
 def has_unappliable_fixes(db_version, applied_fixes):
     """Given the current db version, check if there are fixes that cannot be applied.
 
@@ -50,11 +50,10 @@ def has_unappliable_fixes(db_version, applied_fixes):
         available_fixes = AVAILABLE_FIXES.get(i, [])
         for fix_id in available_fixes:
             if fix_id not in applied_fixes:
-                config.log.error('The fix %s has never been applied and is ' + \
-                        'incompatible with the current schema version: %s',
-                        fix_id, str(db_version))
+                config.log.error("The fix %s has never been applied and is " + "incompatible with the current schema version: %s", fix_id, str(db_version))
                 found = True
     return found
+
 
 def apply_available_fixes(db_version, applied_fixes, update_doc):
     """
@@ -71,10 +70,11 @@ def apply_available_fixes(db_version, applied_fixes, update_doc):
 
     for fix_id in available_fixes:
         fix_fn = get_fix_function(fix_id)
-        config.log.info('Applying fix: {} ...'.format(fix_id))
+        config.log.info("Applying fix: {} ...".format(fix_id))
         fix_fn()
-        config.log.info('Fix {} complete'.format(fix_id))
-        update_doc['applied_fixes.{}'.format(fix_id)] = datetime.datetime.now()
+        config.log.info("Fix {} complete".format(fix_id))
+        update_doc["applied_fixes.{}".format(fix_id)] = datetime.datetime.now()
+
 
 def get_fix_function(fix_id):
     """Get a fix function by id.
@@ -90,8 +90,9 @@ def get_fix_function(fix_id):
     """
     result = globals().get(fix_id, None)
     if not result:
-        raise ValueError('Unknown fix method: {}'.format(fix_id))
+        raise ValueError("Unknown fix method: {}".format(fix_id))
     return result
+
 
 def parse_patient_age(age, session_id=None, info_name=None):
     """
@@ -100,26 +101,21 @@ def parse_patient_age(age, session_id=None, info_name=None):
     convert from 70d, 10w, 2m, 1y to datetime.timedelta object.
     Returns age as duration in seconds.
     """
-    if age == 'None' or not age:
+    if age == "None" or not age:
         return None
 
-    conversion = {  # conversion to days
-        'Y': 365,
-        'M': 30,
-        'W': 7,
-        'D': 1,
-    }
+    conversion = {"Y": 365, "M": 30, "W": 7, "D": 1}  # conversion to days
     scale = age[-1:]
     value = age[:-1]
     if scale not in conversion.keys():
         # Assume years
-        scale = 'Y'
+        scale = "Y"
         value = age
 
     try:
         age_in_seconds = datetime.timedelta(int(value) * conversion.get(scale)).total_seconds()
     except ValueError:
-        config.log.warning('Parsed age was not an integer for session {} info container {}'.format(session_id, info_name))
+        config.log.warning("Parsed age was not an integer for session {} info container {}".format(session_id, info_name))
         age_in_seconds = None
 
     # Make sure that the age is reasonable
@@ -128,15 +124,16 @@ def parse_patient_age(age, session_id=None, info_name=None):
 
     return age_in_seconds
 
+
 def set_session_age_from_file_info(session, subject_age):
     session_age = None
-    acquisition = config.db.acquisitions.find_one({'session': session['_id'], 'metadata.PatientAge': {'$exists': True}})
+    acquisition = config.db.acquisitions.find_one({"session": session["_id"], "metadata.PatientAge": {"$exists": True}})
     if acquisition:
-        session_age = parse_patient_age(acquisition['metadata']['PatientAge'], session_id=session['_id'], info_name=acquisition.get('label'))
+        session_age = parse_patient_age(acquisition["metadata"]["PatientAge"], session_id=session["_id"], info_name=acquisition.get("label"))
     else:
         # Get all the files in each acquisition
-        config.log.info('Session {} has no acquisition with PatientAge in its metadata, checking individual files'.format(session['_id']))
-        list_of_file_lists = list(map((lambda a: a.get('files', [])), list(config.db.acquisitions.find({'session': session['_id']},{'files': {'$elemMatch': {'info.PatientAge': {'$exists': True}}}}))))
+        config.log.info("Session {} has no acquisition with PatientAge in its metadata, checking individual files".format(session["_id"]))
+        list_of_file_lists = list(map((lambda a: a.get("files", [])), list(config.db.acquisitions.find({"session": session["_id"]}, {"files": {"$elemMatch": {"info.PatientAge": {"$exists": True}}}}))))
         if list_of_file_lists:
             # Reduce require a nonempty list
             # Reduce the list of lists to a single list and filter out non-dicoms
@@ -145,26 +142,28 @@ def set_session_age_from_file_info(session, subject_age):
             files = []
 
         if files:
-            session_age = parse_patient_age(files[0]['info']['PatientAge'], session_id=session['_id'], info_name=files[0].get('name'))
+            session_age = parse_patient_age(files[0]["info"]["PatientAge"], session_id=session["_id"], info_name=files[0].get("name"))
         else:
-            config.log.info('Session {} has no files to derive age from'.format(session['_id']))
+            config.log.info("Session {} has no files to derive age from".format(session["_id"]))
 
     if session_age is not None:
-        config.db.sessions.update({'_id': session['_id']}, {'$set': {'age': session_age}})
+        config.db.sessions.update({"_id": session["_id"]}, {"$set": {"age": session_age}})
     return True
+
 
 def move_subject_age_to_session(subject):
-    if config.db.sessions.find({'subject': subject['_id']}).count() == 1:
+    if config.db.sessions.find({"subject": subject["_id"]}).count() == 1:
         # If the subject only has one session use the subject age
-        config.db.sessions.update({'subject': subject['_id']}, {'$set': {'age': subject['age']}})
+        config.db.sessions.update({"subject": subject["_id"]}, {"$set": {"age": subject["age"]}})
     else:
         # Otherwise we need to find a classifier job for each session
-        sessions_without_age = config.db.sessions.find({'subject': subject['_id'], 'age': {'$exists': False}})
-        process_cursor(sessions_without_age, set_session_age_from_file_info, subject['age'])
+        sessions_without_age = config.db.sessions.find({"subject": subject["_id"], "age": {"$exists": False}})
+        process_cursor(sessions_without_age, set_session_age_from_file_info, subject["age"])
 
     # Unset the subject age
-    config.db.subjects.update({'_id': subject['_id']}, {'$unset': {'age': ''}})
+    config.db.subjects.update({"_id": subject["_id"]}, {"$unset": {"age": ""}})
     return True
+
 
 def fix_subject_age_62():
     """
@@ -176,4 +175,3 @@ def fix_subject_age_62():
     """
     subjects_with_age = config.db.subjects.find({"age": {"$exists": True}})
     process_cursor(subjects_with_age, move_subject_age_to_session)
-

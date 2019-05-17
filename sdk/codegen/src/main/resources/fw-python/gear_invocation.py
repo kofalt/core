@@ -1,8 +1,10 @@
 """Provides gear invocation support"""
 from .. import util
 
+
 class GearInvocation(object):
     """Represents the details necessary to execute a gear as a job"""
+
     def __init__(self, gear):
         self.gear = gear
 
@@ -21,13 +23,13 @@ class GearInvocation(object):
 
     def update_config(self, *args, **kwargs):
         """Update configuration values"""
-        body = util.params_to_dict('update_config', args, kwargs)
+        body = util.params_to_dict("update_config", args, kwargs)
         self.config.update(body)
 
     def set_analysis_label(self, label):
         """Set the analysis label, if executing an analysis gear"""
         if not self.gear.is_analysis_gear():
-            raise ValueError('{} is not an analysis gear!'.format(self.gear.gear.name))
+            raise ValueError("{} is not an analysis gear!".format(self.gear.gear.name))
         self.analysis_label = label
 
     def add_tag(self, tag):
@@ -55,13 +57,8 @@ class GearInvocation(object):
         Returns the job id, or the analysis id in the case of an analysis gear.
         """
         from flywheel.models import Job
-        job = Job(
-            gear_id = self.gear.id,
-            inputs = self.inputs,
-            destination = self.destination,
-            config = self.config,
-            tags = self.tags
-        )
+
+        job = Job(gear_id=self.gear.id, inputs=self.inputs, destination=self.destination, config=self.config, tags=self.tags)
 
         if self.gear.is_analysis_gear():
             # Create a new analysis object using label and job object
@@ -70,7 +67,7 @@ class GearInvocation(object):
         # Otherwise, just create the job
         return self.__context.add_job(job)
 
-    def propose_batch(self, containers, optional_input_policy='ignored'):
+    def propose_batch(self, containers, optional_input_policy="ignored"):
         """Create a batch run proposal for the given containers
 
         :param list containers: The list of containers to run the job on
@@ -86,22 +83,16 @@ class GearInvocation(object):
         else:
             analysis = None
 
-        proposal = BatchProposalInput(
-            gear_id = self.gear.id,
-            config = self.config,
-            tags = self.tags,
-            optional_input_policy = optional_input_policy,
-            analysis=analysis,
-            targets=targets
-        )
+        proposal = BatchProposalInput(gear_id=self.gear.id, config=self.config, tags=self.tags, optional_input_policy=optional_input_policy, analysis=analysis, targets=targets)
 
         return self.__context.propose_batch(proposal)
 
     def _make_default_label(self):
         """Create a default label for an analysis run"""
         from datetime import datetime
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        return '{} {}'.format(self.gear.gear.name, timestamp)
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return "{} {}".format(self.gear.gear.name, timestamp)
 
     def _add_analysis(self, job):
         """Add an analysis to the destination container"""
@@ -111,15 +102,15 @@ class GearInvocation(object):
         analysis_label = self.analysis_label or self._make_default_label()
 
         # Get destination type (from ref)
-        dest_id = self.destination and self.destination.get('id')
-        dest_type = self.destination and self.destination.get('type')
+        dest_id = self.destination and self.destination.get("id")
+        dest_type = self.destination and self.destination.get("type")
         if not dest_id or not dest_type:
-            raise ValueError('Must specify a valid destination to create an analysis!')
+            raise ValueError("Must specify a valid destination to create an analysis!")
 
-        fname = 'add_{}_analysis'.format(dest_type)
+        fname = "add_{}_analysis".format(dest_type)
         fn = getattr(self.__context, fname, None)
         if not fn:
-            raise ValueError('{} is not a function!'.format(fname))
+            raise ValueError("{} is not a function!".format(fname))
 
         # Ensure destination is unset
         job.destination = None

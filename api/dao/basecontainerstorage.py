@@ -16,27 +16,13 @@ log = config.log
 
 # All "containers" are required to return these fields
 # 'All' includes users
-BASE_DEFAULTS = {
-    '_id':      None,
-    'created':  None,
-    'modified': None
-}
+BASE_DEFAULTS = {"_id": None, "created": None, "modified": None}
 
 # All containers that inherit from 'container' in the DM
 CONTAINER_DEFAULTS = BASE_DEFAULTS.copy()
-CONTAINER_DEFAULTS.update({
-    'permissions':  [],
-    'files':        [],
-    'notes':        [],
-    'tags':         [],
-    'info':         {}
-})
+CONTAINER_DEFAULTS.update({"permissions": [], "files": [], "notes": [], "tags": [], "info": {}})
 
-JOIN_ORIGIN_FIELDS = {
-    'job': ('created', 'modified', 'gear_info', ),
-    'device': ('name', ),
-    'user': ('firstname', 'lastname', ),
-}
+JOIN_ORIGIN_FIELDS = {"job": ("created", "modified", "gear_info"), "device": ("name",), "user": ("firstname", "lastname")}
 
 
 class ContainerStorage(object):
@@ -60,7 +46,7 @@ class ContainerStorage(object):
         Factory method to aid in the creation of a ContainerStorage instance
         when cont_name is dynamic.
         """
-        cont_storage_name = containerutil.singularize(cont_name).capitalize() + 'Storage'
+        cont_storage_name = containerutil.singularize(cont_name).capitalize() + "Storage"
         for subclass in cls.__subclasses__():
             if subclass.__name__ == cont_storage_name:
                 return subclass()
@@ -68,21 +54,12 @@ class ContainerStorage(object):
 
     @classmethod
     def get_top_down_hierarchy(cls, cont_name, cid, include_subjects=False):
-        parent_to_child = {
-            'groups': 'projects',
-            'projects': 'sessions',
-            'sessions': 'acquisitions'
-        }
+        parent_to_child = {"groups": "projects", "projects": "sessions", "sessions": "acquisitions"}
 
         if include_subjects:
-            parent_to_child.update({
-                'projects': 'subjects',
-                'subjects': 'sessions',
-            })
+            parent_to_child.update({"projects": "subjects", "subjects": "sessions"})
 
-        parent_tree = {
-            cont_name: [cid]
-        }
+        parent_tree = {cont_name: [cid]}
         parent_name = cont_name
         while parent_to_child.get(parent_name):
             # Parent storage
@@ -92,7 +69,7 @@ class ContainerStorage(object):
 
             # For each parent id, find all of its children and add them to the list of child ids in the parent tree
             for parent_id in parent_tree[parent_name]:
-                children = [cont['_id'] for cont in storage.get_children(parent_id, projection={'_id':1}, include_subjects=include_subjects)]
+                children = [cont["_id"] for cont in storage.get_children(parent_id, projection={"_id": 1}, include_subjects=include_subjects)]
                 parent_tree[child_name].extend(children)
 
             parent_name = child_name
@@ -100,10 +77,10 @@ class ContainerStorage(object):
 
     @classmethod
     def filter_container_files(cls, cont):
-        if cont is not None and cont.get('files', []):
-            cont['files'] = [f for f in cont['files'] if 'deleted' not in f]
-            for f in cont['files']:
-                f.pop('measurements', None)
+        if cont is not None and cont.get("files", []):
+            cont["files"] = [f for f in cont["files"] if "deleted" not in f]
+            for f in cont["files"]:
+                f.pop("measurements", None)
 
     def format_id(self, _id):
         if self.use_object_id:
@@ -113,20 +90,18 @@ class ContainerStorage(object):
                 raise APIStorageException(e.message)
         return _id
 
-
     def _fill_default_values(self, cont):
         if cont:
             defaults = BASE_DEFAULTS.copy()
-            if self.cont_name not in ['groups', 'users']:
+            if self.cont_name not in ["groups", "users"]:
                 defaults = CONTAINER_DEFAULTS.copy()
-            for k,v in defaults.iteritems():
+            for k, v in defaults.iteritems():
                 cont.setdefault(k, v)
-
 
     def get_container(self, _id, projection=None, get_children=False):
         cont = self.get_el(_id, projection=projection)
         if cont is None:
-            raise APINotFoundException('Could not find {} {}'.format(self.cont_name, _id))
+            raise APINotFoundException("Could not find {} {}".format(self.cont_name, _id))
         if get_children:
             children = self.get_children(_id, projection=projection)
             cont[containerutil.pluralize(self.child_cont_name)] = children
@@ -134,23 +109,22 @@ class ContainerStorage(object):
 
     def get_children(self, _id, query=None, projection=None, uid=None, include_subjects=True):
         child_name = self.child_cont_name
-        if self.cont_name == 'projects' and not include_subjects:
-            child_name = 'session'
+        if self.cont_name == "projects" and not include_subjects:
+            child_name = "session"
         if not child_name:
-            raise APIStorageException('Children cannot be listed from the {0} level'.format(self.cont_name))
+            raise APIStorageException("Children cannot be listed from the {0} level".format(self.cont_name))
         if not query:
             query = {}
 
         query[containerutil.singularize(self.cont_name)] = self.format_id(_id)
 
         if uid:
-            query['permissions'] = {'$elemMatch': {'_id': uid}}
+            query["permissions"] = {"$elemMatch": {"_id": uid}}
         if not projection:
-            projection = {'info': 0, 'files.info': 0, 'subject': 0, 'tags': 0}
+            projection = {"info": 0, "files.info": 0, "subject": 0, "tags": 0}
 
         results = ContainerStorage.factory(child_name).get_all_el(query, None, projection)
         return results
-
 
     def get_parent_tree(self, _id, cont=None, projection=None, add_self=False):
         parents = []
@@ -162,21 +136,21 @@ class ContainerStorage(object):
 
         if add_self:
             # Add the referenced container to the list
-            cont['cont_type'] = self.cont_name
+            cont["cont_type"] = self.cont_name
             parents.append(cont)
 
         # Walk up the hierarchy until we cannot go any further
         while True:
 
             try:
-                parent = curr_storage.get_parent(cont['_id'], cont=cont, projection=projection)
+                parent = curr_storage.get_parent(cont["_id"], cont=cont, projection=projection)
 
             except (APINotFoundException, APIStorageException):
                 # We got as far as we could, either we reached the top of the hierarchy or we hit a dead end with a missing parent
                 break
 
             curr_storage = ContainerStorage.factory(curr_storage.parent_cont_name)
-            parent['cont_type'] = curr_storage.cont_name
+            parent["cont_type"] = curr_storage.cont_name
             parents.append(parent)
 
             if curr_storage.parent_cont_name:
@@ -197,17 +171,17 @@ class ContainerStorage(object):
             'group':    <group>
         }
         """
-        if self.parent_cont_name or self.cont_name == 'analyses':
+        if self.parent_cont_name or self.cont_name == "analyses":
             parent, p_type = self.get_container_parent(cont=cont)
-            parents = parent.get('parents', {})
-            parents[p_type] = parent['_id']
+            parents = parent.get("parents", {})
+            parents[p_type] = parent["_id"]
             return parents
         return {}
 
     def get_container_parent(self, cont):
-        if self.cont_name == 'analyses':
-            p_type = cont['parent']['type']
-            p_id = cont['parent']['id']
+        if self.cont_name == "analyses":
+            p_type = cont["parent"]["type"]
+            p_id = cont["parent"]["id"]
         else:
             p_type = self.parent_cont_name
             p_id = cont[p_type]
@@ -222,22 +196,21 @@ class ContainerStorage(object):
         if self.parent_cont_name:
             parent_storage = ContainerStorage.factory(self.parent_cont_name)
             parent_id = cont[self.parent_cont_name]
-            if self.cont_name == 'sessions' and type(cont[self.parent_cont_name]) is dict:
+            if self.cont_name == "sessions" and type(cont[self.parent_cont_name]) is dict:
                 # Also handle sessions with joined subjects
-                parent_id = cont[self.parent_cont_name]['_id']
+                parent_id = cont[self.parent_cont_name]["_id"]
             parent = parent_storage.get_container(parent_id, projection=projection)
             return parent
 
         else:
-            raise APIStorageException('The container level {} has no parent.'.format(self.cont_name))
+            raise APIStorageException("The container level {} has no parent.".format(self.cont_name))
 
     def get_parent_id(self, _id, parent_type):
         cont = self.get_container(_id)
         if self.cont_name == containerutil.pluralize(parent_type):
-            return cont['_id']
-        if cont.get('parents') and cont['parents'].get(parent_type):
-            return cont['parents'][parent_type]
-
+            return cont["_id"]
+        if cont.get("parents") and cont["parents"].get(parent_type):
+            return cont["parents"][parent_type]
 
     def _from_mongo(self, cont):
         pass
@@ -246,37 +219,35 @@ class ContainerStorage(object):
         pass
 
     # pylint: disable=unused-argument
-    def exec_op(self, action, _id=None, payload=None, query=None, user=None,
-                public=False, projection=None, recursive=False, r_payload=None,
-                replace_metadata=False, unset_payload=None, pagination=None):
+    def exec_op(self, action, _id=None, payload=None, query=None, user=None, public=False, projection=None, recursive=False, r_payload=None, replace_metadata=False, unset_payload=None, pagination=None):
         """
         Generic method to exec a CRUD operation from a REST verb.
         """
 
         check = consistencychecker.get_container_storage_checker(action, self.cont_name)
-        data_op = payload or {'_id': _id}
+        data_op = payload or {"_id": _id}
         check(data_op)
-        if action == 'GET' and _id:
+        if action == "GET" and _id:
             return self.get_el(_id, projection=projection, fill_defaults=True)
-        if action == 'GET':
+        if action == "GET":
             return self.get_all_el(query, user, projection, fill_defaults=True, pagination=pagination)
-        if action == 'DELETE':
+        if action == "DELETE":
             return self.delete_el(_id)
-        if action == 'PUT':
+        if action == "PUT":
             return self.update_el(_id, payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata)
-        if action == 'POST':
+        if action == "POST":
             return self.create_el(payload)
-        raise ValueError('action should be one of GET, POST, PUT, DELETE')
+        raise ValueError("action should be one of GET, POST, PUT, DELETE")
 
     def create_el(self, payload):
         self._to_mongo(payload)
-        if self.parent_cont_name or self.cont_name == 'analyses':
+        if self.parent_cont_name or self.cont_name == "analyses":
             parents = self.get_parents(payload)
-            payload['parents'] = parents
+            payload["parents"] = parents
         try:
             result = self.dbc.insert_one(payload)
         except pymongo.errors.DuplicateKeyError:
-            raise APIConflictException('Object with id {} already exists.'.format(payload['_id']))
+            raise APIConflictException("Object with id {} already exists.".format(payload["_id"]))
         return result
 
     def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
@@ -284,25 +255,25 @@ class ContainerStorage(object):
         include_refs = False
         if replace_metadata:
             replace = {}
-            if payload.get('info') is not None:
-                replace['info'] = util.mongo_sanitize_fields(payload.pop('info'))
+            if payload.get("info") is not None:
+                replace["info"] = util.mongo_sanitize_fields(payload.pop("info"))
 
         update = {}
 
         if payload is not None:
             self._to_mongo(payload)
-            update['$set'] = util.mongo_dict(payload)
+            update["$set"] = util.mongo_dict(payload)
 
         if unset_payload is not None:
-            update['$unset'] = util.mongo_dict(unset_payload)
+            update["$unset"] = util.mongo_dict(unset_payload)
 
         if replace is not None:
-            update['$set'].update(replace)
+            update["$set"].update(replace)
 
         _id = self.format_id(_id)
 
-        if self.cont_name == 'analyses':
-            parent_name = self.get_container(_id)['parent']['type']
+        if self.cont_name == "analyses":
+            parent_name = self.get_container(_id)["parent"]["type"]
         else:
             parent_name = self.parent_cont_name
         if parent_name and payload and parent_name in payload:
@@ -312,31 +283,30 @@ class ContainerStorage(object):
                 r_payload = {}
             new_parents = self.get_parents(payload)
             for p_type, p_id in new_parents.iteritems():
-                update['$set']['parents.{}'.format(p_type)] = p_id
-                if not r_payload.get('parents'):
-                    r_payload['parents'] = {p_type: p_id}
+                update["$set"]["parents.{}".format(p_type)] = p_id
+                if not r_payload.get("parents"):
+                    r_payload["parents"] = {p_type: p_id}
                 else:
-                    r_payload['parents'][p_type] = p_id
+                    r_payload["parents"][p_type] = p_id
 
         if recursive and r_payload:
-            containerutil.propagate_changes(self.cont_name, _id, {}, {'$set': util.mongo_dict(r_payload)}, include_refs=include_refs)
+            containerutil.propagate_changes(self.cont_name, _id, {}, {"$set": util.mongo_dict(r_payload)}, include_refs=include_refs)
 
-        return self.dbc.update_one({'_id': _id}, update)
+        return self.dbc.update_one({"_id": _id}, update)
 
     def replace_el(self, _id, payload):
-        payload['_id'] = self.format_id(_id)
-        if self.parent_cont_name or self.cont_name == 'analyses':
+        payload["_id"] = self.format_id(_id)
+        if self.parent_cont_name or self.cont_name == "analyses":
             parents = self.get_parents(payload)
-            payload['parents'] = parents
-        return self.dbc.replace_one({'_id': _id}, payload)
-
+            payload["parents"] = parents
+        return self.dbc.replace_one({"_id": _id}, payload)
 
     def delete_el(self, _id):
         _id = self.format_id(_id)
         self.cleanup_ancillary_data(_id)
         if self.use_delete_tag:
-            return self.dbc.update_one({'_id': _id}, {'$set': {'deleted': datetime.datetime.utcnow()}})
-        return self.dbc.delete_one({'_id':_id})
+            return self.dbc.update_one({"_id": _id}, {"$set": {"deleted": datetime.datetime.utcnow()}})
+        return self.dbc.delete_one({"_id": _id})
 
     def cleanup_ancillary_data(self, _id):
         """Optional cleanup of other data that may be associated with this container"""
@@ -344,8 +314,8 @@ class ContainerStorage(object):
 
     def get_el(self, _id, projection=None, fill_defaults=False):
         _id = self.format_id(_id)
-        cont = self.dbc.find_one({'_id': _id, 'deleted': {'$exists': False}}, projection)
-        if self.cont_name == 'sessions':
+        cont = self.dbc.find_one({"_id": _id, "deleted": {"$exists": False}}, projection)
+        if self.cont_name == "sessions":
             ContainerStorage.join_subjects(cont)
         self._from_mongo(cont)
         if fill_defaults:
@@ -369,21 +339,21 @@ class ContainerStorage(object):
         if query is None:
             query = {}
         if user:
-            if query.get('permissions'):
-                query['$and'] = [{'permissions': {'$elemMatch': user}}, {'permissions': query.pop('permissions')}]
+            if query.get("permissions"):
+                query["$and"] = [{"permissions": {"$elemMatch": user}}, {"permissions": query.pop("permissions")}]
             else:
-                query['permissions'] = {'$elemMatch': user}
-        query['deleted'] = {'$exists': False}
+                query["permissions"] = {"$elemMatch": user}
+        query["deleted"] = {"$exists": False}
 
         # Allow opting-out of joining subjects
-        join_subjects = kwargs.pop('join_subjects', True)
+        join_subjects = kwargs.pop("join_subjects", True)
 
         # if projection includes info/files.info, add new key `info_exists` and allow only reserved info keys through
-        if projection and ('info' in projection or 'files.info' in projection):
+        if projection and ("info" in projection or "files.info" in projection):
             projection = copy.deepcopy(projection)
             replace_info_with_bool = True
-            projection.pop('info', None)
-            projection.pop('files.info', None)
+            projection.pop("info", None)
+            projection.pop("files.info", None)
 
             # Replace with None if empty (empty projections only return ids)
             if not projection:
@@ -391,12 +361,12 @@ class ContainerStorage(object):
         else:
             replace_info_with_bool = False
 
-        kwargs['filter'] = query
-        kwargs['projection'] = projection
+        kwargs["filter"] = query
+        kwargs["projection"] = projection
         page = dbutil.paginate_find(self.dbc, kwargs, pagination)
-        results = page['results']
+        results = page["results"]
 
-        if self.cont_name == 'sessions' and join_subjects:
+        if self.cont_name == "sessions" and join_subjects:
             ContainerStorage.join_subjects(results)
 
         for cont in results:
@@ -406,50 +376,46 @@ class ContainerStorage(object):
                 self._fill_default_values(cont)
 
             if replace_info_with_bool:
-                info = cont.pop('info', {})
-                cont['info_exists'] = bool(info)
-                cont['info'] = containerutil.sanitize_info(info)
+                info = cont.pop("info", {})
+                cont["info_exists"] = bool(info)
+                cont["info"] = containerutil.sanitize_info(info)
 
-                for f in cont.get('files', []):
-                    f_info = f.pop('info', {})
-                    f['info_exists'] = bool(f_info)
-                    f['info'] = containerutil.sanitize_info(f_info)
+                for f in cont.get("files", []):
+                    f_info = f.pop("info", {})
+                    f["info_exists"] = bool(f_info)
+                    f["info"] = containerutil.sanitize_info(f_info)
 
         return results if pagination is None else page
 
     def modify_info(self, _id, payload):
         update = {}
-        set_payload = payload.get('set')
-        delete_payload = payload.get('delete')
-        replace_payload = payload.get('replace')
+        set_payload = payload.get("set")
+        delete_payload = payload.get("delete")
+        replace_payload = payload.get("replace")
 
         if (set_payload or delete_payload) and replace_payload is not None:
-            raise APIStorageException('Cannot set or delete AND replace info fields.')
+            raise APIStorageException("Cannot set or delete AND replace info fields.")
 
         if replace_payload is not None:
-            update = {
-                '$set': {
-                    'info': util.mongo_sanitize_fields(replace_payload)
-                }
-            }
+            update = {"$set": {"info": util.mongo_sanitize_fields(replace_payload)}}
 
         else:
             if set_payload:
-                update['$set'] = {}
+                update["$set"] = {}
                 for k, v in set_payload.items():
-                    update['$set']['info.' + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
+                    update["$set"]["info." + util.mongo_sanitize_fields(str(k))] = util.mongo_sanitize_fields(v)
             if delete_payload:
-                update['$unset'] = {}
+                update["$unset"] = {}
                 for k in delete_payload:
-                    update['$unset']['info.' + util.mongo_sanitize_fields(str(k))] = ''
+                    update["$unset"]["info." + util.mongo_sanitize_fields(str(k))] = ""
 
         _id = self.format_id(_id)
-        query = {'_id': _id}
+        query = {"_id": _id}
 
-        if not update.get('$set'):
-            update['$set'] = {'modified': datetime.datetime.utcnow()}
+        if not update.get("$set"):
+            update["$set"] = {"modified": datetime.datetime.utcnow()}
         else:
-            update['$set']['modified'] = datetime.datetime.utcnow()
+            update["$set"]["modified"] = datetime.datetime.utcnow()
 
         return self.dbc.update_one(query, update)
 
@@ -461,22 +427,22 @@ class ContainerStorage(object):
 
         # Get list of all users, hash by uid
         # TODO: This is not an efficient solution if there are hundreds of inactive users
-        users_list = ContainerStorage.factory('users').get_all_el({}, None, None)
-        users = {user['_id']: user for user in users_list}
+        users_list = ContainerStorage.factory("users").get_all_el({}, None, None)
+        users = {user["_id"]: user for user in users_list}
 
         for container in containers:
-            permissions = container.get('permissions', [])
-            notes = container.get('notes', [])
+            permissions = container.get("permissions", [])
+            notes = container.get("notes", [])
 
             for item in permissions + notes:
-                uid = item.get('user', item['_id'])
+                uid = item.get("user", item["_id"])
                 user = users[uid]
-                item['avatar'] = user.get('avatar')
-                item['firstname'] = user.get('firstname', '')
-                item['lastname'] = user.get('lastname', '')
+                item["avatar"] = user.get("avatar")
+                item["firstname"] = user.get("firstname", "")
+                item["lastname"] = user.get("lastname", "")
 
     @staticmethod
-    def join_origins(containers, files_key='files', set_gear_name=False, all_fields=False):
+    def join_origins(containers, files_key="files", set_gear_name=False, all_fields=False):
         """Given a list of containers, coalesce and merge origins for all of its files.
 
         Args:
@@ -486,28 +452,20 @@ class ContainerStorage(object):
             all_fields (bool): Legacy behavior, return all fields on origin doc
         """
         # Global set of ids to fetch
-        fetch_ids = {
-            'user': set(),
-            'device': set(),
-            'job': set()
-        }
+        fetch_ids = {"user": set(), "device": set(), "job": set()}
 
-        fetch_results = {
-            'user': {},
-            'device': {},
-            'job': {}
-        }
+        fetch_results = {"user": {}, "device": {}, "job": {}}
 
         # Preflight, organize fetches
         for container in containers:
             for f in container.get(files_key, []):
-                origin = f.get('origin')
+                origin = f.get("origin")
                 if origin is None:
                     # Backfill origin maps if none provided from DB
-                    f['origin'] = {'type': str(Origin.unknown), 'id': None}
+                    f["origin"] = {"type": str(Origin.unknown), "id": None}
                 else:
-                    origin_type = f['origin']['type']
-                    origin_id = str(f['origin']['id'])
+                    origin_type = f["origin"]["type"]
+                    origin_id = str(f["origin"]["id"])
 
                     if origin_type in fetch_ids:
                         if bson.ObjectId.is_valid(origin_id):
@@ -521,42 +479,37 @@ class ContainerStorage(object):
                 continue
 
             if all_fields:
-                projection=None
+                projection = None
             else:
                 projection = JOIN_ORIGIN_FIELDS[container_type]
 
             collection_name = containerutil.pluralize(container_type)
 
-            query = {'_id': {'$in': list(ids)}}
+            query = {"_id": {"$in": list(ids)}}
             results_map = fetch_results[container_type]
 
             for join_doc in config.db[collection_name].find(query, projection):
-                if set_gear_name and container_type == 'job':
+                if set_gear_name and container_type == "job":
                     # Alias job.gear_info.name as job.gear_name until UI starts using gear_info.name directly
-                    join_doc['gear_name'] = join_doc.get('gear_info', {}).get('name')
-                results_map[str(join_doc['_id'])] = join_doc
+                    join_doc["gear_name"] = join_doc.get("gear_info", {}).get("name")
+                results_map[str(join_doc["_id"])] = join_doc
 
         # Finally walk through all containers, joining with the fetched results
         for container in containers:
-            container['join-origin'] = {
-                Origin.user.name:   {},
-                Origin.device.name: {},
-                Origin.job.name:    {}
-            }
+            container["join-origin"] = {Origin.user.name: {}, Origin.device.name: {}, Origin.job.name: {}}
 
             for f in container.get(files_key, []):
-                origin_type = f['origin']['type']
-                origin_id = str(f['origin']['id'])
+                origin_type = f["origin"]["type"]
+                origin_id = str(f["origin"]["id"])
 
                 if origin_type in fetch_results:
                     join_doc = fetch_results[origin_type].get(origin_id)
-                    container['join-origin'][origin_type][origin_id] = join_doc
-
+                    container["join-origin"][origin_type][origin_id] = join_doc
 
     @staticmethod
     def join_subjects(sessions):
         """Given an instance or a list of sessions, join their subjects."""
-        storage = ContainerStorage.factory('subjects')
+        storage = ContainerStorage.factory("subjects")
 
         # If `sessions` is a list, use list projection
         if type(sessions) is list:
@@ -566,16 +519,15 @@ class ContainerStorage(object):
             projection = None
 
         # Skip the join when sessions[0] is None or it has no subject (eg. filtered via projection)
-        if sessions and sessions[0] is not None and 'subject' in sessions[0]:
-            query = {'_id': {'$in': list(set(sess['subject'] for sess in sessions))}}
-            subjects = {subj['_id']: subj for subj in storage.get_all_el(query, None, projection)}
+        if sessions and sessions[0] is not None and "subject" in sessions[0]:
+            query = {"_id": {"$in": list(set(sess["subject"] for sess in sessions))}}
+            subjects = {subj["_id"]: subj for subj in storage.get_all_el(query, None, projection)}
             for session in sessions:
-                subject = subjects[session['subject']]
-                if session.get('age'):
+                subject = subjects[session["subject"]]
+                if session.get("age"):
                     subject = copy.deepcopy(subject)
-                    subject['age'] = session['age']
-                session['subject'] = subject
-
+                    subject["age"] = session["age"]
+                session["subject"] = subject
 
     def get_list_projection(self):
         """

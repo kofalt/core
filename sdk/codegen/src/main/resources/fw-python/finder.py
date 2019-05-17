@@ -1,7 +1,9 @@
 """Provides finder interface for collections"""
 
+
 class Finder(object):
     """Finder wrapper for finding objects in a collection"""
+
     def __init__(self, context, method, *args):
         """ Create a new finder object for the given method
 
@@ -75,13 +77,13 @@ class Finder(object):
         :param args: The list of filters to apply (e.g. 'label=my-label' , 'created>2018-09-22')
         :param int limit: The number of entries to return per call (default is 250)
         """
-        if 'limit' not in kwargs:
-            kwargs['limit'] = 250
+        if "limit" not in kwargs:
+            kwargs["limit"] = 250
 
         if args:
-            kwargs['filter'] = ','.join(args)
+            kwargs["filter"] = ",".join(args)
 
-        kwargs['after_id'] = ''
+        kwargs["after_id"] = ""
 
         while True:
             results = self._func(*self._args, **kwargs)
@@ -92,7 +94,7 @@ class Finder(object):
             for item in results:
                 yield item
 
-            kwargs['after_id'] = results[-1].id
+            kwargs["after_id"] = results[-1].id
 
     @property
     def _func(self):
@@ -102,13 +104,13 @@ class Finder(object):
 
     def __find(self, filters, kwargs, find_first=False, find_one=False):
         if filters:
-            kwargs['filter'] = ','.join(filters)
+            kwargs["filter"] = ",".join(filters)
 
         results = self._func(*self._args, **kwargs)
 
         if find_one:
             if len(results) != 1:
-                raise ValueError('Found {} results instead of 1!'.format(len(results)))
+                raise ValueError("Found {} results instead of 1!".format(len(results)))
             return results[0]
 
         if find_first:

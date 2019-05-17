@@ -8,12 +8,14 @@ from ... import models
 
 class ProviderClass(Enum):
     """Enumeration of provider classes"""
-    compute = 'compute'  # Compute resource provider
-    storage = 'storage'  # Storage resource provider
+
+    compute = "compute"  # Compute resource provider
+    storage = "storage"  # Storage resource provider
 
 
 class Provider(models.Base):
     """Represents an abstract service (compute or storage) provider in the database"""
+
     def __init__(self, provider_class, provider_type, label, origin, config):
         """Create a new provider.
 
@@ -50,18 +52,18 @@ class Provider(models.Base):
     @property
     def provider_id(self):
         """Returns the unique ID of this document"""
-        return self.get('_id')
+        return self.get("_id")
 
     @provider_id.setter
     def provider_id(self, _id):
-        if self.get('_id') is not None:
-            raise ValueError('Cannot set _id if it has already been set!')
-        self['_id'] = _id
+        if self.get("_id") is not None:
+            raise ValueError("Cannot set _id if it has already been set!")
+        self["_id"] = _id
 
     def to_dict(self):
         """Return the dictionary representation of this object."""
         result = super(Provider, self).to_dict()
-        result['provider_class'] = self.provider_class.value
+        result["provider_class"] = self.provider_class.value
         return result
 
     @classmethod

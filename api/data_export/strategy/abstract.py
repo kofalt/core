@@ -5,13 +5,14 @@ from abc import ABCMeta, abstractmethod
 from .. import models, mappers
 from ...web import errors
 
-BYTES_IN_MEGABYTE = float(1<<20)
+BYTES_IN_MEGABYTE = float(1 << 20)
+
 
 class AbstractDownloadStrategy(object):
     __metaclass__ = ABCMeta
 
     # The default archive prefix, if not specified
-    default_archive_prefix = 'flywheel'
+    default_archive_prefix = "flywheel"
 
     def __init__(self, log, params):
         """Create a download strategy.
@@ -22,7 +23,7 @@ class AbstractDownloadStrategy(object):
                 May include 'prefix', which sets the archive path prefix.
         """
         self.log = log
-        self.archive_prefix = params.get('prefix', self.default_archive_prefix)
+        self.archive_prefix = params.get("prefix", self.default_archive_prefix)
 
     @abstractmethod
     def validate_spec(self, spec, summary):
@@ -75,17 +76,12 @@ class AbstractDownloadStrategy(object):
             filename = self.create_archive_filename()
 
             tickets = mappers.DownloadTickets()
-            ticket = models.DownloadTicket('batch', client_addr, origin, filename, targets, total_size)
+            ticket = models.DownloadTicket("batch", client_addr, origin, filename, targets, total_size)
             tickets.insert(ticket)
 
-            return {
-                'ticket': ticket.ticket_id,
-                'file_cnt': count,
-                'size': total_size,
-                'filename': filename,
-            }
+            return {"ticket": ticket.ticket_id, "file_cnt": count, "size": total_size, "filename": filename}
         else:
-            raise errors.APINotFoundException('No files matching the given filter could be found')
+            raise errors.APINotFoundException("No files matching the given filter could be found")
 
     def create_summary(self, spec, uid):
         """Provide summary data by filetype for a download specification.
@@ -104,15 +100,11 @@ class AbstractDownloadStrategy(object):
 
         for target in self.identify_targets(spec, uid, summary=True):
             if target.filetype not in totals:
-                totals[target.filetype] = {
-                    '_id': target.filetype,
-                    'count': 0,
-                    'mb_total': 0
-                }
+                totals[target.filetype] = {"_id": target.filetype, "count": 0, "mb_total": 0}
 
             sub_total = totals[target.filetype]
-            sub_total['count'] += 1
-            sub_total['mb_total'] += (target.size / BYTES_IN_MEGABYTE)
+            sub_total["count"] += 1
+            sub_total["mb_total"] += target.size / BYTES_IN_MEGABYTE
 
         return totals
 
@@ -122,5 +114,4 @@ class AbstractDownloadStrategy(object):
         Returns:
             str: The archive filename
         """
-        return self.archive_prefix + '_' + datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S') + '.tar'
-
+        return self.archive_prefix + "_" + datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S") + ".tar"

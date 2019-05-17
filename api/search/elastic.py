@@ -5,15 +5,15 @@ from . import ast
 
 
 # Type conversion regular expressions
-RE_BOOL = re.compile(r'^(true|false)$')
-RE_INTEGER = re.compile(r'^-?\d+$')
-RE_DECIMAL = re.compile(r'^-?\d+\.\d+$')
+RE_BOOL = re.compile(r"^(true|false)$")
+RE_INTEGER = re.compile(r"^-?\d+$")
+RE_DECIMAL = re.compile(r"^-?\d+\.\d+$")
 
-_OPT_FRACTION = r'([\.,]\d+)?'  # Optional fractional seconds
-_OPT_OFFSET = r'(Z|([+-]\d{2}:\d{2}))?'  # Optional timezone offset Z or [-+]HH:MM
+_OPT_FRACTION = r"([\.,]\d+)?"  # Optional fractional seconds
+_OPT_OFFSET = r"(Z|([+-]\d{2}:\d{2}))?"  # Optional timezone offset Z or [-+]HH:MM
 
 # Date with optional timestamp
-RE_DATE = re.compile(r'^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}' + _OPT_FRACTION + _OPT_OFFSET + ')?$')
+RE_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}" + _OPT_FRACTION + _OPT_OFFSET + ")?$")
 
 
 def to_es_query(tree):
@@ -26,9 +26,10 @@ def to_es_query(tree):
         dict: The elastic query generated from the syntax tree.
     """
     result = handle_node(tree)
-    if 'bool' not in result:
+    if "bool" not in result:
         result = _wrap_must(result)
     return result
+
 
 def handle_term(term):
     """"Convert a search Term to an elastic query clause.
@@ -41,6 +42,7 @@ def handle_term(term):
     """
     return handle_op(term.op, term.field, term.phrase)
 
+
 def handle_group(group):
     """"Convert a grouped expression to an elastic query.
 
@@ -51,6 +53,7 @@ def handle_group(group):
         dict: The converted term
     """
     return handle_node(group.expr)
+
 
 def handle_not(op):
     """"Convert a negated expression to an elastic query.
@@ -63,6 +66,7 @@ def handle_not(op):
     """
     return _wrap_must_not(handle_node(op.expr))
 
+
 def handle_and(op):
     """"Convert ANDed expressions to an elastic query.
 
@@ -72,7 +76,8 @@ def handle_and(op):
     Returns:
         dict: The converted term
     """
-    return {'bool': {'must': [handle_node(op.lhs), handle_node(op.rhs)]}}
+    return {"bool": {"must": [handle_node(op.lhs), handle_node(op.rhs)]}}
+
 
 def handle_or(op):
     """"Convert ORed expressions to an elastic query.
@@ -83,7 +88,8 @@ def handle_or(op):
     Returns:
         dict: The converted term
     """
-    return {'bool': {'should': [handle_node(op.lhs), handle_node(op.rhs)]}}
+    return {"bool": {"should": [handle_node(op.lhs), handle_node(op.rhs)]}}
+
 
 def handle_op(op, field, value):
     """Convert the given operation to an elastic search term.
@@ -101,50 +107,53 @@ def handle_op(op, field, value):
     Returns:
         dict: The converted term
     """
-    raw_field = '{}.raw'.format(field)
+    raw_field = "{}.raw".format(field)
 
-    if op == '==' or op == '=':
+    if op == "==" or op == "=":
         picked_field, value = _convert_term(value, field, raw_field)
-        return {'term': {picked_field: value}}
-    if op == '!=' or op == '<>':
+        return {"term": {picked_field: value}}
+    if op == "!=" or op == "<>":
         picked_field, value = _convert_term(value, field, raw_field)
-        return _wrap_must_not({'term': {picked_field: value}})
-    if op == '<':
+        return _wrap_must_not({"term": {picked_field: value}})
+    if op == "<":
         picked_field, value = _convert_term(value, field, raw_field)
-        return {'range': {picked_field: {'lt': value}}}
-    if op == '<=':
+        return {"range": {picked_field: {"lt": value}}}
+    if op == "<=":
         picked_field, value = _convert_term(value, field, raw_field)
-        return {'range': {picked_field: {'lte': value}}}
-    if op == '>':
+        return {"range": {picked_field: {"lte": value}}}
+    if op == ">":
         picked_field, value = _convert_term(value, field, raw_field)
-        return {'range': {picked_field: {'gt': value}}}
-    if op == '>=':
+        return {"range": {picked_field: {"gt": value}}}
+    if op == ">=":
         picked_field, value = _convert_term(value, field, raw_field)
-        return {'range': {picked_field: {'gte': value}}}
-    if op == 'in':
-        return {'terms': {raw_field: value}}
-    if op == 'like':
+        return {"range": {picked_field: {"gte": value}}}
+    if op == "in":
+        return {"terms": {raw_field: value}}
+    if op == "like":
         # Convert from SQL-like to elastic wildcard
-        value = value.replace('%', '*').replace('_', '?')
-        return {'wildcard': {raw_field: value}}
-    if op == 'contains':
-        return {'match': {field: value}}
-    if op == 'exists':
-        return {'exists': {'field': field}}
-    if op == '=~':
-        return {'regexp': {raw_field: value}}
-    if op == '!~':
-        return _wrap_must_not({'regexp': {raw_field: value}})
+        value = value.replace("%", "*").replace("_", "?")
+        return {"wildcard": {raw_field: value}}
+    if op == "contains":
+        return {"match": {field: value}}
+    if op == "exists":
+        return {"exists": {"field": field}}
+    if op == "=~":
+        return {"regexp": {raw_field: value}}
+    if op == "!~":
+        return _wrap_must_not({"regexp": {raw_field: value}})
 
-    raise RuntimeError('Unknown operator: {}'.format(op))
+    raise RuntimeError("Unknown operator: {}".format(op))
+
 
 def _wrap_must_not(expr):
     """Helper function to negate a bool expression"""
-    return {'bool': {'must_not': [expr]}}
+    return {"bool": {"must_not": [expr]}}
+
 
 def _wrap_must(expr):
     """Helper frunction to wrap a bool expression in a MUST term"""
-    return {'bool': {'must': [expr]}}
+    return {"bool": {"must": [expr]}}
+
 
 def _convert_term(value, field, raw_field):
     """Convert the given value to a primitive type.
@@ -159,12 +168,12 @@ def _convert_term(value, field, raw_field):
     normal field name. For string values, we should be comparing against the
     raw field, rather than the analyzed field.
     """
-    if getattr(value, 'token_type', 'id') == 'quoted':
+    if getattr(value, "token_type", "id") == "quoted":
         return (raw_field, value)
 
     # Check against least to most specific regex
     if RE_BOOL.match(value):
-        return (field, value == 'true')
+        return (field, value == "true")
     if RE_INTEGER.match(value):
         return (field, int(value))
     if RE_DECIMAL.match(value):
@@ -176,13 +185,7 @@ def _convert_term(value, field, raw_field):
 
 
 # Dispatch map of node class to handler function
-HANDLER_MAP = {
-    ast.Term: handle_term,
-    ast.Group: handle_group,
-    ast.Not: handle_not,
-    ast.And: handle_and,
-    ast.Or: handle_or,
-}
+HANDLER_MAP = {ast.Term: handle_term, ast.Group: handle_group, ast.Not: handle_not, ast.And: handle_and, ast.Or: handle_or}
 
 
 def handle_node(node):
@@ -198,6 +201,6 @@ def handle_node(node):
 
     handler = HANDLER_MAP.get(node_type)
     if handler is None:
-        raise RuntimeError('Unknown node type: {}'.format(node_type.__name__))
+        raise RuntimeError("Unknown node type: {}".format(node_type.__name__))
 
     return handler(node)

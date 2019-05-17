@@ -8,41 +8,37 @@ from ..download_file_source import DownloadFileSource
 from ..strategy import create_download_strategy
 from ..mappers import DownloadTickets
 
+
 class DownloadHandler(base.RequestHandler):
     """Handler that implements download endpoints"""
 
     def get_strategy(self):
         """Get the DownloadStrategy instance, or raise an error if the strategy does not exist"""
-        download_type = self.get_param('type')
+        download_type = self.get_param("type")
         if download_type is None:
             # Fallback to legacy strategies
-            download_type = 'bulk' if self.is_true('bulk') else 'classic'
+            download_type = "bulk" if self.is_true("bulk") else "classic"
 
         result = create_download_strategy(download_type, self.log, self.get_params())
         if result is None:
-            raise errors.InputValidationException('Unknown download type: {}'.format(download_type))
+            raise errors.InputValidationException("Unknown download type: {}".format(download_type))
         return result
 
     def download(self):
         """Download files or create a download ticket"""
-        ticket_id = self.get_param('ticket')
+        ticket_id = self.get_param("ticket")
         if ticket_id:
             tickets = DownloadTickets()
             ticket = tickets.get(ticket_id)
 
             # Ticket validation
             if not ticket:
-                raise errors.APINotFoundException('No such download ticket')
+                raise errors.APINotFoundException("No such download ticket")
             if ticket.ip != self.request.client_addr:
-                raise errors.InputValidationException('Ticket not for this source IP')
+                raise errors.InputValidationException("Ticket not for this source IP")
 
-            def response_handler(environ, start_response): # pylint: disable=unused-argument
-                write = start_response('200 OK', [
-                    ('Content-Type', 'application/octet-stream'),
-                    ('Content-Disposition', 'attachment; filename="{}"'.format(
-                        ticket.filename.encode('ascii', errors='ignore'))),
-                    ('Connection', 'keep-alive')
-                ])
+            def response_handler(environ, start_response):  # pylint: disable=unused-argument
+                write = start_response("200 OK", [("Content-Type", "application/octet-stream"), ("Content-Disposition", 'attachment; filename="{}"'.format(ticket.filename.encode("ascii", errors="ignore"))), ("Connection", "keep-alive")])
 
                 # Create the source
                 source = DownloadFileSource(ticket, self.request)
@@ -54,9 +50,9 @@ class DownloadHandler(base.RequestHandler):
                     writer.close()
                 except Exception:  # pylint: disable=broad-except
                     # Bury exception and just truncate the response
-                    self.log.exception('Error sending tarfile')
+                    self.log.exception("Error sending tarfile")
 
-                return ''
+                return ""
 
             return response_handler
         else:

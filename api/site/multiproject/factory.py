@@ -1,4 +1,6 @@
 """"Provides factory function for creating provider pickers"""
+
+
 def create_provider_picker(enable_multiproject):
     """Create a ProviderPicker strategy.
 
@@ -11,7 +13,9 @@ def create_provider_picker(enable_multiproject):
     # Lazy load to prevent circular dependencies between jobs.queue and this
     if enable_multiproject:
         from .multiproject_picker import MultiprojectProviderPicker
+
         return MultiprojectProviderPicker()
 
     from .fixed_picker import FixedProviderPicker
+
     return FixedProviderPicker()

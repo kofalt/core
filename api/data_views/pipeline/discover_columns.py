@@ -2,6 +2,7 @@ from .pipeline import PipelineStage, EndOfPayload
 from ..util import deep_keys, extract_json_property, nil_value
 from ..config import ColumnSpec
 
+
 class DiscoverColumns(PipelineStage):
     """Pipeline stage that flattens columns. 
 
@@ -9,6 +10,7 @@ class DiscoverColumns(PipelineStage):
     Emits a list of rows.
     Updates the column configuration based on discovered columns
     """
+
     def __init__(self, config):
         super(DiscoverColumns, self).__init__()
         self.config = config
@@ -30,7 +32,7 @@ class DiscoverColumns(PipelineStage):
                     value = extract_json_property(col.src, cont, default=nil_value)
                     if isinstance(value, dict):
                         # Extract the deep keys
-                        flat_map[col] = deep_keys(value, prefix=(col.src+'.'))
+                        flat_map[col] = deep_keys(value, prefix=(col.src + "."))
 
             for col, src_cols in flat_map.items():
                 # Map to new ColumnSpec objects under destination name
@@ -47,5 +49,3 @@ class DiscoverColumns(PipelineStage):
             self.processed = True
 
         self.emit(payload)
-    
-

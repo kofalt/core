@@ -1,5 +1,6 @@
 """Provides utility functions for filtering container file lists"""
 
+
 def filtered_files(container, filters):
     """Get a set of files on the given container that match the given filters.
 
@@ -12,16 +13,15 @@ def filtered_files(container, filters):
     Return:
         list(str, dict): The list of files that matched the filter
     """
-    inputs = [('input', f) for f in container.get('inputs', [])]
-    outputs = [('output', f) for f in container.get('files', []) if not f.get('deleted')]
+    inputs = [("input", f) for f in container.get("inputs", [])]
+    outputs = [("output", f) for f in container.get("files", []) if not f.get("deleted")]
     result = []
     for file_group, f in inputs + outputs:
         if filters:
             included = False
             for filter_ in filters:
-                type_as_list = [f['type']] if f.get('type') else []
-                if (file_filter_check(filter_.get('tags', {}), f.get('tags', [])) and
-                        file_filter_check(filter_.get('types', {}), type_as_list)):
+                type_as_list = [f["type"]] if f.get("type") else []
+                if file_filter_check(filter_.get("tags", {}), f.get("tags", [])) and file_filter_check(filter_.get("types", {}), type_as_list):
                     included = True
                     break
         else:
@@ -50,8 +50,8 @@ def file_filter_check(property_filter, property_values):
     Returns:
         bool: True if the the file should be included based on property values.
     """
-    minus = set(property_filter.get('-', []) + property_filter.get('minus', []))
-    plus = set(property_filter.get('+', []) + property_filter.get('plus', []))
+    minus = set(property_filter.get("-", []) + property_filter.get("minus", []))
+    plus = set(property_filter.get("+", []) + property_filter.get("plus", []))
     if "null" in plus and not property_values:
         return True
     if "null" in minus and property_values:

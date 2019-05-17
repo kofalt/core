@@ -3,12 +3,14 @@ from .pipeline import PipelineStage, EndOfPayload
 from ..access_logger import create_access_logger, is_phi_field
 from ..util import is_nil, nil_value
 
+
 class LogAccess(PipelineStage):
     """Performs access logging for each row collected from the Aggregate stage.
 
     Expects a single payload which is a list of rows generated from the Aggregate stage.
     Emits each row from the aggregate stage, followed by an EndOfPayload.
     """
+
     def __init__(self, config):
         super(LogAccess, self).__init__()
         self.config = config
@@ -26,7 +28,7 @@ class LogAccess(PipelineStage):
             # Any subject fields and any info fields are considered PHI
             if is_phi_field(col.container, col.src):
                 self.logger.add_container(col.container)
-        
+
         if self.config.file_container:
             self.logger.set_file_container(self.config.file_container)
 
@@ -44,11 +46,11 @@ class LogAccess(PipelineStage):
 
     def process(self, payload):
         for row in payload:
-            meta = row.pop('_meta')
+            meta = row.pop("_meta")
 
-            file_entry = row.get('file', nil_value)
+            file_entry = row.get("file", nil_value)
             if not is_nil(file_entry):
-                filename = file_entry['name']
+                filename = file_entry["name"]
             else:
                 filename = None
 
@@ -62,5 +64,3 @@ class LogAccess(PipelineStage):
             self.emit(row)
 
         self.emit(EndOfPayload)
-
-

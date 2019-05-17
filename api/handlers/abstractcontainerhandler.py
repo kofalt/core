@@ -18,18 +18,18 @@ class AbstractContainerHandler(base.RequestHandler):
             /containers/x/files --> x is a project ID --> /projects/x/files
         """
 
-        results = container_search({'_id': cid}, projection={'_id': 1})
+        results = container_search({"_id": cid}, projection={"_id": 1})
         if not results:
-            raise APINotFoundException('No container {} found'.format(cid))
+            raise APINotFoundException("No container {} found".format(cid))
 
         # Create new request instance using destination URI (eg. replace containers with cont_name)
         cont_name, _ = results[0]
         destination_environ = self.request.environ
-        for key in 'PATH_INFO', 'REQUEST_URI':
+        for key in "PATH_INFO", "REQUEST_URI":
             if key in destination_environ:
-                destination_environ[key] = destination_environ[key].replace('containers', cont_name, 1)
+                destination_environ[key] = destination_environ[key].replace("containers", cont_name, 1)
 
-        destination_environ['fw_container_type'] = singularize(cont_name)
+        destination_environ["fw_container_type"] = singularize(cont_name)
         destination_request = Request(destination_environ)
 
         # Apply SciTranRequest attrs

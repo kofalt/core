@@ -1,10 +1,12 @@
 from .. import util
 from ..data_views import formatters
 
+
 class ReportWriter(object):
     """
     Class that permits writing a report in a variety of formats
     """
+
     def __init__(self, out_format, report):
         self._out_format = out_format
         self._formatter = formatters.get_formatter(out_format, self)
@@ -48,4 +50,4 @@ class ReportWriter(object):
         Add the correct extension to report basename
         """
         ext = self._formatter.get_file_extension()
-        return '{}{}'.format(self._report.filename, ext)
+        return "{}{}".format(self._report.filename, ext)

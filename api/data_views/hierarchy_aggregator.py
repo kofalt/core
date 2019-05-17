@@ -3,6 +3,7 @@ import collections
 from ..dao import containerutil
 from .. import config
 
+
 class AggregationStage(object):
     """Represents a single stage of aggregation.
 
@@ -14,7 +15,8 @@ class AggregationStage(object):
         parent_key (str): The optional alternate parent key
         unwind (bool): Whether or not to include an unwind step (default is true)
     """
-    def __init__(self, collection, fields=None, sort_key='created', sort_order=1, parent_key=None, unwind=True):
+
+    def __init__(self, collection, fields=None, sort_key="created", sort_order=1, parent_key=None, unwind=True):
         self.collection = collection
         if fields:
             self.fields = fields
@@ -25,6 +27,7 @@ class AggregationStage(object):
         self.parent_key = parent_key
         self.unwind = unwind
 
+
 class HierarchyAggregator(object):
     """Aggregate the data hierarchy with sorting, filtering, and projection.
         
@@ -33,6 +36,7 @@ class HierarchyAggregator(object):
         db (pymongo.database.Database): The connected database instance
         filter_spec (dict): The filter specification for the first stage
     """
+
     def __init__(self, stages=None, db=None):
         """Create a new aggregator with the given stages
         
@@ -73,38 +77,27 @@ class HierarchyAggregator(object):
             if not pipeline:
                 # First stage, get collection and add the match stage
                 collection = self.db.get_collection(coll)
-                proj_pfx = ''
-                pipeline.append({'$match': self.filter_spec})
+                proj_pfx = ""
+                pipeline.append({"$match": self.filter_spec})
             else:
-                proj_pfx = coll_singular + '.'
+                proj_pfx = coll_singular + "."
 
                 parent_key = stage.parent_key if stage.parent_key else parent
 
                 # Add lookup and unwind stage
-                pipeline.append({'$lookup': {
-                    'from': coll,
-                    'localField': parent_id,
-                    'foreignField': parent_key,
-                    'as': coll_singular 
-                }})
+                pipeline.append({"$lookup": {"from": coll, "localField": parent_id, "foreignField": parent_key, "as": coll_singular}})
 
                 if stage.unwind:
-                    pipeline.append({'$unwind': '$' + coll_singular})
+                    pipeline.append({"$unwind": "$" + coll_singular})
 
             if stage.unwind:
                 # Add projection
-                id_field = '_meta.{}._id'.format(coll_singular)
-                label_field = '_meta.{}.label'.format(coll_singular)
-                sort_field = '_meta.{}._sort_key'.format(coll_singular)
-                deleted_field = '_meta.{}.deleted'.format(coll_singular)
+                id_field = "_meta.{}._id".format(coll_singular)
+                label_field = "_meta.{}.label".format(coll_singular)
+                sort_field = "_meta.{}._sort_key".format(coll_singular)
+                deleted_field = "_meta.{}.deleted".format(coll_singular)
 
-                projection = {
-                    '_id': 0,
-                    id_field: '${}_id'.format(proj_pfx),
-                    label_field: '${}label'.format(proj_pfx),
-                    sort_field: '${}{}'.format(proj_pfx, stage.sort_key),
-                    deleted_field: '${}deleted'.format(proj_pfx)
-                }
+                projection = {"_id": 0, id_field: "${}_id".format(proj_pfx), label_field: "${}label".format(proj_pfx), sort_field: "${}{}".format(proj_pfx, stage.sort_key), deleted_field: "${}deleted".format(proj_pfx)}
 
                 projection.update(carryover)
                 carryover[id_field] = 1
@@ -117,12 +110,12 @@ class HierarchyAggregator(object):
                         # Destination field was specified
                         field, src = src
                     else:
-                        field = '{}.{}'.format(coll_singular, src)
+                        field = "{}.{}".format(coll_singular, src)
 
-                    projection[field] = '${}{}'.format(proj_pfx, src)
+                    projection[field] = "${}{}".format(proj_pfx, src)
                     carryover[field] = 1
 
-                pipeline.append({'$project': projection})
+                pipeline.append({"$project": projection})
 
             # Add sort key
             sort_keys[sort_field] = stage.sort_order
@@ -131,17 +124,9 @@ class HierarchyAggregator(object):
             parent_id = id_field
 
             # Add a filter for deleted containers
-            pipeline.append({
-                '$match': {
-                    '_meta.subject.deleted': None,
-                    '_meta.session.deleted': None,
-                    '_meta.acquisition.deleted': None,
-                    '_meta.analysis.deleted': None
-                }
-            })
+            pipeline.append({"$match": {"_meta.subject.deleted": None, "_meta.session.deleted": None, "_meta.acquisition.deleted": None, "_meta.analysis.deleted": None}})
 
         # Add sorting
-        pipeline.append({'$sort': sort_keys})
+        pipeline.append({"$sort": sort_keys})
 
         return collection.aggregate(pipeline)
-

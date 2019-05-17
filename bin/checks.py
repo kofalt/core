@@ -8,7 +8,8 @@ from api import config
 
 from process_cursor import process_cursor
 
-AVAILABLE_CHECKS = [ 'check_for_cas_files' ]
+AVAILABLE_CHECKS = ["check_for_cas_files"]
+
 
 def get_available_checks(applied_checks):
     """Get a list of checks that should be run
@@ -26,6 +27,7 @@ def get_available_checks(applied_checks):
 
     return result
 
+
 def apply_available_checks(applied_checks, update_doc):
     """
     Applies checks that need to be run for this database version.
@@ -40,10 +42,11 @@ def apply_available_checks(applied_checks, update_doc):
 
     for check_id in available_checks:
         check_fn = get_check_function(check_id)
-        config.log.info('Applying check: {} ...'.format(check_id))
+        config.log.info("Applying check: {} ...".format(check_id))
         check_fn()
-        config.log.info('Check {} complete'.format(check_id))
-        update_doc['applied_checks.{}'.format(check_id)] = datetime.datetime.now()
+        config.log.info("Check {} complete".format(check_id))
+        update_doc["applied_checks.{}".format(check_id)] = datetime.datetime.now()
+
 
 def get_check_function(check_id):
     """Get a check function by id.
@@ -59,21 +62,22 @@ def get_check_function(check_id):
     """
     result = globals().get(check_id, None)
     if not result:
-        raise ValueError('Unknown check method: {}'.format(check_id))
+        raise ValueError("Unknown check method: {}".format(check_id))
     return result
+
 
 def check_for_cas_files():
     """
     Check that all CAS files have been migrated in a system.
     """
-    for collection_name in [ 'acquisitions', 'sessions', 'subjects', 'projects', 'analyses', 'collections' ]:
-        cursor = config.db[collection_name].find({'files': {'$exists': 1}, 'files._id': {'$exists': 0}})
+    for collection_name in ["acquisitions", "sessions", "subjects", "projects", "analyses", "collections"]:
+        cursor = config.db[collection_name].find({"files": {"$exists": 1}, "files._id": {"$exists": 0}})
         if cursor.count():
-            print('\n')
-            print('='*80)
-            print('\nERROR! CAS Files still exist on this system!')
-            print('Please migrate before proceeding with the upgrade.\n')
-            print('='*80)
-            print('\n')
+            print("\n")
+            print("=" * 80)
+            print("\nERROR! CAS Files still exist on this system!")
+            print("Please migrate before proceeding with the upgrade.\n")
+            print("=" * 80)
+            print("\n")
 
-            raise RuntimeError('Found CAS files in {}'.format(collection_name))
+            raise RuntimeError("Found CAS files in {}".format(collection_name))

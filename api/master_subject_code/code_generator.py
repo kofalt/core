@@ -15,8 +15,8 @@ def generate_code(length=6, allowed_chars=string.ascii_uppercase + string.digits
     """
 
     random = SystemRandom()
-    code = ''.join(random.choice(allowed_chars) for _ in range(length))
+    code = "".join(random.choice(allowed_chars) for _ in range(length))
     if prefix:
-        return '{}-{}'.format(prefix, code)
+        return "{}-{}".format(prefix, code)
     else:
         return code

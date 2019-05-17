@@ -5,7 +5,7 @@ import time
 
 from .collect import collect_metrics
 
-log = logging.getLogger('metrics')
+log = logging.getLogger("metrics")
 
 
 COLLECTION_INTERVAL_SECONDS = 30
@@ -30,6 +30,6 @@ def fork(post_fork):
         try:
             collect_metrics()
         except:  # pylint: disable=bare-except
-            log.exception('Error collecting metrics')
+            log.exception("Error collecting metrics")
 
         time.sleep(COLLECTION_INTERVAL_SECONDS)

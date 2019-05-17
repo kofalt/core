@@ -3,6 +3,7 @@ from sdk_test_case import SdkTestCase
 
 import flywheel
 
+
 class SiteConfigTestCases(SdkTestCase):
     def setUp(self):
         self.gear_id = None
@@ -31,23 +32,10 @@ class SiteConfigTestCases(SdkTestCase):
     def test_site_settings(self):
         # Add a test gear
         gear = flywheel.Gear(
-            name=self.rand_string_lower(),
-            label=self.rand_string(),
-            description=self.rand_string(),
-            version=self.rand_string(),
-            author=self.rand_string(),
-            maintainer=self.rand_string(),
-            license='Other',
-            source='http://example.example',
-            url='http://example.example',
-            config={},
-            inputs={}
+            name=self.rand_string_lower(), label=self.rand_string(), description=self.rand_string(), version=self.rand_string(), author=self.rand_string(), maintainer=self.rand_string(), license="Other", source="http://example.example", url="http://example.example", config={}, inputs={}
         )
 
-        gear_doc = flywheel.GearDoc(
-            category='utility',
-            gear=gear
-        )
+        gear_doc = flywheel.GearDoc(category="utility", gear=gear)
 
         self.gear_id = self.fw.add_gear(gear.name, gear_doc)
 
@@ -55,20 +43,16 @@ class SiteConfigTestCases(SdkTestCase):
         settings = self.fw.get_site_settings()
         self.assertIsNotNone(settings)
 
-        gears = settings.get('center_gears')
+        gears = settings.get("center_gears")
         if gears is None:
             gears = []
 
-        self.fw.modify_site_settings({
-            'center_gears': [gear.name]
-        })
+        self.fw.modify_site_settings({"center_gears": [gear.name]})
 
         try:
             settings2 = self.fw.get_site_settings()
-            self.assertIsNotNone(settings2.get('center_gears'))
-            self.assertIn(gear.name, settings2['center_gears'])
+            self.assertIsNotNone(settings2.get("center_gears"))
+            self.assertIn(gear.name, settings2["center_gears"])
 
         finally:
-            self.fw.modify_site_settings({
-                'center_gears': gears
-            })
+            self.fw.modify_site_settings({"center_gears": gears})

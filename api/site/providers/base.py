@@ -2,8 +2,10 @@
 from .provider_metaclass import ProviderMetaclass
 from abc import abstractmethod
 
+
 class BaseProvider(object):
     """The compute provider object. Provides configuration and validation for compute resources"""
+
     # For automatic plugin registration
     __metaclass__ = ProviderMetaclass
 
@@ -44,4 +46,3 @@ class BaseProvider(object):
         Returns:
             dict: The non-confidential configuration
         """
-

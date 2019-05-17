@@ -7,7 +7,7 @@ import os
 from .client import Client
 
 
-DEFAULT_GEAR_PATH = '/flywheel/v0'
+DEFAULT_GEAR_PATH = "/flywheel/v0"
 
 
 class GearContext(object):
@@ -22,7 +22,7 @@ class GearContext(object):
         self._metadata = {}
         self.log = logging.getLogger(__name__)
 
-    def init_logging(self, level='INFO'):
+    def init_logging(self, level="INFO"):
         """Initializes logging to the given level"""
         logging.basicConfig(level=getattr(logging, level.upper(), None) or logging.INFO)
 
@@ -33,7 +33,7 @@ class GearContext(object):
         :return: The configuration dictionary.
         :rtype: dict
         """
-        return self._get_invocation()['config']
+        return self._get_invocation()["config"]
 
     @property
     def destination(self):
@@ -42,7 +42,7 @@ class GearContext(object):
         :return: The destination dictionary.
         :rtype: dict
         """
-        return self._get_invocation()['destination']
+        return self._get_invocation()["destination"]
 
     @property
     def work_dir(self):
@@ -52,7 +52,7 @@ class GearContext(object):
         :rtype: str
         """
         if self._work_dir is None:
-            self._work_dir = os.path.join(self._path, 'work')
+            self._work_dir = os.path.join(self._path, "work")
             if not os.path.exists(self._work_dir):
                 os.makedirs(self._work_dir)
         return self._work_dir
@@ -65,7 +65,7 @@ class GearContext(object):
         :rtype: str
         """
         if self._out_dir is None:
-            self._out_dir = os.path.join(self._path, 'output')
+            self._out_dir = os.path.join(self._path, "output")
             if not os.path.exists(self._out_dir):
                 os.makedirs(self._out_dir)
         return self._out_dir
@@ -81,13 +81,13 @@ class GearContext(object):
         """
         if self._client is None:
             api_key = None
-            for inp in self._get_invocation()['inputs'].values():
-                if inp['base'] == 'api-key' and inp['key']:
-                    api_key = inp['key']
+            for inp in self._get_invocation()["inputs"].values():
+                if inp["base"] == "api-key" and inp["key"]:
+                    api_key = inp["key"]
                     break
 
             if api_key is None:
-                raise RuntimeError('Could not find an api-key in config')
+                raise RuntimeError("Could not find an api-key in config")
 
             self._client = Client(api_key)
         return self._client
@@ -95,19 +95,18 @@ class GearContext(object):
     def log_config(self):
         """Print the configuration and input files to the logger"""
         # Log destination
-        self.log.info('Destination is %s=%s', self.destination.get('type'), self.destination.get('id'))
+        self.log.info("Destination is %s=%s", self.destination.get("type"), self.destination.get("id"))
 
         # Log file inputs
-        for inp_name, inp in self._get_invocation()['inputs'].items():
-            if inp['base'] != 'file':
+        for inp_name, inp in self._get_invocation()["inputs"].items():
+            if inp["base"] != "file":
                 continue
 
-            container_type = inp.get('hierarchy', {}).get('type')
-            container_id = inp.get('hierarchy', {}).get('id')
-            file_name = inp.get('location', {}).get('name')
+            container_type = inp.get("hierarchy", {}).get("type")
+            container_id = inp.get("hierarchy", {}).get("id")
+            file_name = inp.get("location", {}).get("name")
 
-            self.log.info('Input file "%s" is %s from %s=%s', inp_name, file_name,
-                container_type, container_id)
+            self.log.info('Input file "%s" is %s from %s=%s', inp_name, file_name, container_type, container_id)
 
         # Log configuration values
         for key, value in self.config.items():
@@ -120,7 +119,7 @@ class GearContext(object):
         :return: The input dictionary, or None if not found.
         :rtype: dict
         """
-        return self._get_invocation()['inputs'].get(name)
+        return self._get_invocation()["inputs"].get(name)
 
     def get_input_path(self, name):
         """Get the full path to the given input file.
@@ -134,11 +133,11 @@ class GearContext(object):
         inp = self.get_input(name)
         if inp is None:
             return None
-        if inp['base'] != 'file':
-            raise ValueError('The specified input {} is not a file'.format(name))
-        return inp['location']['path']
+        if inp["base"] != "file":
+            raise ValueError("The specified input {} is not a file".format(name))
+        return inp["location"]["path"]
 
-    def open_input(self, name, mode='r', **kwargs):
+    def open_input(self, name, mode="r", **kwargs):
         """Open the named input file.
 
         Raises an exception if the input does not exist or is not a file.
@@ -151,11 +150,11 @@ class GearContext(object):
         """
         path = self.get_input_path(name)
         if path is None:
-            raise OSError('An input named {} does not exist!'.format(name))
+            raise OSError("An input named {} does not exist!".format(name))
 
         return open(path, mode, **kwargs)
 
-    def open_output(self, name, mode='w', **kwargs):
+    def open_output(self, name, mode="w", **kwargs):
         """Open the named output file.
 
         :param str name: The name of the output
@@ -177,9 +176,9 @@ class GearContext(object):
         inp = self.get_input(name)
         if not inp:
             return None
-        if inp['base'] != 'context':
-            raise ValueError('The specified input {} is not a context input'.format(name))
-        return inp.get('value')
+        if inp["base"] != "context":
+            raise ValueError("The specified input {} is not a context input".format(name))
+        return inp.get("value")
 
     def update_container_metadata(self, container_type, *args, **kwargs):
         """Update metadata for the given container name in the hierarchy.
@@ -208,7 +207,7 @@ class GearContext(object):
         :param *args: The optional update dictionary
         :param **kwargs: The optional update key-value pairs
         """
-        container_type = self.destination['type']
+        container_type = self.destination["type"]
         update = self._create_update_dict(args, kwargs)
         self._update_metadata(container_type, update, file_name=file_name)
 
@@ -223,7 +222,7 @@ class GearContext(object):
         :param *args: The optional update dictionary
         :param **kwargs: The optional update key-value pairs
         """
-        container_type = self.destination['type']
+        container_type = self.destination["type"]
         update = self._create_update_dict(args, kwargs)
         self._update_metadata(container_type, update)
 
@@ -232,10 +231,10 @@ class GearContext(object):
         if not self._metadata:
             return
 
-        with self.open_output('.metadata.json') as f:
+        with self.open_output(".metadata.json") as f:
             json.dump(self._metadata, f, indent=2)
 
-    def download_session_bids(self, target_dir='work/bids', src_data=False, folders=None, **kwargs):
+    def download_session_bids(self, target_dir="work/bids", src_data=False, folders=None, **kwargs):
         """Download the session in bids format to target_dir.
 
         :param str target_dir: The destination directory (otherwise work/bids will be used)
@@ -245,11 +244,11 @@ class GearContext(object):
         :return: The absolute path to the downloaded bids directory
         :rtype: str
         """
-        kwargs['src_data'] = src_data
-        kwargs['folders'] = folders
-        return self._download_bids('session', target_dir, kwargs)
+        kwargs["src_data"] = src_data
+        kwargs["folders"] = folders
+        return self._download_bids("session", target_dir, kwargs)
 
-    def download_project_bids(self, target_dir='work/bids', src_data=False, subjects=None, sessions=None, folders=None):
+    def download_project_bids(self, target_dir="work/bids", src_data=False, subjects=None, sessions=None, folders=None):
         """Download the project in bids format to target_dir.
 
         :param str target_dir: The destination directory (otherwise work/bids will be used)
@@ -261,11 +260,11 @@ class GearContext(object):
         :return: The absolute path to the downloaded bids directory
         :rtype: str
         """
-        kwargs['src_data'] = src_data
-        kwargs['subjects'] = subjects
-        kwargs['sessions'] = sessions
-        kwargs['folders'] = folders
-        return self._download_bids('project', target_dir, kwargs)
+        kwargs["src_data"] = src_data
+        kwargs["subjects"] = subjects
+        kwargs["sessions"] = sessions
+        kwargs["folders"] = folders
+        return self._download_bids("project", target_dir, kwargs)
 
     def __enter__(self):
         return self
@@ -280,21 +279,21 @@ class GearContext(object):
         download_bids_dir = self._load_download_bids()
 
         # Cleanup kwargs
-        for key in ('subjects', 'sessions', 'folders'):
+        for key in ("subjects", "sessions", "folders"):
             if key in kwargs and kwargs[key] is None:
                 kwargs.pop(key)
 
         # Resolve container type from parents
-        dest_container = self.client.get(self.destination['id'])
+        dest_container = self.client.get(self.destination["id"])
 
         parent_id = dest_container.get(container_type)
         if parent_id is None:
-            parent_id = dest_container.get('parents', {}).get(container_type)
+            parent_id = dest_container.get("parents", {}).get(container_type)
 
         if parent_id is None:
-            raise RuntimeError('Cannot find {} from destination'.format(container_type))
+            raise RuntimeError("Cannot find {} from destination".format(container_type))
 
-        self.log.info('Using source container: %s=%s', container_type, parent_id)
+        self.log.info("Using source container: %s=%s", container_type, parent_id)
 
         # Download bids to the target directory
         # download_bids_dir will create the target path
@@ -306,21 +305,22 @@ class GearContext(object):
         """Load the download_bids_dir function from flywheel_bids"""
         try:
             from flywheel_bids.export_bids import download_bids_dir
+
             return download_bids_dir
         except ImportError:
-            self.log.error('Cannot load flywheel-bids package.')
+            self.log.error("Cannot load flywheel-bids package.")
             self.log.error('Make sure it is installed with "pip install flywheel-bids"')
-            raise RuntimeError('Unable to load flywheel-bids package, make sure it is installed!')
+            raise RuntimeError("Unable to load flywheel-bids package, make sure it is installed!")
 
     def _get_invocation(self):
         """Load the invocation"""
         if self._invocation is None:
-            cfg_path = os.path.join(self._path, 'config.json')
+            cfg_path = os.path.join(self._path, "config.json")
             try:
-                with open(cfg_path, 'r') as f:
+                with open(cfg_path, "r") as f:
                     self._invocation = json.load(f)
             except Exception:
-                self.log.exception('Cannot load config.json at <%s>', cfg_path)
+                self.log.exception("Cannot load config.json at <%s>", cfg_path)
                 raise
 
         return self._invocation
@@ -328,14 +328,14 @@ class GearContext(object):
     def _update_metadata(self, container_type, metadata, file_name=None):
         dest = self._metadata.setdefault(container_type, {})
         if file_name:
-            files = dest.setdefault('files', [])
+            files = dest.setdefault("files", [])
             file_entry = None
             for fe in files:
-                if fe.get('name') == file_name:
+                if fe.get("name") == file_name:
                     file_entry = fe
                     break
             if file_entry is None:
-                file_entry = {'name': file_name}
+                file_entry = {"name": file_name}
                 files.append(file_entry)
             dest = file_entry
 
@@ -346,6 +346,6 @@ class GearContext(object):
         result = copy.deepcopy(kwargs) or {}
         if len(args) > 0:
             if len(args) > 1 or not isinstance(args[0], dict):
-                raise ValueError('Expected at most one update dictionary')
+                raise ValueError("Expected at most one update dictionary")
             result.update(args[0])
         return result

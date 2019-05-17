@@ -1,8 +1,10 @@
 """Strategy for picking providers for certain tasks"""
 from abc import ABCMeta, abstractmethod
 
+
 class ProviderPicker(object):
     """Abstract picker strategy for providers"""
+
     __metaclass__ = ABCMeta
 
     def __init__(self):

@@ -14,6 +14,7 @@ import collections
 # NOTE: Python3 - str or bytes
 STRING_TYPES = (str, unicode)
 
+
 class Base(collections.MutableMapping):
     """Base class for sparse model classes.
 
@@ -24,6 +25,7 @@ class Base(collections.MutableMapping):
     If any attribute is missing from the underlying document,
     None will be returned instead.
     """
+
     # pylint complains that we should invoke the non-exisitent MutableMapping.__init__
     def __init__(self):  # pylint: disable=super-init-not-called
         """Construct a new model."""
@@ -72,6 +74,7 @@ class Base(collections.MutableMapping):
         # NOTE: This is here to allow dot-access of named attributes
         # that have been removed or are missing from the underlying dict
         return None
+
 
 def _model_to_dict(obj):
     """Flexible model conversion function

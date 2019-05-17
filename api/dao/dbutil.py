@@ -39,9 +39,10 @@ def fault_tolerant_replace_one(db, coll_name, query, update, upsert=False):
         if success:
             return result
         else:
-            time.sleep(random.uniform(0.01,0.05))
+            time.sleep(random.uniform(0.01, 0.05))
 
-    raise APIStorageException('Unable to replace object.')
+    raise APIStorageException("Unable to replace object.")
+
 
 def try_update_one(db, coll_name, query, update, upsert=False):
     """
@@ -68,36 +69,33 @@ def paginate_find(collection, find_kwargs, pagination):
      * `sort` in find_kwargs and `after_id` in pagination
     """
     if pagination:
-        if 'after_id' in pagination:
-            if find_kwargs.get('sort'):
+        if "after_id" in pagination:
+            if find_kwargs.get("sort"):
                 raise PaginationError('pagination "after_id" does not support sorting')
-            if pagination['after_id']:
-                pagination.setdefault('filter', {})['_id'] = {'$gt': pagination['after_id']}
-            pagination['sort'] = [('_id', pymongo.ASCENDING)]
+            if pagination["after_id"]:
+                pagination.setdefault("filter", {})["_id"] = {"$gt": pagination["after_id"]}
+            pagination["sort"] = [("_id", pymongo.ASCENDING)]
 
-        if 'filter' in pagination:
-            filter_ = find_kwargs.get('filter', {})
-            filter_.update(pagination['filter'])
-            find_kwargs['filter'] = filter_
+        if "filter" in pagination:
+            filter_ = find_kwargs.get("filter", {})
+            filter_.update(pagination["filter"])
+            find_kwargs["filter"] = filter_
 
-        if 'sort' in pagination:
-            sort = find_kwargs.get('sort', [])
+        if "sort" in pagination:
+            sort = find_kwargs.get("sort", [])
             if isinstance(sort, basestring):
                 sort = [(sort, pymongo.ASCENDING)]
-            sort.extend(pagination['sort'])
-            find_kwargs['sort'] = sort
+            sort.extend(pagination["sort"])
+            find_kwargs["sort"] = sort
 
-        if 'skip' in pagination:
-            find_kwargs['skip'] = pagination['skip']
+        if "skip" in pagination:
+            find_kwargs["skip"] = pagination["skip"]
 
-        if 'limit' in pagination:
-            find_kwargs['limit'] = pagination['limit']
+        if "limit" in pagination:
+            find_kwargs["limit"] = pagination["limit"]
 
     results = collection.find(**find_kwargs)
-    page = {
-        'total': results.count(),  # count ignores limit and skip by default
-        'results': list(results),
-    }
+    page = {"total": results.count(), "results": list(results)}  # count ignores limit and skip by default
     return page
 
 
@@ -109,38 +107,38 @@ def paginate_pipe(collection, pipeline, pagination):
      * pagination skip used without limit
     """
     if pagination:
-        if 'after_id' in pagination:
-            if any('$sort' in stage for stage in pipeline):
+        if "after_id" in pagination:
+            if any("$sort" in stage for stage in pipeline):
                 raise PaginationError('pagination "after_id" does not support sorting')
-            pagination['filter'] = {'_id': {'$gt': pagination['after_id']}}
-            pagination['sort'] = [('_id', pymongo.ASCENDING)]
+            pagination["filter"] = {"_id": {"$gt": pagination["after_id"]}}
+            pagination["sort"] = [("_id", pymongo.ASCENDING)]
 
-        if 'pipe_key' in pagination:
-            pipe_key = pagination.pop('pipe_key')
-            for key in pagination.get('filter', {}).keys():
-                pagination['filter'][pipe_key(key)] = pagination['filter'].pop(key)
-            for i, key_order in enumerate(pagination.get('sort', [])):
+        if "pipe_key" in pagination:
+            pipe_key = pagination.pop("pipe_key")
+            for key in pagination.get("filter", {}).keys():
+                pagination["filter"][pipe_key(key)] = pagination["filter"].pop(key)
+            for i, key_order in enumerate(pagination.get("sort", [])):
                 key, order = key_order
-                pagination['sort'][i] = (pipe_key(key), order)
+                pagination["sort"][i] = (pipe_key(key), order)
 
-        if 'filter' in pagination:
-            pipeline.append({'$match': pagination['filter']})
+        if "filter" in pagination:
+            pipeline.append({"$match": pagination["filter"]})
 
-        if 'sort' in pagination:
-            pipeline.append({'$sort': collections.OrderedDict(pagination['sort'])})
+        if "sort" in pagination:
+            pipeline.append({"$sort": collections.OrderedDict(pagination["sort"])})
 
-    pipeline.append({'$group': {'_id': None, 'total': {'$sum': 1}, 'results': {'$push': '$$ROOT'}}})
+    pipeline.append({"$group": {"_id": None, "total": {"$sum": 1}, "results": {"$push": "$$ROOT"}}})
 
     if pagination:
         slice_args = None
-        if 'skip' in pagination and 'limit' in pagination:
-            slice_args = [pagination['skip'], pagination['limit']]
-        elif 'limit' in pagination:
-            slice_args = [pagination['limit']]
-        elif 'skip' in pagination:
+        if "skip" in pagination and "limit" in pagination:
+            slice_args = [pagination["skip"], pagination["limit"]]
+        elif "limit" in pagination:
+            slice_args = [pagination["limit"]]
+        elif "skip" in pagination:
             raise PaginationError('pagination "skip" without "limit" is not supported for pipelines')
         if slice_args:
-            pipeline.append({'$project': {'total': 1, 'results': {'$slice': ['$results'] + slice_args}}})
+            pipeline.append({"$project": {"total": 1, "results": {"$slice": ["$results"] + slice_args}}})
 
-    page = next(collection.aggregate(pipeline), {'total': 0, 'results': []})
+    page = next(collection.aggregate(pipeline), {"total": 0, "results": []})
     return page

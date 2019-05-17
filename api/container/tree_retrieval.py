@@ -38,6 +38,7 @@ class TreeRetrieval(object):
             }
         }})
     """
+
     MAX_LIMIT = 50
 
     def __init__(self, log):
@@ -61,16 +62,16 @@ class TreeRetrieval(object):
         """
         # Determine first collection
         if len(spec) != 1:
-            raise errors.InputValidationException('Expected exactly 1 top-level collection')
+            raise errors.InputValidationException("Expected exactly 1 top-level collection")
 
         # Create a queue of retrievals to perform
         retrievals = collections.deque()
 
         # Enforce maximum page limit for top-level
-        if 'limit' in pagination:
-            pagination['limit'] = min(pagination['limit'], self.MAX_LIMIT)
+        if "limit" in pagination:
+            pagination["limit"] = min(pagination["limit"], self.MAX_LIMIT)
         else:
-            pagination['limit'] = self.MAX_LIMIT
+            pagination["limit"] = self.MAX_LIMIT
 
         # Fetch using get_all_el & pagination
         collection_name, collection_spec = spec.items()[0]
@@ -80,18 +81,16 @@ class TreeRetrieval(object):
         projection = self._get_projection(collection_name, collection_spec)
 
         # Retrieve all elements
-        if user and collection_name in ('analyses', 'jobs'):
+        if user and collection_name in ("analyses", "jobs"):
             # Pre-flight, use project permissions to find analyses/jobs
-            project_storage = cs_factory('projects')
-            projects = project_storage.get_all_el(None, user, {'_id': 1})
-            query = {'parents.project': {
-                '$in': [proj['_id'] for proj in projects]
-            }}
+            project_storage = cs_factory("projects")
+            projects = project_storage.get_all_el(None, user, {"_id": 1})
+            query = {"parents.project": {"$in": [proj["_id"] for proj in projects]}}
             response = storage.get_all_el(query, None, projection, pagination=pagination)
         else:
             response = storage.get_all_el(None, user, projection, pagination=pagination, join_subjects=False)
 
-        results = response['results']
+        results = response["results"]
         self._sort_and_limit_files(collection_spec, results)
 
         # Create the initial retrieval list
@@ -100,14 +99,14 @@ class TreeRetrieval(object):
         while retrievals:
             # Get next join
             connection_name, connection_spec, collection_spec, nodes = retrievals.popleft()
-            collection_name = connection_spec.get('collection', connection_name)
-            order = connection_spec.get('order', '*')  # Order is '1' or '*'
+            collection_name = connection_spec.get("collection", connection_name)
+            order = connection_spec.get("order", "*")  # Order is '1' or '*'
 
             # Build query
-            local_id_field = connection_spec.get('local', '_id')
+            local_id_field = connection_spec.get("local", "_id")
             local_id_fn = self._extract_field_fn(local_id_field)
 
-            foreign_id_field = connection_spec['foreign']
+            foreign_id_field = connection_spec["foreign"]
             foreign_id_fn = self._extract_field_fn(foreign_id_field)
 
             container_map = {}
@@ -118,14 +117,14 @@ class TreeRetrieval(object):
                 container_map.setdefault(local_id, []).append(container)
 
                 # Setup default value
-                if order == '*':
+                if order == "*":
                     container[connection_name] = []
                 else:
                     container[connection_name] = None
 
             # Don't fetch if keys is empty
             if keys:
-                query = {foreign_id_field: {'$in': keys}}
+                query = {foreign_id_field: {"$in": keys}}
 
                 # Build pagination
                 pagination, child_limit = self._get_pagination(collection_spec)
@@ -138,9 +137,8 @@ class TreeRetrieval(object):
                 storage = cs_factory(collection_name)
 
                 # Don't include permission check for jobs/analyses
-                child_user = None if collection_name in ('analyses', 'jobs') else user
-                children = storage.get_all_el(query, child_user, projection, pagination=pagination,
-                    join_subjects=False)['results']
+                child_user = None if collection_name in ("analyses", "jobs") else user
+                children = storage.get_all_el(query, child_user, projection, pagination=pagination, join_subjects=False)["results"]
 
                 self._sort_and_limit_files(collection_spec, children)
             else:
@@ -151,7 +149,7 @@ class TreeRetrieval(object):
                 foreign_id = foreign_id_fn(child)
                 parents = container_map.get(foreign_id, [])
                 for parent in parents:
-                    if order == '*':
+                    if order == "*":
                         current = parent[connection_name]
                         if child_limit is None or len(current) < child_limit:
                             current.append(child)
@@ -174,7 +172,7 @@ class TreeRetrieval(object):
             nodes (list): The current set of nodes to operate on
         """
         node = GRAPH[collection_name]
-        for connection_name, connection_spec in node['connections'].items():
+        for connection_name, connection_spec in node["connections"].items():
             child_spec = collection_spec.get(connection_name)
             if child_spec is not None:
                 retrievals.append((connection_name, connection_spec, child_spec, nodes))
@@ -193,13 +191,13 @@ class TreeRetrieval(object):
         # Light-weight subset of pagination, supports filter, sort and limit
         pagination = {}
 
-        if 'filter' in spec:
-            pagination['filter'] = util.parse_pagination_filter_param(spec.pop('filter'))
-        if 'sort' in spec:
-            pagination['sort'] = util.parse_pagination_sort_param(spec.pop('sort'))
+        if "filter" in spec:
+            pagination["filter"] = util.parse_pagination_filter_param(spec.pop("filter"))
+        if "sort" in spec:
+            pagination["sort"] = util.parse_pagination_sort_param(spec.pop("sort"))
 
-        if 'limit' in spec:
-            limit = int(spec.pop('limit'))
+        if "limit" in spec:
+            limit = int(spec.pop("limit"))
         else:
             limit = None
 
@@ -215,24 +213,24 @@ class TreeRetrieval(object):
         Returns:
             dict: A projection document for the given collection
         """
-        fields = collection_spec.pop('fields', [])
+        fields = collection_spec.pop("fields", [])
 
-        result = { field: 1 for field in fields }
-        result['_id'] = 1
+        result = {field: 1 for field in fields}
+        result["_id"] = 1
 
         # Project files/inputs, as requested
-        if 'files' in collection_spec:
-            result['files'] = 1
+        if "files" in collection_spec:
+            result["files"] = 1
 
-        if 'inputs' in collection_spec:
-            result['inputs'] = 1
+        if "inputs" in collection_spec:
+            result["inputs"] = 1
 
         # Add FK required fields
         node = GRAPH[collection_name]
-        for connection_name, connection_spec in node['connections'].items():
+        for connection_name, connection_spec in node["connections"].items():
             child_spec = collection_spec.get(connection_name)
             if child_spec is not None:
-                local_id_field = connection_spec.get('local')
+                local_id_field = connection_spec.get("local")
                 if local_id_field is not None:
                     result[local_id_field] = 1
 
@@ -248,17 +246,17 @@ class TreeRetrieval(object):
         if not containers:
             return
 
-        input_update_fn = self._sort_and_limit_files_fn('inputs', collection_spec)
+        input_update_fn = self._sort_and_limit_files_fn("inputs", collection_spec)
         if input_update_fn:
             map(input_update_fn, containers)
-            if collection_spec['inputs'].get('join-origin', False):
-                ContainerStorage.join_origins(containers, 'inputs')
+            if collection_spec["inputs"].get("join-origin", False):
+                ContainerStorage.join_origins(containers, "inputs")
 
-        files_update_fn = self._sort_and_limit_files_fn('files', collection_spec)
+        files_update_fn = self._sort_and_limit_files_fn("files", collection_spec)
         if files_update_fn:
             map(files_update_fn, containers)
-            if collection_spec['files'].get('join-origin', False):
-                ContainerStorage.join_origins(containers, 'files')
+            if collection_spec["files"].get("join-origin", False):
+                ContainerStorage.join_origins(containers, "files")
 
     @staticmethod
     def _sort_and_limit_files_fn(key, collection_spec):
@@ -276,34 +274,34 @@ class TreeRetrieval(object):
         if not spec:
             return None
 
-        if spec.get('filter'):
-            raise errors.InputValidationException('Cannot filter files!')
+        if spec.get("filter"):
+            raise errors.InputValidationException("Cannot filter files!")
 
-        limit = spec.get('limit')
-        sort = spec.get('sort')
+        limit = spec.get("limit")
+        sort = spec.get("sort")
 
         if sort:
             sort = util.parse_pagination_sort_param(sort)
 
             if len(sort) > 1:
-                raise errors.InputValidationException('Cannot sort files by more than one field')
+                raise errors.InputValidationException("Cannot sort files by more than one field")
 
             sort_field, order = sort[0]
-            sort_reverse = (order == pymongo.DESCENDING)
+            sort_reverse = order == pymongo.DESCENDING
             sort_key_fn = lambda x: x.get(sort_field)
         else:
             sort_key_fn = None
             sort_reverse = False
 
-        fields = spec['fields']
+        fields = spec["fields"]
 
         # Ensure that _id is included in subdocs
-        if '_id' not in fields:
-            fields.append('_id')
+        if "_id" not in fields:
+            fields.append("_id")
 
         # Ensure origin when join-origin is True
-        if spec.get('join-origin', False) and 'origin' not in fields:
-            fields.append('origin')
+        if spec.get("join-origin", False) and "origin" not in fields:
+            fields.append("origin")
 
         def result_fn(cont):
             # Deleted files should already be removed
@@ -340,14 +338,15 @@ class TreeRetrieval(object):
         Return:
             function: A function that takes a container and pops the key
         """
-        parts = key.split('.')
+        parts = key.split(".")
         if len(parts) == 1:
-            if key == '_id':
+            if key == "_id":
                 # Don't pop id field
                 return lambda cont: cont.get(key)
             return lambda cont: cont.pop(key, None)
 
         elif len(parts) == 2:
+
             def pop_field(cont):
                 if parts[0] not in cont:
                     return None
@@ -358,5 +357,6 @@ class TreeRetrieval(object):
                 if not child:
                     cont.pop(parts[0])
                 return result
+
             return pop_field
-        raise RuntimeError('Invalid key: {}'.format(key))
+        raise RuntimeError("Invalid key: {}".format(key))

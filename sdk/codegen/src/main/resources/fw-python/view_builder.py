@@ -1,10 +1,5 @@
-from .models import (
-    DataView,
-    DataViewColumnSpec,
-    DataViewFileSpec,
-    DataViewAnalysisFilterSpec,
-    DataViewNameFilterSpec
-)
+from .models import DataView, DataViewColumnSpec, DataViewFileSpec, DataViewAnalysisFilterSpec, DataViewNameFilterSpec
+
 
 class ViewBuilder(object):
     """Builder class that assists in constructing a DataView object.
@@ -23,9 +18,8 @@ class ViewBuilder(object):
     :param str analysis_gear_name: When matching analysis files, the gear name match string
     :param str analysis_gear_version: When matching analysis files, the gear version match string
     """
-    def __init__(self, label=None, public=False, match=None, zip_files=None, columns=None,
-                 process_files=True, include_ids=True, include_labels=True, container=None,
-                 filename=None, analysis_label=None, analysis_gear_name=None, analysis_gear_version=None):
+
+    def __init__(self, label=None, public=False, match=None, zip_files=None, columns=None, process_files=True, include_ids=True, include_labels=True, container=None, filename=None, analysis_label=None, analysis_gear_name=None, analysis_gear_version=None):
         self._label = label
         self._public = public
         self._columns = []
@@ -46,8 +40,7 @@ class ViewBuilder(object):
             self.zip_member_filter(zip_files)
 
         if filename is not None:
-            self.files(container, filename, analysis_label=analysis_label,
-                analysis_gear_name=analysis_gear_name, analysis_gear_version=analysis_gear_version)
+            self.files(container, filename, analysis_label=analysis_label, analysis_gear_name=analysis_gear_name, analysis_gear_version=analysis_gear_version)
 
         # Add column/columns
         if isinstance(columns, list):
@@ -69,29 +62,12 @@ class ViewBuilder(object):
         file_spec = None
         if self._file_container and self._file_filter:
             file_spec = DataViewFileSpec(
-                container=self._file_container,
-                analysis_filter=self._analysis_filter,
-                filter=self._file_filter,
-                zip_member=self._file_zip_filter,
-                match=self._file_match,
-                format=self._file_format,
-                format_options=self._file_format_opts,
-                process_files=self._process_files,
-                columns=self._file_columns
+                container=self._file_container, analysis_filter=self._analysis_filter, filter=self._file_filter, zip_member=self._file_zip_filter, match=self._file_match, format=self._file_format, format_options=self._file_format_opts, process_files=self._process_files, columns=self._file_columns
             )
-        elif (self._file_container or self._file_filter or
-              self._file_columns or self._file_zip_filter or self._file_format or self._analysis_filter):
-            raise ValueError('Both file_container and file_filter are required to process files!')
+        elif self._file_container or self._file_filter or self._file_columns or self._file_zip_filter or self._file_format or self._analysis_filter:
+            raise ValueError("Both file_container and file_filter are required to process files!")
 
-        return DataView(
-            label=self._label,
-            public=self._public,
-            columns=self._columns,
-            file_spec=file_spec,
-            include_ids=self._include_ids,
-            include_labels=self._include_labels,
-            missing_data_strategy=self._missing_data_strategy
-        )
+        return DataView(label=self._label, public=self._public, columns=self._columns, file_spec=file_spec, include_ids=self._include_ids, include_labels=self._include_labels, missing_data_strategy=self._missing_data_strategy)
 
     def label(self, label):
         """Set the label for this data view.
@@ -138,7 +114,7 @@ class ViewBuilder(object):
         :return: self
         """
         if not container or not filename:
-            raise ValueError('Both container and filename are required for file matching')
+            raise ValueError("Both container and filename are required for file matching")
 
         self._file_container = container
         self._file_filter = DataViewNameFilterSpec(value=filename)
@@ -278,8 +254,8 @@ class ViewBuilder(object):
 
     def _preprocess_column(self, src, dst, type):
         """If file is in src name, then select but don't process files"""
-        src_parts = src.split('.')
-        file_idx = src_parts.index('file') if 'file' in src_parts else -1
+        src_parts = src.split(".")
+        file_idx = src_parts.index("file") if "file" in src_parts else -1
         if file_idx < 1:
             return src, dst, type
 
@@ -291,26 +267,26 @@ class ViewBuilder(object):
         # If we currently have a file filter, validate
         if self._file_container:
             if file_container != self._file_container:
-                raise ValueError('Can only select files one one container ({} already selected)'.format(self._file_container))
+                raise ValueError("Can only select files one one container ({} already selected)".format(self._file_container))
             if analysis_container and not self._analysis_filter:
-                raise ValueError('Can only select files one one container ({} already selected)'.format(self._file_container))
+                raise ValueError("Can only select files one one container ({} already selected)".format(self._file_container))
             elif self._analysis_filter and not analysis_container:
-                raise ValueError('Can only select files one one container ({} analyses already selected)'.format(self._file_container))
+                raise ValueError("Can only select files one one container ({} analyses already selected)".format(self._file_container))
         else:
             # Setup the file matches.
             # In this mode, we match all files, and drop any rows with missing data
             self._file_container = file_container
-            self._file_filter = DataViewNameFilterSpec(value='*')
+            self._file_filter = DataViewNameFilterSpec(value="*")
             if analysis_container:
-                label_filter = DataViewNameFilterSpec(value='*')
+                label_filter = DataViewNameFilterSpec(value="*")
                 self._analysis_filter = DataViewAnalysisFilterSpec(label=label_filter)
 
-            self._file_match = 'all'
-            self._missing_data_strategy = 'drop-row'
+            self._file_match = "all"
+            self._missing_data_strategy = "drop-row"
             self._process_files = False
 
         if not dst:
             dst = src
-        src = '.'.join(src_parts[file_idx:])
+        src = ".".join(src_parts[file_idx:])
 
         return src, dst, type

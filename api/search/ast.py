@@ -1,6 +1,9 @@
 """Provides classes for the Structured Search Syntax Tree"""
+
+
 class Term(object):
     """Represents a single search term (e.g. comparison operation)"""
+
     def __init__(self, op, field, phrase):
         """Create a new term.
 
@@ -20,18 +23,15 @@ class Term(object):
         """TokenStr: The basis for comparsion, if provided."""
 
     def __eq__(self, other):
-        return (type(self) == type(other) and
-                self.op == other.op and
-                self.field == other.field and
-                self.phrase == other.phrase)
+        return type(self) == type(other) and self.op == other.op and self.field == other.field and self.phrase == other.phrase
 
     def __repr__(self):
-        return "Term(op='{}' field='{}' phrase='{}')".format(
-            self.op, self.field, self.phrase)
+        return "Term(op='{}' field='{}' phrase='{}')".format(self.op, self.field, self.phrase)
 
 
 class UnaryOp(object):
     """Represents a Unary operation or expression (e.g. NOT or Grouping)"""
+
     def __init__(self, expr):
         """Create a new unary expression.
 
@@ -43,15 +43,15 @@ class UnaryOp(object):
         """object: The expression"""
 
     def __eq__(self, other):
-        return (type(self) == type(other) and
-                self.expr == other.expr)
+        return type(self) == type(other) and self.expr == other.expr
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, repr(self.expr))
+        return "{}({})".format(type(self).__name__, repr(self.expr))
 
 
 class BinaryOp(object):
     """Represents a Binary expression (e.g. AND or OR)"""
+
     def __init__(self, lhs, rhs):
         """Create a new binary expression.
 
@@ -67,12 +67,10 @@ class BinaryOp(object):
         """object: The right hand side of the expression"""
 
     def __eq__(self, other):
-        return (type(self) == type(other) and
-                self.lhs == other.lhs and
-                self.rhs == other.rhs)
+        return type(self) == type(other) and self.lhs == other.lhs and self.rhs == other.rhs
 
     def __repr__(self):
-        return '{}(lhs={} rhs={})'.format(type(self).__name__, self.lhs, self.rhs)
+        return "{}(lhs={} rhs={})".format(type(self).__name__, self.lhs, self.rhs)
 
 
 class Group(UnaryOp):

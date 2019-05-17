@@ -49,17 +49,17 @@ class ContainersTestCases(SdkTestCase):
         acquisition = flywheel.Acquisition(label=self.rand_string(), session=self.session_id)
         acquisition_id = fw.add_acquisition(acquisition)
 
-        message = 'This is a note'
+        message = "This is a note"
         fw.add_container_note(acquisition_id, message)
 
-        tag = 'example-tag'
+        tag = "example-tag"
         fw.add_container_tag(acquisition_id, tag)
 
         # Replace Info
-        fw.replace_container_info(acquisition_id, { 'foo': 3, 'bar': 'qaz' })
+        fw.replace_container_info(acquisition_id, {"foo": 3, "bar": "qaz"})
 
         # Set Info
-        fw.set_container_info(acquisition_id, { 'foo': 42, 'hello': 'world' })
+        fw.set_container_info(acquisition_id, {"foo": 42, "hello": "world"})
 
         # Check
         c_acquisition = fw.get_container(acquisition_id)
@@ -70,17 +70,17 @@ class ContainersTestCases(SdkTestCase):
         self.assertEqual(len(c_acquisition.tags), 1)
         self.assertEqual(c_acquisition.tags[0], tag)
 
-        self.assertEqual(c_acquisition.info['foo'], 42)
-        self.assertEqual(c_acquisition.info['bar'], 'qaz')
-        self.assertEqual(c_acquisition.info['hello'], 'world')
+        self.assertEqual(c_acquisition.info["foo"], 42)
+        self.assertEqual(c_acquisition.info["bar"], "qaz")
+        self.assertEqual(c_acquisition.info["hello"], "world")
 
         # Delete info fields
-        fw.delete_container_info_fields(acquisition_id, ['foo', 'bar'])
+        fw.delete_container_info_fields(acquisition_id, ["foo", "bar"])
 
         c_acquisition = fw.get_container(acquisition_id)
-        self.assertNotIn('foo', c_acquisition.info)
-        self.assertNotIn('bar', c_acquisition.info)
-        self.assertEqual(c_acquisition.info['hello'], 'world')
+        self.assertNotIn("foo", c_acquisition.info)
+        self.assertNotIn("bar", c_acquisition.info)
+        self.assertEqual(c_acquisition.info["hello"], "world")
 
         # Delete
         fw.delete_container(acquisition_id)
@@ -95,31 +95,28 @@ class ContainersTestCases(SdkTestCase):
         acquisition_id = fw.add_acquisition(acquisition)
 
         # Upload a file
-        poem = 'Turning and turning in the widening gyre'
-        fw.upload_file_to_container(acquisition_id, flywheel.FileSpec('yeats.txt', poem))
+        poem = "Turning and turning in the widening gyre"
+        fw.upload_file_to_container(acquisition_id, flywheel.FileSpec("yeats.txt", poem))
 
         # Check that the file was added to the acquisition
         c_acquisition = fw.get_container(acquisition_id)
         self.assertEqual(len(c_acquisition.files), 1)
-        self.assertEqual(c_acquisition.files[0].name, 'yeats.txt')
+        self.assertEqual(c_acquisition.files[0].name, "yeats.txt")
         self.assertEqual(c_acquisition.files[0].size, 40)
-        self.assertEqual(c_acquisition.files[0].mimetype, 'text/plain')
+        self.assertEqual(c_acquisition.files[0].mimetype, "text/plain")
 
         # Download the file and check content
-        self.assertDownloadFileTextEquals(fw.download_file_from_container_as_data, acquisition_id, 'yeats.txt', poem)
+        self.assertDownloadFileTextEquals(fw.download_file_from_container_as_data, acquisition_id, "yeats.txt", poem)
 
         # Test unauthorized download with ticket for the file
-        self.assertDownloadFileTextEqualsWithTicket(fw.get_container_download_url, acquisition_id, 'yeats.txt', poem)
+        self.assertDownloadFileTextEqualsWithTicket(fw.get_container_download_url, acquisition_id, "yeats.txt", poem)
 
         # Test file attributes
         self.assertEqual(c_acquisition.files[0].modality, None)
         self.assertEmpty(c_acquisition.files[0].classification)
-        self.assertEqual(c_acquisition.files[0].type, 'text')
+        self.assertEqual(c_acquisition.files[0].type, "text")
 
-        resp = fw.modify_container_file(acquisition_id, 'yeats.txt', flywheel.FileEntry(
-            modality='modality',
-            type='type'
-        ))
+        resp = fw.modify_container_file(acquisition_id, "yeats.txt", flywheel.FileEntry(modality="modality", type="type"))
 
         # Check that no jobs were triggered, and attrs were modified
         self.assertEqual(resp.jobs_spawned, 0)
@@ -127,73 +124,53 @@ class ContainersTestCases(SdkTestCase):
         c_acquisition = fw.get_container(acquisition_id)
         self.assertEqual(c_acquisition.files[0].modality, "modality")
         self.assertEmpty(c_acquisition.files[0].classification)
-        self.assertEqual(c_acquisition.files[0].type, 'type')
+        self.assertEqual(c_acquisition.files[0].type, "type")
 
         # Test classifications
-        resp = fw.modify_container_file_classification(acquisition_id, 'yeats.txt', {
-            'modality': 'modality2',
-            'replace': {
-                'Custom': ['measurement1', 'measurement2'],
-            }
-        })
+        resp = fw.modify_container_file_classification(acquisition_id, "yeats.txt", {"modality": "modality2", "replace": {"Custom": ["measurement1", "measurement2"]}})
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
         c_acquisition = fw.get_container(acquisition_id)
-        self.assertEqual(c_acquisition.files[0].modality, 'modality2')
-        self.assertEqual(c_acquisition.files[0].classification, {
-            'Custom': ['measurement1', 'measurement2']
-        });
+        self.assertEqual(c_acquisition.files[0].modality, "modality2")
+        self.assertEqual(c_acquisition.files[0].classification, {"Custom": ["measurement1", "measurement2"]})
 
-        resp = fw.set_container_file_classification(acquisition_id, 'yeats.txt', {
-            'Custom': ['HelloWorld']
-        })
+        resp = fw.set_container_file_classification(acquisition_id, "yeats.txt", {"Custom": ["HelloWorld"]})
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
-        resp = fw.delete_container_file_classification_fields(acquisition_id, 'yeats.txt', {
-            'Custom': ['measurement2']
-        })
+        resp = fw.delete_container_file_classification_fields(acquisition_id, "yeats.txt", {"Custom": ["measurement2"]})
         self.assertEqual(resp.modified, 1)
         self.assertEqual(resp.jobs_spawned, 0)
 
         c_acquisition = fw.get_container(acquisition_id)
-        self.assertEqual(c_acquisition.files[0].classification, {
-            'Custom': ['measurement1', 'HelloWorld'],
-        });
+        self.assertEqual(c_acquisition.files[0].classification, {"Custom": ["measurement1", "HelloWorld"]})
 
         # Test file info
         self.assertEmpty(c_acquisition.files[0].info)
-        fw.replace_container_file_info(acquisition_id, 'yeats.txt', {
-            'a': 1,
-            'b': 2,
-            'c': 3,
-            'd': 4
-        })
+        fw.replace_container_file_info(acquisition_id, "yeats.txt", {"a": 1, "b": 2, "c": 3, "d": 4})
 
-        fw.set_container_file_info(acquisition_id, 'yeats.txt', {
-            'c': 5
-        })
+        fw.set_container_file_info(acquisition_id, "yeats.txt", {"c": 5})
 
         c_acquisition = fw.get_container(acquisition_id)
-        self.assertEqual(c_acquisition.files[0].info['a'], 1)
-        self.assertEqual(c_acquisition.files[0].info['b'], 2)
-        self.assertEqual(c_acquisition.files[0].info['c'], 5)
-        self.assertEqual(c_acquisition.files[0].info['d'], 4)
+        self.assertEqual(c_acquisition.files[0].info["a"], 1)
+        self.assertEqual(c_acquisition.files[0].info["b"], 2)
+        self.assertEqual(c_acquisition.files[0].info["c"], 5)
+        self.assertEqual(c_acquisition.files[0].info["d"], 4)
 
-        fw.delete_container_file_info_fields(acquisition_id, 'yeats.txt', ['c', 'd'])
+        fw.delete_container_file_info_fields(acquisition_id, "yeats.txt", ["c", "d"])
         c_acquisition = fw.get_container(acquisition_id)
-        self.assertEqual(c_acquisition.files[0].info['a'], 1)
-        self.assertEqual(c_acquisition.files[0].info['b'], 2)
-        self.assertNotIn('c', c_acquisition.files[0].info)
-        self.assertNotIn('d', c_acquisition.files[0].info)
+        self.assertEqual(c_acquisition.files[0].info["a"], 1)
+        self.assertEqual(c_acquisition.files[0].info["b"], 2)
+        self.assertNotIn("c", c_acquisition.files[0].info)
+        self.assertNotIn("d", c_acquisition.files[0].info)
 
-        fw.replace_container_file_info(acquisition_id, 'yeats.txt', {})
+        fw.replace_container_file_info(acquisition_id, "yeats.txt", {})
         c_acquisition = fw.get_container(acquisition_id)
         self.assertEmpty(c_acquisition.files[0].info)
 
         # Delete file
-        fw.delete_container_file(acquisition_id, 'yeats.txt')
+        fw.delete_container_file(acquisition_id, "yeats.txt")
         c_acquisition = fw.get_container(acquisition_id)
         self.assertEmpty(c_acquisition.files)
 
@@ -209,14 +186,10 @@ class ContainersTestCases(SdkTestCase):
         acquisition_id = fw.add_acquisition(acquisition)
         self.assertNotEmpty(acquisition_id)
 
-        poem = 'Troubles my sight: a waste of desert sand;'
-        fw.upload_file_to_container(acquisition_id, flywheel.FileSpec('yeats.txt', poem))
+        poem = "Troubles my sight: a waste of desert sand;"
+        fw.upload_file_to_container(acquisition_id, flywheel.FileSpec("yeats.txt", poem))
 
-        file_ref = flywheel.FileReference(
-            id=acquisition_id,
-            type='acquisition',
-            name='yeats.txt'
-        )
+        file_ref = flywheel.FileReference(id=acquisition_id, type="acquisition", name="yeats.txt")
 
         analysis = flywheel.AnalysisInput(label=self.rand_string(), description=self.rand_string(), inputs=[file_ref])
 
@@ -237,7 +210,7 @@ class ContainersTestCases(SdkTestCase):
         self.assertGreaterEqual(r_analysis.modified, r_analysis.created)
 
         self.assertEqual(len(r_analysis.inputs), 1)
-        self.assertEqual(r_analysis.inputs[0].name, 'yeats.txt')
+        self.assertEqual(r_analysis.inputs[0].name, "yeats.txt")
 
     def test_delete_container(self):
         fw = self.fw

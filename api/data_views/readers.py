@@ -4,6 +4,7 @@ import csv
 import json
 import collections
 
+
 def create_file_reader(fileobj, filename, file_format, options):
     """Create a filereader for the given file format (or autodetect type based on filename)
     
@@ -19,33 +20,35 @@ def create_file_reader(fileobj, filename, file_format, options):
     # Determine file reader and options
     if not file_format:
         _, ext = os.path.splitext(filename)
-        if ext == '.csv':
-            file_format = 'csv'
-        elif ext == '.tsv':
-            file_format = 'tsv'
-        elif ext == '.json':
-            file_format = 'json'
+        if ext == ".csv":
+            file_format = "csv"
+        elif ext == ".tsv":
+            file_format = "tsv"
+        elif ext == ".json":
+            file_format = "json"
         else:
-            raise RuntimeError('Could not auto-detect file type')
+            raise RuntimeError("Could not auto-detect file type")
 
-    if file_format == 'csv' or file_format == 'tsv':
+    if file_format == "csv" or file_format == "tsv":
         # Set default dialect for tsv files
-        if 'dialect' not in options and file_format == 'tsv':
-            options['dialect'] = 'excel-tab'
+        if "dialect" not in options and file_format == "tsv":
+            options["dialect"] = "excel-tab"
 
         result = CsvFileReader()
         result.initialize(fileobj, options)
         return result
 
-    if file_format == 'json':
+    if file_format == "json":
         result = JsonFileReader()
         result.initialize(fileobj, options)
         return result
-    
-    raise RuntimeError('Unsupported file format: {}'.format(file_format))
+
+    raise RuntimeError("Unsupported file format: {}".format(file_format))
+
 
 class CsvFileReader(object):
     """File reader that can read comma or tab separated data files"""
+
     def __init__(self):
         self._reader = None
         self._columns = None
@@ -62,8 +65,10 @@ class CsvFileReader(object):
     def get_columns(self):
         return self._reader.fieldnames
 
+
 class JsonFileReader(object):
     """File reader that can read JSON files (expects dictionary or list of dictionaries)"""
+
     # Arbitrary 10mb limit
     MAX_JSON_FILE_SIZE_BYTES = 10485760
 
@@ -77,18 +82,18 @@ class JsonFileReader(object):
         # Read up to max length bytes
         data = fileobj.read(max_size)
         if len(data) == max_size and fileobj.read(1):
-            raise RuntimeError('File exceeds max length of {}'.format(max_size))
+            raise RuntimeError("File exceeds max length of {}".format(max_size))
 
         self._json = json.loads(data, object_pairs_hook=collections.OrderedDict)
 
         # Validate that we have a json list or object
         if not isinstance(self._json, (collections.Sequence, collections.Mapping)):
-            raise RuntimeError('File does not contain a JSON list or object!')
+            raise RuntimeError("File does not contain a JSON list or object!")
 
         # Wrap in a list
         if isinstance(self._json, collections.Mapping):
             self._json = [self._json]
-        
+
         # Extract columns
         self._init_columns()
 
@@ -103,4 +108,3 @@ class JsonFileReader(object):
 
     def get_columns(self):
         return self._columns
-

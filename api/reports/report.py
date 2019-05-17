@@ -4,11 +4,13 @@ from .report_writer import ReportWriter
 from .. import config
 from ..web.errors import APIReportException, APIReportParamsException
 
+
 class Report(object):
     """Abstract class for building reports"""
+
     __metaclass__ = ABCMeta
 
-    filename = 'report'
+    filename = "report"
     columns = None
 
     def __init__(self, params):
@@ -37,11 +39,11 @@ class Report(object):
         Get a writer for the given file format
         """
         if not self.columns:
-            raise APIReportParamsException('This report does not support file export.')
+            raise APIReportParamsException("This report does not support file export.")
 
         return ReportWriter(out_format, self)
 
-    def format_row(self, row, out_format): # pylint: disable=unused-argument
+    def format_row(self, row, out_format):  # pylint: disable=unused-argument
         """
         Perform any necessary conversions to write the given flattened row.
         """
@@ -62,10 +64,9 @@ class Report(object):
             raise APIReportException(str(e))
 
         if not result:
-            raise APIReportException('no results')
+            raise APIReportException("no results")
 
         return result
-
 
     @staticmethod
     def _get_result(cont_name, pipeline):

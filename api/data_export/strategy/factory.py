@@ -4,11 +4,7 @@ from .classic import ClassicDownloadStrategy
 from .full import FullDownloadStrategy
 
 
-_strategies = {
-    'classic': ClassicDownloadStrategy,
-    'bulk': BulkDownloadStrategy,
-    'full': FullDownloadStrategy,
-}
+_strategies = {"classic": ClassicDownloadStrategy, "bulk": BulkDownloadStrategy, "full": FullDownloadStrategy}
 
 
 # For lack of a better place for now...
@@ -28,4 +24,3 @@ def create_download_strategy(name, log, params):
         return strategy(log=log, params=params)
 
     return None
-

@@ -3,10 +3,12 @@ from abc import ABCMeta, abstractmethod
 # Placeholder value to indicate that the end of data has been reached
 EndOfPayload = object()
 
+
 class PipelineStage(object):
     __metaclass__ = ABCMeta
 
     """Represents a single stage in a data-processing pipeline"""
+
     def __init__(self):
         self._next = None
 
@@ -30,7 +32,7 @@ class PipelineStage(object):
             payload: The payload to emit to the next pipeline stage
         """
         if not self._next:
-            raise RuntimeError('Last stage of pipeline is emitting a value')
+            raise RuntimeError("Last stage of pipeline is emitting a value")
         self._next.process(payload)
 
     @abstractmethod
@@ -41,7 +43,3 @@ class PipelineStage(object):
             payload: The payload from the previous pipeline stage
         """
         pass
-
-
-
-

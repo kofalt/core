@@ -1,40 +1,40 @@
 def test_notes(data_builder, as_user, as_admin):
     project = data_builder.create_project()
-    uid = as_user.get('/users/self').json()['_id']
+    uid = as_user.get("/users/self").json()["_id"]
 
-    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'rw'})
+    r = as_admin.post("/projects/" + project + "/permissions", json={"_id": uid, "access": "rw"})
     assert r.ok
 
     # Add a note
-    note_text = 'test note'
-    r = as_user.post('/projects/' + project + '/notes', json={'text': note_text})
+    note_text = "test note"
+    r = as_user.post("/projects/" + project + "/notes", json={"text": note_text})
     assert r.ok
 
     # Verify note is present in project
-    r = as_user.get('/projects/' + project)
+    r = as_user.get("/projects/" + project)
     assert r.ok
-    assert len(r.json()['notes']) == 1
-    note = r.json()['notes'][0]['_id']
+    assert len(r.json()["notes"]) == 1
+    note = r.json()["notes"][0]["_id"]
 
-    r = as_user.get('/projects/' + project + '/notes/' + note)
+    r = as_user.get("/projects/" + project + "/notes/" + note)
     assert r.ok
-    assert r.json()['text'] == note_text
+    assert r.json()["text"] == note_text
 
     # Modify note
-    note_text_2 = 'modified note'
-    r = as_user.put('/projects/' + project + '/notes/' + note, json={'text': note_text_2})
+    note_text_2 = "modified note"
+    r = as_user.put("/projects/" + project + "/notes/" + note, json={"text": note_text_2})
     assert r.ok
 
     # Verify modified note
-    r = as_user.get('/projects/' + project + '/notes/' + note)
+    r = as_user.get("/projects/" + project + "/notes/" + note)
     assert r.ok
-    assert r.json()['text'] == note_text_2
+    assert r.json()["text"] == note_text_2
 
     # Delete note
-    r = as_user.delete('/projects/' + project + '/notes/' + note)
+    r = as_user.delete("/projects/" + project + "/notes/" + note)
     assert r.ok
 
-    r = as_user.get('/projects/' + project + '/notes/' + note)
+    r = as_user.get("/projects/" + project + "/notes/" + note)
     assert r.status_code == 404
 
 
@@ -42,19 +42,16 @@ def test_analysis_notes(data_builder, file_form, as_admin):
     acquisition = data_builder.create_acquisition()
 
     # create acquisition analysis
-    file_name = 'one.csv'
-    r = as_admin.post('/acquisitions/' + acquisition + '/analyses', files=file_form(
-        file_name, meta={'label': 'test analysis', 'inputs': [{'name': file_name}]}))
+    file_name = "one.csv"
+    r = as_admin.post("/acquisitions/" + acquisition + "/analyses", files=file_form(file_name, meta={"label": "test analysis", "inputs": [{"name": file_name}]}))
     assert r.ok
-    analysis = r.json()['_id']
+    analysis = r.json()["_id"]
 
     # create analysis note
-    note_text = 'test note'
-    r = as_admin.post('/acquisitions/' + acquisition + '/analyses/' + analysis + '/notes', json={
-        'text': note_text
-    })
+    note_text = "test note"
+    r = as_admin.post("/acquisitions/" + acquisition + "/analyses/" + analysis + "/notes", json={"text": note_text})
     assert r.ok
 
     # delete acquisition analysis
-    r = as_admin.delete('/acquisitions/' + acquisition + '/analyses/' + analysis)
+    r = as_admin.delete("/acquisitions/" + acquisition + "/analyses/" + analysis)
     assert r.ok

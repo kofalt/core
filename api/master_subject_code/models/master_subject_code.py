@@ -2,6 +2,7 @@
 
 from ... import models
 
+
 class MasterSubjectCode(models.Base):
     """Master subject code data model."""
 

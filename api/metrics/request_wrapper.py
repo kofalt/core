@@ -7,6 +7,7 @@ from .. import config
 
 log = config.log
 
+
 class RequestWrapper(object):
     def __init__(self, request, response):
         """Wrap a pending request/response in a context manager that will collect stats.
@@ -22,7 +23,7 @@ class RequestWrapper(object):
         self._status = 200
         self._write_on_exit = True
 
-        if response and hasattr(response, 'write'):
+        if response and hasattr(response, "write"):
             response.write = self.__instrument_write_fn(response.write)
 
     def __enter__(self):
@@ -64,7 +65,7 @@ class RequestWrapper(object):
             try:
                 return fn(environ, start_response_wrapper)
             finally:
-                self.__write_metrics()            
+                self.__write_metrics()
 
         return handler
 
@@ -77,6 +78,7 @@ class RequestWrapper(object):
         Returns:
             function: The instrumented write function
         """
+
         def write_fn(*args, **kwargs):
             # Just check if the first item of args has a length
             if args and isinstance(args[0], collections.Sized):
@@ -91,17 +93,16 @@ class RequestWrapper(object):
         try:
             response_time = max(default_timer() - self._start, 0)
 
-            template = 'UNKNOWN'
-            if hasattr(self._request, 'route') and hasattr(self._request.route, 'template'):
+            template = "UNKNOWN"
+            if hasattr(self._request, "route") and hasattr(self._request.route, "template"):
                 template = self._request.route.template
 
-            method = getattr(self._request, 'method', 'UNKNOWN')
+            method = getattr(self._request, "method", "UNKNOWN")
 
-            labels = [ method, template, str(self._status) ]
+            labels = [method, template, str(self._status)]
             values.RESPONSE_TIME.labels(*labels).inc(response_time)
             values.RESPONSE_SIZE.labels(*labels).inc(self._bytes_sent)
             values.RESPONSE_COUNT.labels(*labels).inc(1)
 
-        except: # pylint: disable=bare-except
-            log.exception('Error recording metrics')
-
+        except:  # pylint: disable=bare-except
+            log.exception("Error recording metrics")

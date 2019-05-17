@@ -4,7 +4,8 @@ import re
 
 from ..web.errors import InputValidationException
 
-def filtered_container_list(containers, filters, match_type='first', date_key='created'):
+
+def filtered_container_list(containers, filters, match_type="first", date_key="created"):
     """Return a list of matching, non_deleted containers from the input list.
 
     This function assumes that in addition to the label key, there is a 'created' key which will be used for sorting.
@@ -24,29 +25,29 @@ def filtered_container_list(containers, filters, match_type='first', date_key='c
     # Filter
     def match_fn(entry):
         # Ignore deleted entries
-        if 'deleted' in entry:
+        if "deleted" in entry:
             return False
 
         for filter_key, filter_pattern in filters:
-            value = extract_json_property(filter_key, entry, '')
+            value = extract_json_property(filter_key, entry, "")
             if not filter_pattern.match(value):
                 return False
-            
+
         return True
 
     results = filter(match_fn, containers)
 
     # Sort
-    if match_type == 'last':
+    if match_type == "last":
         results = reversed(results)
-    elif match_type == 'newest':
+    elif match_type == "newest":
         sorted(results, key=lambda x: x[date_key], reverse=True)
-    elif match_type == 'oldest':
+    elif match_type == "oldest":
         sorted(results, key=lambda x: x[date_key])
 
     # Reduce
     results = list(results)
-    if match_type != 'all':
+    if match_type != "all":
         results = results[:1]
     return results
 
@@ -64,27 +65,28 @@ def extract_json_property(name, obj, default=None):
     Returns:
         The extracted object, or default value if the property could not be found
     """
-    path = name.split('.')
+    path = name.split(".")
     for path_el in path:
         if isinstance(obj, collections.Sequence):
             try:
                 obj = obj[int(path_el)]
             except IndexError:
-                obj = nil_value 
+                obj = nil_value
             except ValueError:
-                obj = nil_value 
+                obj = nil_value
         elif isinstance(obj, collections.Mapping):
             obj = obj.get(path_el, nil_value)
         else:
             obj = getattr(obj, path_el, nil_value)
 
-        if is_nil(obj) or obj is None: 
+        if is_nil(obj) or obj is None:
             break
 
     if is_nil(obj):
         return default
 
     return obj
+
 
 def convert_to_datatype(value, datatype):
     """Attempt to convert value to the given datatype. 
@@ -102,27 +104,28 @@ def convert_to_datatype(value, datatype):
         return value
 
     try:
-        if datatype == 'int':
+        if datatype == "int":
             if value is None:
                 return nil_value
             return int(value)
-        elif datatype == 'float':
+        elif datatype == "float":
             return float(value)
-        elif datatype == 'bool':
-            if isinstance(value, basestring) and value.lower() == 'false':
+        elif datatype == "bool":
+            if isinstance(value, basestring) and value.lower() == "false":
                 return False
             return bool(value)
-        elif datatype == 'string':
+        elif datatype == "string":
             if value is None:
-                return ''
+                return ""
             return str(value)
-        elif datatype == 'object':
+        elif datatype == "object":
             return value
         else:
-            raise RuntimeError('Unknown datatype: {}'.format(datatype))
+            raise RuntimeError("Unknown datatype: {}".format(datatype))
 
     except ValueError:
         return nil_value
+
 
 def file_filter_to_regex(filter_spec):
     """Convert a file-filter-spec to a regular expression
@@ -132,20 +135,23 @@ def file_filter_to_regex(filter_spec):
 
     Returns:
         A compiled regular expression
-    """        
+    """
     try:
-        val = filter_spec['value']
-        if not filter_spec.get('regex', False):
+        val = filter_spec["value"]
+        if not filter_spec.get("regex", False):
             val = fnmatch.translate(val)
         return re.compile(val, re.I)
     except re.error:
-        raise InputValidationException('Invalid filter spec: {}'.format(filter_spec['value']))
+        raise InputValidationException("Invalid filter spec: {}".format(filter_spec["value"]))
+
 
 nil_value = object()
+
 
 def is_nil(val):
     """Check if the given value is nil"""
     return nil_value == val
+
 
 def contains_nil(obj, nil_hint=False):
     """Check if the given dict contains any nil_value sentinal values"""
@@ -157,6 +163,7 @@ def contains_nil(obj, nil_hint=False):
             return True
 
     return False
+
 
 def deep_keys(obj, keys=None, prefix=None):
     """Get the set of all flattened keys in an object
@@ -172,14 +179,13 @@ def deep_keys(obj, keys=None, prefix=None):
 
     if isinstance(obj, dict):
         if prefix is None:
-            prefix = ''
+            prefix = ""
 
         for key, value in obj.items():
             deep_key = prefix + key
             if isinstance(value, dict):
-                deep_keys(value, keys=keys, prefix=(deep_key+'.'))
+                deep_keys(value, keys=keys, prefix=(deep_key + "."))
             else:
                 keys.add(deep_key)
 
-    return keys 
-
+    return keys

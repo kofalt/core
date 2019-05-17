@@ -8,13 +8,8 @@ from test_session import create_test_session
 import flywheel
 
 # A few choice samples from: https://github.com/minimaxir/big-list-of-naughty-strings
-TEST_LABELS = [
-    six.u('åß∂ƒ©˙∆˚¬…æ'),
-    six.u('Ω≈ç√∫˜µ≤≥÷'),
-    six.u('ЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'),
-    six.u('(╯°□°）╯︵ ┻━┻'),
-    six.u('¯\_(ツ)_/¯')
-]
+TEST_LABELS = [six.u("åß∂ƒ©˙∆˚¬…æ"), six.u("Ω≈ç√∫˜µ≤≥÷"), six.u("ЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"), six.u("(╯°□°）╯︵ ┻━┻"), six.u("¯\_(ツ)_/¯")]
+
 
 class UnicodeTestCases(SdkTestCase):
     def setUp(self):
@@ -28,11 +23,10 @@ class UnicodeTestCases(SdkTestCase):
         fw = self.fw
 
         for label in TEST_LABELS:
-            acquisition = flywheel.Acquisition(label=label, session=self.session_id) 
+            acquisition = flywheel.Acquisition(label=label, session=self.session_id)
 
             acquisition_id = fw.add_acquisition(acquisition)
             self.assertIsNotNone(acquisition_id)
 
             r_acquisition = fw.get_acquisition(acquisition_id)
             self.assertEqual(r_acquisition.label, label)
-

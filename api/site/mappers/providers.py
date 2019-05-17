@@ -7,8 +7,10 @@ import pymongo
 from ... import config
 from .. import models
 
+
 class Providers(object):
     """Data mapper for providers"""
+
     def __init__(self, db=None):
         self.db = db or config.db
         self.dbc = self.db.providers
@@ -38,9 +40,9 @@ class Providers(object):
             doc (dict): The set of updates to apply
         """
         # Create the upsert document
-        update = { '$set': doc }
-        update['$set']['modified'] = datetime.datetime.now()
-        self.dbc.update_one({'_id': bson.ObjectId(provider_id)}, update)
+        update = {"$set": doc}
+        update["$set"]["modified"] = datetime.datetime.now()
+        self.dbc.update_one({"_id": bson.ObjectId(provider_id)}, update)
 
     def get(self, provider_id):
         """Get the provider that matches the given id.
@@ -51,7 +53,7 @@ class Providers(object):
         Returns:
             Provider: The loaded provider or None
         """
-        result = self.dbc.find_one({'_id': bson.ObjectId(provider_id)})
+        result = self.dbc.find_one({"_id": bson.ObjectId(provider_id)})
         return self._load_provider(result)
 
     def find_all(self, provider_class=None):
@@ -66,7 +68,7 @@ class Providers(object):
         if provider_class:
             if isinstance(provider_class, models.ProviderClass):
                 provider_class = provider_class.value
-            query = {'provider_class': provider_class}
+            query = {"provider_class": provider_class}
         else:
             query = {}
         return self._find_all(query)
@@ -83,11 +85,10 @@ class Providers(object):
         cls = provider.provider_class.value
 
         doc = provider.to_dict()
-        doc['_site'] = cls
+        doc["_site"] = cls
 
-        result = self.dbc.find_one_and_update({'_site': cls}, {'$setOnInsert': doc}, upsert=True,
-                projection={'_id':1}, return_document=pymongo.collection.ReturnDocument.AFTER)
-        return result['_id']
+        result = self.dbc.find_one_and_update({"_site": cls}, {"$setOnInsert": doc}, upsert=True, projection={"_id": 1}, return_document=pymongo.collection.ReturnDocument.AFTER)
+        return result["_id"]
 
     def _find_all(self, query, **kwargs):
         """Find all providers matching the given query.
@@ -108,6 +109,6 @@ class Providers(object):
             return None
 
         # Remove site key
-        doc.pop('_site', None)
+        doc.pop("_site", None)
 
         return models.Provider.from_dict(doc)

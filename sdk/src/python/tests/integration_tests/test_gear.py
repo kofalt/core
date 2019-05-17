@@ -3,6 +3,7 @@ from sdk_test_case import SdkTestCase
 
 import flywheel
 
+
 class GearTestCases(SdkTestCase):
     def setUp(self):
         self.gear_id = None
@@ -13,25 +14,12 @@ class GearTestCases(SdkTestCase):
 
     def test_gears(self):
         fw = self.fw
-        
+
         gear = flywheel.Gear(
-            name=self.rand_string_lower(),
-            label=self.rand_string(),
-            description=self.rand_string(),
-            version=self.rand_string(),
-            author=self.rand_string(),
-            maintainer=self.rand_string(),
-            license='Other',
-            source='http://example.example',
-            url='http://example.example',
-            config={},
-            inputs={}
+            name=self.rand_string_lower(), label=self.rand_string(), description=self.rand_string(), version=self.rand_string(), author=self.rand_string(), maintainer=self.rand_string(), license="Other", source="http://example.example", url="http://example.example", config={}, inputs={}
         )
 
-        gear_doc = flywheel.GearDoc(
-            category='utility',
-            gear=gear
-        )
+        gear_doc = flywheel.GearDoc(category="utility", gear=gear)
 
         # Add
         self.gear_id = gear_id = fw.add_gear(gear.name, gear_doc)
@@ -47,8 +35,8 @@ class GearTestCases(SdkTestCase):
         # Get invocation
         gear_schema = fw.get_gear_invocation(gear_id)
         self.assertNotEmpty(gear_schema)
-        self.assertIn('$schema', gear_schema)
-        self.assertTrue(gear_schema['$schema'].startswith('http://json-schema.org'))
+        self.assertIn("$schema", gear_schema)
+        self.assertTrue(gear_schema["$schema"].startswith("http://json-schema.org"))
 
         # Get All
         gears = fw.get_all_gears()
@@ -59,8 +47,9 @@ class GearTestCases(SdkTestCase):
         self.gear_id = None
         gears = fw.get_all_gears()
         self.assertNotIn(r_gear, gears)
-        
-def create_test_gear(category='utility'):
+
+
+def create_test_gear(category="utility"):
     #
     ## Do not modify the below gear document without checking the other callees!
     #
@@ -71,27 +60,13 @@ def create_test_gear(category='utility'):
         version=SdkTestCase.rand_string(),
         author=SdkTestCase.rand_string(),
         maintainer=SdkTestCase.rand_string(),
-        license='Other',
-        source='http://example.example',
-        url='http://example.example',
+        license="Other",
+        source="http://example.example",
+        url="http://example.example",
         config={},
-        inputs={
-            'any-file': {
-                'base': 'file'
-            }
-        }
+        inputs={"any-file": {"base": "file"}},
     )
 
-    gear_doc = flywheel.GearDoc(
-        category=category,
-        gear=gear,
-        exchange=flywheel.GearExchange(
-            git_commit='aex',
-            rootfs_hash='sha384:oy',
-            rootfs_url='http://example.example'
-        )
-    )
+    gear_doc = flywheel.GearDoc(category=category, gear=gear, exchange=flywheel.GearExchange(git_commit="aex", rootfs_hash="sha384:oy", rootfs_url="http://example.example"))
 
     return SdkTestCase.fw.add_gear(gear.name, gear_doc)
-
-

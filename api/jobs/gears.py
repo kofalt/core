@@ -20,6 +20,7 @@ from ..web.errors import APIValidationException, APINotFoundException
 
 log = config.log
 
+
 def get_gears(all_versions=False, pagination=None):
     """
     Fetch the install-global gears from the database
@@ -29,64 +30,66 @@ def get_gears(all_versions=False, pagination=None):
         kwargs = {
             # Invalid disables a gear from running entirely.
             # https://github.com/flywheel-io/gears/tree/master/spec#reserved-custom-keys
-            'filter': { 'gear.custom.flywheel.invalid': {'$ne': True} },
-
-            'sort': [('gear.name', 1), ('created', -1)]
+            "filter": {"gear.custom.flywheel.invalid": {"$ne": True}},
+            "sort": [("gear.name", 1), ("created", -1)],
         }
         page = dbutil.paginate_find(config.db.gears, kwargs, pagination)
-        return page['results'] if pagination is None else page
+        return page["results"] if pagination is None else page
 
     if pagination:
-        pagination['pipe_key'] = lambda key: 'original.' + key
+        pagination["pipe_key"] = lambda key: "original." + key
 
     pipe = [
-        {'$match': {
-            # Same as above.
-            'gear.custom.flywheel.invalid': {'$ne': True}}
+        {
+            "$match": {
+                # Same as above.
+                "gear.custom.flywheel.invalid": {"$ne": True}
+            }
         },
-        {'$sort': {
-            'gear.name': 1,
-            'created': -1,
-        }},
-        {'$group': {
-            '_id': { 'name': '$gear.name' },
-            'original': { '$first': '$$CURRENT' }
-        }}
+        {"$sort": {"gear.name": 1, "created": -1}},
+        {"$group": {"_id": {"name": "$gear.name"}, "original": {"$first": "$$CURRENT"}}},
     ]
 
     page = dbutil.paginate_pipe(config.db.gears, pipe, pagination)
-    page['results'] = [r['original'] for r in page['results']]
-    return page['results'] if pagination is None else page
+    page["results"] = [r["original"] for r in page["results"]]
+    return page["results"] if pagination is None else page
+
 
 def get_gear(_id):
-    gear = config.db.gears.find_one({'_id': bson.ObjectId(_id)})
+    gear = config.db.gears.find_one({"_id": bson.ObjectId(_id)})
     if gear is None:
-        raise APINotFoundException('Cannot find gear {}'.format(_id))
+        raise APINotFoundException("Cannot find gear {}".format(_id))
     return gear
 
+
 def get_latest_gear(name):
-    gears = config.db.gears.find({'gear.name': name, 'gear.custom.flywheel.invalid': {'$ne': True}}).sort('created', direction=-1).limit(1)
+    gears = config.db.gears.find({"gear.name": name, "gear.custom.flywheel.invalid": {"$ne": True}}).sort("created", direction=-1).limit(1)
     if gears.count() > 0:
         return gears[0]
 
+
 def get_gear_version(name, version):
-    gear = config.db.gears.find_one({'gear.name': name, 'gear.version': version})
+    gear = config.db.gears.find_one({"gear.name": name, "gear.version": version})
     if gear is None:
-        raise APINotFoundException('Cannot find version {} for gear {}'.format(version, name))
+        raise APINotFoundException("Cannot find version {} for gear {}".format(version, name))
     return gear
 
+
 def get_all_gear_versions(name):
-    return list(config.db.gears.find({'gear.name': name}).sort('created', direction=-1))
+    return list(config.db.gears.find({"gear.name": name}).sort("created", direction=-1))
+
 
 def requires_read_write_key(gear):
-    for x in gear['gear'].get('inputs', {}).keys():
-        input_ = gear['gear']['inputs'][x]
-        if input_.get('base') == 'api-key' and not input_.get('read-only'):
+    for x in gear["gear"].get("inputs", {}).keys():
+        input_ = gear["gear"]["inputs"][x]
+        if input_.get("base") == "api-key" and not input_.get("read-only"):
             return True
     return False
 
+
 def get_invocation_schema(gear):
-    return gear_tools.derive_invocation_schema(gear['gear'])
+    return gear_tools.derive_invocation_schema(gear["gear"])
+
 
 def add_suggest_info_to_files(gear, files):
     """
@@ -96,18 +99,19 @@ def add_suggest_info_to_files(gear, files):
     invocation_schema = get_invocation_schema(gear)
 
     schemas = {}
-    for x in gear['gear']['inputs']:
-        input_ = gear['gear']['inputs'][x]
-        if input_.get('base') == 'file':
+    for x in gear["gear"]["inputs"]:
+        input_ = gear["gear"]["inputs"][x]
+        if input_.get("base") == "file":
             schema = gear_tools.isolate_file_invocation(invocation_schema, x)
             schemas[x] = Draft4Validator(schema)
 
     for f in files:
-        f['suggested'] = {}
+        f["suggested"] = {}
         for x in schemas:
-            f['suggested'][x] = schemas[x].is_valid(f)
+            f["suggested"][x] = schemas[x].is_valid(f)
 
     return files
+
 
 def suggest_for_files(gear, files, context=None):
 
@@ -115,21 +119,14 @@ def suggest_for_files(gear, files, context=None):
     schemas = {}
     suggested_inputs = {}
 
-    for x in gear['gear']['inputs']:
-        input_ = gear['gear']['inputs'][x]
-        if input_.get('base') == 'context':
+    for x in gear["gear"]["inputs"]:
+        input_ = gear["gear"]["inputs"][x]
+        if input_.get("base") == "context":
             if x in context:
-                suggested_inputs[x] = [{
-                    'base': 'context',
-                    'found': True,
-                    'value': context[x]['value']
-                }]
+                suggested_inputs[x] = [{"base": "context", "found": True, "value": context[x]["value"]}]
             else:
-                suggested_inputs[x] = [{
-                    'base': 'context',
-                    'found': False
-                }]
-        elif input_.get('base') == 'file':
+                suggested_inputs[x] = [{"base": "context", "found": False}]
+        elif input_.get("base") == "file":
             schema = gear_tools.isolate_file_invocation(invocation_schema, x)
             schemas[x] = Draft4Validator(schema)
 
@@ -137,24 +134,23 @@ def suggest_for_files(gear, files, context=None):
         suggested_inputs[input_name] = []
         for f in files:
             if schema.is_valid(f):
-                suggested_inputs[input_name].append({
-                    'base': 'file',
-                    'name': f.get('name')
-                })
+                suggested_inputs[input_name].append({"base": "file", "name": f.get("name")})
 
     return suggested_inputs
 
+
 def validate_gear_config(gear, config_):
-    if len(gear.get('gear', {}).get('config', {})) > 0:
-        invocation = gear_tools.derive_invocation_schema(gear['gear'])
+    if len(gear.get("gear", {}).get("config", {})) > 0:
+        invocation = gear_tools.derive_invocation_schema(gear["gear"])
         ci = gear_tools.isolate_config_invocation(invocation)
         validator = Draft4Validator(ci)
 
         try:
             validator.validate(fill_gear_default_values(gear, config_))
         except ValidationError as err:
-            raise APIValidationException(reason='config did not match manifest', cause=err)
+            raise APIValidationException(reason="config did not match manifest", cause=err)
     return True
+
 
 def fill_gear_default_values(gear, config_):
     """
@@ -163,40 +159,44 @@ def fill_gear_default_values(gear, config_):
 
     config_ = copy.deepcopy(config_) or {}
 
-    for k,v in gear['gear'].get('config', {}).iteritems():
-        if 'default' in v:
-            config_.setdefault(k, v['default'])
+    for k, v in gear["gear"].get("config", {}).iteritems():
+        if "default" in v:
+            config_.setdefault(k, v["default"])
 
     return config_
 
+
 def count_file_inputs(geardoc):
-    return len([inp for inp in geardoc['gear']['inputs'].values() if inp['base'] == 'file'])
+    return len([inp for inp in geardoc["gear"]["inputs"].values() if inp["base"] == "file"])
+
 
 def filter_optional_inputs(geardoc):
     filtered_gear_doc = copy.deepcopy(geardoc)
-    inputs = filtered_gear_doc['gear']['inputs'].iteritems()
-    filtered_gear_doc['gear']['inputs'] = {inp: inp_val for inp, inp_val in inputs if not inp_val.get('optional')}
+    inputs = filtered_gear_doc["gear"]["inputs"].iteritems()
+    filtered_gear_doc["gear"]["inputs"] = {inp: inp_val for inp, inp_val in inputs if not inp_val.get("optional")}
     return filtered_gear_doc
 
+
 def insert_gear(doc):
-    gear_tools.validate_manifest(doc['gear'])
-    last_gear = get_latest_gear(doc['gear']['name'])
+    gear_tools.validate_manifest(doc["gear"])
+    last_gear = get_latest_gear(doc["gear"]["name"])
 
     # This can be mongo-escaped and re-used later
     if doc.get("invocation-schema"):
-        del(doc["invocation-schema"])
+        del doc["invocation-schema"]
 
     now = datetime.datetime.utcnow()
 
-    doc['created']  = now
-    doc['modified'] = now
+    doc["created"] = now
+    doc["modified"] = now
 
     result = config.db.gears.insert(doc)
 
     if last_gear:
-        auto_update_rules(doc['_id'], last_gear.get('_id'))
+        auto_update_rules(doc["_id"], last_gear.get("_id"))
 
     return result
+
 
 def remove_gear(_id):
     result = config.db.gears.delete_one({"_id": bson.ObjectId(_id)})
@@ -204,26 +204,27 @@ def remove_gear(_id):
     if result.deleted_count != 1:
         raise Exception("Deleted failed " + str(result.raw_result))
 
+
 def upsert_gear(doc):
     check_for_gear_insertion(doc)
 
     return insert_gear(doc)
 
+
 def check_for_gear_insertion(doc):
-    gear_tools.validate_manifest(doc['gear'])
+    gear_tools.validate_manifest(doc["gear"])
 
     # Remove previous gear if name & version combo already exists
 
-    conflict = config.db.gears.find_one({
-        'gear.name': doc['gear']['name'],
-        'gear.version': doc['gear']['version']
-    })
+    conflict = config.db.gears.find_one({"gear.name": doc["gear"]["name"], "gear.version": doc["gear"]["version"]})
 
     if conflict is not None:
-        raise Exception('Gear "' + doc['gear']['name'] + '" version "' + doc['gear']['version'] + '" already exists, consider changing the version string.')
+        raise Exception('Gear "' + doc["gear"]["name"] + '" version "' + doc["gear"]["version"] + '" already exists, consider changing the version string.')
+
 
 def auto_update_rules(gear_id, last_gear_id):
-    config.db.project_rules.update_many({'gear_id': str(last_gear_id), 'auto_update': True}, {"$set": {'gear_id': str(gear_id)}})
+    config.db.project_rules.update_many({"gear_id": str(last_gear_id), "auto_update": True}, {"$set": {"gear_id": str(gear_id)}})
+
 
 def get_registry_connectivity():
     """
@@ -231,23 +232,24 @@ def get_registry_connectivity():
     """
 
     c = config.get_config()
-    pw = c['core']['drone_secret']
-    url =  urlparse(c['site']['redirect_url'])
+    pw = c["core"]["drone_secret"]
+    url = urlparse(c["site"]["redirect_url"])
 
     if url.port is None or url.port == 443:
         host = url.hostname
     else:
-        host = url.hostname + ':' + str(url.port)
+        host = url.hostname + ":" + str(url.port)
 
-    api_key = ''
-    username = 'device.flywheel'
+    api_key = ""
+    username = "device.flywheel"
 
     if url.port is None or url.port == 443:
-        api_key = url.hostname + ':' + pw
+        api_key = url.hostname + ":" + pw
     else:
-        api_key = url.hostname + ':' + str(url.port) + ':' + pw
+        api_key = url.hostname + ":" + str(url.port) + ":" + pw
 
     return host, username, api_key
+
 
 def confirm_registry_asset(repo, pointer):
     """
@@ -258,32 +260,32 @@ def confirm_registry_asset(repo, pointer):
 
     host, username, api_key = get_registry_connectivity()
 
-    image = host + '/' + repo + '@' + pointer
-    log.debug('Validating image ' + image + '...')
+    image = host + "/" + repo + "@" + pointer
+    log.debug("Validating image " + image + "...")
 
     # Authenticate via callable
     def auth(dxf, response):
-        log.debug('Authenticating to registry...')
+        log.debug("Authenticating to registry...")
         dxf.authenticate(username, api_key, response=response)
-        log.debug('Auth           to registry successful')
+        log.debug("Auth           to registry successful")
 
     # Connects over internal network with override host and autogenerated TLS
     dxf = DXF(host, repo, auth, tlsverify=False)
 
     # Fetch and sanity check the blob size
     blob_id = str(dxf.get_digest(pointer))
-    if dxf.blob_size(blob_id) > (10 * 1000* 1000): # 10 MB to bytes
-        raise Exception('Manifest is larger than 10 MB. Possible registry error?')
+    if dxf.blob_size(blob_id) > (10 * 1000 * 1000):  # 10 MB to bytes
+        raise Exception("Manifest is larger than 10 MB. Possible registry error?")
 
     # Pull and assemble the manifest
     raw_blob, _ = dxf.pull_blob(blob_id, size=True)
-    manifest = json.loads(''.join(raw_blob))
+    manifest = json.loads("".join(raw_blob))
 
     # Compatibility checks for the gears platform
-    if manifest['architecture'] != 'amd64':
+    if manifest["architecture"] != "amd64":
         raise Exception("Architecture must be amd64")
 
-    if manifest['os'] != 'linux':
+    if manifest["os"] != "linux":
         raise Exception("Os must be linux")
 
     return manifest, image

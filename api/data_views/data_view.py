@@ -32,16 +32,14 @@ from .pipeline.filter import Filter
 from .pipeline.skip_limit import SkipAndLimit
 from .pipeline.report_progress import ReportProgress
 
-SEARCH_CONTAINERS = ['projects', 'subjects', 'sessions', 'acquisitions']
+SEARCH_CONTAINERS = ["projects", "subjects", "sessions", "acquisitions"]
 
-ANALYSIS_FILTER_COLUMNS = [
-    ('label', 'label'),
-    ('gear.name', 'gear_info.name'),
-    ('gear.version', 'gear_info.version')
-]
+ANALYSIS_FILTER_COLUMNS = [("label", "label"), ("gear.name", "gear_info.name"), ("gear.version", "gear_info.version")]
+
 
 class DataView(object):
     """Executes data view queries against the database."""
+
     def __init__(self, desc):
         # The configuration object
         self.config = DataViewConfig(desc)
@@ -53,7 +51,7 @@ class DataView(object):
         self._content_type = None
 
         # The file extension for the response
-        self._file_extension = '.bin'
+        self._file_extension = ".bin"
 
         # The write function
         self._write_fn = None
@@ -92,8 +90,8 @@ class DataView(object):
             pagination (dict): The optional pagination options (including filtering)
         """
         # Don't support sorting in pagination
-        if pagination and 'sort' in pagination:
-            raise APIValidationException('Sorting is not supported for data views')
+        if pagination and "sort" in pagination:
+            raise APIValidationException("Sorting is not supported for data views")
 
         # Initialize the column list
         self.config.initialize_columns()
@@ -105,10 +103,10 @@ class DataView(object):
         if bson.ObjectId.is_valid(container_id):
             container_id = bson.ObjectId(container_id)
 
-        result = containerutil.container_search({'_id': container_id}, collections=SEARCH_CONTAINERS)
+        result = containerutil.container_search({"_id": container_id}, collections=SEARCH_CONTAINERS)
         if not result:
-            raise APINotFoundException('Could not resolve container: {}'.format(container_id))
-        cont_type, search_results = result[0] # First returned collection
+            raise APINotFoundException("Could not resolve container: {}".format(container_id))
+        cont_type, search_results = result[0]  # First returned collection
 
         # Get the container tree (minus group)
         storage = ContainerStorage.factory(cont_type)
@@ -116,14 +114,14 @@ class DataView(object):
 
         # Set access log initial context (including group)
         self._log_access_stage.initialize(self._tree)
-        
-        self._tree = [cont for cont in self._tree if cont['cont_type'] != 'groups']
+
+        self._tree = [cont for cont in self._tree if cont["cont_type"] != "groups"]
         self._tree.reverse()
 
         # Check permissions
         for cont in self._tree:
-            if not has_access(uid, cont, 'ro'):
-                raise APIPermissionException('User {} does not have read access to {} {}'.format(uid, cont['cont_type'], cont['_id']))
+            if not has_access(uid, cont, "ro"):
+                raise APIPermissionException("User {} does not have read access to {} {}".format(uid, cont["cont_type"], cont["_id"]))
 
     def build_pipeline(self, output_format, pagination, report_progress):
         config = self.config
@@ -131,20 +129,20 @@ class DataView(object):
 
         # Add filtered columns to the spec
         filter_spec = None
-        if pagination and 'filter' in pagination:
-            filter_spec = pagination['filter']
+        if pagination and "filter" in pagination:
+            filter_spec = pagination["filter"]
             for key in filter_spec.keys():
-                dst = '_filter.{}'.format(key)
+                dst = "_filter.{}".format(key)
                 container = config.resolve_and_add_column(key, dst)
                 if container not in config.containers:
-                    raise InputValidationException('Cannot filter on key: {}, container {} is not part of the retrieval'.format(key, container))
+                    raise InputValidationException("Cannot filter on key: {}, container {} is not part of the retrieval".format(key, container))
 
         # First stage is aggregation
         self.pipeline = Aggregate(config)
 
         # Add match files stage
         if config.file_spec:
-            files_key = 'files'
+            files_key = "files"
 
             match_type = config.get_file_match_type()
 
@@ -156,18 +154,18 @@ class DataView(object):
                     if name in config.analysis_filter:
                         analysis_filters.append((key, config.analysis_filter[name]))
 
-                match_analyses = MatchContainers('analysis', 'analysis', analysis_filters, match_type)
+                match_analyses = MatchContainers("analysis", "analysis", analysis_filters, match_type)
                 self.pipeline.pipe(match_analyses)
-                files_key = 'analysis.files'
+                files_key = "analysis.files"
 
-            match_files = MatchContainers(files_key, 'file', [('name', config.file_spec['filter'])], match_type)
+            match_files = MatchContainers(files_key, "file", [("name", config.file_spec["filter"])], match_type)
             self.pipeline.pipe(match_files)
 
         # Add access log stage
         self.pipeline.pipe(self._log_access_stage)
 
         # Add process files stage
-        if config.file_spec and config.file_spec.get('processFiles') != False:
+        if config.file_spec and config.file_spec.get("processFiles") != False:
             self.pipeline.pipe(ReadFile(config))
 
         # Add the column flattening stage
@@ -182,12 +180,12 @@ class DataView(object):
             self.pipeline.pipe(Filter(filter_spec))
 
         # Add missing data stage
-        missing_data_strategy = config.desc.get('missingDataStrategy')
+        missing_data_strategy = config.desc.get("missingDataStrategy")
         missing_data_stage = get_missing_data_strategy(missing_data_strategy)
         self.pipeline.pipe(missing_data_stage)
 
         # Add the optional limit stage
-        if pagination and ('limit' in pagination or 'skip' in pagination):
+        if pagination and ("limit" in pagination or "skip" in pagination):
             self.pipeline.pipe(SkipAndLimit(pagination))
 
         # Add the optional progress report stage
@@ -205,7 +203,7 @@ class DataView(object):
 
     def get_filename(self, basename):
         """Add the correct extension to basename"""
-        return '{}{}'.format(basename, self._file_extension)
+        return "{}{}".format(basename, self._file_extension)
 
     def execute(self, request, origin, write_fn, write_progress_fn=None):
         # Store the write_fn so write() calls succeed
@@ -216,5 +214,4 @@ class DataView(object):
         self._log_access_stage.set_request_origin(request, origin)
 
         self.pipeline.process(self._tree)
-        return ''
-
+        return ""

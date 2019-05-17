@@ -2,27 +2,29 @@ import json
 import os
 import threading
 
-COLUMN_ALIASES_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'column_aliases.json'))
+COLUMN_ALIASES_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "column_aliases.json"))
+
 
 class ColumnAliases(object):
     """Singleton class that contains the set of known column aliases"""
+
     __lock = threading.Lock()
     __instance = None
 
     def __init__(self):
         # Load columns
-        with open(COLUMN_ALIASES_FILE, 'r') as f:
+        with open(COLUMN_ALIASES_FILE, "r") as f:
             self.columns = json.load(f)
 
         # Load column map and set default type (string)
         self.column_map = {}
         for col in self.columns:
-            if 'group' in col:
-                self.column_map[col['name']] = col['group'] 
+            if "group" in col:
+                self.column_map[col["name"]] = col["group"]
             else:
-                if 'type' not in col:
-                    col['type'] = 'string'
-                self.column_map[col['name']] = (col['src'], col.get('type'), col.get('expr'))
+                if "type" not in col:
+                    col["type"] = "string"
+                self.column_map[col["name"]] = (col["src"], col.get("type"), col.get("expr"))
 
     @classmethod
     def instance(cls):
@@ -41,7 +43,7 @@ class ColumnAliases(object):
         inst = cls.instance()
         if include_hidden:
             return inst.columns
-        return [ col for col in inst.columns if not col.get('hidden') ]
+        return [col for col in inst.columns if not col.get("hidden")]
 
     @classmethod
     def get_column_alias(cls, key):
@@ -57,4 +59,3 @@ class ColumnAliases(object):
         if key in inst.column_map:
             return inst.column_map[key]
         return (key, None, None)
-

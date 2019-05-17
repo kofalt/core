@@ -5,10 +5,12 @@ from ... import config
 from ...dao import dbutil
 from .. import models
 
-SITE_SINGLETON_ID = 'site'
+SITE_SINGLETON_ID = "site"
+
 
 class SiteSettings(object):
     """Data mapper for site settings"""
+
     def __init__(self, db=None):
         self.db = db or config.db
         self.dbc = self.db.singletons
@@ -24,15 +26,10 @@ class SiteSettings(object):
         """
         # Create the upsert document
         now = datetime.datetime.now()
-        update = {
-            '$set': doc,
-            '$setOnInsert': {
-                'created': now
-            }
-        }
-        update['$set']['modified'] = now
+        update = {"$set": doc, "$setOnInsert": {"created": now}}
+        update["$set"]["modified"] = now
 
-        self.dbc.update_one({'_id': SITE_SINGLETON_ID}, update, upsert=True)
+        self.dbc.update_one({"_id": SITE_SINGLETON_ID}, update, upsert=True)
 
     def ensure_provider(self, provider_class, default_provider_id):
         """Ensure that site settings exists and that provider of the given type is set.
@@ -41,27 +38,15 @@ class SiteSettings(object):
             provider_class (str): The provider class
             default_provider_id (ObjectId): The default id to set, if it doesn't already exist
         """
-        provider_key = 'providers.{}'.format(provider_class)
+        provider_key = "providers.{}".format(provider_class)
 
-        query = {
-            '_id': SITE_SINGLETON_ID,
-            provider_key: None
-        }
+        query = {"_id": SITE_SINGLETON_ID, provider_key: None}
 
         now = datetime.datetime.now()
-        update = {
-            '$set': {
-                provider_key: default_provider_id,
-                'modified': now
-            },
-            '$setOnInsert': {
-                'center_gears': None,
-                'created': now
-            }
-        }
+        update = {"$set": {provider_key: default_provider_id, "modified": now}, "$setOnInsert": {"center_gears": None, "created": now}}
 
         # Set the provider singleton, if not set
-        dbutil.try_update_one(self.db, 'singletons', query, update, upsert=True)
+        dbutil.try_update_one(self.db, "singletons", query, update, upsert=True)
 
     def get(self):
         """Find the current site config.
@@ -69,7 +54,7 @@ class SiteSettings(object):
         Returns:
             SiteSettings: The loaded site settings, or None
         """
-        result = self.dbc.find_one({'_id': SITE_SINGLETON_ID})
+        result = self.dbc.find_one({"_id": SITE_SINGLETON_ID})
         return self._load_site_settings(result)
 
     def _load_site_settings(self, doc):
@@ -78,7 +63,6 @@ class SiteSettings(object):
             return None
 
         # Pop the singleton id field, not required
-        doc.pop('_id', None)
+        doc.pop("_id", None)
 
         return models.SiteSettings.from_dict(doc)
-

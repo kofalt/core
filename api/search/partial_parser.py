@@ -4,6 +4,7 @@ from .query_lexer import create_lexer, ID_TOKENS, OPERATOR_TOKENS
 
 class PartialParseResult(object):
     """Represents an approximation of the state of the parser"""
+
     def __init__(self, pos=0, token_type=None, value=None, last_field=None):
         """Create a new parse result
 
@@ -32,14 +33,10 @@ class PartialParseResult(object):
         return bool(self.value)
 
     def __eq__(self, other):
-        return (self.pos == other.pos
-                and self.type == other.type
-                and self.value == other.value
-                and self.last_field == other.last_field)
+        return self.pos == other.pos and self.type == other.type and self.value == other.value and self.last_field == other.last_field
 
     def __repr__(self):
-        return 'PartialParseResult(pos={}, type={}, value={}, last_field={})'.format(
-            self.pos, self.type, self.value, self.last_field)
+        return "PartialParseResult(pos={}, type={}, value={}, last_field={})".format(self.pos, self.type, self.value, self.last_field)
 
 
 def parse_partial(query):
@@ -77,12 +74,12 @@ def parse_partial(query):
         return PartialParseResult()
 
     # Don't offer any suggestions if we're in ignored whitespace
-    if cur_token.type != 'UNMATCHED_QUOTE' and query[-1].isspace():
+    if cur_token.type != "UNMATCHED_QUOTE" and query[-1].isspace():
         return PartialParseResult()
 
     # Shortcut for single field
     if len(token_list) == 1:
-        return PartialParseResult(cur_token.lexpos, 'field', cur_token.value)
+        return PartialParseResult(cur_token.lexpos, "field", cur_token.value)
 
     # At this point we know that:
     # 1. We have an ID token (either quoted or not)
@@ -95,14 +92,14 @@ def parse_partial(query):
     # If it's an operator or literal, then we're probably a phrase
     result = PartialParseResult()
     if last_token.type in OPERATOR_TOKENS:
-        result = PartialParseResult(cur_token.lexpos, 'phrase', cur_token.value)
-    elif last_token.value in '[,':
-        result = PartialParseResult(cur_token.lexpos, 'phrase', cur_token.value)
+        result = PartialParseResult(cur_token.lexpos, "phrase", cur_token.value)
+    elif last_token.value in "[,":
+        result = PartialParseResult(cur_token.lexpos, "phrase", cur_token.value)
     else:
-        result = PartialParseResult(cur_token.lexpos, 'field', cur_token.value)
+        result = PartialParseResult(cur_token.lexpos, "field", cur_token.value)
 
     # If phrase, find the last referenced field by backtracking
-    if result.type == 'phrase':
+    if result.type == "phrase":
         # Find the last operator, then field
         found_op = False
         for token in reversed(token_list[:-1]):

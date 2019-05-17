@@ -3,6 +3,7 @@ import tarfile
 
 from fs.time import datetime_to_epoch
 
+
 class TarDownloadWriter(object):
     """Class that writes files to the given tar file"""
 
@@ -18,7 +19,7 @@ class TarDownloadWriter(object):
         """
         self.log = log
         self.fileobj = fileobj
-        self._tarfile = tarfile.open(mode='w|', fileobj=self.fileobj)
+        self._tarfile = tarfile.open(mode="w|", fileobj=self.fileobj)
 
     def write(self, file_source):
         """Given a DownloadFileSource, write each entry to the tarfile.
@@ -31,7 +32,7 @@ class TarDownloadWriter(object):
                 fileobj = file_source.open(target)
                 try:
                     tarinfo = tarfile.TarInfo()
-                    tarinfo.name = target.dst_path.lstrip('/')
+                    tarinfo.name = target.dst_path.lstrip("/")
                     tarinfo.size = target.size
                     tarinfo.mtime = datetime_to_epoch(target.modified)
 
@@ -39,15 +40,13 @@ class TarDownloadWriter(object):
                 finally:
                     fileobj.close()
             except OSError:
-                msg = ("Error happened during sending file content in archive stream, file path: %s, "
-                    "container: %s/%s, archive path: %s" % (target.src_path, target.container_type,
-                    target.container_id, target.dst_path))
+                msg = "Error happened during sending file content in archive stream, file path: %s, " "container: %s/%s, archive path: %s" % (target.src_path, target.container_type, target.container_id, target.dst_path)
                 self.log.critical(msg)
                 self.log.exception("Error opening file for streaming")
 
                 # Write a placeholder instead
                 tarinfo = tarfile.TarInfo()
-                tarinfo.name = target.dst_path + '.MISSING'
+                tarinfo.name = target.dst_path + ".MISSING"
                 self._tarfile.addfile(tarinfo)
 
     def _addfile(self, tarinfo, fileobj):
@@ -63,7 +62,7 @@ class TarDownloadWriter(object):
 
             # Write the contents directly to the underlying fileobj,
             # In order to use a larger CHUNKSIZE for transfer
-            chunk = ''
+            chunk = ""
             last_chunk_len = 0
             while True:
                 chunk = fileobj.read(self.CHUNKSIZE)
@@ -74,9 +73,9 @@ class TarDownloadWriter(object):
 
             remainder = last_chunk_len % tarfile.BLOCKSIZE
             if remainder > 0:
-                self.fileobj.write(b'\0' * (tarfile.BLOCKSIZE - remainder))
+                self.fileobj.write(b"\0" * (tarfile.BLOCKSIZE - remainder))
         except:
-            self.log.exception('Error writing contents to archive stream for file: %s', tarinfo.name)
+            self.log.exception("Error writing contents to archive stream for file: %s", tarinfo.name)
             raise
         finally:
             fileobj.close()

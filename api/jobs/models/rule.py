@@ -1,11 +1,11 @@
 from ... import models
 from copy import deepcopy
 
+
 class Rule(models.Base):
     """Represents a a site or project gear rule"""
-    def __init__(self, gear_id, name, any_, all_, not_,
-                 project_id=None, config=None, fixed_inputs=None,
-                 auto_update=False, disabled=False):
+
+    def __init__(self, gear_id, name, any_, all_, not_, project_id=None, config=None, fixed_inputs=None, auto_update=False, disabled=False):
         """Create a new gear rule.
 
         Args:
@@ -62,7 +62,7 @@ class Rule(models.Base):
     @rule_id.setter
     def rule_id(self, _id):
         if self._id is not None:
-            raise ValueError('Cannot set _id if it has already been set!')
+            raise ValueError("Cannot set _id if it has already been set!")
         self._id = _id
 
     def copy(self):
@@ -72,7 +72,7 @@ class Rule(models.Base):
             Rule: a deep copy of self without the id set
         """
         rule_doc = deepcopy(self.to_dict())
-        rule_doc.pop('_id', None)
+        rule_doc.pop("_id", None)
         rule = Rule.from_dict(rule_doc)
         return rule
 
@@ -91,15 +91,15 @@ class Rule(models.Base):
         # Modify the 'any', 'all', and 'not' fields to the attribute names
         # But only if they exist
         conditions = {}
-        conditions['not_'] = dct.pop('not', None)
-        conditions['any_'] = dct.pop('any', None)
-        conditions['all_'] = dct.pop('all', None)
+        conditions["not_"] = dct.pop("not", None)
+        conditions["any_"] = dct.pop("any", None)
+        conditions["all_"] = dct.pop("all", None)
 
         conditions = {k: v for k, v in conditions.items() if v is not None}
         dct.update(conditions)
 
-        dct['auto_update'] = bool(dct.get('auto_update'))
-        dct['disabled'] = bool(dct.get('disabled'))
+        dct["auto_update"] = bool(dct.get("auto_update"))
+        dct["disabled"] = bool(dct.get("disabled"))
         return super(Rule, cls).from_dict(dct)
 
     def to_dict(self):
@@ -118,11 +118,10 @@ class Rule(models.Base):
         # Modify the 'any_', 'all_', and 'not_' attriubutes to the field names
         # But only if they exist
         conditions = {}
-        conditions['not'] = dct.pop('not_', None)
-        conditions['any'] = dct.pop('any_', None)
-        conditions['all'] = dct.pop('all_', None)
+        conditions["not"] = dct.pop("not_", None)
+        conditions["any"] = dct.pop("any_", None)
+        conditions["all"] = dct.pop("all_", None)
 
         conditions = {k: v for k, v in conditions.items() if v is not None}
         dct.update(conditions)
         return dct
-

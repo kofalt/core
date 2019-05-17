@@ -1,40 +1,30 @@
 from ..types import Origin
 from ..web.errors import APIPermissionException
 
-PERMISSIONS = [
-    {
-        'rid': 'ro',
-        'name': 'Read-Only',
-    },
-    {
-        'rid': 'rw',
-        'name': 'Read-Write',
-    },
-    {
-        'rid': 'admin',
-        'name': 'Admin',
-    },
-]
+PERMISSIONS = [{"rid": "ro", "name": "Read-Only"}, {"rid": "rw", "name": "Read-Write"}, {"rid": "admin", "name": "Admin"}]
 
-INTEGER_PERMISSIONS = {r['rid']: i for i, r in enumerate(PERMISSIONS)}
+INTEGER_PERMISSIONS = {r["rid"]: i for i, r in enumerate(PERMISSIONS)}
+
 
 def _get_access(uid, container, scope=None):
     if scope:
         if _check_scope(scope, container):
-            return INTEGER_PERMISSIONS[scope['access']]
+            return INTEGER_PERMISSIONS[scope["access"]]
         else:
             return -1
-    permissions_list = container.get('permissions', [])
+    permissions_list = container.get("permissions", [])
     for perm in permissions_list:
-        if perm['_id'] == uid:
-            return INTEGER_PERMISSIONS[perm['access']]
+        if perm["_id"] == uid:
+            return INTEGER_PERMISSIONS[perm["access"]]
     return -1
 
+
 def _check_scope(scope, container, parent_container=None):
-    if container and container.get('parents'):
-        return scope['id'] in container['parents'].itervalues() or scope['id'] == container['_id']
-    elif parent_container and parent_container.get('parents'):
-        return scope['id'] in parent_container['parents'].itervalues() or scope['id'] == parent_container['_id']
+    if container and container.get("parents"):
+        return scope["id"] in container["parents"].itervalues() or scope["id"] == container["_id"]
+    elif parent_container and parent_container.get("parents"):
+        return scope["id"] in parent_container["parents"].itervalues() or scope["id"] == parent_container["_id"]
+
 
 def has_access(uid, container, perm):
     return _get_access(uid, container) >= INTEGER_PERMISSIONS[perm]
@@ -47,17 +37,21 @@ def always_ok(exec_op):
     """
     return exec_op
 
+
 def require_login(handler_method):
     """
     A decorator to ensure the request is not a public request.
 
     Accepts drone and user requests.
     """
+
     def check_login(self, *args, **kwargs):
         if self.public_request:
-            raise APIPermissionException('Login required.')
+            raise APIPermissionException("Login required.")
         return handler_method(self, *args, **kwargs)
+
     return check_login
+
 
 def require_admin(handler_method):
     """
@@ -65,11 +59,14 @@ def require_admin(handler_method):
 
     Accepts drone and user requests.
     """
+
     def check_admin(self, *args, **kwargs):
         if not self.user_is_admin:
-            raise APIPermissionException('Admin user required.')
+            raise APIPermissionException("Admin user required.")
         return handler_method(self, *args, **kwargs)
+
     return check_admin
+
 
 def require_drone(handler_method):
     """
@@ -77,10 +74,12 @@ def require_drone(handler_method):
 
     Will also ensure site admin, which is implied with a drone request.
     """
+
     def check_drone(self, *args, **kwargs):
-        if self.origin.get('type', '') != Origin.device:
-            raise APIPermissionException('Drone request required.')
+        if self.origin.get("type", "") != Origin.device:
+            raise APIPermissionException("Drone request required.")
         if not self.user_is_admin:
-            raise APIPermissionException('Superuser required.')
+            raise APIPermissionException("Superuser required.")
         return handler_method(self, *args, **kwargs)
+
     return check_drone

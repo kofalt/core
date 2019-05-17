@@ -2,11 +2,11 @@ import os
 import pymongo
 from collections import Counter
 
-db_uri = os.getenv('SCITRAN_PERSISTENT_DB_URI', 'localhost:9001')
-db = pymongo.MongoClient(db_uri).get_database('scitran')
+db_uri = os.getenv("SCITRAN_PERSISTENT_DB_URI", "localhost:9001")
+db = pymongo.MongoClient(db_uri).get_database("scitran")
 
-COLLECTIONS = ['projects', 'acquisitions', 'analyses']
-COLLECTIONS_WITH_EMBEDDED = [('sessions', 'subject')]
+COLLECTIONS = ["projects", "acquisitions", "analyses"]
+COLLECTIONS_WITH_EMBEDDED = [("sessions", "subject")]
 
 
 def files_of_collection(collection, embedded_doc=None):
@@ -22,9 +22,9 @@ def files_of_collection(collection, embedded_doc=None):
 
 def files_of_document(document):
     hash_size_pairs = []
-    files = document.get('files', [])
+    files = document.get("files", [])
     for f in files:
-        hash_size_pairs.append((f['hash'], f['size']))
+        hash_size_pairs.append((f["hash"], f["size"]))
 
     return hash_size_pairs
 
@@ -50,13 +50,12 @@ def main():
 
     saved_disk_space = size_wo_cas - size_with_cas
 
-    print('Total size (CAS): %s Bytes' % size_with_cas)
-    print('Total size (wo CAS): %s Bytes' % size_wo_cas)
-    print('Number of files (CAS): %s' % file_count_cas)
-    print('Number of files (wo CAS): %s' % file_count_wo_cas)
-    print('Saved disk space: %s Bytes (%s%%)' % (
-        saved_disk_space, round(saved_disk_space / float(size_wo_cas) * 100, 2)))
+    print("Total size (CAS): %s Bytes" % size_with_cas)
+    print("Total size (wo CAS): %s Bytes" % size_wo_cas)
+    print("Number of files (CAS): %s" % file_count_cas)
+    print("Number of files (wo CAS): %s" % file_count_wo_cas)
+    print("Saved disk space: %s Bytes (%s%%)" % (saved_disk_space, round(saved_disk_space / float(size_wo_cas) * 100, 2)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

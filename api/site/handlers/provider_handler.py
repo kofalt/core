@@ -4,9 +4,7 @@ from ...web import base
 from ...auth import require_admin, require_login
 
 from ..models import Provider
-from ..providers import (get_provider, get_provider_config,
-    get_providers, insert_provider, update_provider,
-    is_compute_dispatcher)
+from ..providers import get_provider, get_provider_config, get_providers, insert_provider, update_provider, is_compute_dispatcher
 
 
 class ProviderHandler(base.RequestHandler):
@@ -20,10 +18,11 @@ class ProviderHandler(base.RequestHandler):
 
     This should be handled by the domain layer in all cases.
     """
+
     @require_login
     def get_all(self):
         """List all providers, optionally of the given class"""
-        provider_class = self.get_param('class')
+        provider_class = self.get_param("class")
 
         results = []
         for provider in get_providers(provider_class=provider_class):
@@ -42,8 +41,8 @@ class ProviderHandler(base.RequestHandler):
         # returning full configuration
 
         # self.device only exists if this is a device request
-        device = getattr(self, 'device', None)
-        full = device is not None and is_compute_dispatcher(device.get('type'))
+        device = getattr(self, "device", None)
+        full = device is not None and is_compute_dispatcher(device.get("type"))
         return get_provider_config(_id, full=full)
 
     @require_admin
@@ -51,18 +50,17 @@ class ProviderHandler(base.RequestHandler):
     def post(self):
         # Creating a new new provider
         payload = self.request.json
-        validators.validate_data(payload, 'provider.json', 'input', 'POST')
+        validators.validate_data(payload, "provider.json", "input", "POST")
 
-        provider = Provider(payload['provider_class'], payload['provider_type'],
-            payload['label'], self.origin, payload['config'])
+        provider = Provider(payload["provider_class"], payload["provider_type"], payload["label"], self.origin, payload["config"])
 
         provider_id = insert_provider(provider)
-        return {'_id': provider_id}
+        return {"_id": provider_id}
 
     @require_admin
     @validators.verify_payload_exists
     def put(self, _id):
         payload = self.request.json
-        validators.validate_data(payload, 'provider-update.json', 'input', 'POST')
+        validators.validate_data(payload, "provider-update.json", "input", "POST")
 
         update_provider(_id, payload)

@@ -1,8 +1,10 @@
 """Provides gear mixin"""
 from .gear_invocation import GearInvocation
 
+
 class GearMixin(object):
     """Gear mixin that provides additional functionality"""
+
     def __init__(self):
         self.__context = None
 
@@ -18,7 +20,7 @@ class GearMixin(object):
 
     def is_analysis_gear(self):
         """Check if this is an analysis gear"""
-        return self.category == 'analysis'
+        return self.category == "analysis"
 
     def print_details(self, width=90):
         """Print details about a gear to stdout
@@ -31,69 +33,69 @@ class GearMixin(object):
             print(textwrap.fill(s, width=width, **kwargs))
 
         def print_col(label, value):
-            line = '{:<15} {}'.format(label + ':', value)
-            print(textwrap.fill(line, width=width, subsequent_indent=(' ' * 16)))
+            line = "{:<15} {}".format(label + ":", value)
+            print(textwrap.fill(line, width=width, subsequent_indent=(" " * 16)))
 
         gear = self.gear
 
         print_wrap(gear.label or gear.name)
 
         if gear.description:
-            print('')
-            print_wrap(gear.description, subsequent_indent='  ')
-            print('')
+            print("")
+            print_wrap(gear.description, subsequent_indent="  ")
+            print("")
 
-        print_col('Name', gear.name)
-        print_col('Version', gear.version)
-        print_col('Category', self.category)
+        print_col("Name", gear.name)
+        print_col("Version", gear.version)
+        print_col("Category", self.category)
 
         if gear.author:
-            print_col('Author', gear.author)
+            print_col("Author", gear.author)
 
         if gear.maintainer:
-            print_col('Maintainer', gear.maintainer)
+            print_col("Maintainer", gear.maintainer)
 
         if gear.url:
-            print_col('URL', gear.url)
+            print_col("URL", gear.url)
 
         if gear.source:
-            print_col('Source', gear.source)
+            print_col("Source", gear.source)
 
-        print('')
+        print("")
 
         if gear.inputs:
-            print('Inputs:')
+            print("Inputs:")
             for key, spec in gear.inputs.items():
-                if spec.get('optional', False):
-                    opt = 'optional'
+                if spec.get("optional", False):
+                    opt = "optional"
                 else:
-                    opt = 'required'
+                    opt = "required"
 
-                print('  {} ({}, {})'.format(key, spec.get('base', 'unspecified'), opt))
-                if 'type' in spec and 'enum' in spec['type']:
-                    types = ', '.join(spec['type']['enum'])
-                    print('    Type: {}'.format(types))
-                if 'description' in spec:
-                    print_wrap(spec['description'], initial_indent='    ', subsequent_indent='      ')
-            print('')
+                print("  {} ({}, {})".format(key, spec.get("base", "unspecified"), opt))
+                if "type" in spec and "enum" in spec["type"]:
+                    types = ", ".join(spec["type"]["enum"])
+                    print("    Type: {}".format(types))
+                if "description" in spec:
+                    print_wrap(spec["description"], initial_indent="    ", subsequent_indent="      ")
+            print("")
 
         if gear.config:
-            print('Configuration:')
+            print("Configuration:")
             for key, spec in gear.config.items():
-                if 'default' in spec:
-                    dflt = ', default: {}'.format(spec['default'])
+                if "default" in spec:
+                    dflt = ", default: {}".format(spec["default"])
                 else:
-                    dflt = ''
-                print('  {} ({}{})'.format(key, spec.get('type', 'unspecified'), dflt))
-                if 'description' in spec:
-                    print_wrap(spec['description'], initial_indent='    ', subsequent_indent='      ')
+                    dflt = ""
+                print("  {} ({}{})".format(key, spec.get("type", "unspecified"), dflt))
+                if "description" in spec:
+                    print_wrap(spec["description"], initial_indent="    ", subsequent_indent="      ")
 
     def get_default_config(self):
         """Get the default configuration for gear"""
-        config = self.gear.get('config', {})
+        config = self.gear.get("config", {})
         default_config = {}
         for key, value in config.items():
-            default_config[key] = value.get('default', None)
+            default_config[key] = value.get("default", None)
         return default_config
 
     def run(self, config=None, analysis_label=None, tags=None, destination=None, inputs=None, **kwargs):
@@ -126,7 +128,7 @@ class GearMixin(object):
 
         return invocation.run()
 
-    def propose_batch(self, containers, config=None, analysis_label=None, tags=None, optional_input_policy='ignored'):
+    def propose_batch(self, containers, config=None, analysis_label=None, tags=None, optional_input_policy="ignored"):
         """Propose a batch run of the gear.
 
         :param list containers: The list of targets.

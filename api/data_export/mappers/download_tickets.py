@@ -9,6 +9,7 @@ class DownloadTickets(object):
     NOTE: Given the transient nature of download tickets, there's no desire to
     introduce versioning for the "downloads" collection.
     """
+
     def __init__(self, db=None):
         self.db = db or config.db
         self.dbc = self.db.downloads
@@ -31,7 +32,7 @@ class DownloadTickets(object):
         Returns:
             DownloadTicket: The loaded ticket, or None
         """
-        result = self.dbc.find_one({'_id': ticket_id})
+        result = self.dbc.find_one({"_id": ticket_id})
         return self._load_ticket(result)
 
     def _load_ticket(self, ticket):

@@ -13,10 +13,8 @@ from ..web.request import AccessType
 from ..web.encoder import custom_json_serializer
 from ..dao.containerstorage import cs_factory
 
-METADATA_BLACKLIST = [
-    '_id', 'parents', 'collections', 'group', 'project', 'subject', 'session',
-    'acquisition', 'origin', 'job', 'inputs', 'files'
-]
+METADATA_BLACKLIST = ["_id", "parents", "collections", "group", "project", "subject", "session", "acquisition", "origin", "job", "inputs", "files"]
+
 
 def target_sort_key(target):
     """Return a sort key for the given download target
@@ -25,6 +23,7 @@ def target_sort_key(target):
         tuple: The download type, and container type tuple
     """
     return (target.download_type, target.container_type)
+
 
 class DownloadFileSource(object):
     """Abstraction for converting DownloadTargetS into a fileobj, and logging access.
@@ -35,6 +34,7 @@ class DownloadFileSource(object):
 
     This class should be extended to handle the different download types.
     """
+
     def __init__(self, ticket, request):
         """Create a new download file source.
 
@@ -60,7 +60,7 @@ class DownloadFileSource(object):
 
         # Connection pool for signed urls, require valid certificates, using certifi store
         # See: https://urllib3.readthedocs.io/en/latest/user-guide.html#certificate-verification
-        self._http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
+        self._http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED", ca_certs=certifi.where())
 
     def __iter__(self):
         return self
@@ -92,22 +92,20 @@ class DownloadFileSource(object):
         Raises:
             OSError: If the file could not be opened
         """
-        if target.download_type == 'file':
+        if target.download_type == "file":
             # Log access before accessing the file, raises and aborts the request if that fails
-            access_log.log_user_access(self.request, AccessType.download_file, cont_name=target.container_type,
-                cont_id=target.container_id, filename=target.dst_name, origin=self.ticket.origin,
-                download_ticket=self.ticket.ticket_id)
+            access_log.log_user_access(self.request, AccessType.download_file, cont_name=target.container_type, cont_id=target.container_id, filename=target.dst_name, origin=self.ticket.origin, download_ticket=self.ticket.ticket_id)
 
             return self._open_file(target)
-        elif target.download_type == 'metadata_sidecar':
+        elif target.download_type == "metadata_sidecar":
             return self._open_metadata_sidecar(target)
         else:
-            raise OSError('Unexpected download type: {}'.format(target.download_type))
+            raise OSError("Unexpected download type: {}".format(target.download_type))
 
     def _prefetch(self, target):
         """Prefetch all containers of the given type, if metadata is required"""
         # Right now assumes that anything other than files requires container fetch
-        if target.download_type == 'file':
+        if target.download_type == "file":
             return
         if target.container_type in self._containers:
             return
@@ -124,10 +122,10 @@ class DownloadFileSource(object):
             i += 1
 
         # Retrieve all containers, including files
-        query = {'_id': {'$in': list(ids)}}
+        query = {"_id": {"$in": list(ids)}}
 
         # Exclude a few larger fields by projection - everything else will be removed later
-        projection = {'permissions': 0, 'parents': 0, 'collections': 0}
+        projection = {"permissions": 0, "parents": 0, "collections": 0}
 
         storage = cs_factory(container_type)
         containers = {}
@@ -136,7 +134,7 @@ class DownloadFileSource(object):
             storage.filter_container_files(container)
 
             # Add container (by string id)
-            containers[container['_id']] = container
+            containers[container["_id"]] = container
 
         self._containers[container_type] = containers
 
@@ -159,10 +157,8 @@ class DownloadFileSource(object):
                 return result
             else:
                 file_system = files.get_fs_by_file_path(target.file_id, target.src_path)
-                return file_system.open(target.file_id, target.src_path, 'rb')
-        except (fs.errors.ResourceNotFound,
-                fs.errors.OperationFailed,
-                IOError) as err:
+                return file_system.open(target.file_id, target.src_path, "rb")
+        except (fs.errors.ResourceNotFound, fs.errors.OperationFailed, IOError) as err:
             # Contract is to raise an OSError if we cannot open the file
             raise OSError(str(err))
 
@@ -170,8 +166,7 @@ class DownloadFileSource(object):
         """Open the given download 'metadata file' target"""
         container = self._find_target_container(target)
         if not container:
-            raise OSError('Could not resolve target {}={}, filename={}'.format(
-                target.container_type, target.container_id, target.filename))
+            raise OSError("Could not resolve target {}={}, filename={}".format(target.container_type, target.container_id, target.filename))
 
         # Convert metadata to JSON
         container = copy.deepcopy(container)
@@ -193,19 +188,19 @@ class DownloadFileSource(object):
             return None
 
         # Determine files attribute
-        files_attr = 'inputs' if target.file_group == 'input' else 'files'
+        files_attr = "inputs" if target.file_group == "input" else "files"
 
         # Prefer file_id, if present
         if target.file_id:
             for file_entry in container.get(files_attr, []):
-                if file_entry.get('_id') == target.file_id:
+                if file_entry.get("_id") == target.file_id:
                     return file_entry
             return None
 
         # Otherwise, fallback on file name
         if target.filename:
             for file_entry in container.get(files_attr, []):
-                if file_entry['name'] == target.filename:
+                if file_entry["name"] == target.filename:
                     return file_entry
             return None
 

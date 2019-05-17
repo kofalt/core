@@ -4,8 +4,10 @@ from ... import config
 from ...web import errors
 from ..models import Rule
 
+
 class RulesMapper(object):
     """Data mapper for rules"""
+
     def __init__(self, db=None):
         self.db = db or config.db
         self.dbc = self.db.project_rules
@@ -37,14 +39,12 @@ class RulesMapper(object):
             APINotFoundException
         """
         # Create the update document
-        update = {'$set': doc}
-        response = self.dbc.update_one({'_id': bson.ObjectId(rule_id)}, update)
+        update = {"$set": doc}
+        response = self.dbc.update_one({"_id": bson.ObjectId(rule_id)}, update)
         if response.matched_count == 0:
-            raise errors.APINotFoundException('Rule {} not found'.format(rule_id))
+            raise errors.APINotFoundException("Rule {} not found".format(rule_id))
 
-
-    def find_all(self, project_id=None, gear_id=None, fixed_input=None, auto_update=None,
-                 disabled=None, projection=None):
+    def find_all(self, project_id=None, gear_id=None, fixed_input=None, auto_update=None, disabled=None, projection=None):
         """Find all rules that satisfy a set of filters
 
         Args:
@@ -59,16 +59,11 @@ class RulesMapper(object):
             Rule: The next rule matching the given filters
         """
         # Build the query
-        query = {
-            'project_id': project_id,
-            'gear_id': gear_id,
-            'auto_update': auto_update,
-            'disabled': disabled
-        }
+        query = {"project_id": project_id, "gear_id": gear_id, "auto_update": auto_update, "disabled": disabled}
         query = {k: v for k, v in query.items() if v is not None}
         if fixed_input:
-            query['fixed_inputs'] = {'$elemMatch': {'name': fixed_input['name'], 'id': fixed_input['id']}}
-        config.log.debug('query is %s', query)
+            query["fixed_inputs"] = {"$elemMatch": {"name": fixed_input["name"], "id": fixed_input["id"]}}
+        config.log.debug("query is %s", query)
         # Build the projection from include or exclude
         # if include:
         #     projection = {field: 1 for field in include}
@@ -105,7 +100,7 @@ class RulesMapper(object):
         Returns:
             Rule: the loaded rule or None
         """
-        result = self.dbc.find_one({'_id': bson.ObjectId(rule_id)}, projection=projection)
+        result = self.dbc.find_one({"_id": bson.ObjectId(rule_id)}, projection=projection)
         return self._load_rule(result)
 
     def delete(self, rule_id):
@@ -117,7 +112,7 @@ class RulesMapper(object):
         Returns:
             int: the number of deleted items
         """
-        result = self.dbc.delete_one({'_id': bson.ObjectId(rule_id)})
+        result = self.dbc.delete_one({"_id": bson.ObjectId(rule_id)})
         return result.deleted_count
 
     def _load_rule(self, rule_doc):
@@ -132,9 +127,8 @@ class RulesMapper(object):
         if rule_doc is None:
             return None
 
-        rule_doc['any'] = rule_doc.get('any') or []
-        rule_doc['all'] = rule_doc.get('all') or []
-        rule_doc['not'] = rule_doc.get('not') or []
+        rule_doc["any"] = rule_doc.get("any") or []
+        rule_doc["all"] = rule_doc.get("all") or []
+        rule_doc["not"] = rule_doc.get("not") or []
 
         return Rule.from_dict(rule_doc)
-
