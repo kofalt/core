@@ -119,6 +119,7 @@ $template_arguments:
     responses:
       '200':
         description: UID Check result
-        $ref: schemas/output/uidcheck-output.json
+        schema:
+          $ref: schemas/output/uidcheck-output.json
       '400':
         $ref: '#/responses/400:invalid-body-json'
