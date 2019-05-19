@@ -27,7 +27,7 @@
                           "type": "string",
                           "description": "Avatar image URL"
                         },
-    "root":             { 
+    "root":             {
                           "type": "boolean",
                           "description": "Super admin flag"
                         },
@@ -112,7 +112,18 @@
          "_id", "firstname", "lastname",
          "root", "email", "created", "modified"
       ],
-      "x-sdk-model": "user"      
+      "x-sdk-model": "user"
+    },
+    "user-jobs-output": {
+      "type":"object",
+      "properties": {
+        "stats": {"$ref": "job.json#/definitions/job-stats-by-state"},
+        "total": {"type": "integer"},
+        "jobs":  {
+          "type": "array",
+          "items": {"$ref": "job.json#/definitions/job-list-entry"}
+        }
+      }
     }
   }
 }

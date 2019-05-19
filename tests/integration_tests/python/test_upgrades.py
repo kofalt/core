@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+import uuid
 
 import bson
 import copy
@@ -21,6 +22,13 @@ def fixes(mocker):
     mocker.patch('sys.path', [bin_path] + sys.path)
     import fixes
     return fixes
+
+@pytest.fixture(scope='function')
+def checks(mocker):
+    bin_path = os.path.join(os.getcwd(), 'bin')
+    mocker.patch('sys.path', [bin_path] + sys.path)
+    import checks
+    return checks
 
 
 def test_42(data_builder, api_db, as_admin, database):
@@ -1291,8 +1299,6 @@ def test_64(api_db, database):
 
     api_db.subjects.delete_many({'project': {'$in': [project_id, project_id_2]}})
     api_db.sessions.delete_one({'_id': session_1})
-
-
 
 
 def test_65(api_db, database, data_builder):

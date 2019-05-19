@@ -316,6 +316,87 @@ def test_project_template(data_builder, file_form, as_user, as_admin):
     assert r.ok
     assert 'project_has_template' not in r.json()
 
+def test_project_stats(data_builder, as_user, as_admin, as_public, api_db):
+    group = data_builder.create_group()
+    project_1 = data_builder.create_project()
+    subject_1 = data_builder.create_subject(project=project_1, code='subject1', label='subject1')
+    session_1 = data_builder.create_session(project=project_1, subject={'_id': subject_1})
+    session_2 = data_builder.create_session(project=project_1, subject={'code': 'subject1'})
+
+    subject_2 = data_builder.create_subject(project=project_1, code='subject2', label='subject2')
+    session_3 = data_builder.create_session(project=project_1, subject={'_id': subject_2})
+    session_4 = data_builder.create_session(project=project_1, subject={'_id': subject_2})
+
+    subject_3 = data_builder.create_subject(project=project_1, code='subject3', label='subject3')
+
+    project_2 = data_builder.create_project()
+
+    # get all projects w/ counts=true
+    r = as_public.get('/projects', params={'counts': 'true'})
+    assert r.ok
+    assert all('session_count' in proj for proj in r.json())
+    proj_results = { proj['_id']: proj for proj in r.json() }
+
+    assert project_1 in proj_results
+    assert proj_results[project_1]['session_count'] == 4
+
+    assert project_2 in proj_results
+    assert proj_results[project_2]['session_count'] == 0
+
+    # get all projects w/ stats=true
+    r = as_public.get('/projects', params={'stats': 'true'})
+    assert r.ok
+    proj_results = { proj['_id']: proj for proj in r.json() }
+
+    assert project_1 in proj_results
+    assert proj_results[project_1]['session_count'] == 4
+    assert proj_results[project_1]['subject_count'] == 3
+
+    assert project_2 in proj_results
+    assert proj_results[project_2]['session_count'] == 0
+    assert proj_results[project_2]['subject_count'] == 0
+
+    # === Delete subject_2
+    r = as_admin.delete('/subjects/' + subject_2)
+    assert r.ok
+
+    # get all projects w/ counts=true
+    r = as_public.get('/projects', params={'counts': 'true'})
+    assert r.ok
+    assert all('session_count' in proj for proj in r.json())
+    proj_results = { proj['_id']: proj for proj in r.json() }
+
+    assert proj_results[project_1]['session_count'] == 2
+    assert proj_results[project_2]['session_count'] == 0
+
+    # get all projects w/ stats=true
+    r = as_public.get('/projects', params={'stats': 'true'})
+    assert r.ok
+    proj_results = { proj['_id']: proj for proj in r.json() }
+
+    assert proj_results[project_1]['session_count'] == 2
+    assert proj_results[project_1]['subject_count'] == 2
+
+    # === Delete session_2
+    r = as_admin.delete('/sessions/' + session_2)
+    assert r.ok
+
+    r = as_public.get('/projects', params={'counts': 'true'})
+    assert r.ok
+    assert all('session_count' in proj for proj in r.json())
+    proj_results = { proj['_id']: proj for proj in r.json() }
+
+    assert proj_results[project_1]['session_count'] == 1
+    assert proj_results[project_2]['session_count'] == 0
+
+    # get all projects w/ stats=true
+    r = as_public.get('/projects', params={'stats': 'true'})
+    assert r.ok
+    proj_results = { proj['_id']: proj for proj in r.json() }
+
+    assert proj_results[project_1]['session_count'] == 1
+    assert proj_results[project_1]['subject_count'] == 2
+
 
 def test_get_all_containers(data_builder, as_user, as_admin, as_public, file_form):
     group = data_builder.create_group()

@@ -147,7 +147,7 @@ def test_jobs_full(data_builder, default_payload, as_public, as_user, as_admin, 
     # get job log as text w/o logs
     r = as_admin.get('/jobs/' + job1_id + '/logs/text')
     assert r.ok
-    assert r.text == '<span class="fd--1">No logs were found for this job.</span>'
+    assert r.text == 'No logs were found for this job.'
 
     # get job log as html w/o logs
     r = as_admin.get('/jobs/' + job1_id + '/logs/html')
@@ -606,7 +606,7 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
     # get job log as text w/o logs
     r = as_admin.get('/jobs/' + job1_id + '/logs/text')
     assert r.ok
-    assert r.text == '<span class="fd--1">No logs were found for this job.</span>'
+    assert r.text == 'No logs were found for this job.'
 
     # get job log as html w/o logs
     r = as_admin.get('/jobs/' + job1_id + '/logs/html')

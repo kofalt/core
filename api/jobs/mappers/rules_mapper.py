@@ -132,5 +132,9 @@ class RulesMapper(object):
         if rule_doc is None:
             return None
 
+        rule_doc['any'] = rule_doc.get('any') or []
+        rule_doc['all'] = rule_doc.get('all') or []
+        rule_doc['not'] = rule_doc.get('not') or []
+
         return Rule.from_dict(rule_doc)
 

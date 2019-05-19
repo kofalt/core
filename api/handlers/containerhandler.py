@@ -223,8 +223,7 @@ class ContainerHandler(base.RequestHandler):
         self.handle_origin(results)
 
         if self.is_true('stats'):
-            for result in results:
-                containerutil.get_stats(result, cont_name)
+            containerutil.get_project_stats(results)
 
         if self.is_true('join_avatars'):
             self.storage.join_avatars(results)
@@ -242,7 +241,7 @@ class ContainerHandler(base.RequestHandler):
         el_cont_name = cont_name[:-1]
         dbc = config.db[dbc_name]
         counts =  dbc.aggregate([
-            {'$match': {el_cont_name: {'$in': [res['_id'] for res in results]}}},
+            {'$match': {el_cont_name: {'$in': [res['_id'] for res in results]}, 'deleted': {'$exists': False}}},
             {'$group': {'_id': '$' + el_cont_name, 'count': {"$sum": 1}}}
             ])
         counts = {elem['_id']: elem['count'] for elem in counts}

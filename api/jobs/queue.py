@@ -440,6 +440,7 @@ class Queue(object):
             'gear-name': {},
             'tag': {},
             "compute-provider": {},
+            'created-by': {},
         }
 
         # Fill out the request
@@ -447,7 +448,7 @@ class Queue(object):
             # Mongo operator
             modifier = '$in' if xlist is whitelist else '$nin'
 
-            for key in ['group', 'gear-name', 'tag']:
+            for key in ['group', 'gear-name', 'tag', 'created-by']:
                 if xlist.get(key):
                     match[key][modifier] = xlist[key]
 
@@ -466,6 +467,8 @@ class Queue(object):
             query['tags'] = match['tag']
         if match['compute-provider']:
             query['compute_provider_id'] = match['compute-provider']
+        if match['created-by']:
+            query['origin.id'] = match['created-by']
 
         # Bit unintuitive: match documents that do NOT, have an ELEMENT, that is NOT, in the capabilities.
         # Or, translated:  match documents whose capabilities are a subset of the query.

@@ -531,10 +531,86 @@ class AnalysisStorage(ContainerStorage):
     def get_list_projection(self):
         return {'info': 0, 'files.info': 0, 'tags': 0}
 
+
 class QueryStorage(ContainerStorage):
 
     def __init__(self):
         super(QueryStorage, self).__init__('queries', use_object_id=True)
+
+    def get_parent(self, _id, cont=None, projection=None):
+        """Returns parent
+
+        Args:
+            _id (str): The id of the query
+            cont (dict): The optional query itself if already retrieved
+            projection (dict): Projection to apply to parent
+
+        Returns:
+            str: The literal string 'site'
+            dict: The parent container
+        """
+        if not cont:
+            cont = self.get_container(_id)
+        parent_reference = cont['parent']
+
+        parent_id = parent_reference['id']
+        if parent_reference['type'] == 'site':
+            return 'site'
+        elif parent_reference['type'] == 'project':
+            parent_id = bson.ObjectId(parent_id)
+
+        ps = ContainerStorage.factory(containerutil.pluralize(parent_reference['type']))
+        return ps.get_container(parent_id, projection=projection)
+
+    def _get_user_parents(self, uid, user_is_admin=False):
+        """Get a list of query parent types that user has access
+
+        Args:
+            uid (str): The id of the user to get parent ids for
+            user_is_admin (bool): User is or isn't site admin
+
+        Returns:
+            list: list of ids of parents as strings
+        """
+        # Everyone has access to read queries on the site and on themselves
+        parents = [uid]
+        if user_is_admin:
+            parents.append('site')
+
+        # Get the projects they have access (ids as strings)
+        parents += [str(p['_id']) for p in ProjectStorage().get_all_el(None, {'_id': uid}, {'_id': 1})]
+
+        # Get the groups that user has access to
+        parents += [g['_id'] for g in GroupStorage().get_all_el(None, {'_id': uid}, {'_id': 1})]
+
+        return parents
+
+    def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
+        """Return all queries
+
+        Args:
+            query (dict|None): The query to give
+            user (dict|None): The user if filetering for access to the query
+            projection (dict|None): The query to apply to results
+            fill_defaults (bool): Whether or not to populate the default values for returned elements. Default is False.
+            pagination (dict): The pagination options. Default is None.
+            **kwargs: Additional arguments to pass to the underlying find function
+
+        Returns:
+            list: Queries
+        """
+        if user is not None:
+            query = query or {}
+            query.update({
+                'parent.id': {
+                    '$in': self._get_user_parents(user['_id'],
+                                                  user.get('root', False))
+                }
+            })
+        return super(QueryStorage, self).get_all_el(query, None, projection,
+                                                    fill_defaults=fill_defaults,
+                                                    pagination=pagination, **kwargs)
+
 
 def safe_cleanup_views(parent_id):
     """ Delete all data views belonging to the parent container, trapping any exceptions.

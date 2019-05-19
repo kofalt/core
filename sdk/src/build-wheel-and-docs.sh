@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-pip install -qq --upgrade pip setuptools
+pip install -qq --upgrade pip setuptools twine
 pip install -qq -r python/gen/requirements.txt
 pip install -qq -r requirements-docs.txt
 
@@ -22,5 +22,6 @@ pip install -qq -r requirements-docs.txt
 (
 	cd python/gen/
 	python setup.py -q bdist_wheel
+	twine check dist/*.whl
 )
 

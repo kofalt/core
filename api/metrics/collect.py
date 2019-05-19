@@ -7,20 +7,11 @@ from api import config
 from api.dao import containerstorage
 from api.handlers.devicehandler import get_device_statuses
 from api.metrics import values
+from api.jobs.queue import JOB_STATES
+
 
 log = logging.getLogger('flywheel.metrics')
 
-# Poll interval in seconds
-POLL_INTERVAL = 30
-
-# Aggregation pipeline to group jobs by state
-JOBS_BY_STATE_QUERY = [{'$group': {
-    '_id': '$state',
-    'count': {'$sum': 1}
-}}]
-
-# The list of collections to collect raw counts for
-COUNT_COLLECTIONS = ['users', 'groups', 'projects', 'sessions']
 
 def collect_db_metrics():
     """Collect metrics from mongodb, including version and job states"""
@@ -37,14 +28,27 @@ def collect_db_metrics():
             flywheel_version = version_info.get('flywheel_release', 'UNKNOWN')
             values.FLYWHEEL_VERSION.labels(flywheel_version).set(1)
 
-        # Get jobs info
-        for entry in config.db.jobs.aggregate(JOBS_BY_STATE_QUERY):
-            values.JOBS_BY_STATE.labels(entry['_id']).set(entry['count'])
+        # Get raw DB stats
+        db_stats = config.db.command('dbstats')
+        values.DB_DATA_SIZE.set(db_stats['dataSize'])
+        values.DB_STORAGE_SIZE.set(db_stats['storageSize'])
+        values.DB_OBJECTS.set(db_stats['objects'])
 
-        # Get raw collection counts
-        for collection_name in COUNT_COLLECTIONS:
-            count = config.db[collection_name].count()
-            values.COLLECTION_COUNT.labels(collection_name).set(count)
+        # Get jobs info
+        for state in JOB_STATES:
+            count = config.db.jobs.count({'state': state})
+            values.JOBS_BY_STATE.labels(state).set(count)
+
+        # Get raw collection stats
+        for collection_name in config.db.list_collection_names():
+            stats = config.db.command('collstats', collection_name)
+
+            values.COLLECTION_COUNT.labels(collection_name).set(stats['count'])
+            values.COLLECTION_SIZE.labels(collection_name).set(stats['size'])
+            values.COLLECTION_STORAGE_SIZE.labels(collection_name).set(stats['storageSize'])
+            for index_name, index_size in stats.get('indexSizes', {}).items():
+                values.COLLECTION_INDEX_SIZE.labels(collection_name, index_name).set(index_size)
+            values.COLLECTION_TOTAL_INDEX_SIZE.labels(collection_name).set(stats['totalIndexSize'])
 
         # Get access logs of type user login
         login_count = config.log_db.access_log.find({'access_type': 'user_login', 'origin.id': {'$regex': '@(?!flywheel\\.io)'}}).count()
@@ -75,7 +79,6 @@ def collect_db_metrics():
             time_since = last_event['created'] - epoch
             values.LAST_EVENT_TIME.labels('job_queued_by_user').set(time_since.total_seconds())
 
-
         # Get gear versions
         gear_count = 0
         job_count_by_gear = { d['_id']: d['count'] for d in config.db.jobs.aggregate([
@@ -86,6 +89,7 @@ def collect_db_metrics():
                 }
             }
         ])}
+
         for gear_doc in config.db.gears.find():
             gear = gear_doc.get('gear', {})
             name = gear.get('name', 'UNKNOWN')
@@ -134,9 +138,9 @@ def collect_db_metrics():
             values.DEVICE_STATUS_COUNT.labels(*label).set(count)
 
     except: # pylint: disable=bare-except
-        log.exception('Error collecting db metrics')
+        log.critical('Error collecting db metrics', exc_info=True)
+
 
 def collect_metrics():
     with values.COLLECT_METRICS_TIME.time():
         collect_db_metrics()
-

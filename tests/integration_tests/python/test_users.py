@@ -170,3 +170,163 @@ def test_bootstrap_not_allowed_twice(bootstrap_users, as_public):
     # Verify that public user creation is only allowed once (used in bootstrap_users)
     r = as_public.post('/users', json={'_id': 'h@cker.man', 'firstname': 'Hax0r', 'lastname': 'Wannabe'})
     assert r.status_code == 403
+
+
+def test_user_jobs(as_admin, as_user, data_builder, default_payload, file_form):
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    gear_2 = data_builder.create_gear(gear=gear_doc)
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': {'two-digit multiple of ten': 20},
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': ['test-tag']
+    }
+
+    # create a job with admin user
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id_1 = r.json()['_id']
+
+    # jobs handler lists that job
+    r = as_admin.get('/jobs')
+    assert r.ok
+    assert job_id_1 in map(lambda job: job['_id'], r.json())
+
+    # user jobs handler doesn't list admin's job
+    r = as_user.get('/users/self/jobs')
+    assert r.ok
+    assert job_id_1 not in map(lambda job: job['_id'], r.json()['jobs'])
+
+    r = as_user.get('/users/self')
+    assert r.ok
+    uid = r.json()['_id']
+
+    # set as_user perms to rw
+    r = as_admin.post('/projects/' + project + '/permissions', json={
+        '_id': uid,
+        'access': 'rw'
+    })
+    assert r.ok
+
+    # create job with user
+    r = as_user.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id_2 = r.json()['_id']
+
+    # user jobs handler lists user's job
+    r = as_user.get('/users/self/jobs')
+    assert r.ok
+    assert job_id_2 in map(lambda job: job['_id'], r.json()['jobs'])
+
+    job_data['gear_id'] = gear_2
+    # create another job with user
+    r = as_user.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id_3 = r.json()['_id']
+
+    r = as_user.get('/gears/' + gear)
+    assert r.ok
+    gear_name_1 = r.json()['gear']['name']
+
+    # can filter by gear name
+    r = as_user.get('/users/self/jobs?gear=' + gear_name_1)
+    assert r.ok
+    assert len(r.json()['jobs']) == 1
+    assert job_id_2 in map(lambda job: job['_id'], r.json()['jobs'])
+
+    r = as_user.get('/gears/' + gear_2)
+    assert r.ok
+    gear_name_2 = r.json()['gear']['name']
+
+    r = as_user.get('/users/self/jobs?gear=' + gear_name_2)
+    assert r.ok
+    assert len(r.json()['jobs']) == 1
+    assert job_id_3 in map(lambda job: job['_id'], r.json()['jobs'])
+
+
+def test_user_info(as_user, as_admin):
+    user_info = {
+        'a': 'b',
+        'test': 123,
+        'map': {
+            'a': 'b'
+        },
+        'list': [1, 2, 3]
+    }
+
+    r = as_user.post('/users/self/info', json={
+        'replace': user_info
+    })
+    assert r.ok
+
+    r = as_admin.post('/users/self/info', json={
+        'replace': user_info
+    })
+    assert r.ok
+
+    r = as_user.get('/users/self/info')
+    assert r.ok
+    assert r.json() == user_info
+
+    # get only a specific info field
+    r = as_user.get('/users/self/info?fields=a')
+    assert r.ok
+    assert r.json() == {'a': 'b'}
+
+    # can specify multiple fields
+    r = as_user.get('/users/self/info?fields=a,map')
+    assert r.ok
+    assert r.json() == {
+        'a': 'b',
+        'map': {
+            'a': 'b'
+        }
+    }
+
+    # info field is not returned when listing users
+    r = as_user.get('/users')
+    assert reduce(lambda x, y: x and y, map(lambda user: 'info' in user, r.json()))
+
+    # Get self as user
+    r = as_user.get('/users/self')
+    assert r.ok
+    user_id = r.json()['_id']
+
+    # Get self as admin
+    r = as_admin.get('/users/self')
+    assert r.ok
+    admin_id = r.json()['_id']
+
+    # user can't get other user's info
+    r = as_user.get('/users/' + admin_id)
+    assert 'info' not in r.json()
+
+    # user can see its own info
+    r = as_user.get('/users/' + user_id)
+    assert 'info' in r.json()
+
+    # admin user can see other user's info
+    r = as_admin.get('/users/' + user_id)
+    assert 'info' in r.json()
