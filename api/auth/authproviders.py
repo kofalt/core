@@ -1,3 +1,4 @@
+import copy
 import datetime
 import requests
 import json
@@ -115,7 +116,15 @@ class JWTAuthProvider(AuthProvider):
         mail_format = self.config.get('mail_format')
         if mail_format:
             try:
-                return mail_format.format(**token_data)
+                kwargs = copy.deepcopy(token_data)
+
+                # Split mailbox from domain
+                mail = token_data.get('mail') or ''
+                mailbox, _, mail_domain = mail.rpartition('@')
+                kwargs['mailbox'] = mailbox
+                kwargs['mail_domain'] = mail_domain
+
+                return mail_format.format(**kwargs)
             except KeyError:
                 return None
         return token_data.get('mail')
