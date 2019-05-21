@@ -15,6 +15,7 @@ import sys
 import time
 
 from cachetools import cached, LRUCache
+from flywheel_common.storage import parse_storage_url
 
 from api import config
 from api import util
@@ -2414,14 +2415,33 @@ def upgrade_to_65():
         "provider_type":"static"
     })
 
+    scheme, bucket_name, path, params = parse_storage_url(config.persistent_fs_url)
+    if scheme == 's3':
+        config_ = {
+            'bucket': bucket_name,
+            'path': path,
+            'region': params.get('region', None)
+        }
+        creds = {
+            'access_key': os.environ['AWS_ACCESS_KEY_ID'], # we want a key error if these are not set
+            'secret_access_key': os.environ['AWS_SECRET_ACCESS_KEY']
+        }
+        type_ = 'aws'
+    else:
+        # Gcp is a special case that uses local via pyfs
+        config_ = {"path": config.persistent_fs_url}
+        creds = None
+        type_ = 'local'
+
     storage = config.db.providers.insert_one({
         "origin": {"type": "system", "id": "system"},
         "created": datetime.datetime.now(),
-        "config": {"path":config.persistent_fs_url},
+        "config": config_,
+        "creds": creds,
         "modified": datetime.datetime.now(),
-        "label":"Local Storage",
+        "label":"Primary Storage",
         "provider_class":"storage",
-        "provider_type":"local"
+        "provider_type": type_
     })
 
     config.db.singletons.update({'_id':'site'},

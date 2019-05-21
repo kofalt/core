@@ -9,7 +9,9 @@ import attrdict
 import bson
 import pytest
 
+from api.config import persistent_fs_url
 from api.config import local_fs_url
+from flywheel_common.storage import parse_storage_url
 
 SCITRAN_CORE_DRONE_SECRET = os.environ['SCITRAN_CORE_DRONE_SECRET']
 prometheus_multiproc_dir = os.environ['prometheus_multiproc_dir']
@@ -78,20 +80,40 @@ def with_site_settings(session, api_db):
     if not api_db.get_collection('providers'):
         api_db.create_collection('providers')
 
-    provider = api_db.providers.find_one({'label':'Local Storage'})
+    provider = api_db.providers.find_one({'label':'Primary Storage'})
 
     if not provider:
+
+        scheme, bucket_name, path, params = parse_storage_url(persistent_fs_url)
+        if scheme == 's3':
+            config = {
+                'bucket': bucket_name,
+                'path': path,
+                'region': params.get('region', None)
+            }
+            creds = {
+                'access_key': os.environ.get('AWS_ACCESS_KEY_ID'),
+                'secret_access_key': os.environ.get('AWS_SECRET_ACCESS_KEY')
+            }
+            type_ = 'aws'
+        else:
+            # Gcp is a special case that uses local via pyfs
+            config = {"path": persistent_fs_url}
+            creds = None
+            type_ = 'local'
+
         provider = api_db.providers.insert_one({
             "_id": bson.ObjectId("deadbeefdeadbeefdeadbeef"),
-            "origin": {"type":"system", "id":"system"},
+            "origin": {"type": "system", "id": "system"},
             "created": datetime.datetime.utcnow(),
-            "config": {"path":local_fs_url},
-            "creds": {},
+            "config": config,
+            "creds": creds,
             "modified": datetime.datetime.utcnow(),
-            "label": "Local Storage",
-            "provider_class": "storage",
-            "provider_type": "local"
+            "label":"Primary Storage",
+            "provider_class":"storage",
+            "provider_type": type_
         })
+
         storage_provider_id = provider.inserted_id
     else:
         storage_provider_id = provider['_id']

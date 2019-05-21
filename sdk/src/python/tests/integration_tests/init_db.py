@@ -51,7 +51,7 @@ def create_site(db, path, **kwargs):
     if not db.get_collection('providers'):
         db.create_collection('providers')
 
-    provider = db.providers.find_one({'label':'Local Storage'})
+    provider = db.providers.find_one({'label':'Primary Storage'})
 
     if not provider:
         storage_provider = db.providers.insert_one({
@@ -60,7 +60,7 @@ def create_site(db, path, **kwargs):
             "created": datetime.datetime.utcnow(),
             "config":{"path": path},
             "modified": datetime.datetime.utcnow(),
-            "label":"Local Storage",
+            "label":"Primary Storage",
             "provider_class":"storage",
             "provider_type":"local"
         })

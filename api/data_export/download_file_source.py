@@ -151,10 +151,11 @@ class DownloadFileSource(object):
         if final_storage.storage_plugin.is_signed_url():
             try:
                 signed_url = final_storage.storage_plugin.get_signed_url(target.file_id, target.src_path)
-            except fs.errors.ResourceNotFound:
-                pass
-            except flywheel_common.errors.ResourceNotFound:
-                pass
+            except fs.errors.ResourceNotFound as err:
+                # we might get a 404 getting the signed url, contract states we need to return OSError
+                raise OSError(str(err))
+            except flywheel_common.errors.ResourceNotFound as err:
+                raise OSError(str(err))
         try:
             if signed_url:
                 result = io.URLFileWrapper(signed_url, self._http)

@@ -1352,7 +1352,7 @@ def test_65(api_db, database, data_builder):
 
     database.upgrade_to_65()
 
-    local_storage = api_db.providers.find_one({'label': 'Local Storage'})
+    local_storage = api_db.providers.find_one({'label': 'Primary Storage'})
     assert local_storage
     assert api_db.providers.find_one({'label': 'Static Compute'})
 

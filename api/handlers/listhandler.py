@@ -440,7 +440,9 @@ class FileListHandler(ListHandler):
         if hash_ and hash_ != fileinfo['hash']:
             self.abort(409, 'file exists, hash mismatch')
 
-        file_path = files.get_file_path(fileinfo)
+        file_path = fileinfo.get('path')
+        if not file_path:
+            file_path = files.get_file_path(fileinfo)
         file_system = get_provider(fileinfo['provider_id']).storage_plugin
 
         # Request for download ticket
