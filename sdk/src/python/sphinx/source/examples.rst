@@ -58,7 +58,7 @@ Create a new project that belongs to ``group_id`` with a label of ``My Test Proj
 
 .. code-block:: python
 
-	project = group.add_project(label='My Test Project');
+	project = group.add_project(label='My Test Project')
 
 List Projects
 -------------
@@ -161,7 +161,7 @@ List all of the acquisitions belonging to session.
 .. code-block:: python
 
 	for acquisition in session.acquisitions():
-	  print('%s: %s' % (acquisition.id, acquisition.label))	
+	  print('%s: %s' % (acquisition.id, acquisition.label))
 
 Acquisitions
 ============
@@ -185,8 +185,8 @@ List all of the acquisitions that I have access to:
 
 .. code-block:: python
 
-	for acquisition in fw.acquisitions.iter();
-	  print('%s: %s' % (acquisition.id, acquisition.label))	
+	for acquisition in fw.acquisitions.iter():
+	  print('%s: %s' % (acquisition.id, acquisition.label))
 
 List Files in Acquisition
 -------------------------
@@ -225,7 +225,7 @@ List all of the analyses belonging to session.
 .. code-block:: python
 
 	for analysis in session.analyses():
-		print('%s: %s' % (analysis.id, analysis.label))	
+		print('%s: %s' % (analysis.id, analysis.label))
 
 Archive Downloads
 =================
