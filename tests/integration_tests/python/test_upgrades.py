@@ -1320,5 +1320,8 @@ def test_check_for_cas_files(api_db, checks):
     api_db.acquisitions.update({'_id': acquisition_id}, {'$set': {'files.0._id': str(uuid.uuid4())}})
     checks.check_for_cas_files()
 
+    api_db.acquisitions.update({'_id': acquisition_id}, {'$set': {'files': []}})
+    checks.check_for_cas_files()
+
     api_db.acquisitions.delete_one({'_id': acquisition_id})
     api_db.sessions.delete_one({'_id': session_id})
