@@ -155,7 +155,7 @@ def test_provider_mapper_find_all(api_db):
         # This provider is the default site provider so exclude it from our tests if present
         final_results = []
         for result in results:
-            if result.label != 'Local Storage':
+            if result.label != 'Primary Storage':
                 final_results.append(result)
 
         assert len(final_results) == 1
@@ -175,7 +175,7 @@ def test_provider_mapper_find_all(api_db):
         results = list(mapper.find_all())
         final_results = []
         for result in results:
-            if not (result.label == 'Local Storage' or result.label == 'Static Compute'):
+            if not (result.label == 'Primary Storage' or result.label == 'Static Compute'):
                 final_results.append(result)
         assert len(final_results) == 2
 
@@ -298,7 +298,7 @@ def test_provider_repository_load(api_db):
         # These are the defaults  so exclude from our tests if present
         final_results = [];
         for result in results:
-            if not (result.label == 'Local Storage' or result.label == 'Static Compute'):
+            if not (result.label == 'Primary Storage' or result.label == 'Static Compute'):
                 final_results.append(result)
         # Adjust once the compute providers are ready
         assert len(final_results) == 2

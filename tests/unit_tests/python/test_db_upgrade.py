@@ -67,7 +67,7 @@ def test_all_upgrade_scripts_ran(database_mock_setup, api_db):
     # After the upgrade scripts run we will have extra providers since those
     # Are needed for all the previous tests. We should either make this test run first
     # For undo any changes that adjust our seed data state
-    api_db.providers.delete_one({'label':'Local Storage'})
+    api_db.providers.delete_one({'label':'Primary Storage'})
     api_db.providers.delete_one({'label':'Static Compute'})
 
 @patch('database.get_db_version', Mock(return_value=(CDV-4, {}, {})))
