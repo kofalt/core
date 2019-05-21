@@ -108,7 +108,7 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
     file_id_1 = file_info['_id']
     url_1 = '/sessions/' + session_id + '/files/' + file_name_1
 
-    files.append((session_id, file_name_1, url_1, util.path_from_uuid(file_id_1), str(file_info['provider_id'])))
+    files.append((session_id, file_name_1, url_1, util.path_from_uuid(file_id_1), str(file_info['provider_id']), file_id_1))
 
     yield files
 
@@ -131,7 +131,7 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage, second_
     """Testing collection migration"""
 
     # get file stored by uuid in storage
-    (_, _, url_2, file_path_2, provider_id) = files_to_migrate[0]
+    (_, _, url_2, file_path_2, provider_id, file_id_2) = files_to_migrate[0]
 
     source_fs = get_provider(provider_id).storage_plugin
     dest_fs = get_provider(second_storage_provider).storage_plugin
@@ -147,10 +147,10 @@ def test_migrate_containers(files_to_migrate, as_admin, migrate_storage, second_
     migrate_storage.main('--containers', '--destination', second_storage_provider)
 
     # Verify source file is not deleted
-    assert source_fs.get_file_info(None, file_path_2) is not None
+    assert source_fs.get_file_info(file_id_2, None) is not None
 
     # delete files from the source storage to clean up
-    source_fs.remove_file(None, file_path_2)
+    source_fs.remove_file(file_id_2, None)
 
     # get the files from the new filesystem
     # get the ticket
@@ -168,10 +168,10 @@ def test_migrate_containers_error(files_to_migrate, migrate_storage, second_stor
     local_fs = storage_service.determine_provider(None, None, force_site_provider=True).storage_plugin
 
     # get the file to migrate
-    (_, _, _, file_path_1, provider_id) = files_to_migrate[0]
+    (_, _, _, file_path_1, provider_id, file_id) = files_to_migrate[0]
 
     # delete the file from the filesystem but its still associated with the acquisition
-    local_fs.remove_file(None, file_path_1)
+    local_fs.remove_file(file_id, None)
 
     # Migrating with missing data files will error
     with pytest.raises(Exception):
@@ -220,7 +220,7 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
     """Testing analysis migration"""
 
     # get file storing by uuid in storage
-    (session_id, file_name_2, url_2, file_path_2, provider_id_2) = files_to_migrate[0]
+    (session_id, file_name_2, url_2, file_path_2, provider_id_2, file_id_2) = files_to_migrate[0]
 
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
@@ -257,7 +257,7 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
 
     # delete files from the local storage
     source_fs = get_provider(provider_id_2).storage_plugin
-    source_fs.remove_file(None, file_path_2)
+    source_fs.remove_file(file_id_2, None)
 
     # get the ticket
     r = as_admin.get(url_2, params={'ticket': ''})
@@ -288,4 +288,4 @@ def test_migrate_analysis(files_to_migrate, as_admin, migrate_storage, default_p
 
     #clean up the file on the disk but its still in the db so this will break future tests
     dest_fs = get_provider(second_storage_provider).storage_plugin
-    dest_fs.remove_file(None, file_path_2)
+    dest_fs.remove_file(file_id_2, None)
