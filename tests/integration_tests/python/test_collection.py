@@ -138,6 +138,16 @@ def test_collections(data_builder, as_admin, as_user, as_public):
     assert len(acquisitions) == 1
     assert acquisitions[0]['_id'] == acquisition2
 
+    # sessions can be paginated
+    r = as_user.get('/collections/' + collection + '/sessions', headers={'X-Accept-Feature': 'pagination'})
+    assert r.ok
+    page = r.json()
+    assert page['total'] == 1
+    assert page['count'] == 1
+    sessions = page['results']
+    assert len(sessions) == 1
+    assert sessions[0]['_id'] == session2
+
     r = as_admin.put('/collections/' + collection + '/permissions/' + uid, json={'access': 'admin'})
 
     # delete collection

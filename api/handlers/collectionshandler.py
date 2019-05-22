@@ -159,12 +159,13 @@ class CollectionsHandler(ContainerHandler):
 
         projection = self.get_list_projection('sessions')
 
-        sessions = list(containerstorage.SessionStorage().get_all_el(query, None, projection))
+        page = containerstorage.SessionStorage().get_all_el(query=query, user=None, projection=projection, pagination=self.pagination)
+        sessions = page['results']
 
         self._filter_all_permissions(sessions, self.uid)
 
         self.handle_origin(sessions)
-        return sessions
+        return self.format_page(page)
 
     def get_acquisitions(self, cid):
         """Return the list of acquisitions in a collection."""
