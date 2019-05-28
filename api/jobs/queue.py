@@ -32,6 +32,8 @@ JOB_STATES = [
 ]
 
 # SHADOW: Perimeter JOB_STATES_ALLOWED_MUTATE
+# Changes to this constant SHOULD be avoided, however if changes are unavoidable
+# then update the corresponding constant above.
 JOB_STATES_ALLOWED_MUTATE = [
     'pending',
     'running',
@@ -71,6 +73,9 @@ class Queue(object):
         Validate and save a job mutation
 
         SHADOW: Perimeter HeartbeatJob, for empty mutations only
+
+        Fundamental changes to the signature or functionality of this function SHOULD be avoided.
+        If changes are unavoidable, then update the corresponding function above.
         """
 
         if job.state not in JOB_STATES_ALLOWED_MUTATE:
@@ -499,6 +504,9 @@ class Queue(object):
         Return job state count for a given set of parameters.
 
         SHADOW: Perimeter JobStates
+
+        Fundamental changes to the signature or functionality of this function SHOULD be avoided.
+        If changes are unavoidable, then update the corresponding function above.
         """
 
         query = Queue.lists_to_query(whitelist, blacklist, capabilities)
