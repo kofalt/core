@@ -223,6 +223,7 @@ def initialize_db():
     db.jobs.create_index('tags', **kwargs)
     db.jobs.create_index([('destination.type', 1), ('destination.id', 1)], **kwargs)
     db.jobs.create_index([('inputs.type', 1), ('inputs.id', 1)], **kwargs)
+    db.jobs.create_index('compute_provider_id', **kwargs)
     db.gears.create_index('name', **kwargs)
     db.gears.create_index('gear.custom.flywheel.invalid', **kwargs)
     db.batch.create_index('jobs', **kwargs)
