@@ -89,7 +89,8 @@ def with_site_settings(session, api_db):
             config = {
                 'bucket': bucket_name,
                 'path': path,
-                'region': params.get('region', None)
+                'region': params.get('region', None),
+                'zone': None
             }
             creds = {
                 'access_key': os.environ.get('AWS_ACCESS_KEY_ID'),
