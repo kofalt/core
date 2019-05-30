@@ -1,5 +1,6 @@
 import os
 import cgi
+import email.utils
 import json
 import six
 import hashlib
@@ -249,10 +250,19 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             # pylint: disable=access-member-before-definition
             if self._FieldStorage__file is not None:
                 # Always write fields of type "file" to disk for consistent renaming behavior
+                if self.filename is None:
+                    # Some clients encode UTF-8 filenames using RFC2231.
+                    # In this event, filename will be None and there will be a
+                    # filename* attribute in the Content-Disposition header for this part.
+                    # The line below will parse that alternate representation and
+                    # store it in self.filename
+                    self._parse_alternate_filename()
+
                 if self.filename:
                     self.file = self.make_file('')
                     self.file.write(self._FieldStorage__file.getvalue())
                     self.hasher.update(self._FieldStorage__file.getvalue())
+
                 self._FieldStorage__file = None
 
             self.file.write(line)
@@ -261,6 +271,23 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             # so skipping the hasher.update
             if self.filename:
                 self.hasher.update(line)
+
+        def _parse_alternate_filename(self):
+            """Parse rfc2231 formatted filename.
+
+            Reference: https://stackoverflow.com/questions/18094309/decoding-rfc-2231-headers
+            """
+            if 'content-disposition' not in self.headers:
+                return
+
+            # First parse the content-disposition header
+            _, pdict = cgi.parse_header(self.headers['content-disposition'])
+
+            # Then, if we need to decode filename, do so using email.utils
+            if 'filename*' in pdict:
+                plist = list(pdict.items())
+                pdict = dict(email.utils.decode_params(plist))
+                self.filename = email.utils.collapse_rfc2231_value(pdict['filename'])
 
     return SingleFileFieldStorage
 
