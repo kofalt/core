@@ -54,7 +54,8 @@ DEFAULT_CONFIG = {
             "token_endpoint" : "https://accounts.google.com/o/oauth2/token",
             "verify_endpoint" : "https://www.googleapis.com/oauth2/v1/tokeninfo",
             "refresh_endpoint" : "https://www.googleapis.com/oauth2/v4/token",
-            "auth_endpoint" : "https://accounts.google.com/o/oauth2/auth"
+            "auth_endpoint" : "https://accounts.google.com/o/oauth2/auth",
+            "revoke_endpoint": "https://accounts.google.com/o/oauth2/revoke"
         }
     },
     'features': {

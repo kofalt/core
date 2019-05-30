@@ -17,7 +17,7 @@ from ..jobs.queue import Queue
 from bson import ObjectId
 
 from ..auth.authproviders import AuthProvider
-from ..web.errors import APINotFoundException, APIStorageException
+from ..web.errors import APINotFoundException, APIStorageException, APIAuthProviderException, InputValidationException
 
 log = config.log
 
@@ -277,25 +277,23 @@ class UserHandler(base.RequestHandler):
 
             payload['password_hash'] = auth_provider.hash(password)
 
+    @require_login
     def add_auth_token(self):
-        # TODO use authtokens collection as soon as reasonable (requires db upgrade)
-        # TODO authproviders: identify refreshtoken via token _id to not clobber any logins
         payload = self.request.json_body
-        if 'code' not in payload or 'auth_type' not in payload:
-            self.abort(400, 'auth_type and code required')
+        validators.validate_data(payload, 'user-auth-token-new.json', 'input', 'POST')
+        auth_provider = AuthProvider.factory(payload['auth_type'])
         try:
-            auth_provider = AuthProvider.factory(payload['auth_type'])
-        except NotImplementedError as e:
-            self.abort(400, str(e))
-        token = auth_provider.validate_code(payload['code'], uid=self.uid, redirect_uri=payload.get('redirect_uri'))
-        token['timestamp'] = datetime.datetime.utcnow()
-        query = {key: token[key] for key in ('auth_type', 'scopes', 'identity')}
-        query['uid'] = self.uid
-        result = config.db.authtokens_2.update_one(query, {'$set': token}, upsert=True)
-        if result.upserted_id:
-            return {'_id': result.upserted_id, 'identity': token['identity']}
-        else:
-            return {'_id': result.inserted_id, 'identity': token['identity']}
+            token = auth_provider.validate_code(payload['code'], uid=self.uid, redirect_uri=payload.get('redirect_uri'))
+        except APIAuthProviderException:
+            raise InputValidationException
+        token['last_used'] = datetime.datetime.utcnow()
+        query = {key: token[key] for key in ('auth_type', 'scopes', 'uid')}
+        config.db.user_auth_tokens.update_one(
+            query, {'$set': token},
+            upsert=True
+        )
+        token = config.db.user_auth_tokens.find_one(query, {'_id': 1})
+        return token
 
     @require_login
     def list_auth_tokens(self):
@@ -303,33 +301,43 @@ class UserHandler(base.RequestHandler):
         scope = self.get_param('scope', '')
         if scope:
             query['scopes'] = {'$all': scope.split(' ')}
-        return config.db.authtokens_2.find(
+        return list(config.db.user_auth_tokens.find(
             query, {'_id': 1, 'identity': 1, 'auth_type': 1}
-        ).sort('timestamp', pymongo.DESCENDING)
+        ).sort('last_used', pymongo.DESCENDING))
 
     @require_login
     def get_auth_token(self, _id):
-        # TODO use authtokens collection
-        token = config.db.authtokens_2.find_one({'_id': ObjectId(_id), 'uid': self.uid})
+        _id = ObjectId(_id)
+        token = config.db.user_auth_tokens.find_one({'_id': _id, 'uid': self.uid})
         if token is None:
-            raise APINotFoundException('Token not found')
+            raise APINotFoundException('Could not find token: {}'.format(str(_id)))
         update = {}
         if datetime.datetime.utcnow() > token['expires'] - datetime.timedelta(minutes=1):
             if not token.get('refresh_token'):
                 # token expired and no refresh token
-                config.db.authtokens_2.delete_one({'_id': ObjectId(_id)})
-                return self.abort(401, 'invalid refresh token')
+                config.db.user_auth_tokens.delete_one({'_id': _id})
+                raise APINotFoundException('Could find valid access token')
 
             auth_provider = AuthProvider.factory(token['auth_type'])
             update = auth_provider.refresh_token(token['refresh_token'])
 
-        update['timestamp'] = datetime.datetime.utcnow()  # TODO clarify it's ~ last used
-        config.db.authtokens_2.update_one({'_id': ObjectId(_id)}, {'$set': update})
-        return config.db.authtokens_2.find_one({'_id': ObjectId(_id), 'uid': self.uid})
+        update['last_used'] = datetime.datetime.utcnow()
+        config.db.user_auth_tokens.update_one({'_id': _id}, {'$set': update})
+        # do not expose the refresh token
+        return config.db.user_auth_tokens.find_one(
+            {'_id': _id, 'uid': self.uid},
+            {'refresh_token': 0, 'uid': 0}
+        )
 
     @require_login
     def delete_auth_token(self, _id):
-        # TODO revoke token
-        # TODO delete refresh-token too
-        # TODO use authtokens collection
-        config.db.authtokens_2.delete_one({'_id': ObjectId(_id), 'uid': self.uid})
+        _id = ObjectId(_id)
+        token = config.db.user_auth_tokens.find_one({'_id': _id, 'uid': self.uid})
+        if token:
+            auth_provider = AuthProvider.factory(token['auth_type'])
+            auth_provider.revoke_token(token['access_token'])
+            # Revoke the refreshtoken too if it is specified
+            if token.get('refresh_token'):
+                auth_provider.refresh_token(token['refresh_token'])
+            # Delete token from our database
+            config.db.user_auth_tokens.delete_one({'_id': ObjectId(_id), 'uid': self.uid})

@@ -1,0 +1,10 @@
+[
+    {
+        "_id": "57e01cccb1dc04000fb83f02",
+        "auth_type": "google",
+        "identity": {
+            "email": "user@user.com",
+            "picture": "http://example.com"
+        }
+    }
+]

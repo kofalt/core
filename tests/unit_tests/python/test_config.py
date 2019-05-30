@@ -63,25 +63,26 @@ def test_apply_env_variables(mocker, tmpdir):
     assert config['auth'].get('google')
 
     # Test setting a feature in storage
-    db = mocker.patch('api.config.db')
-    features2 = copy.deepcopy(expected_features)
-    features2['true'] = False
-    features2['new_feature'] = 'test_value'
-
-    db.singletons.find_one.return_value = {
-        'core': {'debug': False, 'log_level': 'info'},
-        'auth': {'test': 'test'},
-        'test': {'true': True, 'false': False, 'none': None},
-        'site': {'upload_maximum_bytes': '10'},
-        'features': features2}
-    api.config.__last_update = datetime.datetime.min
-
-    try:
-        result = api.config.get_config()
-        assert result['features']['new_feature'] == 'test_value'
-        assert not result['features']['true']
-    finally:
+    with mocker.mock_module.patch('api.config.db') as db:
+        features2 = copy.deepcopy(expected_features)
+        features2['true'] = False
+        features2['new_feature'] = 'test_value'
+        db.singletons.find_one.return_value = {
+            'core': {'debug': False, 'log_level': 'info'},
+            'auth': {'test': 'test'},
+            'test': {'true': True, 'false': False, 'none': None},
+            'site': {'upload_maximum_bytes': '10'},
+            'features': features2}
         api.config.__last_update = datetime.datetime.min
+
+        try:
+            result = api.config.get_config()
+            assert result['features']['new_feature'] == 'test_value'
+            assert not result['features']['true']
+        finally:
+            api.config.__last_update = datetime.datetime.min
+    # restore original config
+    api.config.get_config()
 
 def test_create_or_recreate_ttl_index(mocker):
     db = mocker.patch('api.config.db')

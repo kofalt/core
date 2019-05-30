@@ -68,7 +68,7 @@ def app():
     env_patch.stop()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def config(app):
     """Return app config accessor"""
     # NOTE depends on the app fixture as it's reloading the config module

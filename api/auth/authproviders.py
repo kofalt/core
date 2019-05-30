@@ -88,6 +88,13 @@ class AuthProvider(object):
         }
         dbutil.fault_tolerant_replace_one(config.db, 'refreshtokens', query, refresh_doc, upsert=True)
 
+    def revoke_token(self, token):
+        """Revoke the specified token.
+        Should be overridden if provider supports revoking token.
+
+        Arguments:
+            token {string} -- Token to revoke
+        """
 
 class BasicAuthProvider(AuthProvider):
     """FOR DEVELOPMENT ONLY!!! Password based authentication.
@@ -221,29 +228,27 @@ class GoogleOAuthProvider(AuthProvider):
             raise APIAuthProviderException('User code not valid')
 
         response = json.loads(r.content)
-        token = response['access_token']
+        access_token = response['access_token']
 
-        identity = self.get_identity(token)
-
-        if not kwargs.get('uid'):
-            uid = self.validate_user(identity)
-            self.set_refresh_token_if_exists(uid, response.get('refresh_token'))
-        else:
-            uid = kwargs.get('uid')
-
-        scopes = self.get_scopes(token)
+        identity = self.get_identity(access_token)
 
         token = {
-            'access_token': token,
-            'uid': uid,
+            'access_token': access_token,
             'auth_type': self.auth_type,
-            'expires': datetime.datetime.utcnow() + datetime.timedelta(seconds=response['expires_in']),
-            'scopes': scopes,
             'identity': identity
         }
 
-        if response.get('refresh_token'):
-            token['refresh_token'] = response['refresh_token']
+        if not kwargs.get('uid'):
+            token['uid'] = self.validate_user(identity)
+            self.set_refresh_token_if_exists(token['uid'], response.get('refresh_token'))
+        else:
+            # request already authenticated
+            token['uid'] = kwargs.get('uid')
+            if response.get('refresh_token'):
+                token['refresh_token'] = response['refresh_token']
+
+        token['scopes'] = self.get_scopes(access_token)
+        token['expires'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=response['expires_in'])
         return token
 
     def refresh_token(self, token):
@@ -257,7 +262,7 @@ class GoogleOAuthProvider(AuthProvider):
         if not r.ok:
             raise APIAuthProviderException('Unable to refresh token.')
 
-        response = json.loads(r.content)
+        response = r.json()
         return {
             'access_token': response['access_token'],
             'expires': datetime.datetime.utcnow() + datetime.timedelta(seconds=response['expires_in'])
@@ -307,6 +312,10 @@ class GoogleOAuthProvider(AuthProvider):
         # If the user has no avatar set, mark their provider_avatar as their chosen avatar.
         config.db.users.update_one({'_id': uid, 'avatar': {'$exists': False}}, {'$set':{'avatar': provider_avatar, 'modified': timestamp}})
 
+    def revoke_token(self, token):
+        r = requests.post(self.config['revoke_endpoint'], params={'token': token})
+        if not r.ok:
+            raise APIAuthProviderException
 
 class WechatOAuthProvider(AuthProvider):
 

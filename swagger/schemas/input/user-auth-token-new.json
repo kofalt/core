@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf": [{
+      "$ref": "../definitions/user-auth-token.json#/definitions/add-token"
+    }
+  ],
+  "example": {
+    "code": "abcd123456",
+    "auth_type": "google"
+  }
+}

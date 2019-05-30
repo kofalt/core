@@ -106,6 +106,78 @@
         examples:
           response:
             $ref: examples/output/user_job_list.json
+# ===== Tokens =====
+/users/self/tokens:
+  get:
+    summary: Return list of user's third party auth tokens
+    operationId: get_current_user_auth_tokens
+    parameters:
+      - in: query
+        type: string
+        name: scope
+        description: |
+          Provider specific scopes. Can define multiple scope separated by comma.
+          If provided only auth tokens will be return which have the specified scopes.
+    tags:
+    - 'users'
+    responses:
+      '200':
+        schema:
+          $ref: schemas/output/user-auth-token-list.json
+        description: List of matching tokens.
+        examples:
+          response:
+            $ref: examples/output/user-auth-token-list.json
+  post:
+    summary: Add new user auth token.
+    operationId: add_current_user_auth_token
+    tags:
+    - 'users'
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/user-auth-token-new.json
+    responses:
+      '200':
+        schema:
+          $ref: schemas/output/user-auth-token-new.json
+        description: Successfully added new auth token.
+        examples:
+          response:
+            $ref: examples/output/user-auth-token-new.json
+      '400':
+        description: |
+          Invalid authorization code or auth type.
+          Could not exchange authorization code to and access token.
+/users/self/tokens/{TokenId}:
+  parameters:
+    - in: path
+      type: string
+      name: TokenId
+      required: true
+  get:
+    summary: Get a user auth token including the third-party access token.
+    operationId: get_current_user_auth_token
+    tags:
+    - 'users'
+    responses:
+      '200':
+        schema:
+          $ref: schemas/output/user-auth-token.json
+        description: List of matching tokens.
+        examples:
+          response:
+            $ref: examples/output/user-auth-token.json
+  delete:
+    summary: Revoke and delete a user auth token.
+    operationId: delete_current_user_auth_token
+    tags:
+    - 'users'
+    responses:
+      '200':
+        description: Successfully revoked token.
 /users/{UserId}:
   parameters:
     - in: path

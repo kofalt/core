@@ -1,0 +1,17 @@
+{
+    "_id": "57e01cccb1dc04000fb83f02",
+    "auth_type": "google",
+    "identity": {
+        "email": "user@user.com",
+        "picture": "http://example.com"
+    },
+    "access_token": "example",
+    "expires": "2019-05-30T16:56:09.578000+00:00",
+    "scopes": [
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/cloud-platform"
+    ],
+    "last_used": "2019-05-30T16:56:09.578000+00:00"
+}

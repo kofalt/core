@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions": {
+    "code": {
+      "title": "Authorization code",
+      "type": "string",
+      "description": "Code that wil be exchanged to an access token"
+    },
+    "auth_type": {
+      "title": "Auth provider type",
+      "type": "string",
+      "description": "Type of the auth provider",
+      "enum": ["google"]
+    },
+    "identity": {
+      "type": "object"
+    },
+    "access_token": {
+      "title": "Access token",
+      "type": "string",
+      "description": "Can be used to access third-party APIs"
+    },
+    "scopes": {
+      "title": "Scopes",
+      "type": "array",
+      "description": "Third-party services that can be accessed by this token. (Provider specific)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "expires": {
+      "title": "Expiration date of the token",
+      "type": "string"
+    },
+    "last_used": {
+      "title": "Last used date of the token",
+      "type": "string"
+    },
+    "add-token": {
+      "type": "object",
+      "properties": {
+        "code": {"$ref": "#/definitions/code"},
+        "auth_type": {"$ref": "#/definitions/auth_type"}
+      }
+    },
+    "token-list-entry": {
+      "type": "object",
+      "properties": {
+        "_id":{"$ref":"common.json#/definitions/objectid"},
+        "identity": {"$ref": "#/definitions/identity"},
+        "auth_type": {"$ref": "#/definitions/auth_type"}
+      }
+    },
+    "token-list-output": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/token-list-entry"}
+    },
+    "token-new-output": {
+      "type": "object",
+      "properties": {
+        "_id":{"$ref":"common.json#/definitions/objectid"}
+      }
+    },
+    "token-output": {
+      "type": "object",
+      "properties": {
+        "_id":{"$ref":"common.json#/definitions/objectid"},
+        "identity": {"$ref": "#/definitions/identity"},
+        "auth_type": {"$ref": "#/definitions/auth_type"},
+        "access_token": {"$ref": "#/definitions/access_token"},
+        "expires": {"$ref": "#/definitions/expires"},
+        "scopes": {"$ref": "#/definitions/scopes"},
+        "last_used": {"$ref": "#/definitions/last_used"}
+      }
+    }
+  }
+}
