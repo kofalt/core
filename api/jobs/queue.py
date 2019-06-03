@@ -6,7 +6,8 @@ import bson
 import copy
 import pymongo
 import datetime
-import json
+
+from pprint import pformat
 
 from .. import config
 from .jobs import Job, Logs, JobTicket
@@ -31,6 +32,9 @@ JOB_STATES = [
     'cancelled' # Job has been cancelled (via a bulk job cancellation)
 ]
 
+# SHADOW: Perimeter JOB_STATES_ALLOWED_MUTATE
+# Changes to this constant SHOULD be avoided, however if changes are unavoidable
+# then update the corresponding constant above.
 JOB_STATES_ALLOWED_MUTATE = [
     'pending',
     'running',
@@ -68,6 +72,11 @@ class Queue(object):
     def mutate(job, mutation):
         """
         Validate and save a job mutation
+
+        SHADOW: Perimeter HeartbeatJob, for empty mutations only
+
+        Fundamental changes to the signature or functionality of this function SHOULD be avoided.
+        If changes are unavoidable, then update the corresponding function above.
         """
 
         if job.state not in JOB_STATES_ALLOWED_MUTATE:
@@ -390,11 +399,13 @@ class Queue(object):
                 "group": [],
                 "gear-name": [],
                 "tag": [],
+                "compute-provider": [],
             },
             "blacklist": {
                 "group": [],
                 "gear-name": [],
                 "tag": [],
+                "compute-provider": [],
             },
             "capabilities": [],
             "return": {
@@ -436,6 +447,7 @@ class Queue(object):
             'group': {},
             'gear-name': {},
             'tag': {},
+            "compute-provider": {},
             'created-by': {},
         }
 
@@ -448,6 +460,10 @@ class Queue(object):
                 if xlist.get(key):
                     match[key][modifier] = xlist[key]
 
+            if xlist.get('compute-provider'):
+                match['compute-provider'][modifier] = [bson.ObjectId(provider) for provider in xlist['compute-provider']]
+
+
         query = {}
 
         # Translate to mongo keys
@@ -457,6 +473,8 @@ class Queue(object):
             query['gear_info.name'] = match['gear-name']
         if match['tag']:
             query['tags'] = match['tag']
+        if match['compute-provider']:
+            query['compute_provider_id'] = match['compute-provider']
         if match['created-by']:
             query['origin.id'] = match['created-by']
 
@@ -470,7 +488,7 @@ class Queue(object):
             }
         }
 
-        log.debug('Job query is: %s', json.dumps(query))
+        log.debug('Job query is: %s', pformat(query))
         return query
 
     @staticmethod
@@ -488,6 +506,11 @@ class Queue(object):
     def job_states(whitelist, blacklist, capabilities):
         """
         Return job state count for a given set of parameters.
+
+        SHADOW: Perimeter JobStates
+
+        Fundamental changes to the signature or functionality of this function SHOULD be avoided.
+        If changes are unavoidable, then update the corresponding function above.
         """
 
         query = Queue.lists_to_query(whitelist, blacklist, capabilities)

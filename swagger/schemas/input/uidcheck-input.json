@@ -1,0 +1,8 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "allOf": [{"$ref": "../definitions/container.json#/definitions/container-uidcheck"}],
+    "example": {
+        "sessions": ["1.2.840.99999.3.152.235.2.12.187636473"]
+    }
+}

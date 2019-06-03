@@ -798,3 +798,14 @@ def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
     r = as_admin.get('/jobs/' + job_id)
     assert r.ok
 
+
+    # The the job access when the group is removed
+    r = as_admin.get('/projects/' + project)
+    assert r.ok
+    group = r.json()['parents']['group']
+    r = as_admin.delete('/projects/' + project)
+    assert r.ok
+    r = as_admin.delete('/groups/' + group)
+    assert r.ok   
+    r = as_admin.get('/jobs/' + job_id + '/detail')
+    assert r.ok

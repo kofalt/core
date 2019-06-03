@@ -112,6 +112,7 @@ $template_arguments:
   get:
     summary: List sessions in a collection
     operationId: get_collection_sessions
+    x-fw-pagination: true
     tags:
     - collections
     responses:

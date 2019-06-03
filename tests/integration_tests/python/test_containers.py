@@ -1826,3 +1826,52 @@ def test_abstract_containers(data_builder, as_admin, file_form):
     r = as_admin.get('/containers/' + group_id)
     assert r.ok
 
+def test_uidcheck(data_builder, as_user, as_public):
+    session_uid1 = '1.2.3.4'
+    session_uid2 = '1.2.3.5'
+
+    acquisition_uid1 = '1.2.3.4.1'
+    acquisition_uid2 = '1.2.3.5.1'
+
+    project = data_builder.create_project()
+    session_1 = data_builder.create_session(project=project, uid=session_uid1)
+    session_2 = data_builder.create_session(project=project, uid=session_uid2)
+    acquisition_1 = data_builder.create_acquisition(session=session_1, uid=acquisition_uid1)
+    acquisition_2 = data_builder.create_acquisition(session=session_1, uid=acquisition_uid1)
+    acquisition_3 = data_builder.create_acquisition(session=session_2, uid=acquisition_uid2)
+
+    r = as_public.post('/uids')
+    assert r.status_code == 403
+
+    r = as_user.post('/uids')
+    assert r.status_code == 400
+
+    r = as_user.post('/uids', json=[])
+    assert r.status_code == 400
+
+    r = as_user.post('/uids', json={'projects': []})
+    assert r.status_code == 400
+
+    r = as_user.post('/uids', json={'sessions': 'nil'})
+    assert r.status_code == 400
+
+    r = as_user.post('/uids', json={'sessions': None})
+    assert r.status_code == 400
+
+    r = as_user.post('/uids', json={'sessions': ['1.1.1.1'], 'acquisitions': ['2.2.2.2']})
+    assert r.ok
+    assert r.json() == {'sessions': [], 'acquisitions': []}
+
+    r = as_user.post('/uids', json={'sessions': ['1.1.1.1', session_uid1]})
+    assert r.ok
+    assert r.json() == {'sessions': [session_uid1], 'acquisitions': []}
+
+    r = as_user.post('/uids', json={'acquisitions': [session_uid1, acquisition_uid1]})
+    assert r.ok
+    assert r.json() == {'sessions': [], 'acquisitions': [acquisition_uid1]}
+
+    r = as_user.post('/uids', json={'sessions': [session_uid1, session_uid2], 'acquisitions': [acquisition_uid1, acquisition_uid2]})
+    assert r.ok
+    result = r.json()
+    assert set(result['sessions']) == set([session_uid1, session_uid2])
+    assert set(result['acquisitions']) == set([acquisition_uid1, acquisition_uid2])

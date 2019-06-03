@@ -1,3 +1,5 @@
+import bson
+from datetime import datetime
 import pytest
 
 from api import util
@@ -118,3 +120,29 @@ def test_enum():
 
     # test __str__
     assert str(TestEnum.foo) == 'foo'
+
+def test_parse_pagination_value():
+    assert util.parse_pagination_value('"Brainiac"') == 'Brainiac'
+    assert util.parse_pagination_value('"Deadshot') == '"Deadshot'
+    assert util.parse_pagination_value('Clayface"') == 'Clayface"'
+    assert util.parse_pagination_value('12characters') == '12characters'
+    oid = bson.ObjectId()
+    assert util.parse_pagination_value(str(oid)) == oid
+    datestring = '2019-05-22'
+    assert util.parse_pagination_value(datestring) == datetime.strptime(datestring, '%Y-%m-%d')
+    assert util.parse_pagination_value('null') == None
+    assert util.parse_pagination_value('true') == True
+    assert util.parse_pagination_value('false') == False
+    assert util.parse_pagination_value('9000') == 9000
+    assert util.parse_pagination_value('Bizarro') == 'Bizarro'
+
+def test_parse_pagination_filter_param():
+    assert util.parse_pagination_filter_param('label=ex1000') == {'label': {'$eq': 'ex1000'}}
+    assert util.parse_pagination_filter_param('age>100') == {'age': {'$gt': 100}}
+    assert util.parse_pagination_filter_param('label=~1000') == {'label': {'$regex': '1000'}}
+    assert util.parse_pagination_filter_param('label=~1000,age>100') == {'label': {'$regex': '1000'}, 'age': {'$gt': 100}}
+    assert util.parse_pagination_filter_param('label=') == {'label': {'$eq': ''}}
+    with pytest.raises(util.PaginationParseError):
+        util.parse_pagination_filter_param('label') == {}
+    with pytest.raises(util.PaginationParseError):
+        util.parse_pagination_filter_param('') == {}

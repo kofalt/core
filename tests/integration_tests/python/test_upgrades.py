@@ -1323,6 +1323,7 @@ def test_65(api_db, database, data_builder):
     with pytest.raises(RuntimeError):
         database.upgrade_to_65()
 
+<<<<<<< HEAD
 
     # Confirm it fails with a missing subject file id
     subject= data_builder.create_subject(public=True, project=project, label='no id files');
@@ -1361,3 +1362,10 @@ def test_65(api_db, database, data_builder):
     # So this test does not provide much value
     # a = api_db.acquisitions.find_one({'files.0': {'$exists': 'true'}})
     # assert a['files'][0].get('provider_id') == local_storage['_id']
+=======
+    api_db.acquisitions.update({'_id': acquisition_id}, {'$set': {'files': []}})
+    checks.check_for_cas_files()
+
+    api_db.acquisitions.delete_one({'_id': acquisition_id})
+    api_db.sessions.delete_one({'_id': session_id})
+>>>>>>> master

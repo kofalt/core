@@ -64,7 +64,7 @@ def test_jwt_auth_with_mail_format(config, as_drone, as_public, api_db):
     # inject ldap (jwt) auth config
     config['auth']['ldap'] = dict(
         verify_endpoint='http://ldap.test',
-        mail_format='{uid}@scitran.edu',
+        mail_format='{user_name}@scitran.edu',
         check_ssl=False)
 
     uid = 'ldapuser'
@@ -77,13 +77,43 @@ def test_jwt_auth_with_mail_format(config, as_drone, as_public, api_db):
         assert r.status_code == 401
 
         # try to log in w/ ldap - user not in db (yet)
-        m.post(config.auth.ldap.verify_endpoint, json={'uid': uid, 'mail': 'ldap@ldap.test'})
+        m.post(config.auth.ldap.verify_endpoint, json={'user_name': uid, 'mail': 'ldap@ldap.test'})
         r = as_public.post('/login', json={'auth_type': 'ldap', 'code': 'test'})
         assert r.status_code == 402
 
         # try to log in w/ ldap
         assert as_drone.post('/users', json={'_id': email, 'firstname': 'test', 'lastname': 'test'}).ok
 
+        m.head(re.compile('https://gravatar.com/avatar'), status_code=404)
+        r = as_public.post('/login', json={'auth_type': 'ldap', 'code': 'test'})
+        assert r.ok
+        token = r.json['token']
+
+        # Verify UID & Email
+        user = api_db.users.find_one({'_id': email})
+        assert 'gravatar' not in user['avatars']
+        assert user['_id'] == email
+        assert user['email'] == email
+
+        # clean up
+        api_db.authtokens.delete_one({'_id': token})
+        api_db.users.delete_one({'_id': email})
+
+def test_jwt_auth_with_mail_format_and_domain(config, as_drone, as_public, api_db):
+    # inject ldap (jwt) auth config
+    config['auth']['ldap'] = dict(
+        verify_endpoint='http://ldap.test',
+        mail_format='{user_name}@{mail_domain}',
+        check_ssl=False)
+
+    uid = 'ldapuser'
+    email = 'ldapuser@scitran.edu'
+    api_db.users.delete_one({'_id': email})
+    with requests_mock.Mocker() as m:
+        # try to log in w/ ldap
+        assert as_drone.post('/users', json={'_id': email, 'firstname': 'test', 'lastname': 'test'}).ok
+
+        m.post(config.auth.ldap.verify_endpoint, json={'user_name': uid, 'mail': 'ldap@scitran.edu'})
         m.head(re.compile('https://gravatar.com/avatar'), status_code=404)
         r = as_public.post('/login', json={'auth_type': 'ldap', 'code': 'test'})
         assert r.ok

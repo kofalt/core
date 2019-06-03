@@ -26,6 +26,7 @@ DATETIME_RE = {
     re.compile(r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d$'):               '%Y-%m-%dT%H:%M:%S',
     re.compile(r'^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d\d\d\d$'): '%Y-%m-%dT%H:%M:%S.%f',
 }
+OBJECTID_RE = re.compile('^[0-9a-f]{24}$')
 
 MIMETYPES = [
     ('.bvec', 'text', 'bvec'),
@@ -421,15 +422,19 @@ class PaginationParseError(ValueError):
 
 
 def parse_pagination_value(value):
-    """Return casted value (ObjectId|datetime|float) from user input (str) for use in mongo queries."""
+    """Return casted value (ObjectId|datetime|float|boolean) from user input (str) for use in mongo queries."""
     if len(value) > 1 and value[0] == '"' and value[-1] == '"':
         return value[1:-1]
-    elif bson.ObjectId.is_valid(value):
+    elif OBJECTID_RE.match(value):
         return bson.ObjectId(value)
     elif datetime_from_str(value):
         return datetime_from_str(value)
     elif value == 'null':
         return None
+    elif value == 'true':
+        return True
+    elif value == 'false':
+        return False
     else:
         try:
             # Note: querying for floats also yields ints (=> no need for int casting here)
@@ -455,7 +460,13 @@ def parse_pagination_filter_param(filter_param):
             if op:
                 if key not in pagination_filter:
                     pagination_filter[key] = {}
-                pagination_filter[key].update({filter_ops[op]: parse_pagination_value(value)})
+                mongo_op = filter_ops[op]
+                if mongo_op == '$regex':
+                    # regex must be a string so don't coerce it
+                    parsed_value = value
+                else:
+                    parsed_value = parse_pagination_value(value)
+                pagination_filter[key].update({mongo_op: parsed_value})
                 break
         else:
             raise PaginationParseError('Invalid pagination filter: {} (operator missing)'.format(filter_str))

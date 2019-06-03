@@ -2039,15 +2039,8 @@ def test_unicode_filenames(data_builder, file_form, as_admin, as_public, api_db)
     file_contents = 'Hello World!'
     project = data_builder.create_project()
 
-    core_works = False
-    if core_works:
-        r = as_admin.post('/projects/' + project + '/files', files=file_form((filename, file_contents)))
-        assert r.ok
-    else:
-        r = as_admin.post('/projects/' + project + '/files', files=file_form(('placeholder.csv', file_contents)))
-        assert r.ok
-
-        api_db.projects.update_one({'_id': bson.ObjectId(project)}, {'$set': {'files.0.name': filename}})
+    r = as_admin.post('/projects/' + project + '/files', files=file_form((filename, file_contents)))
+    assert r.ok
 
     r = as_admin.get('/projects/' + project)
     assert r.ok

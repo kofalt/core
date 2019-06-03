@@ -536,7 +536,12 @@ class Logs(object):
 
     @staticmethod
     def add(_id, doc):
+        """
+        SHADOW: Perimeter SaveJobLogs
 
+        Fundamental changes to the signature or functionality of this function SHOULD be avoided.
+        If changes are unavoidable, then update the corresponding function above.
+        """
         # Silently ignore adding no logs
         if len(doc) <= 0:
             return
