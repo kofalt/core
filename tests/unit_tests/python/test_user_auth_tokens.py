@@ -50,12 +50,15 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
         token = r.json[0]
         assert sorted(token.keys()) == sorted(['_id', 'identity', 'auth_type'])
 
+        # test get token endpoint, public user doesn't have access
         r = as_public.get('/users/self/tokens/' + token_id)
         assert r.status_code == 403
 
+        # token not found
         r = as_user.get('/users/self/tokens/000000000000000000000000')
         assert r.status_code == 404
 
+        # token expired, no refresh token specified so it is removed from db
         r = as_user.get('/users/self/tokens/' + token_id)
         assert r.status_code == 404
 
@@ -65,7 +68,7 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
         assert r.ok
         token_id = r.json['_id']
 
-        # token won't be renewed more than 61 seconds left until it expires
+        # token won't be renewed if more than 60 seconds left until it expires
         refresh_token_mock = mocker.patch(
             'api.auth.authproviders.GoogleOAuthProvider.refresh_token',
             return_value={'access_token': 'test_refreshed', 'expires_in': 60})
@@ -80,12 +83,13 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
         assert r.ok
         token_id = r.json['_id']
 
-        # will be refreshed at 60 seconds
+        # will be refreshed at less than 60 seconds
         r = as_user.get('/users/self/tokens/' + token_id)
         assert r.status_code == 200
         assert r.json['access_token'] == 'test_refreshed'
         assert refresh_token_mock.called
 
+        # revoke token
         revoke_token_mock = mocker.patch(
             'api.auth.authproviders.GoogleOAuthProvider.revoke_token')
         r = as_user.delete('/users/self/tokens/' + token_id)

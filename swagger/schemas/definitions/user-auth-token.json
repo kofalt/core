@@ -4,7 +4,7 @@
     "code": {
       "title": "Authorization code",
       "type": "string",
-      "description": "Code that wil be exchanged to an access token"
+      "description": "Code that will be exchanged to an access token"
     },
     "auth_type": {
       "title": "Auth provider type",

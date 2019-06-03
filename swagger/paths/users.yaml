@@ -116,8 +116,8 @@
         type: string
         name: scope
         description: |
-          Provider specific scopes. Can define multiple scope separated by comma.
-          If provided only auth tokens will be return which have the specified scopes.
+          Provider specific scopes. Can define multiple scopes separated by comma.
+          If provided only auth tokens will be returned which have the specified scopes.
     tags:
     - 'users'
     responses:
@@ -129,7 +129,7 @@
           response:
             $ref: examples/output/user-auth-token-list.json
   post:
-    summary: Add new user auth token.
+    summary: Add new user auth token
     operationId: add_current_user_auth_token
     tags:
     - 'users'
@@ -143,14 +143,14 @@
       '200':
         schema:
           $ref: schemas/output/user-auth-token-new.json
-        description: Successfully added new auth token.
+        description: Successfully added new auth token
         examples:
           response:
             $ref: examples/output/user-auth-token-new.json
       '400':
         description: |
           Invalid authorization code or auth type.
-          Could not exchange authorization code to and access token.
+          Could not exchange authorization code to an access token.
 /users/self/tokens/{TokenId}:
   parameters:
     - in: path
@@ -158,7 +158,7 @@
       name: TokenId
       required: true
   get:
-    summary: Get a user auth token including the third-party access token.
+    summary: Get user auth token including the third-party access token
     operationId: get_current_user_auth_token
     tags:
     - 'users'
@@ -166,18 +166,18 @@
       '200':
         schema:
           $ref: schemas/output/user-auth-token.json
-        description: List of matching tokens.
+        description: List of matching tokens
         examples:
           response:
             $ref: examples/output/user-auth-token.json
   delete:
-    summary: Revoke and delete a user auth token.
+    summary: Revoke and delete a user auth token
     operationId: delete_current_user_auth_token
     tags:
     - 'users'
     responses:
       '200':
-        description: Successfully revoked token.
+        description: Successfully revoked token
 /users/{UserId}:
   parameters:
     - in: path
