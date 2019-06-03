@@ -13,8 +13,6 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
     assert r.status_code == 400
 
     with requests_mock.Mocker() as m:
-        m.register_uri('GET', config.auth.google.verify_endpoint, json={'scope': 'email profile'})
-
         # try to add an invalid code
         m.post(config.auth.google.token_endpoint, status_code=400)
         r = as_user.post('/users/self/tokens', json={'code': 'test', 'auth_type': 'google'})
@@ -34,6 +32,12 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
         m.post(config.auth.google.token_endpoint, json={
             'access_token': 'test', 'expires_in': 60})
         m.get(config.auth.google.id_endpoint, json={'email': 'test@test.com'})
+
+        m.get(config.auth.google.verify_endpoint, status_code=400)
+        r = as_user.post('/users/self/tokens', json={'code': 'test', 'auth_type': 'google'})
+        assert r.status_code == 400
+
+        m.get(config.auth.google.verify_endpoint, json={'scope': 'email profile'})
         r = as_user.post('/users/self/tokens', json={'code': 'test', 'auth_type': 'google'})
         assert r.ok
         assert r.json['_id']
@@ -49,6 +53,19 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
         assert r.ok
         token = r.json[0]
         assert sorted(token.keys()) == sorted(['_id', 'identity', 'auth_type'])
+
+        # test list, filter scopes
+        m.get(config.auth.google.verify_endpoint, json={'scope': 'email'})
+        r = as_user.post('/users/self/tokens', json={'code': 'test', 'auth_type': 'google'})
+        assert r.ok
+
+        r = as_user.get('/users/self/tokens')
+        assert r.ok
+        assert len(r.json) == 2
+
+        r = as_user.get('/users/self/tokens?scope=email profile')
+        assert r.ok
+        assert len(r.json) == 1
 
         # test get token endpoint, public user doesn't have access
         r = as_public.get('/users/self/tokens/' + token_id)
@@ -89,12 +106,13 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
         assert r.json['access_token'] == 'test_refreshed'
         assert refresh_token_mock.called
 
+    with requests_mock.Mocker() as m:
         # revoke token
-        revoke_token_mock = mocker.patch(
-            'api.auth.authproviders.GoogleOAuthProvider.revoke_token')
+        m.post(config.auth.google.revoke_endpoint, json={})
         r = as_user.delete('/users/self/tokens/' + token_id)
         assert r.status_code == 200
-        assert revoke_token_mock.called
+        assert m.call_count == 1
 
         r = as_user.get('/users/self/tokens/' + token_id)
         assert r.status_code == 404
+        assert m.call_count == 1
