@@ -5,6 +5,11 @@
     x-fw-pagination: true
     tags:
     - gears
+    parameters:
+      - name: all_versions
+        in: query
+        type: boolean
+        description: return all versions of each gear
     responses:
       '200':
         description: 'Returns a list of gears installed on the system'
