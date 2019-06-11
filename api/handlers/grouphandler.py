@@ -94,6 +94,13 @@ class GroupHandler(base.RequestHandler):
         payload_validator(payload, 'POST')
         if payload['_id'] in GROUP_ID_BLACKLIST:
             self.abort(400, 'The group "{}" can\'t be created as it is integral within the API'.format(payload['_id']))
+
+        # Check if group already exists, and if so don't re-create it
+        if self.storage.get_el(payload['_id'], projection={'_id': 1}):
+            self.log.info('Will not upsert existing group: %s, discarding any updates', payload['_id'])
+            self.response.status_int = 202
+            return {'_id': payload['_id']}
+
         payload['created'] = payload['modified'] = datetime.datetime.utcnow()
         payload['permissions'] = [{'_id': self.uid, 'access': 'admin'}] if self.uid else []
         # Validate any providers (for new group)

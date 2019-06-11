@@ -24,7 +24,7 @@ def test_groups(as_user, as_admin, data_builder):
     first_modified = r.json()['modified']
     d1 = parse(initial_modified)
     d2 = parse(first_modified)
-    assert d2 > d1
+    assert d2 >= d1
 
     assert r.json()['created'] == created
 
@@ -172,3 +172,21 @@ def test_groups_blacklist(as_admin):
     r = as_admin.post('/groups', json={'_id': 'site', 'label': 'Site group'})
     assert r.status_code == 400
 
+def test_groups_upsert(as_admin, data_builder):
+    group_id = data_builder.create_group(label='Original Label')
+
+    r = as_admin.get('/groups/' + group_id)
+    assert r.ok
+    original_group = r.json()
+
+    r = as_admin.post('/groups', json={'_id': group_id, 'label': 'Fubar'})
+    assert r.status_code == 202
+    assert r.json() == {'_id': group_id}
+
+    r = as_admin.get('/groups/' + group_id)
+    assert r.ok
+    updated_group = r.json()
+
+    assert original_group['label'] == updated_group['label']
+    assert original_group['created'] == updated_group['created']
+    assert original_group['modified'] == updated_group['modified']
