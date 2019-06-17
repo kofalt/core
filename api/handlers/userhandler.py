@@ -316,7 +316,7 @@ class UserHandler(base.RequestHandler):
             if not token.get('refresh_token'):
                 # token expired and no refresh token
                 config.db.user_auth_tokens.delete_one({'_id': _id})
-                raise APINotFoundException('Could find valid access token')
+                raise APINotFoundException('Token expired')
 
             auth_provider = AuthProvider.factory(token['auth_type'])
             update = auth_provider.refresh_token(token['refresh_token'])
@@ -341,3 +341,5 @@ class UserHandler(base.RequestHandler):
                 auth_provider.refresh_token(token['refresh_token'])
             # Delete token from our database
             config.db.user_auth_tokens.delete_one({'_id': ObjectId(_id), 'uid': self.uid})
+            return {'deleted': 1}
+        raise APINotFoundException('Could not find token: {}'.format(str(_id)))
