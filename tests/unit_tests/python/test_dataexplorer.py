@@ -48,7 +48,7 @@ def test_search(as_public, as_drone, es, as_user):
                 'filter': {'bool': {'must': [
                     {'terms': {filter_key + '.raw': filter_value}},
                     {'range': filter_range},
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}},
             }},
             'aggs': {'by_container': {'terms':
@@ -72,7 +72,7 @@ def test_search(as_public, as_drone, es, as_user):
             'size': 0,
             'query': {'bool': {
                 'filter': {'bool': {'must': [
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}},
             }},
             'aggs': {'by_container': {'terms':
@@ -96,7 +96,7 @@ def test_search(as_public, as_drone, es, as_user):
             'size': 0,
             'query': {'bool': {
                 'filter': {'bool': {'must': [
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}},
             }},
             'aggs': {'by_container': {'terms':
@@ -125,7 +125,7 @@ def test_search(as_public, as_drone, es, as_user):
             'query': {'bool': {
                 'filter': {'bool': {'must': [
                     {'term': {'container_type': cont_type}},
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}},
             }},
             'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
@@ -150,7 +150,7 @@ def test_search(as_public, as_drone, es, as_user):
                     {'term': {'container_type': cont_type}},
                     {'terms': {filter_key + '.raw': filter_value}},
                     {'range': filter_range},
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}}
             }},
             'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
@@ -177,7 +177,7 @@ def test_search(as_public, as_drone, es, as_user):
                                 {'terms': {filter_key + '.raw': filter_value}},
                                 {'range': filter_range},
                                 {'term': {'permissions._id': None}},
-                                {'term': {'deleted': False}}
+                                {'term': {'deleted': 0}}
                             ]
                         }
                     },
@@ -235,7 +235,7 @@ def test_search(as_public, as_drone, es, as_user):
                             ]
                         }
                     },
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}}
             }},
             'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
@@ -269,7 +269,7 @@ def test_search(as_public, as_drone, es, as_user):
                 'filter': {'bool': {'must': [
                     {'term': {'container_type': cont_type}},
                     {'terms': {filter_key + '.raw': filter_value}},
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}}
             }},
             'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
@@ -319,7 +319,7 @@ def test_search(as_public, as_drone, es, as_user):
             'query': {'bool': {
                 'filter': {'bool': {'must': [
                     {'term': {'container_type': cont_type}},
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}},
             }},
             'script_fields': {'info_exists': deh.INFO_EXISTS_SCRIPT},
@@ -491,7 +491,7 @@ def test_aggregate_field_values(as_public, as_drone, es):
     es.search.assert_called_with(
         body={'aggs': {'results': {'terms': {'field': field_name + '.raw', 'size': 15, 'missing': 'null'}}},
               'query': {'bool': {
-                'filter': [{'term': {'deleted': False}}],
+                'filter': [{'term': {'deleted': 0}}],
                 'must': {'match_all': {}}}},
               'size': 0},
         doc_type='flywheel',
@@ -504,7 +504,7 @@ def test_aggregate_field_values(as_public, as_drone, es):
     es.search.assert_called_with(
         body={'aggs': {'results': {'terms': {'field': field_name + '.raw', 'size': 15, 'missing': 'null'}}},
               'query': {'bool': {
-              'filter': [{'term': {'deleted': False}}],
+              'filter': [{'term': {'deleted': 0}}],
               'must': {'match': {'field': search_str}}}},
               'size': 0},
         doc_type='flywheel',
@@ -518,7 +518,7 @@ def test_aggregate_field_values(as_public, as_drone, es):
     es.search.assert_called_with(
         body={'aggs': {'results': {'stats': {'field': field_name}}},
               'query': {'bool': {
-              'filter': [{'term': {'deleted': False}}],
+              'filter': [{'term': {'deleted': 0}}],
               'must': {'match_all': {}}}},
               'size': 0},
         doc_type='flywheel',
@@ -531,7 +531,7 @@ def test_aggregate_field_values(as_public, as_drone, es):
     es.search.assert_called_with(
         body={'aggs': {'results': {'stats': {'field': field_name}}},
               'query': {'bool': {
-              'filter': [{'term': {'deleted': False}}],
+              'filter': [{'term': {'deleted': 0}}],
               'must': {'match': {'field': search_str}}}},
               'size': 0},
         doc_type='flywheel',
@@ -560,7 +560,7 @@ def test_structured_search(as_public, as_drone, es, as_user):
             'query': {'bool': {
                 'filter': {'bool': {'must': [
                     query_es,
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}},
             }},
             'aggs': {'by_container': {'terms':
@@ -587,10 +587,10 @@ def test_structured_search(as_public, as_drone, es, as_user):
         body={
             'size': 0,
             'query': {'bool': {
-                'must': {'match': {'_all': search_str}},
+                'must': {'match': {'all_fields': search_str}},
                 'filter': {'bool': {'must': [
                     query_es,
-                    {'term': {'deleted': False}}
+                    {'term': {'deleted': 0}}
                 ]}},
             }},
             'aggs': {'by_container': {'terms':
@@ -640,7 +640,7 @@ def test_search_suggest(as_public, as_drone, es, as_user):
     es.search.assert_called_with(
         body={'aggs': {'results': {'terms': {'field': 'subject.code.raw', 'size': 15, 'missing': 'null'}}},
               'query': {'bool': {
-                'filter': [{'term': {'deleted': False}}],
+                'filter': [{'term': {'deleted': 0}}],
                 'must': {'match': {'subject.code': 'ex'}}}},
               'size': 0},
         doc_type='flywheel',

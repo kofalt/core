@@ -1,7 +1,7 @@
 argon2_cffi>=19.1.0
 backports.tempfile==1.0
 cachetools==3.0.0
-elasticsearch==6.7.0
+elasticsearch==6.4.0
 enum==0.4.6
 fs==2.0.16
 flywheel-common[gevent]==1.1.0

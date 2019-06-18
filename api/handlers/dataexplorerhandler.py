@@ -411,7 +411,7 @@ class DataExplorerHandler(base.RequestHandler):
             modified_filters.append({'term': {'permissions._id': self.uid}})
 
         # Only return objects that have not been marked as deleted
-        modified_filters.append({'term': {'deleted': False}})
+        modified_filters.append({'term': {'deleted': 0}})
 
         # Parse and "validate" search_string, allowed to be non-existent
         search_string = str(request.get('search_string', ''))
@@ -621,7 +621,7 @@ class DataExplorerHandler(base.RequestHandler):
         a custom string field or a set of statistics if the field type is
         a number.
         """
-        filters = [{'term': {'deleted': False}}]
+        filters = [{'term': {'deleted': 0}}]
         if not self.user_is_admin:
             filters.append({'term': {'permissions._id': self.uid}})
         try:
