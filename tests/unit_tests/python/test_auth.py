@@ -1,8 +1,25 @@
 import datetime
 import re
 
+import mock
 import pytest
 import requests_mock
+
+import api.auth.authproviders
+from api.auth.authproviders import BasicAuthProvider, AuthProviders
+
+
+class MockBasicAuthProvider(BasicAuthProvider):
+    parallelism = 1
+    time_cost = 1
+    memory_cost = 512
+
+    def __init__(self):
+        # Use different hash params
+        super(MockBasicAuthProvider, self).__init__()
+        import argon2
+        self.argon2_hasher = argon2.PasswordHasher(time_cost=self.time_cost,
+            memory_cost=self.memory_cost, parallelism=self.parallelism)
 
 
 def test_jwt_auth(config, as_drone, as_public, api_db):
@@ -481,5 +498,127 @@ def test_saml_auth(config, as_drone, as_public, api_db):
         assert 'gravatar' in api_db.users.find_one({'_id': uid})['avatars']
 
         # clean up
+        api_db.authtokens.delete_many({'uid': uid})
+        api_db.users.delete_one({'_id': uid})
+
+def test_basic_auth(config, as_drone, as_public, api_db):
+    uid = 'user@basic.com'
+
+    # try to login w/ unconfigured auth provider
+    r = as_public.post('/login/basic', json={
+        'email': uid,
+        'password': 'guest',
+    })
+    assert r.status_code == 400
+
+    # Cannot create user with password if basic auth not enabled
+    r = as_drone.post('/users', json={
+        '_id': uid, 'disabled': True, 'password': 'guest', 'firstname': 'test', 'lastname': 'test'})
+    assert r.status_code == 400
+
+    # inject basic (jwt) auth config
+    config['auth']['basic'] = {}
+
+    # Still cannot create user with password if unsafe_login feature is not on
+    r = as_drone.post('/users', json={
+        '_id': uid, 'disabled': True, 'password': 'guest', 'firstname': 'test', 'lastname': 'test'})
+    assert r.status_code == 400
+
+    config['features']['unsafe_login'] = True
+
+    with requests_mock.Mocker() as m, mock.patch.object(
+                api.auth.authproviders, 'AuthProviders', {'basic': MockBasicAuthProvider}):
+        # try to log in w/ basic and invalid email
+        r = as_public.post('/login/basic', json={'password': 'guest'})
+        assert r.status_code == 400
+
+        # try to log in w/ basic - no password
+        r = as_public.post('/login/basic', json={'email': uid})
+        assert r.status_code == 400
+
+        # try to log in w/ basic - user not in db (yet)
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'guest'})
+        assert r.status_code == 402
+
+        # try to log in w/ basic - user added but no password
+        assert as_drone.post('/users', json={
+            '_id': uid, 'firstname': 'test', 'lastname': 'test'}).ok
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'guest'})
+        assert r.status_code == 401
+
+        # try to log in w/ basic - user added but disabled
+        as_drone.put('/users/' + uid, json={'password': 'guest', 'disabled': True})
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'guest'})
+        assert r.status_code == 402
+
+        m.head(re.compile('https://gravatar.com/avatar'), status_code=404)
+        as_drone.put('/users/' + uid, json={'disabled': False})
+
+        # login w/ basic - invalid password
+        r = as_public.post('/login/basic', json={'email': uid, 'password': '1234'})
+        assert r.status_code == 401
+
+        # log in w/ basic (also mock gravatar 404)
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'guest'})
+        assert r.ok
+        token = r.json['token']
+
+        r = as_public.get('/users/self', headers={'Authorization': token})
+        assert r.ok
+        assert r.json['_id'] == uid
+
+        # log in w/ basic (now w/ existing gravatar)
+        user_before = api_db.users.find_one({'_id': uid})
+        m.head(re.compile('https://gravatar.com/avatar'))
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'guest'})
+        assert r.ok
+        token = r.json['token']
+        assert 'gravatar' in api_db.users.find_one({'_id': uid})['avatars']
+
+        # Don't arbitrarily rehash password (i.e. no config change)
+        user_after = api_db.users.find_one({'_id': uid})
+        assert user_before['password_hash'] == user_after['password_hash']
+
+        # Attempt Set password
+        r = as_public.put('/users/' + uid, json={'password': 'changeme'})
+        assert r.status_code == 403
+
+        # Cannot reconfigure password if basic auth not configured
+        basic_cfg = config['auth'].pop('basic')
+        r = as_drone.put('/users/' + uid, json={'password': 'changeme'})
+        assert r.status_code == 400
+
+        # Change password (as user)
+        config['auth']['basic'] = basic_cfg
+        r = as_public.put('/users/' + uid, json={'password': 'god'}, headers={'Authorization': token})
+        assert r.ok
+
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'guest'})
+        assert r.status_code == 401
+
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'god'})
+        assert r.ok
+
+        # Change password (as admin)
+        r = as_drone.put('/users/' + uid, json={'password': 'changeme'})
+        assert r.ok
+
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'guest'})
+        assert r.status_code == 401
+
+        r = as_public.post('/login/basic', json={'email': uid, 'password': 'changeme'})
+        assert r.ok
+
+        # Re-hash password
+        user_before = api_db.users.find_one({'_id': uid})
+
+        with mock.patch.object(MockBasicAuthProvider, 'memory_cost', 1024):
+            r = as_public.post('/login/basic', json={'email': uid, 'password': 'changeme'})
+            assert r.ok
+
+        user_after = api_db.users.find_one({'_id': uid})
+        assert user_before['password_hash'] != user_after['password_hash']
+
+        # Cleanup
         api_db.authtokens.delete_many({'uid': uid})
         api_db.users.delete_one({'_id': uid})

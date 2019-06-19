@@ -330,3 +330,22 @@ def test_user_info(as_user, as_admin):
     # admin user can see other user's info
     r = as_admin.get('/users/' + user_id)
     assert 'info' in r.json()
+
+def test_users_password_hash(data_builder, as_admin, as_user, as_public, api_db):
+    test_user = data_builder.create_user()
+
+    api_db.users.update_one({'_id': test_user}, {'$set': {'password_hash': 'invalid'}})
+
+    # List users
+    r = as_user.get('/users')
+    assert r.ok
+    assert not any(['password_hash' in entry for entry in r.json()])
+
+    # Get user as user
+    r = as_user.get('/users/' + test_user)
+    assert r.ok
+    assert 'password_hash' not in r.json()
+
+    r = as_admin.get('/users/' + test_user)
+    assert r.ok
+    assert 'password_hash' not in r.json()

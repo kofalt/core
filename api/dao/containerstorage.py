@@ -70,6 +70,11 @@ class UserStorage(ContainerStorage):
         except APIStorageException:
             raise APIStorageException('Site-wide user permissions for {} were unabled to be removed'.format(uid))
 
+    def _from_mongo(self, cont):
+        # Remove password_hash, if it exists
+        if cont is not None:
+            cont.pop('password_hash', None)
+
 
 class ProjectStorage(ContainerStorage):
     def __init__(self):

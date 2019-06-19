@@ -1,7 +1,9 @@
+import base64
 import copy
 import datetime
 import requests
 import json
+import os
 import urllib
 import urlparse
 
@@ -11,7 +13,7 @@ from .apikeys import APIKey
 from .. import config, util
 from ..dao import dbutil
 
-from ..web.errors import APIAuthProviderException, APIUnknownUserException, APIRefreshTokenException
+from ..web.errors import APIAuthProviderException, APIException, APIUnknownUserException, APIRefreshTokenException
 
 log = config.log
 
@@ -49,6 +51,7 @@ class AuthProvider(object):
             raise APIUnknownUserException('User {} will need to be added to the system before managing data.'.format(uid))
         if user.get('disabled', False) is True:
             raise APIUnknownUserException('User {} is disabled.'.format(uid))
+        return user
 
     def set_user_gravatar(self, uid, email):
         """
@@ -84,6 +87,74 @@ class AuthProvider(object):
             'uid': uid
         }
         dbutil.fault_tolerant_replace_one(config.db, 'refreshtokens', query, refresh_doc, upsert=True)
+
+
+class BasicAuthProvider(AuthProvider):
+    """FOR DEVELOPMENT ONLY!!! Password based authentication.
+
+    This is not production ready until:
+    1. We perform a security audit
+    2. Provide functionality for a user to change their own password
+    3. Enable password policies (i.e. min length etc)
+    4. Ensure that authtokens expire when passwords change
+    5. Move password hashes out of the 'users' collection
+    """
+    def __init__(self):
+        super(BasicAuthProvider, self).__init__('basic')
+
+        # Require unsafe_login feature
+        if not config.get_feature('unsafe_login', False):
+            raise NotImplementedError('Unsafe login is not permitted on this site!')
+
+        import argon2
+        self.argon2_hasher = argon2.PasswordHasher()
+
+    def hash(self, password):
+        """Return a hashed password"""
+        return self.argon2_hasher.hash(password)
+
+    def set_user_hash(self, uid, password):
+        """Update a user's hash in the database"""
+        config.db.users.update_one({'_id': uid}, {'$set': {
+            'password_hash': self.argon2_hasher.hash(password),
+            'modified': datetime.datetime.now()
+        }})
+
+    def validate_code(self, code, **kwargs):
+        # Code is payload with email, password fields
+        uid = self.validate_user(code['email'], code['password'])
+        return {
+            'access_token': base64.b64encode(os.urandom(42)),
+            'uid': uid,
+            'auth_type': self.auth_type,
+            'expires': datetime.datetime.utcnow() + datetime.timedelta(days=14)
+        }
+
+    def validate_user(self, uid, password):
+        import argon2
+        user = self.ensure_user_exists(uid)
+
+        if 'password_hash' not in user:
+            raise APIAuthProviderException('User not configured for password authentication')
+
+        # Verify
+        try:
+            self.argon2_hasher.verify(user['password_hash'], password)
+        except argon2.exceptions.VerifyMismatchError:
+            raise APIAuthProviderException()
+        except:  # pylint: disable=bare-except
+            log.debug('Error validating user password', exc_info=True)
+            raise APIException('Unexpected error validating password')
+
+        # Re-hash, if necessary
+        if self.argon2_hasher.check_needs_rehash(user['password_hash']):
+            log.info('Rehashing stale password for: %s', uid)
+            self.set_user_hash(uid, password)
+
+        self.set_user_gravatar(uid, uid)
+
+        return uid
+
 
 class JWTAuthProvider(AuthProvider):
 
@@ -451,5 +522,6 @@ AuthProviders = {
     'wechat'    : WechatOAuthProvider,
     'api-key'   : APIKeyAuthProvider,
     'cas'       : CASAuthProvider,
-    'saml'      : SAMLAuthProvider
+    'saml'      : SAMLAuthProvider,
+    'basic'     : BasicAuthProvider
 }

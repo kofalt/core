@@ -41,7 +41,8 @@
       },
       "additionalProperties": false
     },
-    "wechat": {}
+    "wechat": {},
+    "password_hash": {"type": "string"}
   },
   "additionalProperties": false,
   "required":["_id", "firstname", "lastname", "created", "modified", "root"]

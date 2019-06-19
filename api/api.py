@@ -104,6 +104,7 @@ endpoints = [
 
         # Top-level endpoints
         route('/login',                                         RequestHandler, h='log_in',         m=['POST']),
+        route('/login/basic',                                   RequestHandler, h='basic_log_in',   m=['POST']),
         route('/login/saml',                                    RequestHandler, h='saml_log_in',    m=['GET']),
         route('/auth/status',                                   RequestHandler, h='auth_status',    m=['GET']),
         route('/logout',                                        RequestHandler, h='log_out',        m=['POST']),

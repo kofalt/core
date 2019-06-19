@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 
 from api import config
+from api.auth.authproviders import AuthProviders
 from api.dao import containerstorage
 from api.handlers.devicehandler import get_device_statuses
 from api.metrics import values
@@ -99,6 +100,11 @@ def collect_db_metrics():
             values.GEAR_VERSIONS.labels(name, version, created).set(count)
             gear_count = gear_count + 1
         values.COLLECTION_COUNT.labels('gears').set(gear_count)
+
+        # Auth provider types
+        auth_config = config.get_config()['auth']
+        for key in AuthProviders.keys():
+            values.AUTH_PROVIDER_TYPES.labels(key).set(int(key in auth_config))
 
         # Get devices
         device_count = 0

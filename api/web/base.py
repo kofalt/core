@@ -255,6 +255,24 @@ class RequestHandler(webapp2.RequestHandler):
 
         return {'token': token_entry['_id']}
 
+    @log_access(AccessType.user_login)
+    def basic_log_in(self):
+        """
+        Validates basic login requests and generates a FW session token
+        """
+        try:
+            auth_provider = AuthProvider.factory('basic')
+        except NotImplementedError as e:
+            self.abort(400, str(e))
+
+        payload = self.request.json_body
+        if 'email' not in payload or 'password' not in payload:
+            self.abort(400, 'email and password required for login')
+
+        token_entry = auth_provider.validate_code(payload)
+        self._generate_session(token_entry)
+
+        return {'token': token_entry['_id']}
 
     @log_access(AccessType.user_login)
     def saml_log_in(self):

@@ -9,6 +9,7 @@ from .. import config
 from .. import validators
 from ..auth import userauth, require_admin, require_login
 from ..auth.apikeys import UserApiKey
+from ..auth.authproviders import AuthProvider
 from ..dao import containerstorage
 from ..dao import noop
 from ..dao import dbutil
@@ -84,11 +85,17 @@ class UserHandler(base.RequestHandler):
         payload = self.request.json_body
         if not payload:
             self.abort(400, 'PUT request body cannot be empty')
+
+        # Password is only valid if basic auth enabled
+        password = payload.pop('password', None)
+
         mongo_schema_uri = validators.schema_uri('mongo', 'user.json')
         mongo_validator = validators.decorator_from_schema_path(mongo_schema_uri)
         payload_schema_uri = validators.schema_uri('input', 'user-update.json')
         payload_validator = validators.from_schema_path(payload_schema_uri)
         payload_validator(payload, 'PUT')
+
+        self.hash_password(password, payload)
 
         payload['modified'] = datetime.datetime.utcnow()
         result = mongo_validator(permchecker(self.storage.exec_op))('PUT', _id=_id, payload=payload)
@@ -103,6 +110,10 @@ class UserHandler(base.RequestHandler):
         """Add user"""
         permchecker = userauth.default(self)
         payload = self.request.json_body
+
+        # Password is only valid if basic auth enabled
+        password = payload.pop('password', None)
+
         if self.is_true('wechat'):
             payload['wechat'] = {'registration_code': base64.urlsafe_b64encode(os.urandom(42))}
         mongo_schema_uri = validators.schema_uri('mongo', 'user.json')
@@ -114,6 +125,8 @@ class UserHandler(base.RequestHandler):
         payload['root'] = payload.get('root', False)
         payload.setdefault('email', payload['_id'])
         payload.setdefault('avatars', {})
+
+        self.hash_password(password, payload)
 
         if self.public_request and config.db.users.count() == 0:
             try:
@@ -244,3 +257,12 @@ class UserHandler(base.RequestHandler):
         }
 
         return result
+
+    def hash_password(self, password, payload):
+        if password is not None:
+            try:
+                auth_provider = AuthProvider.factory('basic')
+            except NotImplementedError as e:
+                self.abort(400, str(e))
+
+            payload['password_hash'] = auth_provider.hash(password)

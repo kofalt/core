@@ -9,7 +9,8 @@ def test_metrics(as_drone, set_env, ensure_version_singleton):
     expected_names = {
         'fw_core_collect_metrics_time_seconds',
         'fw_core_db_version',
-        'fw_core_flywheel_version'
+        'fw_core_flywheel_version',
+        'fw_core_auth_provider'
     }
 
     for family in text_string_to_metric_families(r.text):

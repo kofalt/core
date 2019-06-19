@@ -51,6 +51,9 @@ JOBS_BY_STATE = Gauge(prefix + 'job_stats', 'Total number of jobs in each state'
 # Gear versions
 GEAR_VERSIONS = Gauge(prefix + 'gear', 'Number of jobs for a gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='livesum')
 
+# Auth provider types
+AUTH_PROVIDER_TYPES = Gauge(prefix + 'auth_provider', 'Set if auth provider of type is enabled', ['type'], multiprocess_mode='livesum')
+
 # Collection document count
 COLLECTION_COUNT = Gauge(prefix + 'collection_count', 'Total number of documents in a collection', ['collection'], multiprocess_mode='livesum')
 
