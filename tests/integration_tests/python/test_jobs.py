@@ -297,6 +297,22 @@ def test_jobs(data_builder, default_payload, as_public, as_user, as_admin, api_d
     r = as_admin.post('/jobs/add', json=job2)
     assert r.ok
 
+
+    # Now that we have multile jobs test paging
+    # get 1 job
+    r = as_admin.get('/jobs?limit=1')
+    assert r.ok
+    jobs = r.json()
+    assert len(jobs) == 1
+
+    # get 1 job skipping fist
+    r = as_admin.get('/jobs?limit=1&skip=1')
+    assert r.ok
+    jobs2 = r.json()
+    assert len(jobs2) == 1
+    assert jobs2[0]['_id'] != jobs[0]['_id']
+
+
     # add job with invalid gear
     job3 = copy.deepcopy(job_data)
     job3['gear_id'] = invalid_gear

@@ -151,13 +151,15 @@ class ContainerHandler(base.RequestHandler):
         tags = self.request.GET.getall('tags')
         join_cont = 'containers' in self.request.params.getall('join')
         join_gears = 'gears' in self.request.params.getall('join')
+        limit = int(self.request.params.get('limit', 10000))
+        skip = int(self.request.params.get('skip', 0))
 
         cont_refs = [containerutil.ContainerReference(cont_type, str(cont_id)) for cont_type, cont_id in
                         [('session', cont['_id'])] +
                         [('analysis', an['_id']) for an in analyses] +
                         [('acquisition', aq['_id']) for aq in acquisitions]
                     ]
-        jobs = Queue.search_containers(cont_refs, states=states, tags=tags)
+        jobs = Queue.search_containers(cont_refs, states=states, tags=tags, limit=limit, skip=skip)
 
         unique_jobs = {}
         gear_ids = set()
@@ -168,7 +170,8 @@ class ContainerHandler(base.RequestHandler):
                 if clean_job.get('gear_id') and clean_job['gear_id'] not in gear_ids:
                     gear_ids.add(clean_job['gear_id'])
 
-        response = {'jobs': sorted(unique_jobs.values(), key=lambda job: job.created)}
+        #response = {'jobs': sorted(unique_jobs.values(), key=lambda job: job.created)}
+        response = {'jobs': unique_jobs.values()}
         if join_gears:
             gears = config.db.gears.find({'_id': {'$in': [bson.ObjectId(gear_id) for gear_id in gear_ids]}})
             response['gears'] = {str(gear['_id']): gear for gear in gears}

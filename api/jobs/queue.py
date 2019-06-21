@@ -610,13 +610,15 @@ class Queue(object):
         return [Job.load(result)]
 
     @staticmethod
-    def search_containers(containers, states=None, tags=None):
+    def search_containers(containers, states=None, tags=None, limit=100, skip=0):
         """
         Search the queue for jobs that mention at least one of a set of containers and (optionally) match some set of states or tags.
 
         @param containers: an array of ContainerRefs
         @param states: an array of strings
         @param tags: an array of strings
+        @param limit: Limit on search.
+        @param skip: number of records to skip. This is a sorted query so skips on large collections will be slow.  Caution!
         """
 
         conts_by_type = {}
@@ -638,8 +640,11 @@ class Queue(object):
             query['tags'] = {"$in": tags}
 
         # For now, mandate reverse-crono sort
-        return config.db.jobs.find(query).sort([
-            ('modified', pymongo.DESCENDING)
+        return config.db.jobs.aggregate([
+            {'$match': query},
+            {'$sort': {'modified': pymongo.DESCENDING}},
+            {'$skip': skip},
+            {'$limit': limit},
         ])
 
     @staticmethod
