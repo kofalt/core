@@ -61,7 +61,7 @@ class ProjectReport(Report):
         self.start_date = start_date
         self.end_date = end_date
 
-    def user_can_generate(self, uid):
+    def user_can_generate(self, uid, roles):
         """
         User generating report must be admin on all
         """

@@ -1,4 +1,4 @@
-from ..auth import require_login
+from ..auth import require_privilege, Privilege
 
 from .. import config, validators
 from ..auth import containerauth
@@ -26,7 +26,7 @@ class DataViewHandler(base.RequestHandler):
     storage = DataViewStorage()
     parent_projection = {'permissions':1, 'public':1}
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_columns(self):
         """Return all known column aliases with description and type"""
         return ColumnAliases.get_columns()
@@ -111,7 +111,7 @@ class DataViewHandler(base.RequestHandler):
 
         return self.do_execute_view(cont)
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     @validators.verify_payload_exists
     def execute_and_save(self):
         """Execute the data view specified, and save the results as a file"""
@@ -148,7 +148,7 @@ class DataViewHandler(base.RequestHandler):
         # Execute the data view
         return self.do_execute_view(view, target, payload['containerType'], payload['filename'])
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     @validators.verify_payload_exists
     def execute_adhoc(self):
         """Execute the data view specified in body"""
@@ -259,4 +259,3 @@ class DataViewHandler(base.RequestHandler):
             container = {}
         permchecker = containerauth.any_referer(self, container=container, parent_container=parent_container)
         permchecker(noop)(method)
-

@@ -1,5 +1,5 @@
 """Provides UID-related API Endpoint handling"""
-from ..auth import require_login
+from ..auth import require_privilege, Privilege
 from ..dao import containerstorage
 from ..web import base
 from .. import validators
@@ -7,7 +7,7 @@ from .. import validators
 class UIDHandler(base.RequestHandler):
     """API Handler for Checking for UID existence"""
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     @validators.verify_payload_exists
     def check_uids(self):
         """Check if any of the given list of UIDs exist in the system"""

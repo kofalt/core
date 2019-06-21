@@ -3,7 +3,7 @@ import datetime
 from ..web import base
 from .. import util
 from .. import validators
-from ..auth import groupauth, require_admin
+from ..auth import groupauth, require_privilege, Privilege
 from ..dao import containerstorage
 from ..site import providers
 
@@ -28,7 +28,7 @@ class GroupHandler(base.RequestHandler):
         util.add_container_type(self.request, result)
         return result
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def delete(self, _id):
         if _id in GROUP_ID_BLACKLIST:
             self.abort(400, 'The group "{}" can\'t be deleted as it is integral within the API'.format(_id))

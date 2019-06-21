@@ -11,7 +11,7 @@ from .. import search
 from ..web import base, errors
 from .. import config, validators
 from ..dao import noop, hierarchy
-from ..auth import require_login, containerauth, require_admin
+from ..auth import require_privilege, containerauth, Privilege
 from ..dao.containerstorage import QueryStorage, ContainerStorage
 
 log = config.log
@@ -452,7 +452,7 @@ class DataExplorerHandler(base.RequestHandler):
         last_seen = mongoconnector['last_seen']
         return {'status': status, 'last_seen': last_seen}
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def aggregate_field_values(self):
         try:
             field_name = self.request.json_body['field_name']
@@ -462,7 +462,7 @@ class DataExplorerHandler(base.RequestHandler):
         search_string = self.request.json_body.get('search_string', None)
         return self._suggest_values(field_name, search_string=search_string)
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_facets(self):
 
         _, filters, search_string, _ = self._parse_request(request_type='facet')
@@ -511,7 +511,7 @@ class DataExplorerHandler(base.RequestHandler):
         size = int(size*1.02)
         return size
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def suggest(self):
         # Return replace-from and replacement-value
         query = self.request.json_body.get('structured_query', '')
@@ -584,7 +584,7 @@ class DataExplorerHandler(base.RequestHandler):
         return {'nodes':nodes}
 
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def search_fields(self):
         field_query = self.request.json_body.get('field')
         return self._suggest_fields(field_query)
@@ -679,7 +679,7 @@ class DataExplorerHandler(base.RequestHandler):
         )['aggregations']['results']
         return aggs
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def search(self):
         return_type, filters, search_string, size = self._parse_request()
 
@@ -699,7 +699,7 @@ class DataExplorerHandler(base.RequestHandler):
                 response['facets'] = self.get_facets()
             return response
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def save_training_set(self):
         """Saves a subset of a search result or the results of a given query as a training set file"""
 
@@ -1007,7 +1007,7 @@ class DataExplorerHandler(base.RequestHandler):
                 doc_s = json.dumps(doc)
                 config.es.index(index='data_explorer_fields', id=field_name, doc_type='flywheel_field', body=doc_s)
 
-    @require_admin
+    @require_privilege(Privilege.is_admin)
     def index_field_names(self):
 
         try:
@@ -1061,7 +1061,7 @@ class QueryHandler(base.RequestHandler):
         super(QueryHandler, self).__init__(request, response)
         self.storage = QueryStorage()
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def post(self):
         payload = self.request.json_body
 
@@ -1078,7 +1078,7 @@ class QueryHandler(base.RequestHandler):
         else:
             raise errors.APIStorageException("Failed to save the search")
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_all(self):
         if self.complete_list:
             # This will bypass any permission checking for the results
@@ -1087,7 +1087,7 @@ class QueryHandler(base.RequestHandler):
             user = {'_id': self.uid, 'root': self.user_is_admin}
         return self.storage.get_all_el({}, user, {'label': 1})
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get(self, sid):
         # Retrieve the query
         search_query = self.storage.get_container(sid)
@@ -1097,7 +1097,7 @@ class QueryHandler(base.RequestHandler):
 
         return search_query
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def delete(self, sid):
         # Check permissions
         record = self.storage.get_container(sid)
@@ -1111,7 +1111,7 @@ class QueryHandler(base.RequestHandler):
             self.abort(404, 'Search query {} not removed'.format(sid))
         return result
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def put(self, sid):
         # Validate update
         payload = self.request.json_body

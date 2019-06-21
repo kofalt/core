@@ -13,7 +13,7 @@ class TreeHandler(base.RequestHandler):
         return GRAPH
 
     @validators.verify_payload_exists
-    @auth.require_login
+    @auth.require_privilege(auth.Privilege.is_user)
     def post(self):
         # Validate payload
         payload = self.request.json

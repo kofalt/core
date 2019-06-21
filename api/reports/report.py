@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 from .report_writer import ReportWriter
 from .. import config
+from ..auth import Privilege
 from ..web.errors import APIReportException, APIReportParamsException
 
 class Report(object):
@@ -10,6 +11,7 @@ class Report(object):
 
     filename = 'report'
     columns = None
+    required_role = Privilege.is_admin
 
     def __init__(self, params):
         """
@@ -19,7 +21,7 @@ class Report(object):
         self.params = params
 
     @abstractmethod
-    def user_can_generate(self, uid):
+    def user_can_generate(self, uid, roles):
         """
         Check if user has required permissions to generate report
         """
