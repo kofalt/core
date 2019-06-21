@@ -48,6 +48,9 @@ FLYWHEEL_VERSION = Gauge(prefix + 'flywheel_version', 'The app release version',
 # Job Counts (label=state)
 JOBS_BY_STATE = Gauge(prefix + 'job_stats', 'Total number of jobs in each state', ['state'], multiprocess_mode='livesum')
 
+# Oldest Pending Job (in seconds)
+OLDEST_PENDING_JOB = Gauge(prefix + 'oldest_pending_job', 'The oldest pending job\'s creation date, in seconds UTC since epoch', [], multiprocess_mode='livesum')
+
 # Gear versions
 GEAR_VERSIONS = Gauge(prefix + 'gear', 'Number of jobs for a gear name, version and created', ['name', 'version', 'created'], multiprocess_mode='livesum')
 

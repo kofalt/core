@@ -40,6 +40,15 @@ def collect_db_metrics():
             count = config.db.jobs.count({'state': state})
             values.JOBS_BY_STATE.labels(state).set(count)
 
+        # Find the oldest pending job
+        oldest_jobs = list(config.db.jobs.find({'state': 'pending', 'created': {'$exists': 1}},
+            {'created': 1}, sort=[('created', 1)], limit=1))
+        if oldest_jobs:
+            oldest_job_timestamp = (oldest_jobs[0]['created'] - epoch).total_seconds()
+        else:
+            oldest_job_timestamp = float('NaN')
+        values.OLDEST_PENDING_JOB.set(oldest_job_timestamp)
+
         # Get raw collection stats
         for collection_name in config.db.list_collection_names():
             stats = config.db.command('collstats', collection_name)
