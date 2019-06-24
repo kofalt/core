@@ -51,40 +51,39 @@ PARENT_FROM_CHILD = {c: CONTAINER_HIERARCHY[ind]   for ind, c in enumerate(CONTA
 
 NON_OBJECT_ID_COLLECTIONS = ['groups', 'users']
 
-def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
+def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
     """
-    Propagates changes down the heirarchy tree recursively.
+    Propagates changes through the hierarcy from the bottom to the current cont_name level, iteratively.
 
     cont_name and cont_ids refer to top level containers (which will not be modified here)
     """
 
-    containers = ['groups', 'projects', 'subjects', 'sessions', 'acquisitions']
-    if not isinstance(cont_ids, list):
-        cont_ids = [cont_ids]
+    if isinstance(cont_id, list):
+        raise Exception('only one container can be specified')
     if query is None:
         query = {}
 
     if include_refs:
         analysis_query = copy.deepcopy(query)
-        analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': {'$in': cont_ids}})
+        analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': cont_id})
+
         analysis_update = copy.deepcopy(update)
         analysis_update.get('$set', {}).pop('permissions', None)
         config.db.analyses.update_many(analysis_query, analysis_update)
 
         # Update job parents by destination
-        job_query = { 'parents.{}'.format(singularize(cont_name)) : {'$in': cont_ids} }
+        job_query = {'parents.{}'.format(singularize(cont_name)) :cont_id}
         config.db.jobs.update_many(job_query, analysis_update)
 
-    if cont_name in containers[:-1]:
-        child_cont = containers[containers.index(cont_name) + 1]
-        child_ids = [c['_id'] for c in config.db[child_cont].find({singularize(cont_name): {'$in': cont_ids}}, [])]
-
-        if child_ids:
-            child_query = copy.deepcopy(query)
-            child_query['_id'] = {'$in': child_ids}
-            config.db[child_cont].update_many(child_query, update)
-            # Recurse to the next hierarchy level
-            propagate_changes(child_cont, child_ids, query, update, include_refs=include_refs)
+    containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
+    query.update({'parents.' + cont_name: cont_id})
+    # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
+    for cur_cont in containers:
+        config.db[cur_cont].update_many(query, update)
+        if cont_name == cur_cont:
+            return
+    raise Exception('Never reached top level container')
+    return
 
 
 def attach_raw_subject(session, subject, additional_fields=None):
