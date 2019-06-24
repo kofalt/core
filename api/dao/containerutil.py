@@ -134,7 +134,6 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, top_level_update=
 
     raise Exception('Never reached top level container from: {}'.format(cont_name))
 
-
 def attach_raw_subject(session, subject, additional_fields=None):
     raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity']
     if additional_fields:
