@@ -63,9 +63,11 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
     if query is None:
         query = {}
 
+    containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
+    query.update({'parents.' + singularize(cont_name): cont_id})
+
     if include_refs:
         analysis_query = copy.deepcopy(query)
-        analysis_query.update({'parent.type': singularize(cont_name), 'parent.id': cont_id})
 
         analysis_update = copy.deepcopy(update)
         analysis_update.get('$set', {}).pop('permissions', None)
@@ -75,8 +77,6 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
         job_query = {'parents.{}'.format(singularize(cont_name)) :cont_id}
         config.db.jobs.update_many(job_query, analysis_update)
 
-    containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
-    query.update({'parents.' + cont_name: cont_id})
     # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
     for cur_cont in containers:
         config.db[cur_cont].update_many(query, update)
