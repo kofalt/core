@@ -123,18 +123,10 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, top_level_update=
     # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
     for cur_cont in containers:
         if cont_name == cur_cont:
-
-            print 'updating top level so remove parents find'
-            print 'this is the initial query'
-            print query
             for key in ['parents.group', 'parents.project', 'parents.subject', 'parents.session', 'parents']:
                 if query.get(key):
-                    print 'removing key'
-                    print key
                     del query[key]
             query.update({'_id': {'$in': cont_ids}})
-            print 'this is the query after we are done'
-            print query
             config.db[cur_cont].update_many(query, top_level_update)
             return
 
