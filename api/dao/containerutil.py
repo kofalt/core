@@ -77,14 +77,17 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
         job_query = {'parents.{}'.format(singularize(cont_name)) :cont_id}
         config.db.jobs.update_many(job_query, analysis_update)
 
+    # Non standard containers only need to update related analysis and jobs, if any
+    if cont_name not in containers:
+        return
+
     # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
     for cur_cont in containers:
         config.db[cur_cont].update_many(query, update)
         if cont_name == cur_cont:
             return
-    raise Exception('Never reached top level container')
-    return
 
+    raise Exception('Never reached top level container from: {}'.format(cont_name))
 
 def attach_raw_subject(session, subject, additional_fields=None):
     raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity']
