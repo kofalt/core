@@ -38,7 +38,8 @@
         "group-metadata-input": {
           "type": "object",
           "properties": {
-            "_id":{"type":"string"}
+            "_id":{"type":"string"},
+            "label": {"$ref": "#/definitions/label"}
           },
           "additionalProperties": false
         },

@@ -35,7 +35,7 @@
                 "group": {
                     "type": "object",
                     "allOf": [{"$ref":"group.json#/definitions/group-metadata-input"}],
-                    "required": ["_id"]
+                    "oneOf": [{"required": ["label"]}, {"required": ["_id"]}]
                 },
                 "project": {
                     "type": "object",
@@ -62,7 +62,7 @@
                 "group": {
                     "type": "object",
                     "allOf": [{"$ref":"group.json#/definitions/group-metadata-input"}],
-                    "required": ["_id"]
+                    "oneOf": [{"required": ["label"]}, {"required": ["_id"]}]
                 },
                 "project": {
                     "type": "object",
@@ -80,7 +80,7 @@
                     "required": ["uid"]
                 }
             },
-            "required": ["acquisition", "group", "project", "session"],
+            "required": ["group", "project", "session", "acquisition"],
             "additionalProperties": false
         },
         "uid-match-upload-input": {

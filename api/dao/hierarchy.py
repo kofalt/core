@@ -340,23 +340,28 @@ def remove_file(cont_name, _id, filename):
     )
 
 
-def _group_id_fuzzy_match(group_id, project_label, unsorted_projects):
-    existing_group_ids = [g['_id'] for g in config.db.groups.find(None, ['_id'])]
-    if group_id.lower() in existing_group_ids:
-        return group_id.lower(), project_label
-    group_id_matches = difflib.get_close_matches(group_id, existing_group_ids, cutoff=0.8)
-    if len(group_id_matches) == 1:
-        group_id = group_id_matches[0]
+def _group_fuzzy_match(group, project_label, unsorted_projects):
+    field = 'label' if 'label' in group else '_id'
+    value = group[field]
+
+    existing_groups = list(config.db.groups.find(None, ['_id', 'label']))
+    existing_values = [g.get(field, '') for g in existing_groups]  # label can be unset
+    if field == '_id' and value.lower() in existing_values:
+        return value.lower(), project_label
+    group_matches = difflib.get_close_matches(value, existing_values, cutoff=0.8)
+    if len(group_matches) == 1:
+        group_index = existing_values.index(group_matches[0])
+        group_id = existing_groups[group_index]['_id']
     else:
-        if group_id != '' or project_label != '':
-            project_label = group_id + '_' + project_label
+        if value != '' or project_label != '':
+            project_label = value + '_' + project_label
             if unsorted_projects:
                 project_label = 'Unsorted'
         group_id = 'unknown'
     return group_id, project_label
 
-def _find_or_create_destination_project(group_id, project_label, timestamp, user, unsorted_projects):
-    group_id, project_label = _group_id_fuzzy_match(group_id, project_label, unsorted_projects)
+def _find_or_create_destination_project(group, project_label, timestamp, user, unsorted_projects):
+    group_id, project_label = _group_fuzzy_match(group, project_label, unsorted_projects)
     group = config.db.groups.find_one({'_id': group_id})
 
     if project_label == '':
@@ -524,7 +529,7 @@ def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None):
 
     # Fail if some fields are missing
     try:
-        _ = group['_id']
+        _ = 'label' in group or group['_id']
         _ = project['label']
         _ = acquisition['uid']
         session_uid = session['uid']
@@ -559,9 +564,10 @@ def upsert_top_down_hierarchy(metadata, type_='label', user=None, unsorted_proje
 
     now = datetime.datetime.utcnow()
     project_files = dict_fileinfos(project.pop('files', []))
-    project_obj = _find_or_create_destination_project(group['_id'], project['label'], now, user, unsorted_projects)
+    project_obj = _find_or_create_destination_project(group, project['label'], now, user, unsorted_projects)
     if unsorted_projects and project_obj['label'] == 'Unsorted':
-        session['label'] = 'gr-{}_proj-{}_ses-{}'.format(group['_id'], project['label'], session['uid'])
+        group_str = group.get('_id', group.get('label'))
+        session['label'] = 'gr-{}_proj-{}_ses-{}'.format(group_str, project['label'], session['uid'])
     target_containers = _get_targets(project_obj, session, acquisition, type_, now)
     target_containers.append(
         (TargetContainer(project_obj, 'project'), project_files)

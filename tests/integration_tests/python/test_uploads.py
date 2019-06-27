@@ -58,7 +58,7 @@ def upload_file_form(file_form, merge_dict, randstr):
     return create_form
 
 
-def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_root, as_user):
+def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_admin, as_root, as_user):
     group_1 = data_builder.create_group()
     prefix = randstr()
     project_label_1 = prefix + '-project-label-1'
@@ -74,7 +74,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
     assert r.ok
 
     # reaper-upload files to group_1/project_label_1 using session_uid without any files
-    file_form = upload_file_form(
+    form = upload_file_form(
         group={'_id': group_1},
         project={'label': project_label_1, "files":[]},
         session={'uid': session_uid+"1", "files":[], 'subject': {
@@ -82,7 +82,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
                     'files': []
                 }}
     )
-    r = as_admin.post('/upload/reaper', files={"metadata": file_form.get("metadata")})
+    r = as_admin.post('/upload/reaper', files={"metadata": form.get("metadata")})
     assert r.status_code == 400
 
     # get session created by the upload
@@ -250,10 +250,115 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, as_admin, as_roo
     }
     assert session_raw_subject['info']['subject_raw'] == expected_raw_subject
 
+    # Test reaper upload routing via group.label
+    group_4 = data_builder.create_group(label='Group Label')
+    project_4 = data_builder.create_project(group=group_4, label='Project Label')
+
+    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.1', meta={
+        'group': {'label': 'Group Label'},
+        'project': {'label': 'Project Label'},
+        'session': {'uid': 'group.label.test.1', 'label': 'Session Label'},
+        'acquisition': {'uid': 'group.label.test.1', 'label': 'Acquisition Label',
+                        'files': [{'name': 'group.label.test.1'}]},
+    }))
+    assert r.ok
+
+    r = as_admin.post('/resolve', json={'path': [group_4, 'Project Label', 'Session Label', 'Acquisition Label']})
+    assert r.ok
+
+    acq_children = r.json()['children']
+    assert len(acq_children) == 1
+    assert acq_children[0]['name'] == 'group.label.test.1'
+
+    # IF we have multiple similar matches then it should end up in the unknown group in the Unsorted project
+    group_5 = data_builder.create_group(label='Group Labels')
+    project_5 = data_builder.create_project(group=group_5, label='Project Label')
+    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.2', meta={
+        'group': {'label': 'Group Label'},
+        'project': {'label': ''},
+        'session': {'uid': 'group.label.test.2', 'label': 'Session Label'},
+        'acquisition': {'uid': 'group.label.test.2', 'label': 'Acquisition Label',
+                        'files': [{'name': 'group.label.test.2'}]},
+    }))
+    r = as_root.get('/groups/unknown/projects')
+    assert r.ok
+    project_list = r.json()
+    project = project_list[0]
+    assert 'Unsorted' == project_list[0]['label']
+    unknown_project = project['_id']
+    assert as_root.get('/projects/' + unknown_project + '/sessions').json()[0]['uid'] == 'group.label.test.2'
+
+
+    r = as_admin.post('/resolve', json={'path': [group_5, 'Project Label', 'Session Label', 'Acquisition Label']})
+    assert not r.ok
+    r = as_admin.post('/resolve', json={'path': [group_5, 'Project Label', 'Session Label', 'Acquisition Label']})
+    assert not r.ok
+
+    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.3', meta={
+        'group': {'label': 'Group Label'},
+        'project': {'label': 'Project Label'},
+        'session': {'uid': 'group.label.test.3', 'label': 'Session Label'},
+        'acquisition': {'uid': 'group.label.test.3', 'label': 'Acquisition Label',
+                        'files': [{'name': 'group.label.test.3'}]},
+    }))
+    assert r.ok
+
+    # Change the name to not be similar anymore
+    r = as_admin.put('/groups/' + group_5, json={'label': 'Not even close to similar'})
+    assert r.ok
+
+    #Now this will get placed into the group 4 tree
+    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.4', meta={
+        'group': {'label': 'Group Label'},
+        'project': {'label': 'Project Label'},
+        'session': {'uid': 'group.label.test.4', 'label': 'Session Label4'},
+        'acquisition': {'uid': 'group.label.test.4', 'label': 'Acquisition Label4',
+                        'files': [{'name': 'group.label.test.4'}]},
+    }))
+    assert r.ok
+    r = as_admin.post('/resolve', json={'path': [group_4, 'Project Label', 'Session Label4', 'Acquisition Label4']})
+    assert r.ok
+    acq_children = r.json()['children']
+    assert len(acq_children) == 1
+    assert acq_children[0]['name'] == 'group.label.test.4'
+
+
+    # And this group will be found and create the rest of the group_5 tree
+    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.5', meta={
+        'group': {'label': 'Not even close to similar'},
+        'project': {'label': 'Project Label'},
+        'session': {'uid': 'group.label.test.5', 'label': 'Session Label 5'},
+        'acquisition': {'uid': 'group.label.test.5', 'label': 'Acquisition Label 5',
+                        'files': [{'name': 'group.label.test.5'}]},
+    }))
+    assert r.ok
+    r = as_admin.post('/resolve', json={'path': [group_5, 'Project Label', 'Session Label 5', 'Acquisition Label 5']})
+    assert r.ok
+    acq_children = r.json()['children']
+    assert len(acq_children) == 1
+    assert acq_children[0]['name'] == 'group.label.test.5'
+
+    # Finally confirm it still works with similar names for the group 5 tree
+    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.6', meta={
+        'group': {'label': 'Not even close to simil'},
+        'project': {'label': 'Project Label'},
+        'session': {'uid': 'group.label.test.6', 'label': 'Session Label 6'},
+        'acquisition': {'uid': 'group.label.test.6', 'label': 'Acquisition Label 6',
+                        'files': [{'name': 'group.label.test.6'}]},
+    }))
+    assert r.ok
+    r = as_admin.post('/resolve', json={'path': [group_5, 'Project Label', 'Session Label 6', 'Acquisition Label 6']})
+    assert r.ok
+    acq_children = r.json()['children']
+    assert len(acq_children) == 1
+    assert acq_children[0]['name'] == 'group.label.test.6'
+
     # clean up
     data_builder.delete_group(group_1, recursive=True)
     data_builder.delete_group(group_2, recursive=True)
     data_builder.delete_group(group_3, recursive=True)
+    data_builder.delete_group(group_4, recursive=True)
+    data_builder.delete_group(group_5, recursive=True)
     data_builder.delete_project(unknown_group_unsorted_project, recursive=True)
 
 def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as_admin):
@@ -333,7 +438,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     session2 = as_root.get('/projects/' + unknown_project + '/sessions').json()[1]['_id']
     assert len(as_root.get('/sessions/' + session2 + '/acquisitions').json()) == 1
 
-    # Using the exhaustive flag test that another session was added to Unkonwn project
+    # Using the exhaustive flag test that another session was added to Unknown project
     assert len(as_admin.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()) == 2
     session2 = as_admin.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()[1]['_id']
     assert len(as_admin.get('/sessions/' + session2 + '/acquisitions', params={'exhaustive': True}).json()) == 1
