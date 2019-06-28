@@ -106,7 +106,7 @@ def get_src_fs_by_file_path(file_path):
         return local_fs2
     ###
     else:
-        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
+        raise errors.ResourceNotFound('File not found: %s' % file_path)
 
 
 def get_files_by_prefix(document, prefix):
