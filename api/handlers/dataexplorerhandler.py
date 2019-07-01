@@ -292,6 +292,7 @@ SOURCE_ANALYSIS = SOURCE_SESSION + [
 ]
 
 SOURCE_FILE = SOURCE_ANALYSIS + [
+    "file.origin",
     "file.created",
     "file.classification",
     "file.name",
