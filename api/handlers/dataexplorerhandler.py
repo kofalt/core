@@ -742,7 +742,7 @@ class DataExplorerHandler(base.RequestHandler):
         elif payload.get('files'):
             # If a list of files is provided, get their elastic ids and make a multiget request
             files = payload['files']
-            docs = [{"_id": '{}_{}'.format(f['parent_id'], f['name']), "_source": list(set(SOURCE_FILE+labels))} for f in files]
+            docs = [{"_id": f['_id'], "_source": list(set(SOURCE_FILE+labels))} for f in files]
             file_results = config.es.mget(
                 index='data_explorer',
                 body={'docs': docs})['docs']
