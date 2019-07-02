@@ -227,8 +227,7 @@
         "search-ml-input-file": {
             "type": "object",
             "properties": {
-                "parent_id": {"$ref": "common.json#/definitions/objectid"},
-                "name": {"$ref": "file.json#/definitions/name"}
+                "_id": {"$ref": "file.json#/definitions/_id"}
             }
         },
         "search-ml-input": {

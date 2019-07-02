@@ -287,7 +287,7 @@ def test_search(as_public, as_drone, es, as_user):
     # Search for training set given a set of nodes
     r = as_drone.post('/dataexplorer/search/training', json={
         'labels': ['file.classifications'],
-        'files': [{'parent_id': '123456789009876543211234', 'name': 'example.txt'}],
+        'files': [{'_id': '123456789009876543211234'}],
         'output': {'type': 'project','id': '000000000000000000000000'}
     })
     print(r.json)
@@ -296,7 +296,7 @@ def test_search(as_public, as_drone, es, as_user):
             'docs':[
                 {
                     '_source': list(set(deh.SOURCE_FILE + ['file.classifications'])),
-                    '_id': '123456789009876543211234_example.txt'
+                    '_id': '123456789009876543211234'
                 }
             ]
         },
