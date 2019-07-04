@@ -302,7 +302,7 @@ class UserHandler(base.RequestHandler):
         if scope:
             query['scopes'] = {'$all': scope.split(' ')}
         return list(config.db.user_auth_tokens.find(
-            query, {'_id': 1, 'identity': 1, 'auth_type': 1}
+            query, {'_id': 1, 'identity': 1, 'auth_type': 1, 'scopes': 1}
         ).sort('last_used', pymongo.DESCENDING))
 
     @require_login
