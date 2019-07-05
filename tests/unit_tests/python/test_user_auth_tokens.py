@@ -52,7 +52,7 @@ def test_user_auth_token(config, as_user, as_public, api_db, mocker):
         r = as_user.get('/users/self/tokens')
         assert r.ok
         token = r.json[0]
-        assert sorted(token.keys()) == sorted(['_id', 'identity', 'auth_type'])
+        assert sorted(token.keys()) == sorted(['_id', 'identity', 'auth_type', 'scopes'])
 
         # test list, filter scopes
         m.get(config.auth.google.verify_endpoint, json={'scope': 'email'})

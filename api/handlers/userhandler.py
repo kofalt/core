@@ -16,8 +16,7 @@ from ..dao import dbutil
 from ..jobs.queue import Queue
 from bson import ObjectId
 
-from ..auth.authproviders import AuthProvider
-from ..web.errors import APINotFoundException, APIStorageException, APIAuthProviderException, InputValidationException
+from ..web.errors import APINotFoundException, APIStorageException, APIAuthProviderException, InputValidationException, APIException
 
 log = config.log
 
@@ -277,7 +276,7 @@ class UserHandler(base.RequestHandler):
 
             payload['password_hash'] = auth_provider.hash(password)
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def add_auth_token(self):
         payload = self.request.json_body
         validators.validate_data(payload, 'user-auth-token-new.json', 'input', 'POST')
@@ -295,7 +294,7 @@ class UserHandler(base.RequestHandler):
         token = config.db.user_auth_tokens.find_one(query, {'_id': 1})
         return token
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def list_auth_tokens(self):
         query = {'uid': self.uid}
         scope = self.get_param('scope', '')
@@ -305,7 +304,7 @@ class UserHandler(base.RequestHandler):
             query, {'_id': 1, 'identity': 1, 'auth_type': 1, 'scopes': 1}
         ).sort('last_used', pymongo.DESCENDING))
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def get_auth_token(self, _id):
         _id = ObjectId(_id)
         token = config.db.user_auth_tokens.find_one({'_id': _id, 'uid': self.uid})
@@ -329,7 +328,7 @@ class UserHandler(base.RequestHandler):
             {'refresh_token': 0, 'uid': 0}
         )
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def delete_auth_token(self, _id):
         _id = ObjectId(_id)
         token = config.db.user_auth_tokens.find_one({'_id': _id, 'uid': self.uid})
@@ -340,6 +339,9 @@ class UserHandler(base.RequestHandler):
             if token.get('refresh_token'):
                 auth_provider.refresh_token(token['refresh_token'])
             # Delete token from our database
-            config.db.user_auth_tokens.delete_one({'_id': ObjectId(_id), 'uid': self.uid})
-            return {'deleted': 1}
+            result = config.db.user_auth_tokens.delete_one({'_id': _id, 'uid': self.uid})
+            if result.deleted_count == 1:
+                return {'deleted': 1}
+            else:
+                raise APIException('Could not delete auth token due to an unknown reason.')
         raise APINotFoundException('Could not find token: {}'.format(str(_id)))
