@@ -399,6 +399,12 @@ class ContainerStorage(object):
         else:
             replace_info_with_bool = False
 
+        # We can assume if you use an _id query it is going to be an $in clause otherwise you would use the get_el function
+        if query.get('_id') and query['_id'].get('$in'):
+            # if the $in is ints this will still be a safe loop
+            for i in range(len(query['_id']['$in'])):
+                query['_id']['$in'][i] = self.format_id(query['_id']['$in'][i])
+
         kwargs['filter'] = query
         kwargs['projection'] = projection
         page = dbutil.paginate_find(self.dbc, kwargs, pagination)

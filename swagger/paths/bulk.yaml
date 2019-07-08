@@ -1,0 +1,77 @@
+$template_arguments:
+  tag: bulk
+
+/bulk/move/sessions:
+    summary: Perform a bulk move of sessions to either a subject or project
+    operationId: bulk_move_sessions
+    tags:
+    - bulk
+    parameters:
+      - name: body
+        in: body 
+        required: true
+        schema:
+            $ref: schemas/input/bulk.json#subject-move
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/bulk.json
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+
+# These below need to be converted to the explicit generec endpoint type
+/bulk/move:
+    summary: Perform a bulk move operation
+    operationId: bulk_move
+    tags:
+    - bulk
+    parameters:
+      - name: body
+        in: body 
+        required: true
+        schema:
+          $ref: schemas/input/bulk.json
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/bulk.json
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+/bulk/delete:
+    summary: Perform a bulk delete operation
+    operationId: bulk_delete
+    tags:
+    - bulk
+    parameters:
+      - name: body
+        in: body 
+        required: true
+        schema:
+          $ref: schemas/input/bulk.json
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/bulk.json
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
+/bulk/copy:
+    summary: Perform a bulk copy operation
+    operationId: bulk_copy
+    tags:
+    - bulk
+    parameters:
+      - name: body
+        in: body 
+        required: true
+        schema:
+          $ref: schemas/input/bulk.json
+    responses:
+      '200':
+        description: ''
+        schema:
+          $ref: schemas/output/bulk.json
+      '400':
+        $ref: '#/responses/400:invalid-body-json'
