@@ -16,6 +16,7 @@ from .handlers.roothandler              import RootHandler
 from .handlers.schemahandler            import SchemaHandler
 from .handlers.userhandler              import UserHandler
 from .handlers.uidhandler               import UIDHandler
+from .handlers.bulkhandler              import BulkHandler
 from .master_subject_code.handlers      import MasterSubjectCodeHandler
 from .jobs.handlers                     import BatchHandler, JobsHandler, JobHandler, GearsHandler, GearHandler, RulesHandler, RuleHandler
 from .metrics.handler                   import MetricsHandler
@@ -400,5 +401,8 @@ endpoints = [
         prefix('/subjects/master-code', [
             route('/<_id:[^/]+>',      MasterSubjectCodeHandler, h='verify_code', m=['GET'])
         ]),
+
+        # Bulk Operations
+        route('/bulk/<operation:move|copy|delete>/<source_cont_name:{cname}>', BulkHandler, h='bulk', m=['POST']),
     ]),
 ]

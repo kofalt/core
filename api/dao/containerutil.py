@@ -60,6 +60,7 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
 
     if isinstance(cont_id, list):
         raise Exception('only one container can be specified')
+    
     if query is None:
         query = {}
 
@@ -67,11 +68,9 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
     query.update({'parents.' + singularize(cont_name): cont_id})
 
     if include_refs:
-        analysis_query = copy.deepcopy(query)
-
         analysis_update = copy.deepcopy(update)
         analysis_update.get('$set', {}).pop('permissions', None)
-        config.db.analyses.update_many(analysis_query, analysis_update)
+        config.db.analyses.update_many(query, analysis_update)
 
         # Update job parents by destination
         job_query = {'parents.{}'.format(singularize(cont_name)) :cont_id}
@@ -88,6 +87,44 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
             return
 
     raise Exception('Never reached top level container from: {}'.format(cont_name))
+
+
+
+def bulk_propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
+    """
+    Bulk Propagates changes through the hierarcy from the bottom to the current cont_name level, iteratively.
+    cont_name and cont_ids refer to top level containers (which WILL be modified here)
+    """
+
+    if not isinstance(cont_ids, list):
+        raise Exception('Must input a list of containers')
+    if query is None:
+        query = {}
+
+    containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
+    query.update({'parents.' + singularize(cont_name): {'$in': cont_ids}})
+
+    if include_refs:
+        analysis_update = copy.deepcopy(update)
+        analysis_update.get('$set', {}).pop('permissions', None)
+        config.db.analyses.update_many(query, analysis_update)
+
+        # Update job parents by destination
+        job_query = {'parents.{}'.format(singularize(cont_name)): {'$in': cont_ids}}
+        config.db.jobs.update_many(job_query, analysis_update)
+
+    # Non standard containers only need to update related analysis and jobs, if any
+    if cont_name not in containers:
+        return
+
+    # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
+    for cur_cont in containers:
+        if cont_name == cur_cont:
+            return
+        config.db[cur_cont].update_many(query, update)
+
+    raise Exception('Never reached top level container from: {}'.format(cont_name))
+
 
 def attach_raw_subject(session, subject, additional_fields=None):
     raw_subject_fields = ['firstname', 'lastname', 'sex', 'race', 'ethnicity']
