@@ -106,7 +106,6 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, top_level_update=
     containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
     query.update({'parents.' + singularize(cont_name): {'$in': cont_ids}})
 
-
     if include_refs:
         analysis_update = copy.deepcopy(update)
         analysis_update.get('$set', {}).pop('permissions', None)

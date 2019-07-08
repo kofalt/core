@@ -129,4 +129,3 @@ class BulkHandler(base.RequestHandler):
 
         self.source_storage.move_sessions_to_subject(self.source_list, self.dest_list[0], conflict_mode=None)
         return True
-
