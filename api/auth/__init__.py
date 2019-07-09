@@ -18,6 +18,26 @@ PERMISSIONS = [
 
 INTEGER_PERMISSIONS = {r['rid']: i for i, r in enumerate(PERMISSIONS)}
 
+def _get_group_access(uid, group, scope=None, get_projects=None):
+    """Checks to see if user has access to the group, or any of the groups
+        projects, in which case the access to the group is read only.
+
+    Args:
+        uid (str): user id
+        group (dict): The group container document
+        scope (dict): A scope if the handler is scoped by its api key
+        get_projects (fn): A function to check if a project has a user's permissions
+
+    Returns:
+        int: The integer value of the user's access to the container
+    """
+    get_access_result = _get_access(uid, group, scope)
+    if get_access_result == -1 and scope is None:
+        if get_projects is not None and len(get_projects()) > 0:
+            # If user has access to any projects of the group, return ro
+            return INTEGER_PERMISSIONS['ro']
+    return get_access_result
+
 def _get_access(uid, container, scope=None):
     if scope:
         if _check_scope(scope, container):

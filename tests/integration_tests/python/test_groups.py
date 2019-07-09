@@ -190,3 +190,27 @@ def test_groups_upsert(as_admin, data_builder):
     assert original_group['label'] == updated_group['label']
     assert original_group['created'] == updated_group['created']
     assert original_group['modified'] == updated_group['modified']
+
+def test_group_project_access(as_admin, as_user, data_builder):
+    group_id = data_builder.create_group()
+    project_id = data_builder.create_project(group=group_id)
+
+    # Test user without permissions to project can't access group
+    r = as_user.get('/groups/' + group_id)
+    assert r.status_code == 403
+
+    # Add user to project permissions but not group
+    user_id = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project_id + '/permissions',
+                      json={'_id': user_id, 'access': 'ro'})
+    assert r.ok
+
+    # Test that user can access group directly
+    r = as_user.get('/groups/' + group_id)
+    assert r.ok
+    assert group_id == r.json()['_id']
+
+    # Test that user cannot write to group
+    r = as_user.put('/groups/' + group_id, json={'label': 'NewGroup'})
+    assert r.status_code == 403
+

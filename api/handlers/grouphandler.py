@@ -19,7 +19,14 @@ class GroupHandler(base.RequestHandler):
 
     def get(self, _id):
         group = self._get_group(_id)
-        permchecker = groupauth.default(self, group)
+        # lambda function called by auth layer if needed to see if user has ro
+        # access to the group via having access to a project of the group
+        get_projects = lambda: containerstorage.ProjectStorage().get_all_el({
+            'group': group['_id'],
+            'deleted': {'$exists': False},
+            'permissions._id': self.uid
+        }, None, {})
+        permchecker = groupauth.default(self, group, get_projects=get_projects)
         result = permchecker(self.storage.exec_op)('GET', _id)
         if not self.user_is_admin and not self.is_true('join_avatars'):
             self._filter_permissions([result], self.uid)
