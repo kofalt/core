@@ -1,2 +1,3 @@
 io.flywheel.codegen.MatlabGenerator
 io.flywheel.codegen.PythonGenerator
+io.flywheel.codegen.GoGenerator

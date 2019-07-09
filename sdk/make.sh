@@ -31,14 +31,14 @@ else
     gradle_user_home="${GRADLE_CACHE}"
 fi
 
-# This will produce the matlab toolbox
+# # This will produce the generated SDK code and the matlab toolbox
 docker run --rm -it \
     -w /local \
     -u "$(id -u):$(id -g)" \
     -e GRADLE_USER_HOME=/gradle \
     -v "${PROJECT_DIR}:/local" \
     -v "${gradle_user_home}:/gradle" \
-    ${GRADLE_CONTAINER} gradle --no-daemon $SDK_VERSION clean build 
+    ${GRADLE_CONTAINER} gradle --no-daemon $SDK_VERSION clean build
 
 # Containerized python package and documentation gen
 docker run --rm -it \

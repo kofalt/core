@@ -1,0 +1,42 @@
+import io.swagger.codegen.config.CodegenConfigurator
+import io.swagger.codegen.DefaultGenerator
+
+def customCodegenJar = project(':custom-swagger-codegen').jar.archivePath
+def templateDir = file('../../codegen/src/main/resources/go').path
+
+def swaggerOutputDir = file('gen')
+
+task generateApi(dependsOn: ':custom-swagger-codegen:jar') {
+	inputs.file(swaggerInputSpec)
+	outputs.dir(swaggerOutputDir)
+
+	doLast {
+		// Swagger uses ServiceLoader to load the list modules. This in turn relies on the context class loader
+		// It's not pretty, but I haven't found a better way to load our module at runtime
+		def scriptHandler = project.getBuildscript()
+		def loader = scriptHandler.getClassLoader()
+		def myLoader = new java.net.URLClassLoader([customCodegenJar.toURL()] as URL[], loader)
+		Thread.currentThread().setContextClassLoader(myLoader)
+
+		def config = new CodegenConfigurator()
+		config.setInputSpec(swaggerInputSpec)
+		config.setOutputDir(swaggerOutputDir.path)
+		// Also have to re-specify the template dir because swagger isn't finding it from the classpath
+		// config.setTemplateDir(templateDir)
+		config.setLang('fw-go')
+		config.addAdditionalProperty("packageName", "flywheel")
+		config.addAdditionalProperty("packageVersion", project.version)
+
+		System.setProperty("apiTests", "false")
+		System.setProperty("modelTests", "false")
+
+		new DefaultGenerator().opts(config.toClientOptInput()).generate()
+	}
+}
+
+build.dependsOn generateApi
+
+clean.doFirst {
+	delete(swaggerOutputDir)
+}
+

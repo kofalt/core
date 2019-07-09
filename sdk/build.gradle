@@ -1,6 +1,6 @@
 buildscript {
 	ext {
-		swaggerVersion = '2.3.0'
+		swaggerVersion = '2.4.6'
 		swaggerInputSpec = file('swagger.json').path
 	}
 	repositories {
