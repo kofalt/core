@@ -1,10 +1,10 @@
-from . import _get_access, INTEGER_PERMISSIONS
+from . import _get_access, _get_group_access, INTEGER_PERMISSIONS
 from .. import config
 
 log = config.log
 
 
-def default(handler, group=None):
+def default(handler, group=None, get_projects=None):
     def g(exec_op):
         def f(method, _id=None, query=None, payload=None, projection=None):
             if handler.public_request:
@@ -15,7 +15,7 @@ def default(handler, group=None):
                 handler.abort(403, 'not allowed to perform operation')
             elif _get_access(handler.uid, group) >= INTEGER_PERMISSIONS['admin']:
                 pass
-            elif method == 'GET' and _get_access(handler.uid, group) >= INTEGER_PERMISSIONS['ro']:
+            elif method == 'GET' and _get_group_access(handler.uid, group, get_projects=get_projects) >= INTEGER_PERMISSIONS['ro']:
                 pass
             else:
                 handler.abort(403, 'not allowed to perform operation')

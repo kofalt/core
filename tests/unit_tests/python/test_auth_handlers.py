@@ -1,7 +1,9 @@
+import mock
 import pytest
 
 from api.dao import noop
 from api.auth.containerauth import any_referer
+from api import auth
 from api.web.errors import APIPermissionException
 
 from pprint import pprint
@@ -196,4 +198,72 @@ def test_any_referer_with_container():
     # Private access, superuser
     verify_has_access('GET', uid4, referer, user_is_admin=True)
     verify_has_access('PUT', uid4, referer, user_is_admin=True)
+
+
+def test_get_group_access_calls_get_access():
+    uid = 'user@user.com'
+    group = {
+        '_id': 'my-group',
+        'permissions': []
+    }
+
+    with mock.patch('api.auth._get_access') as m:
+        access = auth._get_group_access(uid, group)
+        m.assert_called_with(uid, group, None)
+
+
+def test_get_group_access_with_access_returns_that_access():
+    uid = 'user@user.com'
+    group = {
+        '_id': 'my-group',
+        'permissions': [{'_id': uid, 'access': 'rw'}]
+    }
+
+    with mock.patch('api.auth._get_access', return_value=1):
+        access = auth._get_group_access(uid, group)
+
+    assert access == 1
+
+
+def test_get_group_access_from_project_gives_access_ro():
+    uid = 'user@user.com'
+    group = {
+        '_id': 'my-group',
+        'permissions': []
+    }
+    get_projects = lambda: [{'_id': '123'}]
+
+    with mock.patch('api.auth._get_access', return_value=-1):
+        access = auth._get_group_access(uid, group, get_projects=get_projects)
+
+    assert access == 0
+
+
+def test_get_group_access_no_access_from_project_does_not_return_access():
+    uid = 'user@user.com'
+    group = {
+        '_id': 'my-group',
+        'permissions': []
+    }
+    get_projects = lambda: []
+
+    with mock.patch('api.auth._get_access', return_value=-1):
+        access = auth._get_group_access(uid, group, get_projects=get_projects)
+
+    assert access == -1
+
+
+def test_get_group_access_scope_no_access_from_project_returns_no_access():
+    uid = 'user@user.com'
+    group = {
+        '_id': 'my-group',
+        'permissions': []
+    }
+    get_projects = lambda: [{'_id': '234'}]
+    scope = {'id': 'not-group'}
+
+    with mock.patch('api.auth._get_access', return_value=-1):
+        access = auth._get_group_access(uid, group, scope=scope, get_projects=get_projects)
+
+    assert access == -1
 
