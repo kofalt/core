@@ -56,6 +56,7 @@ RUN set -eux \
 VOLUME /data/db
 EXPOSE 27017
 COPY tests/requirements.txt /src/core/tests/requirements.txt
+COPY docker/config/logging /src/core/logging
 RUN pip install -r /src/core/tests/requirements.txt
 COPY . /src/core
 RUN pip install --no-deps -e /src/core

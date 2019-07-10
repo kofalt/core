@@ -90,7 +90,7 @@ main() {
         --env FLYWHEEL_LOGGING=/logging/logging_conf.yml \
         --env SYSLOG_HOST=localhost \
         --env SYSLOG_PORT=514 \
-        core:testing gunicorn --reload --workers=1 --log-file=/tmp/core.log \
+        core:testing gunicorn --reload --workers=1 \
                 -c /src/core/gunicorn_config.py api.app
 
     # Run core test cmd

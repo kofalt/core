@@ -1,0 +1,19 @@
+logging_level: DEBUG
+named_loggers:
+  - name: scitran.api
+    level: DEBUG
+  - name: MARKDOWN
+    level: WARNING
+  - name: requests
+    level: DEBUG
+  - name: paste.httpserver
+    level: DEBUG
+  - name: elasticsearch
+    level: WARNING
+  - name: urllib3
+    level: WARNING
+  - name: boto3
+    level: WARNING
+  - name: botocore
+    level: WARNING
+
