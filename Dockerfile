@@ -46,7 +46,6 @@ RUN set -eux \
     && echo $API_VERSION > /src/core/api_version.txt \
     && /src/core/bin/build_info.sh $VCS_BRANCH $VCS_COMMIT > /src/core/version.json \
     && cat /src/core/version.json
-VOLUME "/src/core/core.egg-info"
 
 # testing - install mongodb & test deps for standalone running/testing
 FROM base as testing
