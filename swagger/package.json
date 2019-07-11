@@ -23,7 +23,7 @@
     "js-yaml": "^3.13.1",
     "json-refs": "^3.0.12",
     "load-grunt-tasks": "^3.5.2",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.13",
     "mustache": "^2.3.2",
     "pluralize": "^7.0.0",
     "swagger-tools": "^0.10.4",
