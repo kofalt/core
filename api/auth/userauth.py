@@ -6,7 +6,7 @@ def default(handler, user=None):
             elif handler.user_is_admin and not (method == 'DELETE' and _id == handler.uid):
                 pass
             elif method == 'PUT' and handler.uid == _id:
-                if 'root' in payload and payload['root'] != user['root']:
+                if 'roles' in payload and not all([role in user['roles'] for role in payload['roles']]):
                     handler.abort(400, 'user cannot alter own admin privilege')
                 elif 'disabled' in payload and payload['disabled'] != user.get('disabled'):
                     handler.abort(400, 'user cannot alter own disabled status')

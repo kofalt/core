@@ -36,6 +36,34 @@ def test_users(data_builder, as_admin, as_user, as_public):
     r = as_user.get('/users/' + user_id)
     assert r.ok
 
+    # Try to modify user's own role legacy
+    r = as_user.put('/users/' + user_id, json={'root': True})
+    assert r.status_code == 400
+
+    # Try to modify user's own role
+    r = as_user.put('/users/' + user_id, json={'roles': ['site_admin']})
+    assert r.status_code == 400
+
+    # Modify user's own role to the same thing
+    r = as_user.put('/users/' + user_id, json={'roles': ['user']})
+    assert r.ok
+
+    # Modify user's role as admin
+    r = as_admin.put('/users/' + user_id, json={'roles': ['site_admin']})
+    assert r.ok
+
+    r = as_user.get('/users/self')
+    assert r.ok
+    assert r.json()['roles'] == ['site_admin']
+
+    # Downgrade user's role as user
+    r = as_user.put('/users/' + user_id, json={'roles': ['user']})
+    assert r.ok
+
+    r = as_user.get('/users/self')
+    assert r.ok
+    assert r.json()['roles'] == ['user']
+
     # Try to get user avatar as user
     r = as_user.get('/users/' + user_id + '/avatar')
     assert r.status_code == 404
