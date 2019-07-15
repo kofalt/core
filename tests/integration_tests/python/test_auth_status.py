@@ -9,6 +9,7 @@ def test_auth_status(as_public, as_user, as_admin, as_root, as_drone):
     result = r.json()
     assert result['origin']['type'] == 'user'
     assert not result['user_is_admin']
+    assert 'user' in result['roles']
     assert not result['is_device']
 
     r = as_admin.get('/auth/status')
@@ -16,6 +17,7 @@ def test_auth_status(as_public, as_user, as_admin, as_root, as_drone):
     result = r.json()
     assert result['origin']['type'] == 'user'
     assert result['user_is_admin']
+    assert 'site_admin' in result['roles']
     assert not result['is_device']
 
     r = as_root.get('/auth/status')

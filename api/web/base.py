@@ -314,7 +314,8 @@ class RequestHandler(webapp2.RequestHandler):
         return {
             'origin': self.origin,
             'user_is_admin': self.user_is_admin,
-            'is_device': self.origin['type'] == 'device'
+            'is_device': self.origin['type'] == 'device',
+            'roles': [role.value[0] for role in self.roles]  # pylint: disable=unsubscriptable-object
         }
 
     def _generate_session(self, token_entry):

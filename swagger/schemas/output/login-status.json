@@ -7,6 +7,7 @@
         "type": "device"
     },
     "user_is_admin": true,
-    "is_device": true
+    "is_device": true,
+    "roles": ["site_admin"]
   }
 }
