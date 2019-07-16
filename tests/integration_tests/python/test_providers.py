@@ -281,8 +281,7 @@ def test_group_providers(api_db, data_builder, as_user, as_admin):
 
         # Create a new group
         group = data_builder.create_group(providers={})
-
-        # Set the compute provider
+        # Sets no compute provider
         r = as_user.get('/users/self')
         assert r.ok
         user = r.json()
@@ -300,6 +299,12 @@ def test_group_providers(api_db, data_builder, as_user, as_admin):
         # Can set providers as site admin
         r = as_admin.put('/groups/' + group, json=update)
         assert r.ok
+
+        #Can not change provider even as site admin
+        new_compute = data_builder.create_compute_provider()
+        update = {'providers': {'compute': new_compute}}
+        r = as_admin.put('/groups/' + group, json=update)
+        assert r.status_code == 422
 
         # Get the group
         r = as_admin.get('/groups/' + group)
@@ -325,8 +330,8 @@ def test_project_providers(api_db, data_builder, as_user, as_admin):
         # NOTE: Exhaustive validation is done in unit testing
         # of validate_provider_links
 
-        # Create a new project
-        project = data_builder.create_project()
+        # Create a new project, if you dont specify providers they are added by default
+        project = data_builder.create_project(providers={})
 
         # Set the compute provider
         r = as_user.get('/users/self')
@@ -338,19 +343,26 @@ def test_project_providers(api_db, data_builder, as_user, as_admin):
         r = as_admin.post('/projects/' + project + '/permissions', json=user)
         assert r.ok
 
-        # Try to set provider as project admin user (should 403)
+        # Try to set provider as project admin user, NOT allowed even if not set previously
         update = {'providers': {'compute': provider_id}}
         r = as_user.put('/projects/' + project, json=update)
         assert r.status_code == 403
 
-        # Can set providers as site admin
+        # Can change provider on inital set
+        new_compute = data_builder.create_compute_provider()
+        update = {'providers': {'compute': new_compute}}
         r = as_admin.put('/projects/' + project, json=update)
-        assert r.ok
-
+        assert r.status_code == 200
         # Get the project
         r = as_admin.get('/projects/' + project)
         assert r.ok
-        assert r.json()['providers'] == {'compute': provider_id}
+        assert r.json()['providers'] == {'compute': new_compute}
+
+        # Can not change provider even as admin once its set
+        new_compute2 = data_builder.create_compute_provider()
+        update = {'providers': {'compute': new_compute2}}
+        r = as_admin.put('/projects/' + project, json=update)
+        assert r.status_code == 422
 
         # Now create a project with initial providers
         project2 = data_builder.create_project(providers={'compute': provider_id})
@@ -370,8 +382,10 @@ def test_project_providers(api_db, data_builder, as_user, as_admin):
 
 def test_provider_selection_user(data_builder, file_form, as_user, as_admin, api_db, with_site_settings, second_storage_provider):
 
+    site_storage = str(api_db.singletons.find({'_id': 'site'})[0]['providers']['storage'])
     group = data_builder.create_group()
     project = data_builder.create_project(group=group)
+    session = data_builder.create_session()
 
     # Add user to project
     uid = as_user.get('/users/self').json()['_id']
@@ -384,7 +398,7 @@ def test_provider_selection_user(data_builder, file_form, as_user, as_admin, api
     files = r.json()
     assert len(files) == 1
     assert files[0]['name'] == 'upload-test.csv'
-    assert files[0]['provider_id'] == 'deadbeefdeadbeefdeadbeef'
+    assert files[0]['provider_id'] == site_storage
 
     # User project with provider as non site provider
     project = data_builder.create_project(providers={'storage': second_storage_provider})
@@ -422,7 +436,7 @@ def test_provider_selection_user(data_builder, file_form, as_user, as_admin, api
     files = r.json()
     assert len(files) == 1
     assert files[0]['name'] == 'upload-test4.csv'
-    assert files[0]['provider_id'] == 'deadbeefdeadbeefdeadbeef'
+    assert files[0]['provider_id'] == site_storage
 
 def test_provider_selection_job(data_builder, file_form, as_user, as_admin, api_db, with_site_settings, second_storage_provider):
 
@@ -506,14 +520,11 @@ def test_provider_selection_job(data_builder, file_form, as_user, as_admin, api_
     a = r.json()
     found = False
     for file_ in a['files']:
-        print file_['provider_id']
         if file_['name'] == 'two2.csv':
             if file_['provider_id'] == second_storage_provider:
                 found = True
-            #assert file_['provider_id'] == second_storage_provider
-            #break
+                break
     assert found
-
 
 
     # Specify provider on the group so new files are not on site provider

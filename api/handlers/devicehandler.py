@@ -74,7 +74,7 @@ class DeviceHandler(base.RequestHandler):
             return self.put_self()
 
         validate_data(payload, 'device.json', 'input', 'POST', optional=True)
-        result = self.storage.create_el(payload)
+        result = self.storage.create_el(payload, self.origin)
         if not result.acknowledged:
             raise APINotFoundException('Device not created')
         key = DeviceApiKey.generate(result.inserted_id)

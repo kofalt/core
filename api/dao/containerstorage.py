@@ -26,18 +26,27 @@ def cs_factory(cont_name):
 class GroupStorage(ContainerStorage):
 
     def __init__(self):
-        super(GroupStorage,self).__init__('groups', use_object_id=False, parent_cont_name=None, child_cont_name='project')
+        super(GroupStorage, self).__init__('groups', use_object_id=False, parent_cont_name=None, child_cont_name='project')
+
+    def _to_mongo(self, payload):
+        # Ascertain defaults in our model for consistency
+        payload.setdefault('editions', {}).setdefault('lab', True)
 
     def _fill_default_values(self, cont):
         cont = super(GroupStorage,self)._fill_default_values(cont)
         if cont:
             if 'permissions' not in cont:
                 cont['permissions'] = []
+            if 'editions' not in cont:
+                cont['editions'] = {'lab': True}
         return cont
 
-    def create_el(self, payload):
+    def create_el(self, payload, origin):
         permissions = payload.pop('permissions')
         created = payload.pop('created')
+        self._to_mongo(payload)
+
+        # Groups do not need ad-hoc check and do not call Super
         return self.dbc.update_one(
             {'_id': payload['_id']},
             {
@@ -48,6 +57,10 @@ class GroupStorage(ContainerStorage):
 
     def cleanup_ancillary_data(self, _id):
         safe_cleanup_views(_id)
+
+    def revert_lab_edition(self, _id):
+        """Revert all children projects to have lab edition off"""
+        config.db.projects.update_many({'parents.group': _id}, {'$set': {'editions.lab': False}})
 
 class UserStorage(ContainerStorage):
 
@@ -80,12 +93,23 @@ class ProjectStorage(ContainerStorage):
     def __init__(self):
         super(ProjectStorage,self).__init__('projects', use_object_id=True, use_delete_tag=True, parent_cont_name='group', child_cont_name='subject')
 
-    def create_el(self, payload):
-        result = super(ProjectStorage, self).create_el(payload)
+    def _to_mongo(self, payload):
+        if not payload.get('editions'):
+            # Ascertain defaults in our model for consistency
+            payload['editions'] = {'lab': True}
+            return
+
+        if not 'lab' in payload['editions']:
+            payload['editions']['lab'] = True
+
+    def create_el(self, payload, origin):
+
+        result = super(ProjectStorage, self).create_el(payload, origin)
         copy_site_rules_for_project(result.inserted_id)
         return result
 
     def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
+
         result = super(ProjectStorage, self).update_el(_id, payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata)
 
         if result.modified_count < 1:
@@ -151,7 +175,7 @@ class SubjectStorage(ContainerStorage):
             else:
                 cont['label'] = 'unknown'
 
-    def create_or_update_el(self, payload, **kwargs):
+    def create_or_update_el(self, payload, origin, **kwargs):
         if self.dbc.find_one({'_id': payload['_id'], 'deleted': {'$exists': False}}):
             payload['modified'] = datetime.datetime.utcnow()
             # Pop _id from mongo payload (immutable - would raise error)
@@ -166,7 +190,7 @@ class SubjectStorage(ContainerStorage):
             payload.pop('_id')
 
         payload['created'] = payload['modified'] = datetime.datetime.utcnow()
-        return super(SubjectStorage, self).create_el(payload)
+        return super(SubjectStorage, self).create_el(payload, origin)
 
     def get_all_el(self, query, user, projection, fill_defaults=False, pagination=None, **kwargs):
         """Allow 'collections' query key"""
@@ -196,12 +220,13 @@ class SessionStorage(ContainerStorage):
             cont = s_defaults
         return cont
 
-    def create_el(self, payload):
+    def create_el(self, payload, origin):
+
         project = ProjectStorage().get_container(payload['project'])
         if project.get('template'):
             payload['project_has_template'] = True
             payload['satisfies_template'] = hierarchy.is_session_compliant(payload, project.get('template'))
-        return super(SessionStorage, self).create_el(payload)
+        return super(SessionStorage, self).create_el(payload, origin)
 
     def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
         session = self.get_container(_id)
@@ -320,8 +345,8 @@ class AcquisitionStorage(ContainerStorage):
     def __init__(self):
         super(AcquisitionStorage,self).__init__('acquisitions', use_object_id=True, use_delete_tag=True, parent_cont_name='session', child_cont_name=None)
 
-    def create_el(self, payload):
-        result = super(AcquisitionStorage, self).create_el(payload)
+    def create_el(self, payload, origin):
+        result = super(AcquisitionStorage, self).create_el(payload, origin)
         SessionStorage().recalc_session_compliance(payload['session'])
         return result
 
@@ -478,7 +503,7 @@ class AnalysisStorage(ContainerStorage):
         if analysis.get('info') is not None:
             analysis['info'] = util.mongo_sanitize_fields(analysis['info'])
 
-        result = super(AnalysisStorage, self).create_el(analysis)
+        result = super(AnalysisStorage, self).create_el(analysis, origin)
         if not result.acknowledged:
             raise APIStorageException('Analysis not created for container {} {}'.format(parent_type, parent_id))
 

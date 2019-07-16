@@ -325,11 +325,15 @@ def test_provider_repository_load(api_db):
 
 def test_validate_provider_updates(api_db):
     compute_provider = _make_compute_provider()
+    compute_provider2 = _make_compute_provider()
     storage_provider = _make_storage_provider()
+    storage_provider2 = _make_storage_provider()
 
     mapper = mappers.Providers()
     cid = mapper.insert(compute_provider)
+    cid2 = mapper.insert(compute_provider2)
     sid = mapper.insert(storage_provider)
+    sid2 = mapper.insert(storage_provider2)
 
     try:
         # Starting from empty container
@@ -360,9 +364,22 @@ def test_validate_provider_updates(api_db):
         providers.validate_provider_updates(container, updates, True)
         assert isinstance(updates['compute'], bson.ObjectId)
 
-        # Changing without admin is a permission error
+        # Setting providers for the first time is not allowed for users
         with pytest.raises(errors.PermissionError):
             providers.validate_provider_updates(container, updates, False)
+
+        # Setting providers for the first time is allowed for admins
+        providers.validate_provider_updates(container, updates, True)
+
+        # Changing providers is not allowed for users
+        container = {'providers': {'compute': cid2}}
+        with pytest.raises(errors.ValidationError):
+            providers.validate_provider_updates(container, updates, False)
+
+        # Changing providers is not allowed
+        container = {'providers': {'compute': cid2}}
+        with pytest.raises(errors.ValidationError):
+            providers.validate_provider_updates(container, updates, True)
 
         # No-change is OK
         container = {'providers': {'compute': cid}}
@@ -374,27 +391,24 @@ def test_validate_provider_updates(api_db):
         providers.validate_provider_updates(container, updates, True)
         assert isinstance(updates['storage'], bson.ObjectId)
 
-
-        # TODO: Swap this block once lab-edition merges in
-        # Changing without admin is a permission error
+        # Setting providers for the first time is not allowed for users
         with pytest.raises(errors.PermissionError):
             providers.validate_provider_updates(container, updates, False)
-        ## Setting providers for the first time is allowed for users too
-        #providers.validate_provider_updates(container, updates, False)
-        #assert isinstance(updates['storage'], bson.ObjectId)
-        ## Changing without admin is a permission error
-        #with pytest.raises(errors.PermissionError):
-        #    providers.validate_provider_updates(container, updates, False)
 
 
         # No-change is OK
         container = {'providers': {'storage': sid}}
         providers.validate_provider_updates(container, updates, False)
 
-        # Cannot change after set
+        # Cannot change after set as admin
         container = {'providers': {'storage': bson.ObjectId()}}
         with pytest.raises(errors.ValidationError):
             providers.validate_provider_updates(container, updates, True)
+
+        # Cannot change after set as user
+        container = {'providers': {'storage': bson.ObjectId()}}
+        with pytest.raises(errors.ValidationError):
+            providers.validate_provider_updates(container, updates, False)
 
         updates = {'compute': str(cid)}
         container = {'providers': {'compute': bson.ObjectId()}}

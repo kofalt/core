@@ -75,6 +75,7 @@ class AnalysesHandler(RefererHandler):
         permchecker = self.get_permchecker(parent)
         permchecker(noop)('POST')
 
+
         try:
             analysis = self.request.json_body
             self.input_validator(analysis, 'POST')

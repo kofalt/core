@@ -217,7 +217,7 @@ class UIDPlacer(Placer):
         # Only create the hierarchy once
         if self.count == 0:
             # If not a superuser request, pass uid of user making the upload request
-            targets = self.create_hierarchy(self.metadata, type_=self.match_type, user=self.context.get('uid'))
+            targets = self.create_hierarchy(self.metadata, type_=self.match_type, user=self.context.get('uid'), origin=self.origin)
 
             self.metadata_for_file = {}
 
@@ -664,7 +664,7 @@ class PackfilePlacer(Placer):
         if self.s_code or not session_exists:
             project = {'_id': bson.ObjectId(self.p_id), 'permissions': self.permissions}
             subject = containerutil.extract_subject(insert_map, project)
-            SubjectStorage().create_or_update_el(subject)
+            SubjectStorage().create_or_update_el(subject, self.origin)
             query['subject'] = subject['_id']
 
             insert_map['parents'] = {

@@ -177,7 +177,7 @@ def update_provider(provider_id, doc):
 
     mapper.patch(provider_id, current_provider)
 
-
+#pylint: disable=unused-argument
 def validate_provider_updates(container, provider_ids, is_admin):
     """Validate an update (or setting) of provider ids.
 
@@ -185,9 +185,9 @@ def validate_provider_updates(container, provider_ids, is_admin):
     as the user is an admin and the provider exists.
 
     Allows setting the storage provider on the container as long as:
-    1. The user is admin
+    1. User is a site admin
     2. The provider exists
-    3. A storage provider isn't already set
+    3. A provider isn't already set
 
     Setting either provider to the current value is a no-op and doesn't
     trigger authorization errors.
@@ -218,13 +218,13 @@ def validate_provider_updates(container, provider_ids, is_admin):
             # Ensure ObjectId
             provider_ids[provider_class] = bson.ObjectId(provider_ids[provider_class])
             current_id = current_provider_ids.get(provider_class)
+
             if current_id != provider_ids[provider_class]:
                 if current_id:
                     raise errors.ValidationError('Cannot change {} provider once set!'.format(provider_class))
-
+                # Its only an update if current is set
                 updates[provider_class] = True
 
-    # Verify that the user is admin
     if (updates['storage'] or updates['compute']) and not is_admin:
         raise errors.PermissionError('Changing providers requires site-admin!')
 

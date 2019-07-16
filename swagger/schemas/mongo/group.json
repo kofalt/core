@@ -17,7 +17,8 @@
                           "default": [],
                           "uniqueItems": true
                         },
-    "providers":        {}
+    "providers":        {},
+    "editions": {"$ref":"../definitions/common.json#/definitions/editions"}
   },
   "additionalProperties": false,
   "required": ["_id", "created", "modified"]

@@ -1074,7 +1074,7 @@ class QueryHandler(base.RequestHandler):
         parent_container = self.storage.get_parent(None, cont=payload)
         self.permcheck('POST', parent_container=parent_container)
 
-        result = self.storage.create_el(payload)
+        result = self.storage.create_el(payload, self.origin)
         if result.inserted_id:
             return {'_id': result.inserted_id}
         else:

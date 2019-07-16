@@ -247,7 +247,7 @@ def test_access_log_report(data_builder, with_user, as_user, as_admin):
     assert r.json() == AccessTypeList
 
 
-def test_usage_report(data_builder, file_form, as_user, as_admin, api_db):
+def test_usage_report(data_builder, file_form, as_user, as_admin, api_db, randstr):
     # try to get usage report as user
     r = as_user.get('/report/usage', params={'type': 'month'})
     assert r.status_code == 403
@@ -268,16 +268,14 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, api_db):
     usage = r.json()
     assert len(usage) == 1
     assert (usage[0]['year'], usage[0]['month']) == (str(today.year), str(today.month))
-    print usage
-    # TODO: verify assert change
-    assert type(usage[0]['session_count']) == int
-    assert usage[0]['file_mbs'] == 0
-    assert usage[0]['gear_execution_count'] == 0
+    start_session_count = usage[0]['session_count']
+    start_usage = usage[0]['file_mbs']
+    start_gear_count = usage[0]['gear_execution_count']
 
     # get project-aggregated usage report
     r = as_admin.get('/report/usage', params={'type': 'project'})
     assert r.ok
-    assert len(r.json()) == 0
+    start_length = len(r.json())
 
     group = data_builder.create_group()
     project = data_builder.create_project(label='usage', group=group)
@@ -307,26 +305,29 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, api_db):
     usage = r.json()
     assert len(usage) == 1
     assert (usage[0]['year'], usage[0]['month']) == (str(today.year), str(today.month))
-    # TODO: verify assert change
-    assert type(usage[0]['session_count']) == int
-    assert usage[0]['file_mbs'] > 0
+    assert type(usage[0]['session_count']) > start_session_count
+    assert usage[0]['file_mbs'] > start_usage
     # TODO test gear exec counter
-    assert usage[0]['gear_execution_count'] == 1
+    assert usage[0]['gear_execution_count'] > start_gear_count
 
     # get project-aggregated usage report
     r = as_admin.get('/report/usage', params={
         'type': 'project', 'start_date': yesterday_ts, 'end_date': tomorrow_ts
     })
     assert r.ok
-    usage = r.json()
-    assert len(usage) == 1
-    assert usage[0]['project']['label'] == 'usage'
-    assert usage[0]['session_count'] == 1
-    assert usage[0]['file_mbs'] > 0
-    assert usage[0]['gear_execution_count'] == 1
+    usage = None
+    for x in r.json():
+        if x['project']['label'] == 'usage':
+            usage = x
+    assert usage
+    assert usage['project']['label'] == 'usage'
+    assert usage['session_count'] > 0
+    assert usage['file_mbs'] > 0
+    assert usage['gear_execution_count'] > 0
 
     # Test if empty project breaks Usage report
-    r = as_admin.post('/projects', params={'inherit': 'false'}, json={'label': 'project2', 'group': group})
+    project2_label = randstr()
+    r = as_admin.post('/projects', params={'inherit': 'false'}, json={'label': project2_label, 'group': group})
     assert r.ok
     project2 = r.json()['_id']
 
@@ -342,12 +343,15 @@ def test_usage_report(data_builder, file_form, as_user, as_admin, api_db):
         'type': 'project', 'start_date': yesterday_ts, 'end_date': tomorrow_ts
     })
     assert r.ok
-    usage = r.json()
-    assert len(usage) == 2
-    assert usage[1]['project']['label'] == 'project2'
-    assert usage[1]['session_count'] == 0
-    assert usage[1]['file_mbs'] == 0
-    assert usage[1]['gear_execution_count'] == 0
+    usage = None
+    for x in r.json():
+        if x['project']['label'] == project2_label:
+            usage = x
+    assert usage
+    assert usage['project']['label'] == project2_label
+    assert usage['session_count'] == 0
+    assert usage['file_mbs'] == 0
+    assert usage['gear_execution_count'] == 0
 
     # delete project
     r= as_admin.delete('/projects/' + project2)

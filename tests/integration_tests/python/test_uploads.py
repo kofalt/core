@@ -57,7 +57,7 @@ def upload_file_form(file_form, merge_dict, randstr):
     return create_form
 
 
-def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_admin, with_site_settings, as_root, as_user, as_device, api_db):
+def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_admin, with_site_settings, as_root, as_user, as_device, api_db, as_drone):
 
     group_1 = data_builder.create_group()
     prefix = randstr()
@@ -70,7 +70,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     site_provider = api_db.singletons.find_one({'_id': 'site'})['providers']['storage']
 
     # reaper-upload files to group_1/project_label_1 using session_uid
-    r = as_device.post('/upload/reaper', files=upload_file_form(
+    r = as_drone.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_1},
         project={'label': project_label_1},
         session={'uid': session_uid},
@@ -139,6 +139,14 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     assert len(as_device.get('/sessions/' + session).json()['files']) == 2
 
     # No group or project given
+    # Only drone can upload to unknown project
+    r = as_admin.post('/upload/reaper', files=upload_file_form(
+        group={'_id': ''},
+        project={'label': ''},
+        session={'uid': session_uid+'1'},
+    ))
+    assert not r.ok
+    assert r.status_code == 403
     r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': ''},
         project={'label': ''},
@@ -160,6 +168,14 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     assert len(as_device.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()) == 1
 
     # No group given
+    # Only devices can upload to unknown groups
+    r = as_admin.post('/upload/reaper', files=upload_file_form(
+        group={'_id': ''},
+        project={'label': project_label_1},
+        session={'uid': session_uid+'2'},
+    ))
+    assert not r.ok
+    assert r.status_code == 403
     r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': ''},
         project={'label': project_label_1},
@@ -388,7 +404,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     data_builder.delete_group(group_5, recursive=True)
     data_builder.delete_project(unknown_group_unsorted_project, recursive=True)
 
-def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
+def test_label_upload_unknown_group_project(data_builder, file_form, as_device, as_admin, as_drone):
     """
     If the label endpoint receives an upload with a blank group and project, set to
     group: unknown and create or find "Unknown" project
@@ -396,6 +412,25 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
 
 
     # Upload without group id or project label
+    # Not allowed by users
+    r = as_admin.post('/upload/label', files=file_form(
+        'acquisition.csv',
+        meta={
+            'group': {'_id': ''},
+            'project': {
+                'label': '',
+            },
+            'session': {
+                'label': 'test_session_label',
+            },
+            'acquisition': {
+                'label': 'test_acquisition_label',
+                'files': [{'name': 'acquisition.csv'}]
+            }
+        })
+    )
+    assert not r.ok
+    assert r.status_code == 403
     r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
@@ -442,7 +477,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
     assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # do another upload without group id or project label
-    r = as_device.post('/upload/label', files=file_form(
+    r = as_drone.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': ''},
@@ -471,7 +506,26 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
     assert len(as_device.get('/sessions/' + session2 + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # Upload with a nonexistent group id and a project label
-    r = as_device.post('/upload/label', files=file_form(
+    # This should only work as drone due to the unknown upload ad-hoc restrictions
+    r = as_admin.post('/upload/label', files=file_form(
+        'acquisition.csv',
+        meta={
+            'group': {'_id': 'not_a_real_group'},
+            'project': {
+                'label': 'new_project',
+            },
+            'session': {
+                'label': 'test_session_label',
+            },
+            'acquisition': {
+                'label': 'test_acquisition_label',
+                'files': [{'name': 'acquisition.csv'}]
+            }
+        })
+    )
+    assert not r.ok
+    assert r.status_code == 403
+    r = as_drone.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': 'not_a_real_group'},
@@ -556,7 +610,6 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
     )
     assert r.ok
 
-
     # get session created by the upload
     r = as_device.get('/groups/' + group1 + '/projects')
     assert r.ok
@@ -589,7 +642,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
     data_builder.delete_project(named_unknown_project, recursive=True)
 
 
-def test_label_project_search(data_builder, file_form, as_device, as_user, randstr):
+def test_label_project_search(data_builder, file_form, as_admin, as_drone, as_device):
     """
     When attempting to find a project, we do a case insensitive lookup.
     Ensure that mongo regex works as expected.
@@ -613,7 +666,7 @@ def test_label_project_search(data_builder, file_form, as_device, as_user, rands
     expected_project_label_2 = 'TeSt with longer string to avoid collision_'
 
     # Upload with group 1
-    r = as_device.post('/upload/label', files=file_form(
+    r = as_drone.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group_label_1},
@@ -659,7 +712,7 @@ def test_label_project_search(data_builder, file_form, as_device, as_user, rands
     assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # Ensure group label 2 ends up in separate project
-    r = as_device.post('/upload/label', files=file_form(
+    r = as_drone.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group_label_2},
@@ -717,7 +770,7 @@ def test_label_project_search(data_builder, file_form, as_device, as_user, rands
     assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # Upload with another "test" project with different case
-    r = as_device.post('/upload/label', files=file_form(
+    r = as_drone.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group_label_3},

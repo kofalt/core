@@ -678,7 +678,7 @@ def test_get_session_jobs(data_builder, default_payload, as_user, as_admin, file
     assert r.ok
 
 
-def test_post_container(data_builder, as_admin, as_user):
+def test_post_container(data_builder, as_admin, as_user, as_drone):
     group = data_builder.create_group()
 
     # set as_user perms to rw on group
@@ -714,7 +714,8 @@ def test_post_container(data_builder, as_admin, as_user):
     assert r.ok
 
     # create project w/ param inherit=true
-    r = as_user.post('/projects', params={'inherit': 'true'}, json={
+    # Requires admin as it sets providers which is considered changing project providers
+    r = as_admin.post('/projects', params={'inherit': 'true'}, json={
         'group': group,
         'label': 'test-inheritance-project'
     })
@@ -722,20 +723,20 @@ def test_post_container(data_builder, as_admin, as_user):
     project = r.json()['_id']
 
     # try to add subject with no project
-    r = as_admin.post('/subjects', json={
+    r = as_drone.post('/subjects', json={
         'code': 'test_sub'
         })
     assert r.status_code == 422
 
     # try to add subject with no code or label
-    r = as_admin.post('/subjects', json={
+    r = as_drone.post('/subjects', json={
         'project': project,
         })
     assert r.status_code == 422
 
     # Add subject with code and project
     subject_code = 'test_subject'
-    r = as_admin.post('/subjects', json={
+    r = as_drone.post('/subjects', json={
         'project': project,
         'code': subject_code
         })
@@ -743,7 +744,7 @@ def test_post_container(data_builder, as_admin, as_user):
 
     # Try to add subject with existing label
     subject_code = 'test_subject'
-    r = as_admin.post('/subjects', json={
+    r = as_drone.post('/subjects', json={
         'project': project,
         'label': subject_code
         })
@@ -751,14 +752,15 @@ def test_post_container(data_builder, as_admin, as_user):
 
     # Also doesn't work with code
     subject_code = 'test_subject'
-    r = as_admin.post('/subjects', json={
+    r = as_drone.post('/subjects', json={
         'project': project,
         'code': subject_code
         })
     assert r.status_code == 422
 
-    # create session w/ timestamp as rw user
-    r = as_user.post('/sessions', json={
+    # create session w/ timestamp as drone
+    # Only droone can create sessions with ad-hoc restrictions
+    r = as_drone.post('/sessions', json={
         'project': project,
         'label': 'test-timestamp-session',
         'timestamp': '1979-01-01T00:00:00+00:00'
@@ -766,7 +768,7 @@ def test_post_container(data_builder, as_admin, as_user):
     assert r.ok
 
     # create a session w/ operator
-    r = as_user.post('/sessions', json={
+    r = as_drone.post('/sessions', json={
         'project': project,
         'label': 'test-timestamp-session',
         'operator': 'Operator'

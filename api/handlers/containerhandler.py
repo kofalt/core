@@ -15,7 +15,8 @@ from ..jobs.job_util import remove_potential_phi_from_job
 from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
-from ..site import providers
+from ..site.providers.repository import validate_provider_updates
+
 
 PROJECT_BLACKLIST = ['Unknown', 'Unsorted']
 
@@ -296,6 +297,7 @@ class ContainerHandler(base.RequestHandler):
                 raise APIValidationException('subject code "{}" already exists in project {}'.format(subject_code, payload['project']))
 
 
+
         # Load the parent container in which the new container will be created
         # to check permissions.
         parent_container, parent_id_property = self._get_parent_container(payload)
@@ -324,17 +326,33 @@ class ContainerHandler(base.RequestHandler):
         permchecker = self._get_permchecker(parent_container=parent_container)
 
         if cont_name == 'projects':
-            # Validate any changes to storage providers
-            providers.validate_provider_updates({}, payload.get('providers'), self.user_is_admin)
+            if 'editions' in payload and not self.user_is_admin:
+                self.abort(403, 'Only admins can specify project editions')
 
+            if 'editions' in payload and payload['editions'].get('lab') == True:
+                if not (parent_container.get('editions') and parent_container['editions'].get('lab', True)):
+                    self.abort(412, 'Can only enable lab edition if parent group has lab edition enabled')
+                if not 'providers' in payload:
+                    payload['providers'] = parent_container.get('providers')
+            else:
+                payload['editions'] = parent_container.get('editions', {'lab': False})
+                # On post you can specify different providers, one time. But the others must be inherited
+                providers = parent_container.get('providers', {})
+                for cls in payload.get('providers', {}).keys():
+                    providers[cls] = payload['providers'][cls]
+                payload['providers'] = providers
+
+
+            # Validate any changes to storage providers
+            validate_provider_updates({}, payload.get('providers'), self.user_is_admin)
         # Handle embedded subjects for backwards-compatibility
         if cont_name == 'sessions':
             self._handle_embedded_subject(payload, parent_container)
 
         # This line exec the actual request validating the payload that will create the new container
         # and checking permissions using respectively the two decorators, mongo_validator and permchecker
-        result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload)
-        if result.acknowledged:
+        result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload, origin=self.origin)
+        if result and result.acknowledged:
             return {'_id': result.inserted_id}
         else:
             self.abort(404, 'Element not added in container {}'.format(self.storage.cont_name))
@@ -360,8 +378,16 @@ class ContainerHandler(base.RequestHandler):
                 r_payload[key] = payload[key]
 
         if cont_name == 'projects':
+            if 'editions' in payload and not self.user_is_admin:
+                self.abort(403, 'Only admins can specify project editions')
+
+            if 'editions' in payload and payload['editions'].get('lab', False):
+                parent_container, _ = self._get_parent_container({'group': container['group']})
+                if not (parent_container.get('editions') and parent_container['editions'].get('lab', True)):
+                    self.abort(412, 'Can only enable lab edition if parent group has lab edition enabled')
+
             # Validate any changes to storage providers
-            providers.validate_provider_updates(container, payload.get('providers'), self.user_is_admin)
+            validate_provider_updates(container, payload.get('providers'), self.user_is_admin)
 
 
         if cont_name == 'subjects':
@@ -632,4 +658,4 @@ class ContainerHandler(base.RequestHandler):
         method = 'POST'
         subject_validator(permchecker(noop))(method, payload=subject)
         containerutil.verify_master_subject_code(subject)
-        containerstorage.SubjectStorage().create_or_update_el(subject)
+        containerstorage.SubjectStorage().create_or_update_el(subject, self.origin)

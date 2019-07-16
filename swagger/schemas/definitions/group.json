@@ -18,7 +18,8 @@
             "created": {"$ref":"created-modified.json#/definitions/created"},
             "modified": {"$ref":"created-modified.json#/definitions/modified"},
             "tags": {"$ref":"tag.json#/definitions/tag-list"},
-            "providers": {"$ref":"provider.json#/definitions/provider-links"}
+            "providers": {"$ref":"provider.json#/definitions/provider-links"},
+            "editions": {"$ref": "common.json#/definitions/editions"}
           },
           "additionalProperties":false,
           "x-sdk-model": "group",
@@ -29,7 +30,8 @@
           "properties": {
             "_id":{"$ref":"common.json#/definitions/lowercase-string-id"},
             "label": {"$ref": "#/definitions/label"},
-            "providers": {"$ref":"provider.json#/definitions/provider-links"}
+            "providers": {"$ref":"provider.json#/definitions/provider-links"},
+            "editions": {"$ref": "common.json#/definitions/editions"}
           },
           "additionalProperties": false,
           "x-sdk-model": "group",

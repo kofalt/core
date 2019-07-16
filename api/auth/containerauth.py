@@ -13,7 +13,8 @@ def default_container(handler, container=None, target_parent_container=None):
     on the container before actually executing this method.
     """
     def g(exec_op):
-        def f(method, _id=None, payload=None, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
+        # pylint: disable=unused-argument
+        def f(method, _id=None, payload=None, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False, origin=None):
             projection = None
             errors = None
             if method == 'GET' and container.get('public', False):
@@ -72,7 +73,7 @@ def collection_permissions(handler, container=None, _=None):
     Permissions are checked on the collection itself or not at all if the collection is new.
     """
     def g(exec_op):
-        def f(method, _id=None, payload = None):
+        def f(method, _id=None, payload = None, origin=None):
             if method == 'GET' and container.get('public', False):
                 has_access = True
             elif method == 'GET':
@@ -87,7 +88,7 @@ def collection_permissions(handler, container=None, _=None):
                 has_access = False
 
             if has_access:
-                return exec_op(method, _id=_id, payload=payload)
+                return exec_op(method, _id=_id, payload=payload, origin=origin)
             else:
                 handler.abort(403, 'user not authorized to perform a {} operation on the container'.format(method))
         return f
@@ -96,7 +97,7 @@ def collection_permissions(handler, container=None, _=None):
 
 def default_referer(handler, parent_container=None):
     def g(exec_op):
-        def f(method, _id=None, payload=None):
+        def f(method, _id=None, payload=None, origin=None):
             access = _get_access(handler.uid, parent_container, scope=handler.scope)
             if method == 'GET' and parent_container.get('public', False):
                 has_access = True
@@ -108,7 +109,7 @@ def default_referer(handler, parent_container=None):
                 has_access = False
 
             if has_access:
-                return exec_op(method, _id=_id, payload=payload)
+                return exec_op(method, _id=_id, payload=payload, origin=origin)
             else:
                 handler.abort(403, 'user not authorized to perform a {} operation on parent container'.format(method))
         return f
@@ -153,10 +154,10 @@ def has_any_referer_access(handler, method, container, parent_container):
 
 def any_referer(handler, container=None, parent_container=None):
     def g(exec_op):
-        def f(method, _id=None, payload=None):
+        def f(method, _id=None, payload=None, origin=None):
             # finally we fall back on the default referrer
             if has_any_referer_access(handler, method, container, parent_container):
-                return exec_op(method, _id=_id, payload=payload)
+                return exec_op(method, _id=_id, payload=payload, origin=origin)
             else:
                 raise APIPermissionException('user not authorized to perform a {} operation on parent container'.format(method))
         return f
@@ -167,9 +168,9 @@ def public_request(handler, container=None):
     For public requests we allow only GET operations on containers marked as public.
     """
     def g(exec_op):
-        def f(method, _id=None, payload = None):
+        def f(method, _id=None, payload=None, origin=None):
             if method == 'GET' and container.get('public', False):
-                return exec_op(method, _id, payload)
+                return exec_op(method, _id=_id, payload=payload, origin=origin)
             else:
                 handler.abort(403, 'not authorized to perform a {} operation on this container'.format(method))
         return f

@@ -88,8 +88,8 @@ class DataViewStorage(ContainerStorage):
         }
         for key in defaults:
             view.setdefault(key, defaults[key])
-
-        result = super(DataViewStorage, self).create_el(view)
+        # We dont need origin on data views
+        result = super(DataViewStorage, self).create_el(view, None)
 
         if not result.acknowledged:
             raise APIStorageException('Data view not created for container {}'.format(parent_id))

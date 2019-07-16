@@ -16,7 +16,7 @@
         "info": {},
         "description": {},
         "providers": {},
-
+        "editions": {"$ref":"../definitions/common.json#/definitions/editions"},
         "group": {"type": "string"}
     },
     "additionalProperties": false

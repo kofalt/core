@@ -27,7 +27,7 @@ class ModalityHandler(base.RequestHandler):
         payload = self.request.json_body
         validate_data(payload, 'modality.json', 'input', 'POST', optional=True)
 
-        result = self.storage.create_el(payload)
+        result = self.storage.create_el(payload, self.origin)
         return {'_id': result.inserted_id}
 
     @require_privilege(Privilege.is_admin)

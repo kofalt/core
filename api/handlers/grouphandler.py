@@ -57,7 +57,7 @@ class GroupHandler(base.RequestHandler):
         return result
 
     def get_all(self, uid=None):
-        projection = {'label': 1, 'created': 1, 'modified': 1, 'permissions': 1, 'tags': 1}
+        projection = {'label': 1, 'created': 1, 'modified': 1, 'permissions': 1, 'tags': 1, 'editions': 1}
         permchecker = groupauth.list_permission_checker(self, uid)
         page = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
         results = page['results']
@@ -84,9 +84,28 @@ class GroupHandler(base.RequestHandler):
         # Validate any changes to storage providers
         providers.validate_provider_updates(group, payload.get('providers'), self.user_is_admin)
 
+        if payload.get('editions') and not self.user_is_admin:
+            self.abort(403, 'Only admins can change group editions')
+        if payload.get('providers') and not self.user_is_admin:
+            self.abort(403, 'Only site admins can change set providers')
+
+        # IF trying to enable lab edition on a group you must either have already set both providers
+        # Or you must provide both validate compute and storage
+        if payload.get('editions') and payload['editions'].get('lab') and not (
+                group.get('providers') and
+                group['providers'].get('compute') and
+                group['providers'].get('storage')):
+            if not (payload.get('providers') and
+                    payload['providers'].get('storage') and payload['providers'].get('compute')):
+                self.abort(422, 'Lab feature requires providers to be set')
+
         payload['modified'] = datetime.datetime.utcnow()
         result = mongo_validator(permchecker(self.storage.exec_op))('PUT', _id=_id, payload=payload)
         if result.modified_count == 1:
+            # We can only do this after we have sucessfully saved the group
+            if 'editions' in payload and payload['editions'].get('lab') == False:
+                self.storage.revert_lab_edition(_id)
+
             return {'modified': result.modified_count}
         else:
             self.abort(404, 'Group {} not updated'.format(_id))
@@ -102,6 +121,12 @@ class GroupHandler(base.RequestHandler):
         if payload['_id'] in GROUP_ID_BLACKLIST:
             self.abort(400, 'The group "{}" can\'t be created as it is integral within the API'.format(payload['_id']))
 
+
+        if payload.get('editions') and not self.user_is_admin:
+            self.abort(403, 'Only admins can change group editions')
+        if payload.get('providers') and not self.user_is_admin:
+            self.abort(403, 'Only site admins can change set providers')
+
         # Check if group already exists, and if so don't re-create it
         if self.storage.get_el(payload['_id'], projection={'_id': 1}):
             self.log.info('Will not upsert existing group: %s, discarding any updates', payload['_id'])
@@ -112,6 +137,7 @@ class GroupHandler(base.RequestHandler):
         payload['permissions'] = [{'_id': self.uid, 'access': 'admin'}] if self.uid else []
         # Validate any providers (for new group)
         providers.validate_provider_updates({}, payload.get('providers'), self.user_is_admin)
+
         result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload)
         if result.acknowledged:
             if result.upserted_id:

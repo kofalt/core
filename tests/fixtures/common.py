@@ -201,6 +201,7 @@ def data_builder(as_root, api_db, randstr, with_site_settings):
     """Yield DataBuilder instance (per test)"""
     # NOTE currently there's only a single data_builder for simplicity which
     # uses as_root - every resource is created/owned by the admin user
+    # If not using multi project lab edition data builder will fail on ad-hoc
     data_builder = DataBuilder(as_root, api_db, randstr=randstr)
     yield data_builder
     data_builder.teardown()
@@ -211,8 +212,8 @@ def default_payload():
     """Return default test resource creation payloads"""
     return attrdict.AttrDict({
         'user': {'firstname': 'test', 'lastname': 'user', 'roles': ['user']},
-        'group': {},
-        'project': {'public': True},
+        'group': {'editions': {'lab': True}},
+        'project': {'public': True, 'editions': {'lab': True}},
         'subject': {'public': True},
         'session': {'public': True},
         'acquisition': {'public': True},

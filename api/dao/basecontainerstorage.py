@@ -3,6 +3,8 @@ import bson
 import datetime
 import pymongo.errors
 
+from flywheel_common.errors import PermissionError
+
 from . import consistencychecker
 from . import containerutil
 from . import dbutil
@@ -248,7 +250,7 @@ class ContainerStorage(object):
     # pylint: disable=unused-argument
     def exec_op(self, action, _id=None, payload=None, query=None, user=None,
                 public=False, projection=None, recursive=False, r_payload=None,
-                replace_metadata=False, unset_payload=None, pagination=None):
+                replace_metadata=False, unset_payload=None, pagination=None, origin=None):
         """
         Generic method to exec a CRUD operation from a REST verb.
         """
@@ -256,6 +258,7 @@ class ContainerStorage(object):
         check = consistencychecker.get_container_storage_checker(action, self.cont_name)
         data_op = payload or {'_id': _id}
         check(data_op)
+
         if action == 'GET' and _id:
             return self.get_el(_id, projection=projection, fill_defaults=True)
         if action == 'GET':
@@ -265,10 +268,15 @@ class ContainerStorage(object):
         if action == 'PUT':
             return self.update_el(_id, payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata)
         if action == 'POST':
-            return self.create_el(payload)
+            return self.create_el(payload, origin=origin)
         raise ValueError('action should be one of GET, POST, PUT, DELETE')
 
-    def create_el(self, payload):
+
+    def create_el(self, payload, origin):
+
+        if self.cont_name in ('sessions', 'subjects', 'analyses'):
+            self.check_adhoc(payload, origin)
+
         self._to_mongo(payload)
         if self.parent_cont_name or self.cont_name == 'analyses':
             parents = self.get_parents(payload)
@@ -593,3 +601,31 @@ class ContainerStorage(object):
         It is safe to modify the returned copy.
         """
         return None
+
+    def check_adhoc(self, payload, origin):
+        """
+        Prevents ad hoc creation of containers when lab edition is not enabled
+        """
+        if not config.is_multiproject_enabled():
+            return
+
+        if origin and origin['type'] == Origin['device'].value:
+            return
+
+        project_storage = ContainerStorage.factory('project')
+        parents = self.get_parents(payload)
+        project = project_storage.get_container(parents['project'])
+        if not project['editions'].get('lab'):
+            container = 'Container'
+            parent = payload.get('parent')
+            parent_type = None
+            if parent:
+                parent_type = parent.get('type')
+
+            if parent_type == 'session':
+                container = 'acquisition'
+            if parent_type == 'subject':
+                container = 'session'
+            if parent_type == 'project':
+                container = 'subject'
+            raise PermissionError(container, 'Unable to create adhoc {path} without lab edition')

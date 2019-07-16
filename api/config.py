@@ -281,7 +281,7 @@ def initialize_db():
     now = datetime.datetime.utcnow()
     try_update_one(db,
                    'groups', {'_id': 'unknown'},
-                   {'$setOnInsert': {'created': now, 'modified': now, 'label': 'Unknown', 'permissions': []}},
+                   {'$setOnInsert': {'created': now, 'modified': now, 'label': 'Unknown', 'permissions': [], 'editions': {}}},
                    upsert=True)
 
 def get_config():

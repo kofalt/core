@@ -396,14 +396,16 @@ def _find_or_create_destination_project(group, project_label, timestamp, user, u
                 'permissions': group['permissions'],
                 'public': False,
                 'created': timestamp,
-                'modified': timestamp
+                'modified': timestamp,
+                'editions' : group['editions']
         }
 
         if unsorted_projects:
             project['description'] = 'This project was automatically created because unsortable data was detected. \
                                       Please move sessions to the appropriate project.'
 
-        result = ContainerStorage.factory('project').create_el(project)
+        # Origin does need to be checked on projects as they dont have ad-hoc restrictions
+        result = ContainerStorage.factory('project').create_el(project, None)
         project['_id'] = result.inserted_id
 
     return project
@@ -419,7 +421,7 @@ def _create_query(cont, cont_type, parent_type, parent_id, upload_type):
     else:
         raise NotImplementedError('upload type {} is not handled by _create_query'.format(upload_type))
 
-def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timestamp):
+def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timestamp, origin=None):
     cont['modified'] = timestamp
     cont_name = containerutil.pluralize(cont_type)
 
@@ -438,6 +440,8 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
         return _update_container_nulls(query, cont, cont_type)
 
     else:
+        ContainerStorage.factory(cont_type).check_adhoc(cont, origin)
+
         insert_vals = {
             parent_type:    parent['_id'],
             'permissions':  parent['permissions'],
@@ -457,20 +461,20 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
         return cont
 
 
-def _get_targets(project_obj, session, acquisition, type_, timestamp):
+def _get_targets(project_obj, session, acquisition, type_, timestamp, origin=None):
     target_containers = []
     if not session:
         return target_containers
 
     subject = containerutil.extract_subject(session, project_obj)
     subject_files = dict_fileinfos(subject.pop('files', []))
-    subject_obj = _upsert_container(subject, 'subject', project_obj, 'project', type_, timestamp)
+    subject_obj = _upsert_container(subject, 'subject', project_obj, 'project', type_, timestamp, origin=origin)
     target_containers.append(
         (TargetContainer(subject_obj, 'subject'), subject_files)
     )
 
     session_files = dict_fileinfos(session.pop('files', []))
-    session_obj = _upsert_container(session, 'session', project_obj, 'project', type_, timestamp)
+    session_obj = _upsert_container(session, 'session', project_obj, 'project', type_, timestamp, origin=origin)
     target_containers.append(
         (TargetContainer(session_obj, 'session'), session_files)
     )
@@ -478,14 +482,14 @@ def _get_targets(project_obj, session, acquisition, type_, timestamp):
     if not acquisition:
         return target_containers
     acquisition_files = dict_fileinfos(acquisition.pop('files', []))
-    acquisition_obj = _upsert_container(acquisition, 'acquisition', session_obj, 'session', type_, timestamp)
+    acquisition_obj = _upsert_container(acquisition, 'acquisition', session_obj, 'session', type_, timestamp, origin=origin)
     target_containers.append(
         (TargetContainer(acquisition_obj, 'acquisition'), acquisition_files)
     )
     return target_containers
 
 
-def find_existing_hierarchy(metadata, type_='uid', user=None):
+def find_existing_hierarchy(metadata, type_='uid', user=None, origin=None):
     #pylint: disable=unused-argument
     project = metadata.get('project', {})
     session = metadata.get('session', {})
@@ -514,14 +518,14 @@ def find_existing_hierarchy(metadata, type_='uid', user=None):
     now = datetime.datetime.utcnow()
     project_files = dict_fileinfos(project.pop('files', []))
     project_obj = config.db.projects.find_one({'_id': session_obj['project'], 'deleted': {'$exists': False}}, projection=PROJECTION_FIELDS + ['name'])
-    target_containers = _get_targets(project_obj, session, acquisition, type_, now)
+    target_containers = _get_targets(project_obj, session, acquisition, type_, now, origin=origin)
     target_containers.append(
         (TargetContainer(project_obj, 'project'), project_files)
     )
     return target_containers
 
 
-def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None):
+def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None, origin=None):
     group = metadata.get('group', {})
     project = metadata.get('project', {})
     session = metadata.get('session', {})
@@ -547,16 +551,16 @@ def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None):
         now = datetime.datetime.utcnow()
         project_files = dict_fileinfos(project.pop('files', []))
         project_obj = config.db.projects.find_one({'_id': session_obj['project'], 'deleted': {'$exists': False}}, projection=PROJECTION_FIELDS + ['name'])
-        target_containers = _get_targets(project_obj, session, acquisition, type_, now)
+        target_containers = _get_targets(project_obj, session, acquisition, type_, now, origin=origin)
         target_containers.append(
             (TargetContainer(project_obj, 'project'), project_files)
         )
         return target_containers
     else:
-        return upsert_top_down_hierarchy(metadata, type_=type_, user=user, unsorted_projects=True)
+        return upsert_top_down_hierarchy(metadata, type_=type_, user=user, unsorted_projects=True, origin=origin)
 
 
-def upsert_top_down_hierarchy(metadata, type_='label', user=None, unsorted_projects=False):
+def upsert_top_down_hierarchy(metadata, type_='label', user=None, unsorted_projects=False, origin=None):
     group = metadata['group']
     project = metadata['project']
     session = metadata.get('session')
@@ -568,7 +572,7 @@ def upsert_top_down_hierarchy(metadata, type_='label', user=None, unsorted_proje
     if unsorted_projects and project_obj['label'] == 'Unsorted':
         group_str = group.get('_id', group.get('label'))
         session['label'] = 'gr-{}_proj-{}_ses-{}'.format(group_str, project['label'], session['uid'])
-    target_containers = _get_targets(project_obj, session, acquisition, type_, now)
+    target_containers = _get_targets(project_obj, session, acquisition, type_, now, origin=origin)
     target_containers.append(
         (TargetContainer(project_obj, 'project'), project_files)
     )

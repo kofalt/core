@@ -1,3 +1,4 @@
+import bson
 from dateutil.parser import parse
 
 def test_groups(as_user, as_admin, data_builder):
@@ -190,6 +191,108 @@ def test_groups_upsert(as_admin, data_builder):
     assert original_group['label'] == updated_group['label']
     assert original_group['created'] == updated_group['created']
     assert original_group['modified'] == updated_group['modified']
+
+def test_groups_editions(as_admin):
+    # Test adding empty editions
+    group_id = str(bson.ObjectId())
+    r = as_admin.post('/groups', json={'_id': group_id, 'label': 'empty_editions'})
+    assert r.ok
+    r = as_admin.get('/groups/' + group_id)
+    group = r.json()
+    # By default lab edition is True
+    assert group['editions']['lab'] == True
+
+def test_groups_editions_feature(as_admin, data_builder, as_user, with_site_settings, api_db):
+    group = data_builder.create_group()
+
+    r = as_user.put('/groups/'+ group, json={'editions': {'lab': True}})
+    assert r.status_code == 403
+
+    # Default group has no providers, and we cant change them, as tested in other test cases
+    r = as_admin.put('/groups/'+ group, json={'editions': {'lab': True}})
+    assert r.status_code == 422
+
+    provider = api_db.providers.find_one({'label': 'Static Compute'})
+    provider = str(provider['_id'])
+
+    api_db.groups.update_one({'_id': group}, {'$unset': {'providers' : 1}})
+    r = as_admin.put('/groups/'+ group, json={
+        'editions': {
+            'lab': True
+            },
+        'providers': {
+            'compute': provider
+            }
+        })
+    assert r.status_code == 422
+
+    r = as_admin.put('/groups/'+ group, json={
+        'editions': {
+            'lab': True
+            },
+        'providers': {
+            'storage': 'deadbeefdeadbeefdeadbeef'
+            }
+        })
+    assert r.status_code == 422
+
+    # Can enable with valid providers
+    r = as_admin.put('/groups/'+ group, json={
+        'editions': {
+            'lab': True
+            },
+        'providers': {
+            'compute': provider,
+            'storage': 'deadbeefdeadbeefdeadbeef'
+            }
+        })
+    assert r.status_code == 200
+
+    r = as_admin.put('/groups/'+ group, json={
+        'editions': {
+            'lab': False
+            },
+        })
+    assert r.status_code == 200
+    assert as_admin.get('/groups/' + group).json()['editions']['lab'] == False
+
+    # Can be enabled if providers are already set
+    r = as_admin.put('/groups/'+ group, json={
+        'editions': {
+            'lab': True
+            }
+        })
+    assert r.status_code == 200
+    assert as_admin.get('/groups/' + group).json()['editions']['lab'] == True
+
+
+    # Now add a couple projects with lab true can verify they are disabled on group disable
+    r = as_admin.post('/projects', json={'label': 'test-lab-1', 'group': group, 'editions': {'lab': True}})
+    assert r.ok
+    project1 = r.json()['_id']
+
+    r = as_admin.post('/projects', json={'label': 'test-lab-2', 'group': group, 'editions': {'lab': True}})
+    assert r.ok
+    project2 = r.json()['_id']
+
+    assert as_admin.get('/projects/' + project1).json()['editions']['lab'] == True
+    assert as_admin.get('/projects/' + project2).json()['editions']['lab'] == True
+    r = as_admin.get('/projects/' + project1)
+    r = as_admin.put('/groups/'+ group, json={
+        'editions': {
+            'lab': False
+            }
+        })
+    assert r.status_code == 200
+    assert as_admin.get('/groups/' + group).json()['editions']['lab'] == False
+    assert as_admin.get('/projects/' + project1).json()['editions']['lab'] == False
+    assert as_admin.get('/projects/' + project2).json()['editions']['lab'] == False
+
+
+    # Cleanup
+    assert as_admin.delete('/projects/' + project1).ok
+    assert as_admin.delete('/projects/' + project2).ok
+
 
 def test_group_project_access(as_admin, as_user, data_builder):
     group_id = data_builder.create_group()

@@ -45,7 +45,7 @@ def test_subject_collection(data_builder, api_db, as_admin):
     assert r.json()['subject']['_id'] == subject_id
 
 
-def test_subject_endpoints(data_builder, as_admin, as_public, file_form):
+def test_subject_endpoints(data_builder, as_admin, as_public, file_form, as_drone):
     # prep
     def create_user_accessor(email):
         user = data_builder.create_user(_id=email, api_key=email)
