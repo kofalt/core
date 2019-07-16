@@ -94,23 +94,30 @@ class BulkHandler(base.RequestHandler):
 
     def _move_sessions(self):
 
-        # We move sessions to new project for now. Add dest of session later
+        # We move sessions to new project for now. 
+        #Add a dest of session later
         query = {'project': {'$in': self.payload['sources']}}
-        source_subjects = config.db.subjects.find_many(query, user=None, projection={'_id': 1, 'code': 1})
+        source_subjects = config.db.subjects.find_many(
+            query, user=None, projection={'_id': 1, 'code': 1})
         source_subject_ids = set()
         source_subject_codes = set()
         for source in source_subjects:
             source_subject_ids.add(source['_id'])
             source_subject_codes.add(source['code'])
 
+        # Conflicts are sessions that exist in the destination already
         conflicts = config.db.subjects.find_many({
             'code': {'$in': source_subject_codes},
             'project': {'$in': self.payload['destinations']}
         })
 
+        # first we find conflicts as those are needed for dry run regardless.
+        # Then we return that on dry run.
         final_conflicts = []
+        conflict_subjects = []
         for conflict in conflicts:
             final_conflicts.append({'_id': conflict['_id'], 'code': conflict['code']})
+            conflict_subjects.append(conflict['_id'])
 
         if self.payload.get('conflict_mode', True) or self.payload['conflict_mode'] is None or self.payload['conflict_mode'] == '':
             print 'we have these conflicts'
@@ -120,21 +127,54 @@ class BulkHandler(base.RequestHandler):
             return final_conflicts
 
 
-
-
-
-
-
-
-
-
-        # first we find conflicts as those are needed for dry run regardless.
-        # Then we return that on dry run.
-
         # Next we need to find the two sets that are not conflicts
-            # move: conflicts have more than one session in the source project
-            # copy: subjects that have just the one session in the conflict  list
+            # copy: conflicts have more than one session in the source project
+            # move: subjects that have just the one session in the conflict  list
 
+        # We just leave conflicts alone.
+        search_subjects = source_subject_ids - set(conflict_subjects)
+
+        sessions = config.db.sessions.aggregate([
+            {'subject': {'$in': search_subjects}},
+            {'$group': 'subject', 'count': {'$sum': 1}},
+            {'$match': {'count': {'$gt': 1}}},
+            {'$project': {'_id': 1}}
+        ])
+        copy_sessions = []
+        for session in sessions:
+            copy_sessions.append(session['session'])
+
+        sessions = config.db.sessions.aggregate([
+            {'subject': {'$in': search_subjects}},
+            {'$group': 'subject', 'count': {'$sum': 1}},
+            {'$match': {'count': {'$eq': 1}}},
+            {'$project': {'_id': 1}}
+        ])
+        move_sessions = []
+        for session in sessions:
+            move_sessions.append(session['session'])
+
+        print 'we have these sessions to copy'
+        print copy_sessions
+        print 'we have these sessions to move'
+        print move_sessions
+
+
+        if self.payload['conflict_mode'] == 'move':
+            sessions = config.db.sessions.find_many(
+                {'subject': {'$in': conflict_subjects}},
+                {'_id': 1})
+        for session in sessions:
+            move_sessions.append(session['_id'])
+
+        print 'move sessions after conflit'
+        print move_sessions
+
+
+        # TODO: This is where I left off.  Need to update the project in the sessions, perhaps the permissions too
+        config.db.sessions.update_many(
+                {'_id': {'$in': move_sessions}}, 
+                {'project': self.payload['destinations'][0], }
 
 #        Requires a 2 phase approach.
 #First is the dry run the second is with the action set to do it
@@ -149,6 +189,3 @@ class BulkHandler(base.RequestHandler):
 #	b. On the full run either move or skip
 #		i. move the session to the subject in the destination but leave the subject in the source
 #		ii. Or skip the move entirely.
-
-
-
