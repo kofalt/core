@@ -8,10 +8,11 @@ import urllib3
 import fs.errors
 import flywheel_common.errors
 
-from .. import files, config, io, access_log
+from .. import io, access_log
 from ..web.request import AccessType
 from ..web.encoder import custom_json_serializer
 from ..dao.containerstorage import cs_factory
+from ..site.providers import get_provider
 
 METADATA_BLACKLIST = [
     '_id', 'parents', 'collections', 'group', 'project', 'subject', 'session',
@@ -145,21 +146,23 @@ class DownloadFileSource(object):
         # TODO: For now, this is an optimization - directly accessing the signed url
         # can speed up transfer. Shouldn't open for reading basically do this?
         signed_url = None
-        if config.primary_storage.is_signed_url():
+
+        final_storage = get_provider(target.provider_id)
+        if final_storage.storage_plugin.is_signed_url():
             try:
-                signed_url = config.primary_storage.get_signed_url(target.file_id, target.src_path)
-            except fs.errors.ResourceNotFound:
-                pass
-            except flywheel_common.errors.ResourceNotFound:
-                pass
+                signed_url = final_storage.storage_plugin.get_signed_url(target.file_id, target.src_path)
+            except fs.errors.ResourceNotFound as err:
+                # we might get a 404 getting the signed url, contract states we need to return OSError
+                raise OSError(str(err))
+            except flywheel_common.errors.ResourceNotFound as err:
+                raise OSError(str(err))
         try:
             if signed_url:
                 result = io.URLFileWrapper(signed_url, self._http)
                 result.open()
                 return result
             else:
-                file_system = files.get_fs_by_file_path(target.file_id, target.src_path)
-                return file_system.open(target.file_id, target.src_path, 'rb')
+                return final_storage.storage_plugin.open(target.file_id, target.src_path, 'rb')
         except (fs.errors.ResourceNotFound,
                 fs.errors.OperationFailed,
                 IOError) as err:

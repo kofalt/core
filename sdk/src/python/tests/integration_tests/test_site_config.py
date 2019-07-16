@@ -55,9 +55,11 @@ class SiteConfigTestCases(SdkTestCase):
         settings = self.fw.get_site_settings()
         self.assertIsNotNone(settings)
 
-        gears = settings.get('center_gears')
-        if gears is None:
-            gears = []
+        # We need to set the gears back to only site-gear but we cant since its not fully valid
+        # gears = settings.get('center_gears')
+        #if gears is None:
+        #    gears = []
+        gears = []
 
         self.fw.modify_site_settings({
             'center_gears': [gear.name]

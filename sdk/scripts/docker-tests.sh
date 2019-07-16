@@ -102,6 +102,7 @@ main() {
         --network ${TEST_PREFIX} \
         --volume $(pwd):/var/scitran/code/sdk \
         --env SCITRAN_SITE_API_URL=http://${TEST_PREFIX}-service:8080/api \
+        --env SCITRAN_PERSISTENT_DATA_PATH=/var/scitran/data \
         --env SCITRAN_PERSISTENT_DB_URI=mongodb://${TEST_PREFIX}-service:27017/scitran \
         --env SCITRAN_CORE_DRONE_SECRET=secret \
         --env FLYWHEEL_SDK_SKIP_VERSION_CHECK=1 \

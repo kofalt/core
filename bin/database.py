@@ -15,6 +15,7 @@ import sys
 import time
 
 from cachetools import cached, LRUCache
+from flywheel_common.storage import parse_storage_url
 
 from api import config
 from api import util
@@ -29,7 +30,7 @@ from fixes import get_available_fixes, has_unappliable_fixes, apply_available_fi
 from checks import get_available_checks, apply_available_checks, get_check_function
 from process_cursor import process_cursor
 
-CURRENT_DATABASE_VERSION = 65 # An int that is bumped when a new schema change is made
+CURRENT_DATABASE_VERSION = 66 # An int that is bumped when a new schema change is made
 
 
 def get_db_version():
@@ -2409,6 +2410,118 @@ def upgrade_to_65():
 ###
 ### END RESERVED UPGRADE SECTION
 ###
+
+def upgrade_to_66():
+    '''
+    All project templates should be list of templates
+    '''
+
+    #config.db.create_collection('providers')
+
+    compute = config.db.providers.insert_one({
+        "origin": {"type": "system", "id": "system"},
+        "created": datetime.datetime.now(),
+        "config": {},
+        "modified": datetime.datetime.now(),
+        "label":"Static Compute",
+        "provider_class":"compute",
+        "provider_type":"static"
+    })
+
+    scheme, bucket_name, path, params = parse_storage_url(config.persistent_fs_url)
+
+    if scheme == 's3':
+        config_ = {
+            'bucket': bucket_name,
+            'path': path,
+            'region': params.get('region', None)
+        }
+
+        creds = {
+            'aws_access_key_id': os.environ['AWS_ACCESS_KEY_ID'], # we want a key error if these are not set
+            'aws_secret_access_key': os.environ['AWS_SECRET_ACCESS_KEY']
+        }
+        type_ = 'aws'
+    elif scheme == 'gc':
+        # GC uses gcs_key path
+        with open(params['private_key'], 'rU') as f:
+            creds = json.load(f)
+        config_ = {"path": config.persistent_fs_url}
+        type_ = 'gc'
+
+    else:
+        # Local is a special case that uses no creds
+        config_ = {"path": config.persistent_fs_url}
+        creds = None
+        type_ = 'local'
+
+    storage = config.db.providers.insert_one({
+        "origin": {"type": "system", "id": "system"},
+        "created": datetime.datetime.now(),
+        "config": config_,
+        "creds": creds,
+        "modified": datetime.datetime.now(),
+        "label":"Primary Storage",
+        "provider_class":"storage",
+        "provider_type": type_
+    })
+
+    config.db.singletons.update({'_id':'site'},
+        {
+            "$addToSet": {"center_gears": "site-gear"},
+            "$set": {
+                "providers": {
+                    "storage": storage.inserted_id,
+                    "compute": compute.inserted_id
+                },
+                "modified": datetime.datetime.now()
+            },
+            "$setOnInsert": {
+                'created': datetime.datetime.now()
+            }
+        },
+        True)
+
+    upgrade_provider_id(storage.inserted_id)
+
+def upgrade_provider_id(storage_id):
+
+    #Check if any file does not have a vaild _id
+    file_collections = ['acquisitions', 'analyses', 'collections', 'projects', 'sessions', 'subjects']
+    for collection in file_collections:
+        if config.db[collection].find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+            raise RuntimeError('Not all {} files have a file._id'.format(collection))
+
+    input_collections = ['analyses']
+    for collection in input_collections:
+        if config.db[collection].find_one({'inputs': {'$elemMatch': {"_id": {'$exists': False}}}}):
+            raise RuntimeError('Not all {} inputs have aa input._id'.format(collection))
+
+    # if config.db.gears.find_one({'exchange': {'$elemMatch': {"rootfs-id": {'$exists': False}}}}):
+    #    raise RuntimeError('Not all gear exchange files have a rootfs-id')
+
+    # update all files to have the provider id
+    storage_id = bson.ObjectId(storage_id)
+    for collection in set(file_collections) - set(input_collections):
+        results = config.db[collection].find({'files.0': {'$exists': True}})
+        for result in results:
+            for file_ in result.get('files', []):
+                file_['provider_id'] = storage_id
+            config.db[collection].update({'_id': result['_id']}, result)
+
+    for collection in input_collections:
+        results = config.db[collection].find({'files.0': {'$exists': True}})
+        for result in results:
+            for file_ in result.get('files', []):
+                file_['provider_id'] = storage_id
+            for input_ in result.get('inputs', []):
+                input_['provider_id'] = storage_id
+            config.db[collection].update({'_id': result['_id']}, result)
+
+    results = config.db.gears.find({'exchange.rootfs-id': {'$exists': True}})
+    for result in results:
+        result['exchange']['rootfs-provider-id'] = storage_id
+        config.db.gears.update({'_id': result['_id']}, result)
 
 
 def upgrade_schema(force_from = None):

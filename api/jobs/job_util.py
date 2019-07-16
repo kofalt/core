@@ -2,12 +2,12 @@
 Job related utilities.
 """
 import copy
+from flywheel_common import errors
 
 from ..config import log
 from ..auth import has_access
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
-from ..web import errors
 from ..web.request import AccessType
 from ..site.providers import validate_provider_class
 
@@ -166,8 +166,11 @@ def validate_job_compute_provider(job_map, request_handler, validate_provider=Fa
     compute_provider_id = job_map.get('compute_provider_id')
     if compute_provider_id:
         if not request_handler.user_is_admin:
-            raise errors.APIPermissionException('Only admin can override job provider!')
+            raise errors.PermissionError('Only admin can override job provider!')
         if validate_provider:
-            validate_provider_class(compute_provider_id, 'compute')
+            try:
+                validate_provider_class(compute_provider_id, 'compute')
+            except errors.ResourceNotFound:
+                raise errors.ValidationError('Provider id is not a regsitered provider on this system')
 
     return compute_provider_id

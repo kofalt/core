@@ -470,7 +470,10 @@ class ContainerStorage(object):
 
             for item in permissions + notes:
                 uid = item.get('user', item['_id'])
-                user = users[uid]
+                user = users.get(uid)
+                if not user:
+                    log.critical('Permission or note is set on {} for an invalid user {}.'.format(container['label'], item['_id']))
+                    continue
                 item['avatar'] = user.get('avatar')
                 item['firstname'] = user.get('firstname', '')
                 item['lastname'] = user.get('lastname', '')
@@ -569,8 +572,15 @@ class ContainerStorage(object):
         if sessions and sessions[0] is not None and 'subject' in sessions[0]:
             query = {'_id': {'$in': list(set(sess['subject'] for sess in sessions))}}
             subjects = {subj['_id']: subj for subj in storage.get_all_el(query, None, projection)}
+
             for session in sessions:
-                subject = subjects[session['subject']]
+                # There is a case were no subjects exist. Should this be allowed?
+                # We should validate the update/creation of subjects logic
+                try:
+                    subject = subjects[session['subject']]
+                except KeyError:
+                    log.critical('session has no subjects {}'.format(session.get('_id')))
+                    subject = {}
                 if session.get('age'):
                     subject = copy.deepcopy(subject)
                     subject['age'] = session['age']

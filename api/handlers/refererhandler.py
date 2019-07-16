@@ -23,7 +23,7 @@ from ..web import base
 from ..web import errors
 from ..web.request import log_access, AccessType
 from .listhandler import FileListHandler
-
+from ..site.providers import get_provider
 
 log = config.log
 
@@ -80,7 +80,9 @@ class AnalysesHandler(RefererHandler):
             self.input_validator(analysis, 'POST')
         except ValueError:
             # Legacy analysis - accept direct file uploads (inputs and outputs)
-            analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin)
+            # we choose the provider based on the session which will be the same as the analysis currently
+            analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin, 
+                    container_type=singularize(cont_name), id_=cid)
 
         # Check and raise if non-admin user attempts to override compute provider
         job_util.validate_job_compute_provider(analysis.get('job', {}), self)
@@ -365,7 +367,8 @@ class AnalysesHandler(RefererHandler):
                 raise errors.APINotFoundException("{} doesn't exist".format(filename))
             else:
                 fileinfo = fileinfo[0]
-                file_path, file_system = files.get_valid_file(fileinfo)
+                file_path = files.get_file_path(fileinfo)
+                file_system = get_provider(fileinfo['provider_id']).storage_plugin
                 filename = fileinfo['name']
 
                 # Request for info about zipfile
@@ -403,9 +406,9 @@ class AnalysesHandler(RefererHandler):
                     # IMPORTANT: If you modify the below code reflect the code changes in
                     # listhandler.py:FileListHandler's download method
                     signed_url = None
-                    if config.primary_storage.is_signed_url() and config.primary_storage.can_redirect_request(self.request.headers):
+                    if file_system.is_signed_url() and file_system.can_redirect_request(self.request.headers):
                         try:
-                            signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'), file_path,
+                            signed_url = file_system.get_signed_url(fileinfo.get('_id'), file_path,
                                                       filename=filename,
                                                       attachment=(not self.is_true('view')),
                                                       response_type=str(

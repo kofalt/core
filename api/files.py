@@ -7,27 +7,23 @@ import hashlib
 import uuid
 import datetime
 
-import fs.move
-import fs.tempfs
-import fs.path
-import fs.errors
-
 from flywheel_common import storage
+from .site.storage_provider_service import StorageProviderService
 
-from . import config, util
+from . import util
 
 DEFAULT_HASH_ALG = 'sha384'
 
 class FileProcessor(object):
-    def __init__(self, persistent_fs):
+    def __init__(self, storage_provider):
         """
         File processing service layer object. Handles all file IO
 
         :param self: self reference
-        :Storage persistent_fs: storage layer supported by flywheel storage class
+        :Provider storage_provider: Provider of type storage with a flywheel storeage_plugin
 
         """
-        self._persistent_fs = persistent_fs
+        self._storage = storage_provider
 
     def create_new_file(self, filename, **kwargs):
         """ Create a new block storage file with a unique uuid opened for writing
@@ -44,8 +40,9 @@ class FileProcessor(object):
 
         path = util.path_from_uuid(new_uuid)
 
-        fileobj = self._persistent_fs.open(new_uuid, path, 'wb', **kwargs)
+        fileobj = self._storage.storage_plugin.open(new_uuid, path, 'wb', **kwargs)
         fileobj.filename = filename
+        fileobj.provider_id = self._storage.provider_id
 
         return path, FileHasherWriter(fileobj)
 
@@ -82,11 +79,15 @@ class FileProcessor(object):
 
         # We only use the tempdir_name for Token and Placer strategy
         if tempdir_name:
-            if not config.local_fs.get_fs().exists(tempdir_name):
-                config.local_fs.get_fs().makedirs(tempdir_name)
-            field_storage_class = get_single_file_field_storage(config.local_fs, use_filepath=use_filepath, tempdir_name=tempdir_name)
+            storage_service = StorageProviderService()
+            temp_storage = storage_service.get_local_storage()
+            # we remove the provider id since we are not going to be storing these files in the db
+            # We also have to manually remove the files when we are done.
+            if not temp_storage.storage_plugin.get_fs().exists(tempdir_name):
+                temp_storage.storage_plugin.get_fs().makedirs(tempdir_name)
+            field_storage_class = get_single_file_field_storage(temp_storage, use_filepath=use_filepath, tempdir_name=tempdir_name)
         else:
-            field_storage_class = get_single_file_field_storage(self._persistent_fs, use_filepath=use_filepath)
+            field_storage_class = get_single_file_field_storage(self._storage, use_filepath=use_filepath)
 
         form = field_storage_class(
             fp=request.body_file, environ=env, keep_blank_values=True
@@ -97,7 +98,7 @@ class FileProcessor(object):
         return form
 
 
-    def create_file_fields(self, filename, filepath, size, hash_, uuid_=None, mimetype=None, modified=None):
+    def create_file_fields(self, provider_id, filename, filepath, size, hash_, uuid_=None, mimetype=None, modified=None):
         """
         Creates a standard object with the required fields for processing via placers.
         This will be replaced with a standardized file model in the future
@@ -108,6 +109,7 @@ class FileProcessor(object):
             mimetype = util.guess_mimetype(filename)
 
         return util.obj_from_map({
+            'provider_id': provider_id,
             'uuid': uuid_,
             'filename': filename,
             'path': filepath,
@@ -117,11 +119,6 @@ class FileProcessor(object):
             'mimetype': mimetype,
             'modified': modified
         })
-
-
-    @property
-    def persistent_fs(self):
-        return self._persistent_fs
 
     def __exit__(self, exc, value, tb):
         self.close()
@@ -156,6 +153,12 @@ class FileHasherWriter(object):
         self.size = 0
 
     @property
+    def provider_id(self):
+        """ Returns the provider id for the file"""
+        # Provider Id could be empty for temp files
+        return self.fileobj.provider_id
+
+    @property
     def hash(self):
         """Return the formatted hash of the file"""
         return storage.format_hash(self.hash_alg, self.hasher.hexdigest())
@@ -188,7 +191,7 @@ class FileHasherWriter(object):
     def close(self):
         self.fileobj.close()
 
-def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=False):
+def get_single_file_field_storage(storage_provider, use_filepath=False, tempdir_name=False):
     # pylint: disable=attribute-defined-outside-init
 
     # We dynamically create this class because we
@@ -240,7 +243,8 @@ def get_single_file_field_storage(file_system, use_filepath=False, tempdir_name=
             if not isinstance(self.filepath, unicode):
                 self.filepath = six.u(self.filepath)
 
-            self.open_file = file_system.open(self._uuid, self.filepath, 'wb')
+            self.open_file = storage_provider.storage_plugin.open(self._uuid, self.filepath, 'wb')
+            self.provider_id = storage_provider.provider_id
 
             return self.open_file
 
@@ -309,24 +313,6 @@ def guess_type_from_filename(filename):
         filetype = None
     return filetype
 
-
-def get_valid_file(file_info):
-    """
-    Get the file path and the filesystem where the file exists.
-
-    First try to serve the file from the current filesystem and
-    if the file is not found (likely has not migrated yet) and the instance
-    still supports the legacy storage, attempt to serve from there.
-
-    :param file_info: dict, contains the _id and the hash of the file
-    :return: (<file's path>, <filesystem>)
-    """
-
-    file_id = file_info.get('_id', '')
-    file_path = get_file_path(file_info)
-    return file_path, get_fs_by_file_path(file_id, file_path)
-
-
 def get_file_path(file_info):
     """
     Get the file path. If the file has id then returns path_from_uuid otherwise path_from_hash.
@@ -347,35 +333,3 @@ def get_file_path(file_info):
 
     file_path = file_uuid_path or file_hash_path
     return file_path
-
-
-def get_fs_by_file_path(file_id, file_path):
-    """
-    @deprecated
-    This method is only intended to support the pyfs storage class.
-    Once new storage classes are implemented this should be moved into the specific file attributes
-
-    Get the filesystem where the file exists by a valid file path.
-    Attempt to serve file from current storage in config.
-
-    If file is not found (likely has not migrated yet) and the instance
-    still supports the legacy storage, attempt to serve from there.
-    """
-
-    # When we add more native storage types we will have to store the file system type in the file object and
-    # not rely on this method to determine where its physically located
-    if config.primary_storage.get_file_info(file_id, file_path):
-        return config.primary_storage
-
-    elif config.support_legacy_fs and config.local_fs.get_file_info(file_id, file_path):
-        return config.local_fs
-
-    ### Temp fix for 3-way split storages, see api.config.local_fs2 for details
-    elif config.support_legacy_fs and config.local_fs2 and config.local_fs2.get_file_info(file_id, file_path):
-        return config.local_fs2
-    ###
-
-    else:
-        raise fs.errors.ResourceNotFound('File not found: %s' % file_path)
-
-

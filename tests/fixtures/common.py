@@ -9,9 +9,143 @@ import attrdict
 import bson
 import pytest
 
+from api.config import persistent_fs_url
+from api.config import local_fs_url
+from flywheel_common.storage import parse_storage_url
+
 SCITRAN_CORE_DRONE_SECRET = os.environ['SCITRAN_CORE_DRONE_SECRET']
+prometheus_multiproc_dir = os.environ['prometheus_multiproc_dir']
 SCITRAN_ADMIN_API_KEY = None
 SCITRAN_USER_API_KEY = binascii.hexlify(os.urandom(10))
+
+
+@pytest.fixture(scope='function')
+def site_gear(session, api_db, with_site_settings):
+
+    gear = api_db.gears.insert_one({
+        'exchange': {
+            'git-commit': 'aex',
+            'rootfs-hash': 'sha384:oy',
+            'rootfs-url': 'https://test.test'
+        },
+        'gear': {
+            'author': 'test',
+            'config': {},
+            'description': 'test',
+            'inputs': {
+                'text': {
+                    'base': 'file',
+                    'name': {'pattern': '^.*.txt$'},
+                    'size': {'maximum': 100000}
+                }
+            },
+            'name': 'site-gear',
+            'label': 'Site Gear Test',
+            'license': 'BSD-2-Clause',
+            'source': 'https://test.test',
+            'url': 'https://test.test',
+            'version': '0.0.1',
+        }
+    })
+
+    yield str(gear.inserted_id)
+
+    api_db.gears.remove({'_id': gear.inserted_id})
+
+@pytest.fixture(scope='session')
+def second_storage_provider(session, api_db, with_site_settings):
+
+    new_dir = local_fs_url + '/second/'
+    if not os.path.exists(new_dir):
+        os.mkdir(new_dir)
+    provider = api_db.providers.insert_one({
+        "origin": {"type":"system", "id":"system"},
+        "created": datetime.datetime.utcnow(),
+        "config":{"path": new_dir},
+        "modified": datetime.datetime.utcnow(),
+        "label":"Local Storage Test",
+        "provider_class":"storage",
+        "provider_type":"local",
+        "creds": {}
+    })
+
+    yield str(provider.inserted_id)
+
+    api_db.providers.remove({'_id': provider.inserted_id})
+
+@pytest.fixture(scope='session')
+def with_site_settings(session, api_db):
+    """Create Default Site Settings which include a default storage provider"""
+
+    # Even with sesion level scope this fixture runs multiple times.
+    # If we get that corrected we can remove this check and test will run a lot faster
+    if not api_db.get_collection('providers'):
+        api_db.create_collection('providers')
+
+    provider = api_db.providers.find_one({'label':'Primary Storage'})
+
+    if not provider:
+
+        scheme, bucket_name, path, params = parse_storage_url(persistent_fs_url)
+        if scheme == 's3':
+            config = {
+                'bucket': bucket_name,
+                'path': path,
+                'region': params.get('region', None),
+                'zone': None
+            }
+            creds = {
+                'aws_access_key_id': os.environ.get('AWS_ACCESS_KEY_ID'),
+                'aws_secret_access_key': os.environ.get('AWS_SECRET_ACCESS_KEY')
+            }
+            type_ = 'aws'
+        else:
+            # Gcp is a special case that uses local via pyfs
+            config = {"path": persistent_fs_url}
+            creds = None
+            type_ = 'local'
+
+        provider = api_db.providers.insert_one({
+            "_id": bson.ObjectId("deadbeefdeadbeefdeadbeef"),
+            "origin": {"type": "system", "id": "system"},
+            "created": datetime.datetime.utcnow(),
+            "config": config,
+            "creds": creds,
+            "modified": datetime.datetime.utcnow(),
+            "label":"Primary Storage",
+            "provider_class":"storage",
+            "provider_type": type_
+        })
+
+        storage_provider_id = provider.inserted_id
+    else:
+        storage_provider_id = provider['_id']
+
+    provider = api_db.providers.find_one({'label': 'Static Compute'})
+    if not provider:
+        provider = api_db.providers.insert_one({
+            "origin": {"type":"system", "id":"system"},
+            "created": datetime.datetime.utcnow(),
+            "config": {},
+            "creds": {},
+            "modified": datetime.datetime.utcnow(),
+            "label": "Static Compute",
+            "provider_class": "compute",
+            "provider_type": "static"
+        })
+        compute_provider_id = provider.inserted_id
+    else:
+        compute_provider_id = provider['_id']
+
+    api_db.singletons.update({'_id':'site'},
+        {
+            "_id": "site",
+            "center_gears": ['site-gear'],
+            "created": datetime.datetime.utcnow(),
+            "modified": datetime.datetime.utcnow(),
+            "providers": {"storage": storage_provider_id, "compute": compute_provider_id}
+        },
+        True)
 
 
 @pytest.fixture(scope='session')
@@ -63,7 +197,7 @@ def randstr(request):
 
 
 @pytest.yield_fixture(scope='function')
-def data_builder(as_root, api_db, randstr):
+def data_builder(as_root, api_db, randstr, with_site_settings):
     """Yield DataBuilder instance (per test)"""
     # NOTE currently there's only a single data_builder for simplicity which
     # uses as_root - every resource is created/owned by the admin user
@@ -111,15 +245,18 @@ def default_payload():
         'compute_provider': {
             'provider_class': 'compute',
             'provider_type': 'static',
+            'label': 'test compute',
             'config': {},
+            'creds' : {}
         },
         'storage_provider': {
             'provider_class': 'storage',
-            'provider_type': 'static',
-            'config': {},
+            'provider_type': 'local',
+            'label': 'test storage',
+            'config': {'path': '/var'},
+            'creds': {}
         },
     })
-
 
 @pytest.fixture(scope='session')
 def merge_dict():
@@ -151,6 +288,17 @@ def bootstrap_users(session, api_db):
     api_db.users.delete_many({})
     api_db.singletons.delete_one({'_id': 'bootstrap'})
 
+@pytest.fixture(scope='session')
+def bootstrap_device(session, api_db, as_admin):
+    """Create api key and device"""
+    _session = session()
+    r = as_admin.post('/devices', json={'label': 'test device', 'type': 'reaper'})
+    assert r.ok
+    device = r.json()
+
+    yield device
+
+    r = as_admin.delete('/devices', json={'label': 'test device', 'type': 'reaper'})
 
 @pytest.fixture(scope='session')
 def as_drone(session):
@@ -185,6 +333,11 @@ def as_user(session, bootstrap_users):
     _session.headers.update({'Authorization': 'scitran-user {}'.format(SCITRAN_USER_API_KEY)})
     return _session
 
+@pytest.fixture(scope='session')
+def as_device(session, bootstrap_device):
+    _session = session()
+    _session.headers.update({'Authorization': 'scitran-user {}'.format(bootstrap_device['key'])})
+    return _session
 
 @pytest.fixture(scope='function')
 def as_public(session):
@@ -222,6 +375,7 @@ class DataBuilder(object):
 
         # merge any kwargs on top of the default payload
         payload = copy.deepcopy(_default_payload[resource])
+
         _merge_dict(payload, kwargs)
 
         # add missing required unique fields using randstr
@@ -297,7 +451,7 @@ class DataBuilder(object):
             self.api_db.apikeys.insert_one({
                 '_id': user_api_key,
                 'created': datetime.datetime.utcnow(),
-                'last_seen': None,
+                'last_used': None,
                 'type': 'user',
                 'origin': {'type': 'user', 'id': _id}
             })

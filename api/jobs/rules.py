@@ -232,6 +232,9 @@ def create_potential_jobs(db, container, container_type, file_, rule_failure_cal
                 if 'compute_provider_id' in rule:
                     job.compute_provider_id = rule['compute_provider_id']
 
+                if 'compute_provider_id' in rule:
+                    job.compute_provider_id = rule['compute_provider_id']
+
                 potential_jobs.append({
                     'job': job,
                     'rule': rule.to_dict()

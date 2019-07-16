@@ -16,7 +16,7 @@ class MockRequest:
 # NOTE these tests assume they are not running in parallel w/ other tests
 # by relying on the last entry in the logs
 
-def test_access_log_succeeds(data_builder, as_admin, log_db):
+def test_access_log_succeeds(data_builder, as_admin, log_db, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
@@ -505,7 +505,7 @@ def test_bulk_access(data_builder, as_admin, log_db):
     assert log2['context']['file']['name'] == 'example.csv'
 
 def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
-                    file_form, api_db):
+                    file_form, api_db, with_site_settings):
 
     from pprint import pprint
 
@@ -518,6 +518,11 @@ def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
     gear = data_builder.create_gear(gear=gear_doc)
 
     project = data_builder.create_project()
+    # Projects must have a provider for gear uploads to work 
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
+
     session = data_builder.create_session(project=project)
     subject = str(api_db.subjects.find_one({'project': bson.ObjectId(project)})['_id'])
     acquisition = data_builder.create_acquisition(session=session)

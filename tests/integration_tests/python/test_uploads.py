@@ -7,7 +7,6 @@ import json
 import dateutil.parser
 import pytest
 
-
 def get_full_container(user, url, index):
     '''
     Helper function to get the full container when finding it in a list
@@ -58,20 +57,28 @@ def upload_file_form(file_form, merge_dict, randstr):
     return create_form
 
 
-def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_admin, as_root, as_user):
+def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_admin, with_site_settings, as_root, as_user, as_device, api_db):
+
     group_1 = data_builder.create_group()
     prefix = randstr()
     project_label_1 = prefix + '-project-label-1'
-    session_uid = prefix + '-session-uid'
+    session_uid = unicode(bson.ObjectId())
+
     project_1 = data_builder.create_project(label=project_label_1, group=group_1)
 
+    # Due to the order of tests the upgrade to 65 may have changed the assumed site storage provider
+    site_provider = api_db.singletons.find_one({'_id': 'site'})['providers']['storage']
+
     # reaper-upload files to group_1/project_label_1 using session_uid
-    r = as_admin.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_1},
         project={'label': project_label_1},
         session={'uid': session_uid},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
     # reaper-upload files to group_1/project_label_1 using session_uid without any files
     form = upload_file_form(
@@ -82,143 +89,155 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
                     'files': []
                 }}
     )
-    r = as_admin.post('/upload/reaper', files={"metadata": form.get("metadata")})
+    r = as_device.post('/upload/reaper', files={"metadata": form.get("metadata")})
     assert r.status_code == 400
 
     # get session created by the upload
-    project_1 = as_admin.get('/groups/' + group_1 + '/projects').json()[0]['_id']
+    project_1 = as_device.get('/groups/' + group_1 + '/projects').json()[0]['_id']
 
-    sessions = as_admin.get('/projects/' + project_1 + '/sessions').json()
+    sessions = as_device.get('/projects/' + project_1 + '/sessions').json()
     assert len(sessions) == 1
-    created_session = as_admin.get('/sessions/' + sessions[0]['_id']).json()
+    created_session = as_device.get('/sessions/' + sessions[0]['_id']).json()
     assert created_session['parents']['group'] == group_1
     assert created_session['parents']['project'] == project_1
     session = created_session['_id']
 
-    acquisitions = as_admin.get('/sessions/' + session + '/acquisitions').json()
+    acquisitions = as_device.get('/sessions/' + session + '/acquisitions').json()
     assert len(acquisitions) == 1
     created_acq = acquisitions[0]
     assert created_acq['parents']['group'] == group_1
     assert created_acq['parents']['project'] == project_1
     assert created_acq['parents']['session'] == session
 
-    assert len(as_admin.get('/sessions/' + session).json()['files']) == 1
+    assert len(as_device.get('/sessions/' + session).json()['files']) == 1
 
     # move session to group_2/project_2
     group_2 = data_builder.create_group()
     project_2 = data_builder.create_project(group=group_2, label=prefix + '-project-label-2')
-    as_admin.put('/sessions/' + session, json={'project': project_2})
-    assert len(as_admin.get('/projects/' + project_1 + '/sessions').json()) == 0
-    assert len(as_admin.get('/projects/' + project_2 + '/sessions').json()) == 1
+    as_device.put('/sessions/' + session, json={'project': project_2})
+    assert len(as_device.get('/projects/' + project_1 + '/sessions').json()) == 0
+    assert len(as_device.get('/projects/' + project_2 + '/sessions').json()) == 1
 
     # reaper-upload files using existing session_uid and incorrect group/project
-    r = as_admin.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_1},
         project={'label': project_label_1},
         session={'uid': session_uid},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
     # verify no new sessions were created and that group/project was ignored
     # NOTE uploaded project file is NOT stored in this scenario!
-    assert len(as_admin.get('/projects/' + project_1 + '/sessions').json()) == 0
-    assert len(as_admin.get('/projects/' + project_2 + '/sessions').json()) == 1
+    assert len(as_device.get('/projects/' + project_1 + '/sessions').json()) == 0
+    assert len(as_device.get('/projects/' + project_2 + '/sessions').json()) == 1
 
     # verify that acquisition creation/file uploads worked
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions').json()) == 2
-    assert len(as_admin.get('/sessions/' + session).json()['files']) == 2
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 2
+    assert len(as_device.get('/sessions/' + session).json()['files']) == 2
 
     # No group or project given
-    r = as_root.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': ''},
         project={'label': ''},
         session={'uid': session_uid+'1'},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
     # get session created by the upload
-    r = as_root.get('/groups/unknown/projects')
+    r = as_device.get('/groups/unknown/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
     project = project_list[0]
     assert 'Unsorted' == project_list[0]['label']
     unknown_group_unsorted_project = project['_id']
-    assert len(as_root.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()) == 1
+    assert len(as_device.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()) == 1
 
     # No group given
-    r = as_root.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': ''},
         project={'label': project_label_1},
         session={'uid': session_uid+'2'},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
     # get session created by the upload
-    r = as_root.get('/groups/unknown/projects')
+    r = as_device.get('/groups/unknown/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
-    assert len(as_root.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()) == 2
+    assert len(as_device.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()) == 2
 
     # Group given but no project
     group_3 = data_builder.create_group()
-    r = as_root.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_3},
         project={'label': ''},
         session={'uid': session_uid+'3'},
     ))
     assert r.ok
     # get session created by the upload
-    r = as_root.get('/groups/' + group_3 + '/projects')
+    r = as_device.get('/groups/' + group_3 + '/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
     project = project_list[0]
     assert 'Unsorted' == project_list[0]['label']
     unknown_project = project['_id']
-    r = as_root.get('/projects/' + unknown_project + '/sessions')
+    r = as_device.get('/projects/' + unknown_project + '/sessions')
     assert r.ok
     assert len(r.json()) == 1
     assert r.json()[0].get('label') == 'gr-{}_proj-_ses-{}'.format(group_3, session_uid + '3')
 
     # Group given but project is missed typed
-    r = as_root.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_3},
         project={'label': 'Miss-typed project'},
         session={'uid': session_uid+'4'},
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
     # get session created by the upload
-    r = as_root.get('/groups/' + group_3 + '/projects')
+    r = as_device.get('/groups/' + group_3 + '/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
     project = project_list[0]
     assert 'Unsorted' == project_list[0]['label']
     unknown_project = project['_id']
-    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 2
+    assert len(as_device.get('/projects/' + unknown_project + '/sessions').json()) == 2
 
     # Group given but project is missed typed
-    r = as_root.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_3},
         project={'label': 'Miss-typed project'},
         session={'uid': session_uid+'4'},
     ))
     assert r.ok
     # get session created by the upload
-    r = as_root.get('/groups/' + group_3 + '/projects')
+    r = as_device.get('/groups/' + group_3 + '/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
     project = project_list[0]
     assert 'Unsorted' == project_list[0]['label']
     unknown_project = project['_id']
-    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 2
+    assert len(as_device.get('/projects/' + unknown_project + '/sessions').json()) == 2
 
     # Try uploading as user without permissions
     user_id = as_user.get('/users/self').json()['_id']
-    r = as_admin.post('/projects/' + unknown_project + '/permissions', json={'_id': user_id, 'access': 'ro'})
+    r = as_device.post('/projects/' + unknown_project + '/permissions', json={'_id': user_id, 'access': 'ro'})
     r = as_user.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_3},
         project={'label': 'Miss-typed project'},
@@ -227,7 +246,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     assert r.status_code == 403
 
     # Test reaper uploads for embedded subject metadata
-    r = as_admin.post('/upload/reaper', files=upload_file_form(
+    r = as_device.post('/upload/reaper', files=upload_file_form(
         group={'_id': group_1},
         project={'label': project_label_1},
         session={
@@ -239,12 +258,15 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
         }
     ))
     assert r.ok
+    files = r.json()
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
 
 
     # Test saving raw EM4 subject at session info
-    sessions = as_admin.get('/projects/' + project_1 + '/sessions').json()
+    sessions = as_device.get('/projects/' + project_1 + '/sessions').json()
     session_raw_subject_id = [s for s in sessions if s['uid'] == session_uid + '5'][0]['_id']
-    session_raw_subject = as_admin.get('/sessions/' + session_raw_subject_id).json()
+    session_raw_subject = as_device.get('/sessions/' + session_raw_subject_id).json()
     expected_raw_subject = {
         'lastname': 'Lastname'
     }
@@ -254,7 +276,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     group_4 = data_builder.create_group(label='Group Label')
     project_4 = data_builder.create_project(group=group_4, label='Project Label')
 
-    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.1', meta={
+    r = as_device.post('/upload/reaper', files=file_form('group.label.test.1', meta={
         'group': {'label': 'Group Label'},
         'project': {'label': 'Project Label'},
         'session': {'uid': 'group.label.test.1', 'label': 'Session Label'},
@@ -273,7 +295,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     # IF we have multiple similar matches then it should end up in the unknown group in the Unsorted project
     group_5 = data_builder.create_group(label='Group Labels')
     project_5 = data_builder.create_project(group=group_5, label='Project Label')
-    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.2', meta={
+    r = as_device.post('/upload/reaper', files=file_form('group.label.test.2', meta={
         'group': {'label': 'Group Label'},
         'project': {'label': ''},
         'session': {'uid': 'group.label.test.2', 'label': 'Session Label'},
@@ -286,7 +308,12 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     project = project_list[0]
     assert 'Unsorted' == project_list[0]['label']
     unknown_project = project['_id']
-    assert as_root.get('/projects/' + unknown_project + '/sessions').json()[0]['uid'] == 'group.label.test.2'
+    sessions = as_root.get('/projects/' + unknown_project + '/sessions').json()
+    found = False
+    for ses in sessions:
+        if ses['uid'] == 'group.label.test.2':
+            found = True
+    assert found == True
 
 
     r = as_admin.post('/resolve', json={'path': [group_5, 'Project Label', 'Session Label', 'Acquisition Label']})
@@ -294,7 +321,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     r = as_admin.post('/resolve', json={'path': [group_5, 'Project Label', 'Session Label', 'Acquisition Label']})
     assert not r.ok
 
-    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.3', meta={
+    r = as_device.post('/upload/reaper', files=file_form('group.label.test.3', meta={
         'group': {'label': 'Group Label'},
         'project': {'label': 'Project Label'},
         'session': {'uid': 'group.label.test.3', 'label': 'Session Label'},
@@ -308,7 +335,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     assert r.ok
 
     #Now this will get placed into the group 4 tree
-    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.4', meta={
+    r = as_device.post('/upload/reaper', files=file_form('group.label.test.4', meta={
         'group': {'label': 'Group Label'},
         'project': {'label': 'Project Label'},
         'session': {'uid': 'group.label.test.4', 'label': 'Session Label4'},
@@ -324,7 +351,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
 
 
     # And this group will be found and create the rest of the group_5 tree
-    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.5', meta={
+    r = as_device.post('/upload/reaper', files=file_form('group.label.test.5', meta={
         'group': {'label': 'Not even close to similar'},
         'project': {'label': 'Project Label'},
         'session': {'uid': 'group.label.test.5', 'label': 'Session Label 5'},
@@ -339,7 +366,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     assert acq_children[0]['name'] == 'group.label.test.5'
 
     # Finally confirm it still works with similar names for the group 5 tree
-    r = as_admin.post('/upload/reaper', files=file_form('group.label.test.6', meta={
+    r = as_device.post('/upload/reaper', files=file_form('group.label.test.6', meta={
         'group': {'label': 'Not even close to simil'},
         'project': {'label': 'Project Label'},
         'session': {'uid': 'group.label.test.6', 'label': 'Session Label 6'},
@@ -361,7 +388,7 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     data_builder.delete_group(group_5, recursive=True)
     data_builder.delete_project(unknown_group_unsorted_project, recursive=True)
 
-def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as_admin):
+def test_label_upload_unknown_group_project(data_builder, file_form, as_device):
     """
     If the label endpoint receives an upload with a blank group and project, set to
     group: unknown and create or find "Unknown" project
@@ -369,7 +396,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
 
 
     # Upload without group id or project label
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': ''},
@@ -389,7 +416,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
 
 
     # get session created by the upload
-    r = as_root.get('/groups/unknown/projects')
+    r = as_device.get('/groups/unknown/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
@@ -397,12 +424,12 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert 'Unknown' == project_list[0]['label']
     unknown_project = project['_id']
 
-    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 1
-    session = as_root.get('/projects/' + unknown_project + '/sessions').json()[0]['_id']
-    assert len(as_root.get('/sessions/' + session + '/acquisitions').json()) == 1
+    assert len(as_device.get('/projects/' + unknown_project + '/sessions').json()) == 1
+    session = as_device.get('/projects/' + unknown_project + '/sessions').json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 1
 
     # Using the exhaustive flag get session created by the upload
-    r = as_admin.get('/groups/unknown/projects', params={'exhaustive': True})
+    r = as_device.get('/groups/unknown/projects', params={'exhaustive': True})
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
@@ -410,12 +437,12 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert 'Unknown' == project_list[0]['label']
     unknown_project = project['_id']
 
-    assert len(as_admin.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()) == 1
-    session = as_admin.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()[0]['_id']
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
+    assert len(as_device.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()) == 1
+    session = as_device.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # do another upload without group id or project label
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': ''},
@@ -434,17 +461,17 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert r.ok
 
     # Test that another session was added to Unkonwn project
-    assert len(as_root.get('/projects/' + unknown_project + '/sessions').json()) == 2
-    session2 = as_root.get('/projects/' + unknown_project + '/sessions').json()[1]['_id']
-    assert len(as_root.get('/sessions/' + session2 + '/acquisitions').json()) == 1
+    assert len(as_device.get('/projects/' + unknown_project + '/sessions').json()) == 2
+    session2 = as_device.get('/projects/' + unknown_project + '/sessions').json()[1]['_id']
+    assert len(as_device.get('/sessions/' + session2 + '/acquisitions').json()) == 1
 
-    # Using the exhaustive flag test that another session was added to Unknown project
-    assert len(as_admin.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()) == 2
-    session2 = as_admin.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()[1]['_id']
-    assert len(as_admin.get('/sessions/' + session2 + '/acquisitions', params={'exhaustive': True}).json()) == 1
+    # Using the exhaustive flag test that another session was added to Unkonwn project
+    assert len(as_device.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()) == 2
+    session2 = as_device.get('/projects/' + unknown_project + '/sessions', params={'exhaustive': True}).json()[1]['_id']
+    assert len(as_device.get('/sessions/' + session2 + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # Upload with a nonexistent group id and a project label
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': 'not_a_real_group'},
@@ -463,7 +490,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert r.ok
 
     # Try uploading 0 files
-    r = as_admin.post('/upload/label', files={"metadata":file_form(
+    r = as_device.post('/upload/label', files={"metadata":file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': 'not_a_real_group'},
@@ -483,7 +510,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
 
 
     # get session created by the upload
-    r = as_root.get('/groups/unknown/projects')
+    r = as_device.get('/groups/unknown/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 2
@@ -491,12 +518,12 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert 'not_a_real_group_new_project' == project['label']
     named_unknown_project = project['_id']
 
-    assert len(as_root.get('/projects/' + named_unknown_project + '/sessions').json()) == 1
-    session = as_root.get('/projects/' + named_unknown_project + '/sessions').json()[0]['_id']
-    assert len(as_root.get('/sessions/' + session + '/acquisitions').json()) == 1
+    assert len(as_device.get('/projects/' + named_unknown_project + '/sessions').json()) == 1
+    session = as_device.get('/projects/' + named_unknown_project + '/sessions').json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 1
 
     # get session created by the upload
-    r = as_admin.get('/groups/unknown/projects', params={'exhaustive': True})
+    r = as_device.get('/groups/unknown/projects', params={'exhaustive': True})
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 2
@@ -504,14 +531,14 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert 'not_a_real_group_new_project' == project['label']
     named_unknown_project = project['_id']
 
-    assert len(as_admin.get('/projects/' + named_unknown_project + '/sessions', params={'exhaustive': True}).json()) == 1
-    session = as_admin.get('/projects/' + named_unknown_project + '/sessions', params={'exhaustive': True}).json()[0]['_id']
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
+    assert len(as_device.get('/projects/' + named_unknown_project + '/sessions', params={'exhaustive': True}).json()) == 1
+    session = as_device.get('/projects/' + named_unknown_project + '/sessions', params={'exhaustive': True}).json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     group1 = data_builder.create_group()
 
     # Upload with an existing group id and no project label
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group1},
@@ -531,7 +558,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
 
 
     # get session created by the upload
-    r = as_root.get('/groups/' + group1 + '/projects')
+    r = as_device.get('/groups/' + group1 + '/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
@@ -539,12 +566,12 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert 'Unknown' == project['label']
     project1 = project['_id']
 
-    assert len(as_root.get('/projects/' + project1 + '/sessions').json()) == 1
-    session = as_root.get('/projects/' + project1 + '/sessions').json()[0]['_id']
-    assert len(as_root.get('/sessions/' + session + '/acquisitions').json()) == 1
+    assert len(as_device.get('/projects/' + project1 + '/sessions').json()) == 1
+    session = as_device.get('/projects/' + project1 + '/sessions').json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 1
 
     # get session created by the upload
-    r = as_admin.get('/groups/' + group1 + '/projects', params={'exhaustive': True})
+    r = as_device.get('/groups/' + group1 + '/projects', params={'exhaustive': True})
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
@@ -552,9 +579,9 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     assert 'Unknown' == project['label']
     project1 = project['_id']
 
-    assert len(as_admin.get('/projects/' + project1 + '/sessions', params={'exhaustive': True}).json()) == 1
-    session = as_admin.get('/projects/' + project1 + '/sessions', params={'exhaustive': True}).json()[0]['_id']
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
+    assert len(as_device.get('/projects/' + project1 + '/sessions', params={'exhaustive': True}).json()) == 1
+    session = as_device.get('/projects/' + project1 + '/sessions', params={'exhaustive': True}).json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # clean up
     data_builder.delete_group(group1, recursive=True)
@@ -562,7 +589,7 @@ def test_label_upload_unknown_group_project(data_builder, file_form, as_root, as
     data_builder.delete_project(named_unknown_project, recursive=True)
 
 
-def test_label_project_search(data_builder, file_form, as_admin, as_root):
+def test_label_project_search(data_builder, file_form, as_device, as_user, randstr):
     """
     When attempting to find a project, we do a case insensitive lookup.
     Ensure that mongo regex works as expected.
@@ -579,14 +606,14 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
     """
 
     group_label_1 = 'Test with more info'
-    group_label_2 = 'TeSt'
-    group_label_3 = 'test'
+    group_label_2 = 'TeSt with longer string to avoid collision'
+    group_label_3 = 'test with longer string to avoid collision'
 
     expected_project_label_1 = 'Test with more info_'
-    expected_project_label_2 = 'TeSt_'
+    expected_project_label_2 = 'TeSt with longer string to avoid collision_'
 
     # Upload with group 1
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group_label_1},
@@ -606,7 +633,7 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
 
 
     # get session created by the upload
-    r = as_root.get('/groups/unknown/projects')
+    r = as_device.get('/groups/unknown/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
@@ -614,12 +641,12 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
     assert project_list[0]['label'] == expected_project_label_1
     project_1 = project['_id']
 
-    assert len(as_root.get('/projects/' + project_1 + '/sessions').json()) == 1
-    session = as_root.get('/projects/' + project_1 + '/sessions').json()[0]['_id']
-    assert len(as_root.get('/sessions/' + session + '/acquisitions').json()) == 1
+    assert len(as_device.get('/projects/' + project_1 + '/sessions').json()) == 1
+    session = as_device.get('/projects/' + project_1 + '/sessions').json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 1
 
     # Using exhaustive flag get session created by the upload
-    r = as_admin.get('/groups/unknown/projects', params={'exhaustive': True})
+    r = as_device.get('/groups/unknown/projects', params={'exhaustive': True})
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 1
@@ -627,12 +654,12 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
     assert project_list[0]['label'] == expected_project_label_1
     project_1 = project['_id']
 
-    assert len(as_admin.get('/projects/' + project_1 + '/sessions', params={'exhaustive': True}).json()) == 1
-    session = as_admin.get('/projects/' + project_1 + '/sessions', params={'exhaustive': True}).json()[0]['_id']
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
+    assert len(as_device.get('/projects/' + project_1 + '/sessions', params={'exhaustive': True}).json()) == 1
+    session = as_device.get('/projects/' + project_1 + '/sessions', params={'exhaustive': True}).json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # Ensure group label 2 ends up in separate project
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group_label_2},
@@ -651,7 +678,7 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
     assert r.ok
 
     # get session created by the upload
-    r = as_root.get('/groups/unknown/projects')
+    r = as_device.get('/groups/unknown/projects')
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 2
@@ -666,12 +693,12 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
     project_2 = project['_id']
 
 
-    assert len(as_root.get('/projects/' + project_2 + '/sessions').json()) == 1
-    session = as_root.get('/projects/' + project_2 + '/sessions').json()[0]['_id']
-    assert len(as_root.get('/sessions/' + session + '/acquisitions').json()) == 1
+    assert len(as_device.get('/projects/' + project_2 + '/sessions').json()) == 1
+    session = as_device.get('/projects/' + project_2 + '/sessions').json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 1
 
     # Using exhaustive flag get session created by the upload
-    r = as_admin.get('/groups/unknown/projects', params={'exhaustive': True})
+    r = as_device.get('/groups/unknown/projects', params={'exhaustive': True})
     assert r.ok
     project_list = r.json()
     assert len(project_list) == 2
@@ -685,12 +712,12 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
     assert project['label'] == expected_project_label_2
     project_2 = project['_id']
 
-    assert len(as_admin.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()) == 1
-    session = as_admin.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()[0]['_id']
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
+    assert len(as_device.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()) == 1
+    session = as_device.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()[0]['_id']
+    assert len(as_device.get('/sessions/' + session + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
     # Upload with another "test" project with different case
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group_label_3},
@@ -709,7 +736,7 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
     assert r.ok
 
     # get session created by the upload
-    r = as_root.get('/groups/unknown/projects')
+    r = as_device.get('/groups/unknown/projects')
     assert r.ok
     project_list = r.json()
     # Ensure there are still only 2 projects
@@ -723,12 +750,12 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
 
     assert project['label'] == expected_project_label_2
 
-    assert len(as_root.get('/projects/' + project_2 + '/sessions').json()) == 2
-    session2 = as_root.get('/projects/' + project_2 + '/sessions').json()[1]['_id']
-    assert len(as_root.get('/sessions/' + session2 + '/acquisitions').json()) == 1
+    assert len(as_device.get('/projects/' + project_2 + '/sessions').json()) == 2
+    session2 = as_device.get('/projects/' + project_2 + '/sessions').json()[1]['_id']
+    assert len(as_device.get('/sessions/' + session2 + '/acquisitions').json()) == 1
 
     # Using exhaustive flag get session created by the upload
-    r = as_admin.get('/groups/unknown/projects', params={'exhaustive': True})
+    r = as_device.get('/groups/unknown/projects', params={'exhaustive': True})
     assert r.ok
     project_list = r.json()
     # Ensure there are still only 2 projects
@@ -742,95 +769,98 @@ def test_label_project_search(data_builder, file_form, as_admin, as_root):
 
     assert project['label'] == expected_project_label_2
 
-    assert len(as_admin.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()) == 2
-    session2 = as_admin.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()[1]['_id']
-    assert len(as_admin.get('/sessions/' + session2 + '/acquisitions', params={'exhaustive': True}).json()) == 1
+    assert len(as_device.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()) == 2
+    session2 = as_device.get('/projects/' + project_2 + '/sessions', params={'exhaustive': True}).json()[1]['_id']
+    assert len(as_device.get('/sessions/' + session2 + '/acquisitions', params={'exhaustive': True}).json()) == 1
 
 
     # clean up
     data_builder.delete_group('unknown', recursive=True)
 
 
-def test_reaper_reupload_deleted(data_builder, as_admin, as_root, file_form):
-    group = data_builder.create_group(_id='reupload')
-    project = data_builder.create_project(label='reupload')
+def test_reaper_reupload_deleted(data_builder, as_device, file_form, with_site_settings, api_db, randstr):
+
+    label = randstr()
+    group = data_builder.create_group(label=label)
+    # use the same _ui for the discrete types, They will still be unique
+    project = data_builder.create_project(label=label)
     reap_data = file_form('reaped.txt', meta={
-        'group': {'_id': 'reupload'},
-        'project': {'label': 'reupload'},
-        'session': {'uid': 'reupload'},
-        'acquisition': {'uid': 'reupload',
+        'group': {'_id': group},
+        'project': {'label': label},
+        'session': {'uid': group},
+        'acquisition': {'uid': group,
                         'files': [{'name': 'reaped.txt'}]}
     })
 
     # reaper upload
-    r = as_admin.post('/upload/reaper', files=reap_data)
+    r = as_device.post('/upload/reaper', files=reap_data)
     assert r.ok
 
     ### test acquisition recreation
     # get + delete acquisition
-    r = as_root.get('/acquisitions')
+    r = as_device.get('/acquisitions?filter=uid=' + group)
     assert r.ok
-    acquisition = next(a['_id'] for a in r.json() if a['uid'] == 'reupload')
+    acquisition = next(a['_id'] for a in r.json() if a['uid'] == group)
 
-    r = as_admin.get('/acquisitions', params={'exhaustive': True})
+    r = as_device.get('/acquisitions?filter=uid=' + group, params={'exhaustive': True})
     assert r.ok
-    acquisition = next(a['_id'] for a in r.json() if a['uid'] == 'reupload')
+    acquisition = next(a['_id'] for a in r.json() if a['uid'] == group)
 
-    r = as_admin.delete('/acquisitions/' + acquisition)
+    r = as_device.delete('/acquisitions/' + acquisition)
     assert r.ok
 
     # reaper re-upload
-    r = as_admin.post('/upload/reaper', files=reap_data)
+    r = as_device.post('/upload/reaper', files=reap_data)
     assert r.ok
 
     # check new acquisition
-    r = as_root.get('/acquisitions')
+    r = as_device.get('/acquisitions?filter=uid=' + group)
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
-    r = as_admin.get('/acquisitions', params={'exhaustive': True})
+    r = as_device.get('/acquisitions?filter=uid=' + group, params={'exhaustive': True})
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
     ### test session recreation
     # get + delete session
-    r = as_root.get('/sessions')
+    r = as_device.get('/sessions?filter=group=' + group)
     assert r.ok
-    session = next(s['_id'] for s in r.json() if s['uid'] == 'reupload')
+    session = next(s['_id'] for s in r.json() if s['uid'] == group)
 
-    r = as_admin.get('/sessions', params={'exhaustive': True})
+    r = as_device.get('/sessions?filter=group=' + group, params={'exhaustive': True})
     assert r.ok
-    session = next(s['_id'] for s in r.json() if s['uid'] == 'reupload')
+    session = next(s['_id'] for s in r.json() if s['uid'] == group)
 
-    r = as_admin.delete('/sessions/' + session)
+    r = as_device.delete('/sessions/' + session)
     assert r.ok
 
     # reaper re-upload
-    r = as_admin.post('/upload/reaper', files=reap_data)
+    r = as_device.post('/upload/reaper', files=reap_data)
     assert r.ok
 
     # check new session and acquisition
-    r = as_root.get('/sessions')
+    r = as_device.get('/sessions?filter=group=' + group)
     assert r.ok
-    assert next(s for s in r.json() if s['uid'] == 'reupload')
+    assert next(s for s in r.json() if s['uid'] == group)
 
-    r = as_admin.get('/sessions', params={'exhaustive': True})
+    r = as_device.get('/sessions?filter=group=' + group, params={'exhaustive': True})
     assert r.ok
-    assert next(s for s in r.json() if s['uid'] == 'reupload')
+    assert next(s for s in r.json() if s['uid'] == group)
 
-    r = as_root.get('/acquisitions')
+    r = as_device.get('/acquisitions?filter=uid=' + group)
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
-    r = as_root.get('/acquisitions', params={'exhaustive': True})
+    r = as_device.get('/acquisitions?filter=uid=' + group, params={'exhaustive': True})
     assert r.ok
-    assert next(a for a in r.json() if a['uid'] == 'reupload')
+    assert next(a for a in r.json() if a['uid'] == group)
 
     # cleanup
     data_builder.delete_group(group, recursive=True)
 
 
-def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
+def test_uid_upload(data_builder, file_form, as_device, as_user, as_public):
     group = data_builder.create_group()
     project3_id = data_builder.create_project()
 
@@ -839,7 +869,7 @@ def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
     assert r.status_code == 403
 
     # try to uid-upload w/o metadata
-    r = as_admin.post('/upload/uid', files=file_form('test.csv'))
+    r = as_device.post('/upload/uid', files=file_form('test.csv'))
     assert r.status_code == 400
 
     # NOTE unused.csv is testing code that discards files not referenced from meta
@@ -868,11 +898,11 @@ def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
     assert r.status_code == 403
 
     # try to uid-upload no files
-    r = as_admin.post('/upload/uid', files={"metadata": file_form(*uid_files, meta=uid_meta).get("metadata")})
+    r = as_device.post('/upload/uid', files={"metadata": file_form(*uid_files, meta=uid_meta).get("metadata")})
     assert r.status_code == 400
 
     # uid-upload files
-    r = as_admin.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta))
+    r = as_device.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta))
     assert r.ok
 
     # try to uid-upload to existing project w/o project rw perms
@@ -882,11 +912,11 @@ def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
     assert r.status_code == 403
 
     # uid-upload to existing project but new session uid
-    r = as_admin.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_2))
+    r = as_device.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_2))
     assert r.ok
 
     # uid-upload files to existing session uid
-    r = as_admin.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta))
+    r = as_device.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta))
     assert r.ok
 
     # try uid-upload files to existing session uid w/ other user (having no rw perms on session)
@@ -895,12 +925,12 @@ def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
 
     #Upload to different project with same uid
     uid_meta_3 = copy.deepcopy(uid_meta)
-    r = as_admin.get('/projects/' + project3_id)
+    r = as_device.get('/projects/' + project3_id)
     assert r.ok
     uid_meta_3['project']['label'] = r.json()['label']
-    r = as_admin.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_3))
+    r = as_device.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_3))
     assert r.ok
-    r = as_admin.get('/projects/' + project3_id + '/sessions')
+    r = as_device.get('/projects/' + project3_id + '/sessions')
     assert r.ok
     assert len(r.json()) > 0
 
@@ -910,19 +940,19 @@ def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
     # # uid-upload to fat-fingered group id (should end up in group)
     # uid_meta_fuzzy = copy.deepcopy(uid_meta)
     # uid_meta_fuzzy['group']['_id'] = 'c' + group
-    # r = as_admin.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_fuzzy))
+    # r = as_device.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_fuzzy))
     # assert r.ok
 
     # # uid-upload to utterly non-existent group id (should end up in unknown group)
     # uid_meta_unknown = copy.deepcopy(uid_meta)
     # uid_meta_unknown['group']['_id'] = '0000000000000000000000000'
-    # r = as_admin.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_unknown))
+    # r = as_device.post('/upload/uid', files=file_form(*uid_files, meta=uid_meta_unknown))
     # assert r.ok
 
     # uid-match-upload files (to the same session and acquisition uid's as above)
     uid_match_meta = copy.deepcopy(uid_meta)
     del uid_match_meta['group']
-    r = as_admin.post('/upload/uid-match', files=file_form(*uid_files, meta=uid_match_meta))
+    r = as_device.post('/upload/uid-match', files=file_form(*uid_files, meta=uid_match_meta))
     assert r.ok
 
     # try uid-match upload w/ other user (having no rw permissions on session)
@@ -931,23 +961,23 @@ def test_uid_upload(data_builder, file_form, as_admin, as_user, as_public):
 
     # try uid-match upload w/ non-existent acquisition uid
     uid_match_meta['acquisition']['uid'] = 'nonexistent_uid'
-    r = as_admin.post('/upload/uid-match', files=file_form(*uid_files, meta=uid_match_meta))
+    r = as_device.post('/upload/uid-match', files=file_form(*uid_files, meta=uid_match_meta))
     assert r.status_code == 404
 
     # try uid-match upload w/ non-existent session uid
     uid_match_meta['session']['uid'] = 'nonexistent_uid'
-    r = as_admin.post('/upload/uid-match', files=file_form(*uid_files, meta=uid_match_meta))
+    r = as_device.post('/upload/uid-match', files=file_form(*uid_files, meta=uid_match_meta))
     assert r.status_code == 404
 
     # delete group and children recursively (created by upload)
     data_builder.delete_group(group, recursive=True)
 
 
-def test_label_upload(data_builder, file_form, as_admin):
+def test_label_upload(data_builder, file_form, as_device):
     group = data_builder.create_group()
 
     # label-upload files
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'project.csv', 'subject.csv', 'session.csv', 'acquisition.csv', 'unused.csv',
         meta={
             'group': {'_id': group},
@@ -973,12 +1003,12 @@ def test_label_upload(data_builder, file_form, as_admin):
     assert r.ok
 
     # get newly created project/session/acquisition
-    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
-    subject = get_full_container(as_admin, '/projects/' + project + '/subjects', 0)
+    project = as_device.get('/groups/' + group + '/projects').json()[0]['_id']
+    subject = get_full_container(as_device, '/projects/' + project + '/subjects', 0)
     assert subject['firstname'] == 'Name1'
 
-    session_id = as_admin.get('/projects/' + project + '/sessions').json()[0]['_id']
-    r = as_admin.get('/sessions/' + session_id)
+    session_id = as_device.get('/projects/' + project + '/sessions').json()[0]['_id']
+    r = as_device.get('/sessions/' + session_id)
     assert r.ok
     session = r.json()
 
@@ -986,13 +1016,13 @@ def test_label_upload(data_builder, file_form, as_admin):
     assert session['parents']['project'] == project
     assert session['info']['subject_raw'] == {'firstname': 'Name1'}
 
-    acquisition = as_admin.get('/sessions/' + session_id + '/acquisitions').json()[0]
+    acquisition = as_device.get('/sessions/' + session_id + '/acquisitions').json()[0]
     assert acquisition['parents']['group'] == group
     assert acquisition['parents']['project'] == project
     assert acquisition['parents']['session'] == session_id
 
     # label-upload files to a second session under the same subjects
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'project.csv', 'session.csv', 'acquisition.csv', 'unused.csv',
         meta={
             'group': {'_id': group},
@@ -1017,11 +1047,11 @@ def test_label_upload(data_builder, file_form, as_admin):
     assert r.ok
 
     # get sessions
-    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
-    subject = get_full_container(as_admin, '/projects/' + project + '/subjects', 0)
+    project = as_device.get('/groups/' + group + '/projects').json()[0]['_id']
+    subject = get_full_container(as_device, '/projects/' + project + '/subjects', 0)
 
-    session = get_full_container(as_admin, '/projects/' + project + '/sessions', 1)
-    session2 = get_full_container(as_admin, '/projects/' + project + '/sessions', 0)
+    session = get_full_container(as_device, '/projects/' + project + '/sessions', 1)
+    session2 = get_full_container(as_device, '/projects/' + project + '/sessions', 0)
 
     # Swap so that session represents test_session1
     if session['label'] == 'test_session2_label':
@@ -1041,7 +1071,7 @@ def test_label_upload(data_builder, file_form, as_admin):
     assert session2['info']['subject_raw'] == {'firstname': 'Name2'}
 
     # label-upload files to the second session under the same subjects
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'project.csv', 'session.csv', 'acquisition.csv', 'unused.csv',
         meta={
             'group': {'_id': group},
@@ -1067,11 +1097,11 @@ def test_label_upload(data_builder, file_form, as_admin):
 
     # get sessions and metadata shouldn't change for the sessions,
     # because neither of them were created by this upload
-    project = as_admin.get('/groups/' + group + '/projects').json()[0]['_id']
-    subject = get_full_container(as_admin, '/projects/' + project + '/subjects', 0)
+    project = as_device.get('/groups/' + group + '/projects').json()[0]['_id']
+    subject = get_full_container(as_device, '/projects/' + project + '/subjects', 0)
 
-    session = get_full_container(as_admin, '/projects/' + project + '/sessions', 1)
-    session2 = get_full_container(as_admin, '/projects/' + project + '/sessions', 0)
+    session = get_full_container(as_device, '/projects/' + project + '/sessions', 1)
+    session2 = get_full_container(as_device, '/projects/' + project + '/sessions', 0)
 
     # Swap so that session represents test_session1
     if session['label'] == 'test_session2_label':
@@ -1093,7 +1123,7 @@ def test_label_upload(data_builder, file_form, as_admin):
     data_builder.delete_group(group, recursive=True)
 
 
-def test_master_subject_code_upload(data_builder, file_form, as_admin):
+def test_master_subject_code_upload(data_builder, file_form, as_admin, as_device):
     group = data_builder.create_group()
 
     metadata = {
@@ -1114,7 +1144,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
         }
     }
     # invalid master subject code
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata)
     )
@@ -1129,7 +1159,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
     master_code_1 = r.json()['code']
     metadata['session']['subject']['master_code'] = master_code_1
 
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata)
                       )
@@ -1157,7 +1187,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
     assert r.ok
     master_code_2 = r.json()['code']
     metadata['session']['subject']['master_code'] = master_code_2
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata))
     assert r.status_code == 409
@@ -1165,7 +1195,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
     # uploading a new file will go into the same subject if the master subject code is the same
     metadata['session']['subject']['master_code'] = master_code_1
     metadata['acquisition']['label'] = 'test_acquisition_label_2'
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_device.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta=metadata))
     assert r.ok
@@ -1186,7 +1216,7 @@ def test_master_subject_code_upload(data_builder, file_form, as_admin):
     data_builder.delete_group(group, recursive=True)
 
 
-def test_multi_upload(data_builder, upload_file_form, randstr, as_admin):
+def test_multi_upload(data_builder, upload_file_form, randstr, as_device):
     # test uid-uploads respecting existing uids
     fixed_uid = randstr()
     fixed_uid_group = data_builder.create_group(_id=fixed_uid)
@@ -1198,40 +1228,40 @@ def test_multi_upload(data_builder, upload_file_form, randstr, as_admin):
     )
 
     # uid-upload #1 w/ fixed uid
-    r = as_admin.post('/upload/uid', files=upload_file_form(**fixed_uid_form_args))
+    r = as_device.post('/upload/uid', files=upload_file_form(**fixed_uid_form_args))
     assert r.ok
 
     # get newly created project/session/acquisition
-    project = as_admin.get('/groups/' + fixed_uid_group + '/projects').json()[0]['_id']
-    session = as_admin.get('/projects/' + project + '/sessions').json()[0]['_id']
-    acquisition = as_admin.get('/sessions/' + session + '/acquisitions').json()[0]['_id']
+    project = as_device.get('/groups/' + fixed_uid_group + '/projects').json()[0]['_id']
+    session = as_device.get('/projects/' + project + '/sessions').json()[0]['_id']
+    acquisition = as_device.get('/sessions/' + session + '/acquisitions').json()[0]['_id']
 
     # test uploaded files
-    assert len(as_admin.get('/projects/' + project).json()['files']) == 1
-    assert len(as_admin.get('/sessions/' + session).json()['files']) == 1
-    assert len(as_admin.get('/acquisitions/' + acquisition).json()['files']) == 1
+    assert len(as_device.get('/projects/' + project).json()['files']) == 1
+    assert len(as_device.get('/sessions/' + session).json()['files']) == 1
+    assert len(as_device.get('/acquisitions/' + acquisition).json()['files']) == 1
 
     # uid-upload #2 w/ fixed uid
-    r = as_admin.post('/upload/uid', files=upload_file_form(**fixed_uid_form_args))
+    r = as_device.post('/upload/uid', files=upload_file_form(**fixed_uid_form_args))
     assert r.ok
 
     # test hierarchy (should have no new containers)
-    assert len(as_admin.get('/groups/' + fixed_uid_group + '/projects').json()) == 1
-    assert len(as_admin.get('/projects/' + project + '/sessions').json()) == 1
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions').json()) == 1
+    assert len(as_device.get('/groups/' + fixed_uid_group + '/projects').json()) == 1
+    assert len(as_device.get('/projects/' + project + '/sessions').json()) == 1
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 1
 
     # test uploaded files
-    assert len(as_admin.get('/projects/' + project).json()['files']) == 2
-    assert len(as_admin.get('/sessions/' + session).json()['files']) == 2
-    assert len(as_admin.get('/acquisitions/' + acquisition).json()['files']) == 2
+    assert len(as_device.get('/projects/' + project).json()['files']) == 2
+    assert len(as_device.get('/sessions/' + session).json()['files']) == 2
+    assert len(as_device.get('/acquisitions/' + acquisition).json()['files']) == 2
 
     # label-upload w/ fixed uid
-    r = as_admin.post('/upload/label', files=upload_file_form(**fixed_uid_form_args))
+    r = as_device.post('/upload/label', files=upload_file_form(**fixed_uid_form_args))
     assert r.ok
 
     # test hierarchy (should have new session)
-    assert len(as_admin.get('/groups/' + fixed_uid_group + '/projects').json()) == 1
-    assert len(as_admin.get('/projects/' + project + '/sessions').json()) == 2
+    assert len(as_device.get('/groups/' + fixed_uid_group + '/projects').json()) == 1
+    assert len(as_device.get('/projects/' + project + '/sessions').json()) == 2
 
     # test label-uploads respecting existing labels
     # NOTE subject.code is also checked when label-matching sessions!
@@ -1245,40 +1275,40 @@ def test_multi_upload(data_builder, upload_file_form, randstr, as_admin):
     )
 
     # label-upload #1 w/ fixed label
-    r = as_admin.post('/upload/label', files=upload_file_form(**fixed_label_form_args))
+    r = as_device.post('/upload/label', files=upload_file_form(**fixed_label_form_args))
     assert r.ok
 
     # get newly created project/session/acquisition
-    project = as_admin.get('/groups/' + fixed_label_group + '/projects').json()[0]['_id']
-    session = as_admin.get('/projects/' + project + '/sessions').json()[0]['_id']
-    acquisition = as_admin.get('/sessions/' + session + '/acquisitions').json()[0]['_id']
+    project = as_device.get('/groups/' + fixed_label_group + '/projects').json()[0]['_id']
+    session = as_device.get('/projects/' + project + '/sessions').json()[0]['_id']
+    acquisition = as_device.get('/sessions/' + session + '/acquisitions').json()[0]['_id']
 
     # test uploaded files
-    assert len(as_admin.get('/projects/' + project).json()['files']) == 1
-    assert len(as_admin.get('/sessions/' + session).json()['files']) == 1
-    assert len(as_admin.get('/acquisitions/' + acquisition).json()['files']) == 1
+    assert len(as_device.get('/projects/' + project).json()['files']) == 1
+    assert len(as_device.get('/sessions/' + session).json()['files']) == 1
+    assert len(as_device.get('/acquisitions/' + acquisition).json()['files']) == 1
 
     # label-upload #2 w/ fixed label
-    r = as_admin.post('/upload/label', files=upload_file_form(**fixed_label_form_args))
+    r = as_device.post('/upload/label', files=upload_file_form(**fixed_label_form_args))
     assert r.ok
 
     # test hierarchy (should have no new containers)
-    assert len(as_admin.get('/groups/' + fixed_label_group + '/projects').json()) == 1
-    assert len(as_admin.get('/projects/' + project + '/sessions').json()) == 1
-    assert len(as_admin.get('/sessions/' + session + '/acquisitions').json()) == 1
+    assert len(as_device.get('/groups/' + fixed_label_group + '/projects').json()) == 1
+    assert len(as_device.get('/projects/' + project + '/sessions').json()) == 1
+    assert len(as_device.get('/sessions/' + session + '/acquisitions').json()) == 1
 
     # test uploaded files
-    assert len(as_admin.get('/projects/' + project).json()['files']) == 2
-    assert len(as_admin.get('/sessions/' + session).json()['files']) == 2
-    assert len(as_admin.get('/acquisitions/' + acquisition).json()['files']) == 2
+    assert len(as_device.get('/projects/' + project).json()['files']) == 2
+    assert len(as_device.get('/sessions/' + session).json()['files']) == 2
+    assert len(as_device.get('/acquisitions/' + acquisition).json()['files']) == 2
 
     # uid-upload w/ fixed label
-    r = as_admin.post('/upload/uid', files=upload_file_form(**fixed_label_form_args))
+    r = as_device.post('/upload/uid', files=upload_file_form(**fixed_label_form_args))
     assert r.ok
 
     # test hierarchy (should have new session)
-    assert len(as_admin.get('/groups/' + fixed_label_group + '/projects').json()) == 1
-    assert len(as_admin.get('/projects/' + project + '/sessions').json()) == 2
+    assert len(as_device.get('/groups/' + fixed_label_group + '/projects').json()) == 1
+    assert len(as_device.get('/projects/' + project + '/sessions').json()) == 2
 
     # clean up
     data_builder.delete_group(fixed_uid_group, recursive=True)
@@ -1799,46 +1829,46 @@ def test_analysis_engine_upload(data_builder, file_form, as_admin):
     assert r.ok
 
 
-def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
+def test_packfile_upload(data_builder, file_form, as_user, as_device, api_db, with_site_settings):
     group = data_builder.create_group()
     project = data_builder.create_project()
     session = data_builder.create_session()
 
     subject = data_builder.create_subject(project=project, code='subj-01')
-    r = as_admin.delete('/subjects/' + subject)
+    r = as_device.delete('/subjects/' + subject)
     assert r.ok
 
     number_of_subjects = len(list(api_db.subjects.find({'project': bson.ObjectId(project)})))
 
     # try to start packfile-upload to non-project target
-    r = as_admin.post('/sessions/' + session + '/packfile-start')
+    r = as_device.post('/sessions/' + session + '/packfile-start')
     assert r.status_code == 500
 
     # try to start packfile-upload to non-existent project
-    r = as_admin.post('/projects/000000000000000000000000/packfile-start')
+    r = as_device.post('/projects/000000000000000000000000/packfile-start')
     assert r.status_code == 500
 
     # start packfile-upload
-    r = as_admin.post('/projects/' + project + '/packfile-start')
+    r = as_device.post('/projects/' + project + '/packfile-start')
     assert r.ok
     token = r.json()['token']
 
     # try to upload to packfile w/o token
-    r = as_admin.post('/projects/' + project + '/packfile')
+    r = as_device.post('/projects/' + project + '/packfile')
     assert r.status_code == 500
 
     # upload to packfile
-    r = as_admin.post('/projects/' + project + '/packfile',
+    r = as_device.post('/projects/' + project + '/packfile',
         params={'token': token}, files=file_form('one.csv'))
     assert r.ok
 
     # upload another one to packfile
-    r = as_admin.post('/projects/' + project + '/packfile',
+    r = as_device.post('/projects/' + project + '/packfile',
         params={'token': token}, files=file_form('two.csv'))
     assert r.ok
 
     # Upload another one to packfile
-    r = as_admin.post('/projects/' + project + '/packfile',
+    r = as_device.post('/projects/' + project + '/packfile',
         params={'token': token}, files=file_form('three.csv'))
     assert r.ok
 
@@ -1859,19 +1889,19 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
     })
 
     # try to finish packfile-upload w/o token
-    r = as_admin.post('/projects/' + project + '/packfile-end',
+    r = as_device.post('/projects/' + project + '/packfile-end',
         params={'metadata': metadata_json})
     assert r.status_code == 500
 
     # try to finish packfile-upload with files in the request
-    r = as_admin.post('/projects/' + project + '/packfile-end',
+    r = as_device.post('/projects/' + project + '/packfile-end',
         params={'token': token, 'metadata': metadata_json},
         files={'file': ('packfile-end.txt', 'sending files to packfile-end is not allowed\n')}
     )
     assert r.status_code == 500
 
     # finish packfile-upload (creates new session/acquisition)
-    r = as_admin.post('/projects/' + project + '/packfile-end',
+    r = as_device.post('/projects/' + project + '/packfile-end',
         params={'token': token, 'metadata': metadata_json})
     assert r.ok
 
@@ -1880,20 +1910,20 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
     assert len(project_subjects) == number_of_subjects + 1
 
     # make sure file was uploaded and mimetype and type are properly set
-    created_subject = get_full_container(as_admin, '/projects/' + project + '/subjects', -1)
+    created_subject = get_full_container(as_device, '/projects/' + project + '/subjects', -1)
     assert created_subject['label'] == 'subj-01'
     assert created_subject['parents']['group'] == group
     assert created_subject['parents']['project'] == project
     assert created_subject['ethnicity'] == 'Hispanic or Latino'
 
-    created_session = get_full_container(as_admin, '/subjects/' + created_subject['_id'] + '/sessions', 0)
+    created_session = get_full_container(as_device, '/subjects/' + created_subject['_id'] + '/sessions', 0)
     assert created_session['label'] == 'test-packfile-label (session)'
     assert created_session['parents']['group'] == group
     assert created_session['parents']['project'] == project
     assert created_session['parents']['subject'] == created_subject['_id']
     assert created_session['info']['subject_raw'] == {'ethnicity': 'Hispanic or Latino'}
 
-    created_acq = as_admin.get('/sessions/' + created_session['_id'] + '/acquisitions').json()[0]
+    created_acq = as_device.get('/sessions/' + created_session['_id'] + '/acquisitions').json()[0]
     assert created_acq['label'] == 'test-packfile-label (acquisition)'
     assert created_acq['parents']['group'] == group
     assert created_acq['parents']['project'] == project
@@ -1906,10 +1936,10 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
     assert packfile['zip_member_count'] == 3
 
     # Test that acquisition timestamp was parsed into date type
-    r = as_admin.post('/projects/' + project + '/packfile-start')
+    r = as_device.post('/projects/' + project + '/packfile-start')
     assert r.ok
     token = r.json()['token']
-    r = as_admin.post('/projects/' + project + '/packfile',
+    r = as_device.post('/projects/' + project + '/packfile',
         params={'token': token}, files=file_form('one.csv'))
     assert r.ok
 
@@ -1925,7 +1955,7 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
         'packfile': {'type': 'test'}
     })
 
-    r = as_admin.post('/projects/' + project + '/packfile-end',
+    r = as_device.post('/projects/' + project + '/packfile-end',
         params={'token': token, 'metadata': metadata_json})
     assert r.ok
 
@@ -1942,10 +1972,10 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
     assert len(acquisitions) == 1
 
 
-    r = as_admin.post('/projects/' + project + '/packfile-start')
+    r = as_device.post('/projects/' + project + '/packfile-start')
     assert r.ok
     token = r.json()['token']
-    r = as_admin.post('/projects/' + project + '/packfile',
+    r = as_device.post('/projects/' + project + '/packfile',
         params={'token': token}, files=file_form('one.csv'))
     assert r.ok
 
@@ -1964,7 +1994,7 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
         'packfile': {'type': 'test'}
     })
 
-    r = as_admin.post('/projects/' + project + '/packfile-end',
+    r = as_device.post('/projects/' + project + '/packfile-end',
         params={'token': token, 'metadata': metadata_json})
     assert r.ok
 
@@ -1998,17 +2028,17 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
     session_ids_before = [str(x['_id']) for x in sessions]
     acquisition_ids_before = [str(x['_id']) for x in acquisitions]
     for s in session_ids_before:
-        assert as_admin.delete('/sessions/'+s).ok
+        assert as_device.delete('/sessions/'+s).ok
 
     # Add another packfile with the same metadata as above
-    r = as_admin.post('/projects/' + project + '/packfile-start')
+    r = as_device.post('/projects/' + project + '/packfile-start')
     assert r.ok
     token = r.json()['token']
-    r = as_admin.post('/projects/' + project + '/packfile',
+    r = as_device.post('/projects/' + project + '/packfile',
         params={'token': token}, files=file_form('one.csv'))
     assert r.ok
 
-    r = as_admin.post('/projects/' + project + '/packfile-end',
+    r = as_device.post('/projects/' + project + '/packfile-end',
         params={'token': token, 'metadata': metadata_json})
     assert r.ok
 
@@ -2022,7 +2052,7 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
 
     # Add user to project
     uid = as_user.get('/users/self').json()['_id']
-    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'admin'})
+    r = as_device.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'admin'})
     assert r.ok
     # get another token (start packfile-upload)
     r = as_user.post('/projects/' + project + '/packfile-start')
@@ -2047,9 +2077,46 @@ def test_packfile_upload(data_builder, file_form, as_user, as_admin, api_db):
     r = as_user.post('/clean-packfiles')
     assert r.status_code == 402
 
-    r = as_admin.post('/clean-packfiles')
+    r = as_device.post('/clean-packfiles')
     assert r.ok
     assert r.json()['removed']['tokens'] > 0
+
+
+
+    # Perform another user packfile upload this time as SSE
+    sessions = list(api_db.sessions.find({'label':'test-packfile-timestamp', 'deleted': {'$exists': False}}))
+    acquisitions = list(api_db.acquisitions.find({'label':'test-packfile-timestamp'}))
+    session_ids_before = [str(x['_id']) for x in sessions]
+    for s in session_ids_before:
+        assert as_device.delete('/sessions/'+s).ok
+
+    r = as_user.post('/projects/' + project + '/packfile-start')
+    assert r.ok
+    token = r.json()['token']
+
+    files = [
+        ('file', file_form('two.csv')['file']),
+        ('file', file_form('three.csv')['file'])
+    ]
+
+    # upload to packfile
+    r = as_user.post('/projects/' + project + '/packfile',
+        params={'token': token}, files=files)
+    assert r.ok
+
+    # Specifically SSE uses a GET request and as such does not have auth headers that determine Origin
+    # If origin is not set then choose_provider will return a 500 for unknown
+    r = as_user.get('/projects/' + project + '/packfile-end',
+        params={'token': token, 'metadata': metadata_json})
+    assert r.ok
+
+    # Ensure a new session and acquisition was created
+    sessions_after = list(api_db.sessions.find({'label':'test-packfile-timestamp', 'deleted': {'$exists': False}}))
+    acquisitions_after = list(api_db.acquisitions.find({'label':'test-packfile-timestamp', 'deleted': {'$exists': False}}))
+    assert len(sessions_after) == 1
+    assert len(acquisitions_after) == 1
+    assert str(sessions_after[0]['_id']) not in session_ids_before
+    assert str(acquisitions_after[0]['_id']) not in acquisition_ids_before
 
     # clean up added session/acquisition
     data_builder.delete_project(project, recursive=True)

@@ -75,7 +75,7 @@ class ClassicDownloadStrategy(HierarchyDownloadStrategy):
 
             return [
                 models.DownloadTarget('file', dst_path, parent_type, parent_id, file_entry['modified'],
-                    file_entry['size'], file_entry.get('type'), file_id=file_entry.get('_id'),
+                    file_entry['size'], file_entry.get('type'), file_entry['provider_id'], file_id=file_entry.get('_id'),
                     filename=file_entry['name'], file_group=file_group, src_path=src_path)
             ]
         else:

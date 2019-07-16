@@ -16,7 +16,7 @@ class JobsTestCases(SdkTestCase):
         self.fw.delete_gear(self.gear_id)
 
     def test_job(self):
-        fw = self.fw
+        fw = self.fw_device
 
         gear = fw.get_gear(self.gear_id)
         self.assertIsNotNone(gear)
@@ -45,7 +45,7 @@ class JobsTestCases(SdkTestCase):
         self.assertEqual(r_job.state, 'pending')
         self.assertEqual(r_job.attempt, 1)
         self.assertIsNotNone(r_job.origin)
-        self.assertEqual(r_job.origin.type, 'user')
+        self.assertEqual(r_job.origin.type, 'device')
         self.assertNotEmpty(r_job.origin.id)
         self.assertIn(tag, r_job.tags)
         self.assertTimestampBeforeNow(r_job.created)
@@ -86,7 +86,7 @@ class JobsTestCases(SdkTestCase):
         self.assertEqual(r_job.state, 'cancelled')
         
     def test_job_queue(self):
-        fw = self.fw
+        fw = self.fw_device
        
         poem = 'The blood-dimmed tide is loosed, and everywhere'
         fw.upload_file_to_acquisition(self.acquisition_id, flywheel.FileSpec('yeats.txt', poem))
@@ -112,15 +112,15 @@ class JobsTestCases(SdkTestCase):
         )
 
         # Add
-        job_id = fw.add_job(job)
+        job_id = self.fw.add_job(job)
         self.assertNotEmpty(job_id)
 
         # Check
-        r_job = fw.get_job(job_id)
+        r_job = self.fw.get_job(job_id)
         self.assertEqual(r_job.state, 'pending')
 
         # Run
-        r_job = fw.get_next_job(tags=[tag])
+        r_job = self.fw.get_next_job(tags=[tag])
         self.assertIsNotNone(r_job)
         self.assertEqual(r_job.id, job_id)
         self.assertIsNotNone(r_job.request)
@@ -160,4 +160,3 @@ class JobsTestCases(SdkTestCase):
         self.assertEqual(logs.logs[1], log1[0])
         self.assertEqual(logs.logs[2], log2[0])
         self.assertEqual(logs.logs[3], log2[1])
-

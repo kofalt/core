@@ -1,6 +1,9 @@
+from flywheel_common.providers import ProviderClass
+from flywheel_common.errors import ValidationError
 from . import models, mappers, providers
 from ..jobs import gears
 from ..web import errors
+
 
 def get_site_settings():
     """Get the current site settings, or default settings.
@@ -12,10 +15,7 @@ def get_site_settings():
     mapper = mappers.SiteSettings()
     result = mapper.get()
     if result is None:
-        # Initialize if site settings does not exist
-        # This is process-safe using "atomic" mongo operations
-        initialize()
-        result = mapper.get()
+        return get_default_site_settings()
     return result
 
 
@@ -41,16 +41,16 @@ def update_site_settings(doc, log):
             raise errors.APIValidationException('The following gear(s) do not exist: {}'.format(', '.join(invalid_names)))
 
     if 'providers' in doc:
+        if not doc['providers']:
+            raise ValidationError('Can not remove providers from site settings')
         # Get current settings
         current_site = get_site_settings()
         providers.validate_provider_updates(current_site, doc['providers'], True)
+        log.info('Updating site providers to: %s', doc['providers'])
 
     # Log critical path updates
     if 'center_gears' in doc:
         log.info('Updating center gears to: %s', doc['center_gears'])
-
-    if 'providers' in doc:
-        log.info('Updating site providers to: %s', doc['providers'])
 
     mapper = mappers.SiteSettings()
     return mapper.patch(doc)
@@ -62,14 +62,8 @@ def get_default_site_settings():
     Returns:
         SiteSettings: The default site settings
     """
-    return models.SiteSettings(center_gears=None, providers=None)
+    providers_ = {}
+    for class_ in ProviderClass:
+        providers_[class_.value] = None
 
-
-def initialize():
-    """Ensure that the initial site settings exists with a compute provider."""
-    provider_mapper = mappers.Providers()
-    compute_provider = models.Provider('compute', 'static', 'Default Compute Provider', None, {})
-    compute_provider_id = provider_mapper.get_or_create_site_provider(compute_provider)
-
-    site_mapper = mappers.SiteSettings()
-    site_mapper.ensure_provider('compute', compute_provider_id)
+    return models.SiteSettings(center_gears=None, providers=providers_)

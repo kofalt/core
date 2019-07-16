@@ -16,7 +16,7 @@ from ..web import errors
 from elasticsearch import ElasticsearchException
 from ..web.request import log_access, AccessType
 from ..access_log import log_user_access
-
+from flywheel_common import errors as fw_errors
 
 class RequestHandler(webapp2.RequestHandler):
 
@@ -446,6 +446,14 @@ class RequestHandler(webapp2.RequestHandler):
 
             if exception.log:
                 self.log.warning(exception.log_msg)
+
+        elif isinstance(exception, fw_errors.ValidationError):
+            code = 422
+            # Message is only pulled out of _msg on a string conversion
+            message = str(exception)
+        elif isinstance(exception, fw_errors.PermissionError):
+            code = 403
+            message = str(exception)
 
         elif isinstance(exception, ElasticsearchException):
             code = 503

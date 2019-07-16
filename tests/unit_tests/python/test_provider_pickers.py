@@ -2,6 +2,7 @@ import bson
 import pytest
 
 from mock import patch, Mock
+from flywheel_common.providers import ProviderClass
 
 from api.web import errors
 from api.site import models, mappers, multiproject
@@ -10,7 +11,7 @@ from api.site import models, mappers, multiproject
 @patch('api.site.multiproject.multiproject_picker.mappers.SiteSettings')
 @patch('api.site.multiproject.multiproject_picker.containerstorage.cs_factory')
 def test_multiproject_get_provider_id_for_container(mock_cs_factory, MockSiteSettingsCls):
-    cls = models.ProviderClass.compute
+    cls = ProviderClass.compute
 
     site_provider_id = bson.ObjectId()
     group_provider_id = bson.ObjectId()
@@ -74,7 +75,7 @@ def test_multiproject_get_provider_id_for_container(mock_cs_factory, MockSiteSet
 @patch('api.site.multiproject.multiproject_picker.mappers.SiteSettings')
 @patch('api.site.multiproject.multiproject_picker.containerstorage.cs_factory')
 def test_multiproject_get_compute_provider_id_for_job(mock_cs_factory, MockSiteSettingsCls):
-    cls = models.ProviderClass.compute
+    cls = ProviderClass.compute
 
     site_provider_id = bson.ObjectId()
     group_provider_id = bson.ObjectId()

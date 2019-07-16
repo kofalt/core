@@ -57,7 +57,7 @@ def test_modalities(data_builder, as_admin, as_user, api_db):
     assert r.status_code == 404
 
 
-def test_edit_file_classification(data_builder, as_admin, as_user, file_form, api_db):
+def test_edit_file_classification(data_builder, as_admin, as_user, file_form, api_db, with_site_settings):
 
     ## Setup
 
@@ -354,7 +354,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form, ap
 
 
 
-def test_classification_change_triggers_job(randstr, data_builder, as_admin, api_db, file_form):
+def test_classification_change_triggers_job(randstr, data_builder, as_admin, api_db, file_form, with_site_settings):
 
     ## SETUP gear, rule, file, modality
 

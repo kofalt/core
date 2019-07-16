@@ -7,7 +7,6 @@ import datetime
 import elasticsearch
 
 from flywheel_common import logging as flylogging
-from flywheel_common import storage
 
 from . import util
 from .dao.dbutil import try_replace_one, try_update_one
@@ -128,7 +127,27 @@ def apply_env_variables(config):
 
 def apply_runtime_features(config):
     """Apply any features that must be determined at runtime"""
-    config['features']['signed_url'] = primary_storage.is_signed_url()
+
+
+    # TODO: These shold be static constants from the provider class but this creates ciruclar 
+    # dependencies on the import ordering
+    # We short circuit the lookup if there is not the possibility for using signed urls
+    # We could do an aggregate but generally simple single queries are faster than aggregates
+    # We can optimize this later but it will be called frequently.
+    signed_url = False
+    if db.providers.find({
+        'provider_class': 'storage',
+        'provider_type': {'$in' : ['aws', 'gc']}
+        }).count() > 0:
+        signed_url = True
+
+        if db.providers.find({
+            'provider_class': 'storage',
+            'provider_type': {'$in' : ['osfs']}
+            }).count() > 1:
+            signed_url = False
+
+    config['features']['signed_url'] = signed_url
     return config
 
 # Create config for startup, will be merged with db config when db is available
@@ -259,9 +278,6 @@ def initialize_db():
     create_or_recreate_ttl_index('job_tickets', 'timestamp',       6 * 60 * 60) #  6 hours
     create_or_recreate_ttl_index('gear_tickets', 'timestamp', 1 * 24 * 60 * 60) #  1 day
 
-    from .site import site_settings
-    site_settings.initialize()
-
     now = datetime.datetime.utcnow()
     try_update_one(db,
                    'groups', {'_id': 'unknown'},
@@ -362,21 +378,9 @@ def get_release_version():
             pass
     return release_version
 
-# Storage configuration
-primary_storage = storage.create_flywheel_fs(__config['persistent']['fs_url'])
-# local_fs must be PyFS with osfs for using the local get_fs functions for file manipulation
-local_fs = storage.create_flywheel_fs('osfs://' + __config['persistent']['data_path'])
+# This is used for the temp storage and must be set
+local_fs_url = __config['persistent']['data_path']
+# This is the primary storage location. Its used only in the migration to providers and can be deprecated afterwards
+persistent_fs_url = __config['persistent']['fs_url']
+
 support_legacy_fs = __config['persistent']['support_legacy_fs']
-
-### Temp fix for 3-way split storages, where files exist in
-# 1. $SCITRAN_PERSISTENT_DATA_PATH/v0/ha/sh/v0-hash  (before abstract fs)
-# 2. $SCITRAN_PERSISTENT_DATA_PATH/v1/uu/id/uuid     (using abstract fs, without fs_url - defaulting to data_path/v1)
-# 3. $SCITRAN_PERSISTENT_FS_URL/uu/id/uuid           (using abstract fs, with fs_url)
-data_path2 = __config['persistent']['data_path'] + '/v1'
-if os.path.exists(data_path2):
-    log.warning('Path %s exists - enabling 3-way split storage support', data_path2)
-    local_fs2 = storage.create_flywheel_fs('osfs://' + data_path2)
-
-else:
-    local_fs2 = None
-###

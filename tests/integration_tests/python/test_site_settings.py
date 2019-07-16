@@ -40,7 +40,7 @@ def test_site_settings_update(as_admin, api_db, default_payload, data_builder):
             api_db.singletons.remove({'_id': 'site'})
 
 
-def test_site_settings_validation(as_admin):
+def test_site_settings_validation(as_admin, with_site_settings):
     # No body
     r = as_admin.put('/site/settings')
     assert r.status_code == 400

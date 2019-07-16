@@ -5,7 +5,7 @@ import os
 import uuid
 import fs.errors
 
-
+from .auth import require_privilege, Privilege
 from flywheel_common import storage
 from .web import base
 from .web.errors import FileFormException
@@ -14,6 +14,7 @@ from . import files
 from . import placer as pl
 from . import util
 from .dao import hierarchy
+from .site.storage_provider_service import StorageProviderService
 
 Strategy = util.Enum('Strategy', {
     'targeted'       : pl.TargetedPlacer,       # Upload 1 files to a container.
@@ -87,12 +88,16 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
     else:
         name_fn = os.path.basename
 
+    # Gear uploads come in as user origin but we need to be sure they end up in the site storage provider
+    force_site_provider = False
+    if container_type == 'gear':
+        force_site_provider = True
 
     # The vast majority of this function's wall-clock time is spent here.
-    file_processor = files.FileProcessor(config.primary_storage)
-
+    storage_service = StorageProviderService()
+    final_storage = storage_service.determine_provider(origin, container, force_site_provider=force_site_provider)
     if not file_fields:
-
+        file_processor = files.FileProcessor(final_storage)
         # The only time we need the tempdir_name is when we use token and packfile.
         form = file_processor.process_form(request, use_filepath=filename_path, tempdir_name=tempdir)
 
@@ -142,15 +147,19 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             field.path = field.filepath
 
         if tempdir:
-            field.size = (config.local_fs.get_file_info(None, field.filepath))['filesize']
+            # We have to manually clean up anything left in temp_storage
+            temp_storage = storage_service.get_local_storage()
+            field.size = (temp_storage.storage_plugin.get_file_info(None, field.filepath))['filesize']
         else:
-            field.size = (config.primary_storage.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+            field.size = (final_storage.storage_plugin.get_file_info(field.uuid, util.path_from_uuid(field.uuid)))['filesize']
+            field.provider_id = final_storage.provider_id
 
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
         field.modified = timestamp
 
         # create a file-attribute map commonly used elsewhere in the codebase.
         # Stands in for a dedicated object... for now.
+        field.provider_id = final_storage.provider_id
         file_attrs = make_file_attrs(field, origin)
 
         placer.process_file_field(file_attrs)
@@ -191,10 +200,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
 
 class Upload(base.RequestHandler):
 
-    def _create_upload_ticket(self):
-        if not config.primary_storage.is_signed_url():
-            self.abort(405, 'Signed URLs are not supported with the current storage backend')
-
+    def _create_upload_ticket(self, container=None):
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
         filenames = payload.get('filenames', None)
@@ -202,17 +208,25 @@ class Upload(base.RequestHandler):
         if metadata is None or not filenames:
             self.abort(400, 'metadata and at least one filename are required')
 
+        storage_service = StorageProviderService()
+        final_storage = storage_service.determine_provider(self.origin, container)
+
+        if not final_storage.storage_plugin.is_signed_url():
+            return None
+
+
         signed_urls = {}
         filedata = []
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.primary_storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_url = final_storage.storage_plugin.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             signed_urls[filename] = signed_url
             filedata.append({
                 'filename': filename,
                 'url': signed_url,
                 'uuid': new_uuid,
-                'filepath': util.path_from_uuid(new_uuid)
+                'filepath': util.path_from_uuid(new_uuid),
+                'provider_id': final_storage.provider_id
             })
         ticket = util.upload_ticket(self.request.client_addr, self.origin, None, filedata, metadata)
 
@@ -227,23 +241,19 @@ class Upload(base.RequestHandler):
             self.abort(403, 'ticket not for this resource or source IP')
         return ticket
 
+    @require_privilege(Privilege.is_drone)
     def upload(self, strategy):
-        """Receive a sortable reaper upload."""
-
-        if not self.user_is_admin:
-            user = self.uid
-            if not user:
-                self.abort(403, 'Uploading requires login')
+        """Receive a sortable reaper upload only from devices."""
 
         if strategy in ['label', 'uid', 'uid-match', 'reaper']:
             strategy = strategy.replace('-', '')
             strategy = getattr(Strategy, strategy)
 
-        context = {'uid': self.uid if not self.user_is_admin else None}
+        context = {'uid': None}
 
         # Request for upload ticket
         if self.get_param('ticket') == '':
-            return self._create_upload_ticket()
+            return self._create_upload_ticket(None)
 
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('ticket')
@@ -279,9 +289,10 @@ class Upload(base.RequestHandler):
             'job_ticket_id': self.get_param('job_ticket'),
         }
 
-        # Request for upload ticket
+        # Request for upload ticket will validate we have a provider before we do the actual upload
         if self.get_param('upload_ticket') == '':
-            return self._create_upload_ticket()
+            container = hierarchy.get_container(level, cid)
+            return self._create_upload_ticket(container)
 
 
         # Check ticket id and skip permissions check if it clears
@@ -317,10 +328,15 @@ class Upload(base.RequestHandler):
         })
         tokens_removed = 0
         dirs_cleaned = 0
+
+        storage_service = StorageProviderService()
+        # We have to manually remove files when finished
+        temp_storage = storage_service.get_local_storage()
+
         for token in result:
             # the token id is the folder.
             try:
-                config.local_fs.get_fs().removetree(token['_id'])
+                temp_storage.storage_plugin.get_fs().removetree(token['_id'])
                 dirs_cleaned += 1
             except fs.errors.ResourceNotFound:
                 pass
@@ -374,6 +390,7 @@ def make_file_attrs(field, origin):
 
     file_attrs = {
         '_id': field.uuid,
+        'provider_id': field.provider_id,
         'name': field.filename,
         'modified': field.modified,
         'size': field.size,

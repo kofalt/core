@@ -17,7 +17,7 @@ class AnalysisTestCases(SdkTestCase):
 
     def test_ad_hoc_analysis(self):
         fw = self.fw
-        
+
         # Upload to session
         poem = 'A gaze blank and pitiless as the sun,'
         fw.upload_file_to_session(self.session_id, flywheel.FileSpec('yeats.txt', poem))
@@ -128,10 +128,10 @@ class AnalysisTestCases(SdkTestCase):
         assert r_analysis.label == 'NewLabel'
 
     def test_job_based_analysis(self):
-        fw = self.fw
+        fw = self.fw_device
 
-        gear = fw.get_gear(self.gear_id)
-        
+        gear = self.fw_device.get_gear(self.gear_id)
+
         # Upload to session
         poem = 'A gaze blank and pitiless as the sun,'
         fw.upload_file_to_session(self.session_id, flywheel.FileSpec('yeats.txt', poem))

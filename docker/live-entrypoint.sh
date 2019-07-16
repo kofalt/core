@@ -24,7 +24,7 @@ mongod --bind_ip_all &
 
 sleep 1
 mongo localhost/scitran --eval "db.users.insert({_id: 'admin@user.com', root:true})"
-mongo localhost/scitran --eval "db.apikeys.insert({_id: 'change-me', created:Date(), type:'user', origin: {type: 'user', id: 'admin@user.com'}})"
+mongo localhost/scitran --eval "db.apikeys.insert({_id: 'change-me', created:Date(), type:'user', origin: {type: 'user', id: 'admin@user.com'}, last_used: Date()})"
 
 # Use exec to keep PID and use su-exec (gosu equivalent) to step-down from root.
 exec su-exec ${RUNAS_USER} "$@"

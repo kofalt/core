@@ -49,7 +49,7 @@ def database_mock_setup():
         setattr(checks, check_id, Mock())
 
 @patch('database.get_db_version', Mock(return_value=(0, {}, {})))
-def test_all_upgrade_scripts_ran(database_mock_setup):
+def test_all_upgrade_scripts_ran(database_mock_setup, api_db):
     with pytest.raises(SystemExit):
         database.upgrade_schema()
     for i in range(1, CDV):
@@ -62,6 +62,13 @@ def test_all_upgrade_scripts_ran(database_mock_setup):
 
     for check_id in checks.AVAILABLE_CHECKS:
         assert getattr(checks, check_id).called
+
+    # Upgrade Cleanup 
+    # After the upgrade scripts run we will have extra providers since those
+    # Are needed for all the previous tests. We should either make this test run first
+    # For undo any changes that adjust our seed data state
+    api_db.providers.delete_one({'label':'Primary Storage'})
+    api_db.providers.delete_one({'label':'Static Compute'})
 
 @patch('database.get_db_version', Mock(return_value=(CDV-4, {}, {})))
 def test_necessary_upgrade_scripts_ran(database_mock_setup):

@@ -9,6 +9,7 @@ import zipfile
 
 import fs.path
 
+from ..types import Origin
 from ..web import base
 from .. import config, files, upload, util, validators
 from ..auth import listauth, always_ok
@@ -19,7 +20,8 @@ from ..dao import containerstorage
 from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
 from ..web.request import AccessType
 from ..jobs.mappers import RulesMapper
-
+from ..site.providers import get_provider
+from ..site import StorageProviderService 
 
 def initialize_list_configurations():
     """
@@ -346,9 +348,9 @@ class FileListHandler(ListHandler):
     This class implements a more specific logic for list of files as the api needs to interact with the filesystem.
     """
 
-    def _create_upload_ticket(self):
-        if not config.primary_storage.is_signed_url():
-            self.abort(405, 'Signed URLs are not supported with the current storage backend')
+    def _create_upload_ticket(self, storage_provider):
+        if not storage_provider.storage_plugin.is_signed_url():
+            return None
 
         payload = self.request.json_body
         metadata = payload.get('metadata', None)
@@ -363,7 +365,7 @@ class FileListHandler(ListHandler):
 
         for filename in filenames:
             new_uuid = str(uuid.uuid4())
-            signed_url = config.primary_storage.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
+            signed_url = storage_provider.storage_plugin.get_signed_url(new_uuid, util.path_from_uuid(new_uuid), purpose='upload')
             signed_urls[filename] = signed_url
             filedata.append({
                 'filename': filename,
@@ -439,7 +441,10 @@ class FileListHandler(ListHandler):
         if hash_ and hash_ != fileinfo['hash']:
             self.abort(409, 'file exists, hash mismatch')
 
-        file_path, file_system = files.get_valid_file(fileinfo)
+        file_path = fileinfo.get('path')
+        if not file_path:
+            file_path = files.get_file_path(fileinfo)
+        file_system = get_provider(fileinfo['provider_id']).storage_plugin
 
         # Request for download ticket
         if self.get_param('ticket') == '':
@@ -480,9 +485,9 @@ class FileListHandler(ListHandler):
             # IMPORTANT: If you modify the below code reflect the code changes in
             # refererhandler.py:AnalysesHandler's download method
             signed_url = None
-            if config.primary_storage.is_signed_url() and config.primary_storage.can_redirect_request(self.request.headers):
+            if file_system.is_signed_url() and file_system.can_redirect_request(self.request.headers):
                 try:
-                    signed_url = config.primary_storage.get_signed_url(fileinfo.get('_id'), file_path,
+                    signed_url = file_system.get_signed_url(fileinfo.get('_id'), file_path,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
@@ -606,7 +611,11 @@ class FileListHandler(ListHandler):
 
         # Request for upload ticket
         if self.get_param('ticket') == '':
-            return self._create_upload_ticket()
+            container_service = containerstorage.cs_factory(cont_name)
+            container = container_service.get_el(_id)
+            storage_service = StorageProviderService()
+            final_storage = storage_service.determine_provider(self.origin, container)
+            return self._create_upload_ticket(final_storage)
 
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('ticket')
@@ -617,6 +626,7 @@ class FileListHandler(ListHandler):
                 self.origin = ticket.get('origin')
 
             file_fields = [util.dotdict(file_field) for file_field in ticket['filedata']]
+
             # In this flow files are stored to the storage location via the signed url directly
             return upload.process_upload(self.request, upload.Strategy.targeted, self.log_user_access, metadata=ticket['metadata'], origin=self.origin,
                                          container_type=containerutil.singularize(cont_name),
@@ -680,7 +690,8 @@ class FileListHandler(ListHandler):
 
         # Server-Sent Events are fired in the browser in such a way that one cannot dictate their headers.
         # For these endpoints, authentication must be disabled because the normal Authorization header will not be present.
-        # In this case, the document id will serve instead.
+        # In this case, the document id will serve instead. Because of the lack of headers we also need to 
+        # return an origin based on the origin packfile request.
         if check_user:
             query['user'] = self.uid
 
@@ -698,6 +709,10 @@ class FileListHandler(ListHandler):
                 'modified': datetime.datetime.utcnow()
             }
         })
+
+        # It should only be users on browsers that are using SSE events.
+        if result.get('user') and result['user']:
+            return {'id': result['user'], 'type': Origin.user.value}
 
     def packfile_start(self, cont_name, **kwargs):
         """
@@ -750,7 +765,14 @@ class FileListHandler(ListHandler):
         token_id = self.request.GET.get('token')
         self._check_packfile_token(project_id, token_id)
 
-        return upload.process_upload(self.request, upload.Strategy.token, self.log_user_access, origin=self.origin, context={'token': token_id}, tempdir=fs.path.join('tokens', 'packfile', token_id))
+        return upload.process_upload(self.request,
+            upload.Strategy.token,
+            self.log_user_access,
+            origin=self.origin,
+            container_type='project',
+            id_=project_id,
+            context={'token': token_id},
+            tempdir=fs.path.join('tokens', 'packfile', token_id))
 
     def packfile_end(self, **kwargs):
         """
@@ -758,11 +780,24 @@ class FileListHandler(ListHandler):
         """
 
         project_id = kwargs.pop('cid')
-        token_id = self.request.GET.get('token')
-        self._check_packfile_token(project_id, token_id, check_user=False)
-
         # Because this is an SSE endpoint, there is no form-post. Instead, read JSON data from request param
         metadata = json.loads(self.request.GET.get('metadata'))
 
-        return upload.process_upload(self.request, upload.Strategy.packfile, self.log_user_access, origin=self.origin, context={'token': token_id},
-                response=self.response, metadata=metadata, tempdir=fs.path.join('tokens', 'packfile', token_id))
+        # Also because this is na SSE endpoint there are no headers and thus no origin set based on auth.
+        # So we need to determine the origin from the token
+        token_id = self.request.GET.get('token')
+        token_origin = self._check_packfile_token(project_id, token_id, check_user=False)
+        if self.origin['type'] != Origin.unknown.value:
+            token_origin = self.origin
+
+
+        return upload.process_upload(self.request,
+                upload.Strategy.packfile,
+                self.log_user_access,
+                origin=token_origin,
+                container_type='project',
+                id_=project_id,
+                context={'token': token_id},
+                response=self.response,
+                metadata=metadata,
+                tempdir=fs.path.join('tokens', 'packfile', token_id))

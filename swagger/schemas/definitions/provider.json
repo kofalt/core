@@ -47,6 +47,10 @@
                 "config": {
                     "type": "object",
                     "description": "The provider-specific configuration fields."
+                },
+                "creds": {
+                    "type": "object",
+                    "description": "The provider-specific credential fields."
                 }
             },
             "additionalProperties": false
@@ -66,6 +70,10 @@
                 "config": {
                     "type": "object",
                     "description": "The provider-specific configuration fields."
+                },
+                "creds": {
+                    "type": "object",
+                    "description": "The provider-specific credential fields."
                 }
             },
             "additionalProperties": false

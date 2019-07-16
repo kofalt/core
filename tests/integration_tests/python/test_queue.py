@@ -1,4 +1,4 @@
-def test_queue_search(data_builder, default_payload, as_admin, file_form):
+def test_queue_search(data_builder, default_payload, as_admin, file_form, with_site_settings):
 
     # Dupe of test_jobs.py
     gear_doc = default_payload['gear']['gear']

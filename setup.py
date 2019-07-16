@@ -22,6 +22,10 @@ setup(
     install_requires = install_requires,
     tests_require = tests_require,
     entry_points={
+        'flywheel.providers': [
+            'storage_local = api.site.providers.local_storage_provider:LocalStorageProvider',
+            'compute_static = api.site.providers.static_compute_provider:StaticComputeProvider',
+        ],
         'flywheel.storage': [
             'osfs = api.storage.py_fs.py_fs_storage:PyFsStorage',
             'gc = api.storage.py_fs.py_fs_storage:PyFsStorage',

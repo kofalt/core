@@ -166,7 +166,10 @@ def test_site_rules(randstr, data_builder, as_admin, as_user, as_public):
     assert r.status_code == 404
 
 
-def test_site_rules_copied_to_new_projects(randstr, data_builder, file_form, as_admin, as_root):
+def test_site_rules_copied_to_new_projects(randstr, data_builder, file_form, as_admin, as_root, as_drone, with_site_settings, api_db):
+
+    site_storage = str(api_db.singletons.find({'_id': 'site'})[0]['providers']['storage'])
+
     gear_1 = data_builder.create_gear(gear={'version': '0.0.1'})
     rule_1 = {
         'gear_id': gear_1,
@@ -211,14 +214,18 @@ def test_site_rules_copied_to_new_projects(randstr, data_builder, file_form, as_
         'label': 'project_1'
     })
     assert r.ok
-    project_id = r.json()['_id']
+    project_id = r.json()['_id']    
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': site_storage}}
+    r = as_admin.put('/projects/' + project_id, json=update)
+    assert r.ok
 
     r = as_admin.get('/projects/'+project_id+'/rules')
     assert r.ok
     assert len(r.json()) == 2
 
     # Create new project via upload
-    r = as_admin.post('/upload/label', files=file_form(
+    r = as_drone.post('/upload/label', files=file_form(
         'acquisition.csv',
         meta={
             'group': {'_id': group},
@@ -859,7 +866,7 @@ def test_auto_update_rules(data_builder, api_db, as_admin):
     assert r.ok
 
 
-def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_root, as_admin, with_user, api_db):
+def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_root, as_admin, with_user, api_db, as_drone, with_site_settings):
     """
     Always run jobs from rules where at least one of the inputs were "replaced" during the upload.
 
@@ -892,6 +899,7 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
         ).ok
         assert as_root.put('/jobs/' + job_id, json={'state': 'complete'}).ok
 
+    site_storage = str(api_db.singletons.find_one({'_id': 'site'})['providers']['storage'])
 
     # Create gears
     classifier_gear = data_builder.create_gear(gear={'version': '0.0.1', 'name': 'classifier-gear'})
@@ -902,6 +910,10 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
     group = data_builder.create_group()
     project_label = 'rerun-rule-project'
     project = data_builder.create_project(group=group, label='rerun-rule-project')
+    # Projects must have a provider for drone uploads to work
+    update = {'providers': {'storage': site_storage}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
 
     # UID and filename used for repeat reaper uploads
     dicom_file_name = 'some_dicom.dcm.zip'
@@ -935,9 +947,10 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
     }
 
     # Run QA gear when converter has complete
+    name = randstr()
     qa_rule = {
         'gear_id': qa_gear,
-        'name': 'qa-rule',
+        'name': name,
         'any': [
             {'type': 'file.classification', 'value': 'functional'}
         ],
@@ -954,12 +967,12 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
 
 
     # get project rules (verify rules were added)
-    r = as_admin.get('/projects/' + project + '/rules')
+    r = as_admin.get('/projects/' + project + '/rules?name=' + name)
     assert r.ok
     assert len(r.json()) == 3
 
     # upload initial dicom via reaper
-    r = as_admin.post('/upload/reaper', files=file_form(
+    r = as_drone.post('/upload/reaper', files=file_form(
         dicom_file_name,
         meta={
             'group': {'_id': group},
@@ -1044,7 +1057,7 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
     assert len(as_admin.get('/acquisitions/' + acquisition).json()['files']) == 3
 
     # upload dicom with same hash via reaper
-    r = as_admin.post('/upload/reaper', files=file_form(
+    r = as_drone.post('/upload/reaper', files=file_form(
         dicom_file_name,
         meta={
             'group': {'_id': group},
@@ -1066,7 +1079,7 @@ def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_roo
     assert 'Functional' in r.json()['classification']['Intent']
 
     # Upload dicom with different hash via reaper
-    r = as_admin.post('/upload/reaper', files=file_form(
+    r = as_drone.post('/upload/reaper', files=file_form(
         (dicom_file_name, 'new_file_content'),
         meta={
             'group': {'_id': group},
@@ -1359,16 +1372,22 @@ def test_multi_input_rules(default_payload, data_builder, as_admin, as_root, fil
     r = as_admin.delete('/acquisitions/' + acquisition + '/files/test.csv')
     assert r.status_code == 403
 
-def test_project_rule_providers(site_providers, data_builder, file_form, as_root, as_admin, as_user, as_drone, api_db):
-    # create versioned gear to cover code selecting latest gear
-    gear_name = data_builder.randstr()
-    gear_config = {'param': {'type': 'string', 'pattern': '^default|custom$', 'default': 'default'}}
-    gear = data_builder.create_gear(gear={'name': gear_name, 'version': '0.0.1', 'config': gear_config})
+def test_project_rule_providers(compute_provider, data_builder, file_form, as_root, as_admin, as_user, as_drone, api_db, with_site_settings, site_gear):
 
+    # create versioned gear to cover code selecting latest gear
+    api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.config': {'param': {'type': 'string', 'pattern': '^default|custom$', 'default': 'default'}}}})
+    gear_name = 'site-gear'
+    gear = site_gear
     group = data_builder.create_group(providers={})
     project = data_builder.create_project()
+    site_storage = str(api_db.singletons.find({'_id': 'site'})[0]['providers']['storage'])
 
-    site_provider = site_providers['compute']
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': site_storage}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
+
+    site_provider = compute_provider
     override_provider = data_builder.create_compute_provider()
     group_provider = data_builder.create_compute_provider()
 

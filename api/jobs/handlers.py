@@ -14,7 +14,7 @@ from .job_util import (
     get_context_for_destination,
     remove_potential_phi_from_job,
     validate_job_compute_provider,
-    log_job_access
+    log_job_access,
 )
 from .. import config
 from .. import upload
@@ -31,7 +31,7 @@ from ..web import base
 from ..web.encoder import pseudo_consistent_json_encode
 from ..web.errors import APIPermissionException, APINotFoundException, InputValidationException
 from ..web.request import log_access, AccessType
-from ..site import providers
+from ..site.providers import get_provider
 
 from .gears import (
     validate_gear_config, get_gears, get_gear, get_latest_gear, confirm_registry_asset,
@@ -330,11 +330,10 @@ class GearHandler(base.RequestHandler):
         gear = get_gear(dl_id)
 
         file_id = gear['exchange'].get('rootfs-id')
-        file_path, storage = files.get_valid_file({
-            '_id': file_id,
-            'hash': 'v0-' + gear['exchange']['rootfs-hash'].replace(':', '-')
-        })
-        send_or_redirect_file(self, storage, file_id, file_path, 'gear.tar')
+        provider_id = gear['exchange'].get('rootfs-provider-id')
+        provider = get_provider(provider_id)
+        file_path = files.get_file_path({'_id': file_id})
+        send_or_redirect_file(self, provider, file_id, file_path, 'gear.tar')
 
     @require_privilege(Privilege.can_upload_gear)
     def post(self, _id):
@@ -576,7 +575,9 @@ class JobsHandler(base.RequestHandler):
         job = Queue.enqueue_job(payload, self.origin, perm_check_uid=None)
 
         # Retrieve the provider
-        return providers.get_provider(job.compute_provider_id)
+        provider = get_provider(job.compute_provider_id)
+        # pylint: disable=W0212
+        return provider._schema.dump(provider).data
 
     @require_privilege(Privilege.is_admin)
     def stats(self):

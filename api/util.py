@@ -178,7 +178,7 @@ def upload_ticket(ip, origin, tempdir, filedata, metadata):
         'timestamp': datetime.datetime.utcnow(),
         'ip': ip,
         'tempdir': tempdir,
-        'filedata': filedata, # is a list of files, with name, uuid and signed url
+        'filedata': filedata, # is a list of files, with name, uuid and signed url, and provider_id
         'metadata': metadata,
         'origin': origin
     }
@@ -232,7 +232,7 @@ def set_for_download(response, stream=None, filename=None, length=None,
     if length is not None:
         response.headers['Content-Length'] = str(length)
 
-def send_or_redirect_file(handler, storage, file_id, file_path, filename,
+def send_or_redirect_file(handler, provider, file_id, file_path, filename,
         content_type='application/octet-stream'):
     """Serve a file on the response object.
 
@@ -242,7 +242,7 @@ def send_or_redirect_file(handler, storage, file_id, file_path, filename,
 
     Args:
         handler: The request handler object
-        storage: The storage provider that the file belongs to
+        provider (Provider): The storage provider that the file belongs to
         file_id (str): The uuid of the file, if known
         file_path (str): The path to the file
         filename (str): The name of the file (for the content-disposition header)
@@ -252,6 +252,7 @@ def send_or_redirect_file(handler, storage, file_id, file_path, filename,
         APINotFoundException: If the file could not be found
     """
     signed_url = None
+    storage = provider.storage_plugin
     try:
         if storage.is_signed_url() and storage.can_redirect_request(handler.request.headers):
             signed_url = storage.get_signed_url(file_id, file_path, 'download', filename,

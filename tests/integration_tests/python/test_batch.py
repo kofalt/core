@@ -594,10 +594,9 @@ def test_file_input_context_batch(data_builder, default_payload, as_admin, file_
     batch1 = r.json()
 
     assert len(batch1['matched']) == 2
-    assert batch1['matched'][0]['_id'] == acquisition
-    assert 'inputs' not in batch1['matched'][0]
-    assert batch1['matched'][1]['_id'] == acquisition2
-    assert 'inputs' not in batch1['matched'][1]
+    matched_ids = [ x['_id'] for x in batch1['matched'] ]
+    assert acquisition in matched_ids
+    assert acquisition2 in matched_ids
 
     batch_id = batch1['_id']
 
@@ -766,9 +765,12 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     batch1 = r.json()
 
     assert len(batch1['matched']) == 2
-    assert batch1['matched'][0]['_id'] == acquisition
+
+    assert len(batch1['matched']) == 2
+    matched_ids = [ x['_id'] for x in batch1['matched'] ]
+    assert acquisition in matched_ids
+    assert acquisition2 in matched_ids
     assert 'inputs' not in batch1['matched'][0]
-    assert batch1['matched'][1]['_id'] == acquisition2
     assert 'inputs' not in batch1['matched'][1]
 
     batch_id = batch1['_id']
@@ -801,9 +803,11 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     batch2 = r.json()
 
     assert len(batch2['matched']) == 2
-    assert batch2['matched'][0]['_id'] == acquisition
+
+    matched_ids = [ x['_id'] for x in batch2['matched'] ]
+    assert acquisition in matched_ids
+    assert acquisition2 in matched_ids
     assert 'inputs' not in batch2['matched'][0]
-    assert batch2['matched'][1]['_id'] == acquisition2
     assert 'inputs' not in batch2['matched'][1]
 
     batch_id = batch2['_id']
@@ -866,7 +870,7 @@ def test_optional_input_batch(data_builder, default_payload, as_admin, as_root, 
     # must remove jobs manually because gears were added manually
     api_db.jobs.remove({'gear_id': {'$in': [gear, gear_v1]}})
 
-def test_batch_providers(site_providers, data_builder, api_db, as_user, as_admin, as_root, as_drone):
+def test_batch_providers(compute_provider, data_builder, api_db, as_user, as_admin, as_root, as_drone, with_site_settings):
     gear_id = data_builder.create_gear()
     gear = as_admin.get('/gears/' + gear_id).json()
 
@@ -877,7 +881,7 @@ def test_batch_providers(site_providers, data_builder, api_db, as_user, as_admin
     as_admin.post('/acquisitions/' + acquisition + '/files', files={
         'file': ('test.txt', 'test\ncontent\n')})
 
-    site_provider = site_providers['compute']
+    site_provider = compute_provider
     override_provider = data_builder.create_compute_provider()
 
     # Ensure that user is a project admin

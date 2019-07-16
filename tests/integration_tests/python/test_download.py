@@ -28,7 +28,7 @@ def tarfile_members(contents):
 
     return result
 
-def test_download_k(data_builder, file_form, as_admin, as_user, api_db, legacy_cas_file):
+def test_download_k(data_builder, file_form, as_admin, as_user, api_db, with_site_settings):
     project = data_builder.create_project(label='project1')
     subject = data_builder.create_subject(code='subject1', project=project)
     session = data_builder.create_session(label='session1', project=project, subject={'_id': subject})
@@ -207,32 +207,6 @@ def test_download_k(data_builder, file_form, as_admin, as_user, api_db, legacy_c
     r = as_user.get('/download', params={'ticket': ticket, 'symlinks': 'true'})
     assert r.ok
 
-    # test legacy cas file handling
-    (project_legacy, file_name_legacy, file_content) = legacy_cas_file
-
-    # Add user to leagcy project permissions
-    as_admin.post('/projects/' + project_legacy + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
-    r = as_user.post('/download', json={
-        'optional': False,
-        'nodes': [
-            {'level': 'project', '_id': project_legacy},
-        ]
-    })
-    assert r.ok
-    ticket = r.json()['ticket']
-
-    # Perform the download
-    r = as_user.get('/download', params={'ticket': ticket})
-    assert r.ok
-
-    tar_file = cStringIO.StringIO(r.content)
-    tar = tarfile.open(mode="r", fileobj=tar_file)
-
-    # Verify a single file in tar with correct file name
-    for tarinfo in tar:
-        assert os.path.basename(tarinfo.name) == file_name_legacy
-
-    tar.close()
 
     # test missing file handling
     api_db.acquisitions.update_one({'_id': ObjectId(acquisition)},
@@ -264,7 +238,7 @@ def test_download_k(data_builder, file_form, as_admin, as_user, api_db, legacy_c
     tar.close()
 
 
-def test_filelist_download(data_builder, file_form, as_user, as_admin, legacy_cas_file):
+def test_filelist_download(data_builder, file_form, as_user, as_admin, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
 
@@ -325,21 +299,7 @@ def test_filelist_download(data_builder, file_form, as_user, as_admin, legacy_ca
     r = as_user.get(session_files + '/two.zip', params={'ticket': ticket, 'member': 'two.csv'})
     assert r.ok
 
-    # test legacy cas file handling
-    (project, file_name, file_content) = legacy_cas_file
-    # Add User to permissions
-    as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
-    r = as_user.get('/projects/' + project + '/files/' + file_name, params={'ticket': ''})
-    assert r.ok
-
-    ticket = r.json()['ticket']
-
-    r = as_user.get('/projects/' + project + '/files/' + file_name, params={'ticket': ticket})
-    assert r.ok
-    assert r.content == file_content
-
-
-def test_filelist_range_download(data_builder, as_user, as_admin, file_form):
+def test_filelist_range_download(data_builder, as_user, as_admin, file_form, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
 
@@ -446,7 +406,7 @@ def test_filelist_range_download(data_builder, as_user, as_admin, file_form):
 
 @pytest.mark.skipif(not os.getenv('SCITRAN_PERSISTENT_FS_URL', 'osfs').startswith('osfs'),
                     reason="Only OSFS supports all of these special range formats.")
-def test_filelist_advanced_range_download(data_builder, as_user, as_admin, file_form):
+def test_filelist_advanced_range_download(data_builder, as_user, as_admin, file_form, with_site_settings):
     # We run this test only with OSFS because other backends don't support fully the RFS standard.
     # Left comments about the found defects with the specific storage backends at the assertions.
     project = data_builder.create_project()
@@ -538,7 +498,7 @@ def test_filelist_advanced_range_download(data_builder, as_user, as_admin, file_
                         'Content-Range: bytes 3-4/9\n\n' \
                         '45\n'.format(boundary)
 
-def test_analysis_download(data_builder, file_form, as_user, as_admin, as_drone, default_payload):
+def test_analysis_download(data_builder, file_form, as_user, as_admin, as_drone, default_payload, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
     zip_cont = cStringIO.StringIO()
@@ -702,7 +662,7 @@ def test_analysis_download(data_builder, file_form, as_user, as_admin, as_drone,
     assert r.ok
 
 
-def test_analyses_range_download(data_builder, as_user, as_admin, file_form):
+def test_analyses_range_download(data_builder, as_user, as_admin, file_form, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session(project=project)
     # Add User to permissions
@@ -792,7 +752,7 @@ def test_analyses_range_download(data_builder, as_user, as_admin, file_form):
     assert r.content == '123456789'
 
 
-def test_filters(data_builder, file_form, as_user, as_admin):
+def test_filters(data_builder, file_form, as_user, as_admin, with_site_settings):
 
     project = data_builder.create_project()
     session = data_builder.create_session()
@@ -886,7 +846,7 @@ def test_filters(data_builder, file_form, as_user, as_admin):
     assert r.ok
     assert r.json()['file_cnt'] == 1
 
-def test_summary(data_builder, as_user, as_admin, file_form):
+def test_summary(data_builder, as_user, as_admin, file_form, with_site_settings):
     project = data_builder.create_project(label='project1')
     session = data_builder.create_session(label='session1')
     session2 = data_builder.create_session(label='session1')
@@ -960,7 +920,7 @@ def test_summary(data_builder, as_user, as_admin, file_form):
     assert len(r.json()) == 0
 
 
-def test_subject_download(data_builder, as_admin, file_form):
+def test_subject_download(data_builder, as_admin, file_form, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session(subject={'code': 'subject-download'})
     subject = as_admin.get('/sessions/' + session).json()['subject']['_id']
@@ -987,7 +947,7 @@ def test_subject_download(data_builder, as_admin, file_form):
     assert r.ok
     assert r.json()['file_cnt'] == 2
 
-def test_full_project_download(data_builder, file_form, as_admin, as_root, as_drone, api_db):
+def test_full_project_download(data_builder, file_form, as_admin, as_root, as_drone, api_db, with_site_settings):
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
     project = data_builder.create_project(label='project1')
     subject = data_builder.create_subject(code='subject1', project=project, type='animal', species='dog')
@@ -999,6 +959,11 @@ def test_full_project_download(data_builder, file_form, as_admin, as_root, as_dr
     acquisition2 = data_builder.create_acquisition(label='acquisition2', session=session2)
     acquisition3 = data_builder.create_acquisition(label='acquisition3', session=session3)
     acquisition4 = data_builder.create_acquisition(label='acquisition4', session=session4)
+
+    # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
 
     # Set metadata on session
     as_admin.post('/sessions/' + session + '/info', json={

@@ -7,6 +7,7 @@ from ..files import FileProcessor
 from ..placer import TargetedMultiPlacer
 from .. import upload
 from .. import search
+from ..site.storage_provider_service import StorageProviderService
 
 from ..web import base, errors
 from .. import config, validators
@@ -590,8 +591,6 @@ class DataExplorerHandler(base.RequestHandler):
     def search_fields(self):
         field_query = self.request.json_body.get('field')
         return self._suggest_fields(field_query)
-
-
     def _suggest_fields(self, field_query, count=15):
         es_query = {
             "size": count,
@@ -763,9 +762,11 @@ class DataExplorerHandler(base.RequestHandler):
             },
             'files': file_results
         }
-
+        
         # Saved directly to persistent storage.
-        file_processor = FileProcessor(config.primary_storage)
+        storage_service = StorageProviderService()
+        final_storage = storage_service.determine_provider(self.origin, output_container)
+        file_processor = FileProcessor(final_storage)
 
         # Create a new file with a new uuid
         path, fileobj = file_processor.create_new_file(None)
@@ -780,7 +781,7 @@ class DataExplorerHandler(base.RequestHandler):
 
         fileobj.close()
 
-        file_fields = file_processor.create_file_fields(output_filename, path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
+        file_fields = file_processor.create_file_fields(fileobj.provider_id, output_filename, path, fileobj.size, fileobj.hash, uuid_=fileobj.filename)
         file_attrs = upload.make_file_attrs(file_fields, self.origin)
 
         # Place the file

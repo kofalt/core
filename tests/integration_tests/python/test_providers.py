@@ -5,15 +5,24 @@ VALID_PROVIDER = {
     'provider_type': 'static',
     'label': 'My Provider',
     'config': {},
+    'creds': {}
+}
+VALID_STORAGE_PROVIDER = {
+    'provider_class': 'storage',
+    'provider_type': 'local',
+    'label': 'My Storage Provider',
+    'config': {'path': '/var'},
+    'creds': {}
 }
 
-def test_providers_initial_state(as_user):
+def test_providers_initial_state(as_user, with_site_settings, api_db):
+
     r = as_user.get('/site/providers')
     assert r.ok
 
     static_provider_id = None
     for provider in r.json():
-        if provider['provider_class'] == 'compute' and provider['provider_type'] == 'static':
+        if provider['provider_class'] == 'compute' and provider['label'] == 'Static Compute':
             static_provider_id = provider['_id']
 
     assert static_provider_id is not None
@@ -25,6 +34,7 @@ def test_providers_initial_state(as_user):
     assert site_settings.get('providers', {}).get('compute') == static_provider_id
 
 def test_create_providers(api_db, as_admin, as_user, as_public):
+
     # Create and retrieve
     r = as_public.get('/site/providers')
     assert r.status_code == 403
@@ -47,6 +57,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'other',
         'label': 'Label',
         'config': {},
+        'creds': {}
     })
     assert r.status_code == 422
 
@@ -56,6 +67,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'static',
         'label': 'Label',
         'config': {},
+        'creds': {}
     })
     assert r.status_code == 400  # Validated by enum type in schema
 
@@ -65,6 +77,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'static',
         'label': 'Label',
         'config': {'value': 'something'},
+        'creds': {}
     })
     assert r.status_code == 422
 
@@ -74,6 +87,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         'provider_type': 'static',
         'label': 'Label',
         'config': {},
+        'creds': {},
         'extra': True,
     })
     assert r.status_code == 400
@@ -89,7 +103,7 @@ def test_create_providers(api_db, as_admin, as_user, as_public):
         assert r_provider['provider_class'] == VALID_PROVIDER['provider_class']
         assert r_provider['provider_type'] == VALID_PROVIDER['provider_type']
         assert r_provider['label'] == VALID_PROVIDER['label']
-        assert 'config' not in r_provider
+        assert r_provider['config'] == {}
     finally:
         api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
 
@@ -105,13 +119,13 @@ def test_get_provider(api_db, as_admin, as_user, as_public):
         assert r_provider['provider_class'] == VALID_PROVIDER['provider_class']
         assert r_provider['provider_type'] == VALID_PROVIDER['provider_type']
         assert r_provider['label'] == VALID_PROVIDER['label']
-        assert 'config' not in r_provider
+        assert r_provider['config'] == {}
 
         r = as_user.get('/site/providers/' + provider_id)
         assert r.ok
         assert r.json() == r_provider
 
-        r = as_admin.get('/site/providers?provider_class=compute')
+        r = as_admin.get('/site/providers?class=compute')
         assert r.ok
         r_providers = r.json()
         assert len(r_providers) >= 1
@@ -174,9 +188,11 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
     provider_id = r.json()['_id']
     device_id = None
 
-    try:
-        api_db.providers.update({'_id': bson.ObjectId(provider_id)}, {'$set': {'config': {'top': 'secret'}}})
+    r = as_admin.post('/site/providers', json=VALID_STORAGE_PROVIDER)
+    assert r.ok
+    storage_provider_id = r.json()['_id']
 
+    try:
         r = as_public.get('/site/providers/' + provider_id + '/config')
         assert r.status_code == 403
 
@@ -210,21 +226,22 @@ def test_get_provider_config(api_db, as_admin, as_user, as_public, as_drone, as_
 
         r = as_device.get('/site/providers/' + provider_id + '/config')
         assert r.ok
-        assert r.json() == {'top': 'secret'}
+        # Static compute has no config nor creds but we should at least get the same unredacted structure
+        assert r.json() == {'creds': {}, 'config': {}}
 
         # Still can't get storage config...
-        api_db.providers.update({'_id': bson.ObjectId(provider_id)}, {'$set': {'provider_class': 'storage'}})
-        r = as_device.get('/site/providers/' + provider_id + '/config')
+        r = as_device.get('/site/providers/' + storage_provider_id + '/config')
         assert r.status_code == 403
 
     finally:
         api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
+        api_db.providers.remove({'_id': bson.ObjectId(storage_provider_id)})
 
         # delete device
         if device_id is not None:
             assert as_root.delete('/devices/' + device_id).ok
 
-def test_site_providers(api_db, data_builder, as_user, as_admin):
+def test_site_providers(api_db, data_builder, as_user, as_admin, with_site_settings):
     # Create a static compute provider
     r = as_admin.post('/site/providers', json=VALID_PROVIDER)
     assert r.ok
@@ -243,6 +260,11 @@ def test_site_providers(api_db, data_builder, as_user, as_admin):
         update = {'providers': {'compute': site_compute_provider_id}}
         r = as_admin.put('/site/settings', json=update)
         assert r.ok
+
+        # Can not remove all site providersP:
+        update = {'providers': {}}
+        r = as_admin.put('/site/settings', json=update)
+        assert not r.ok
 
     finally:
         api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
@@ -334,7 +356,7 @@ def test_project_providers(api_db, data_builder, as_user, as_admin):
         project2 = data_builder.create_project(providers={'compute': provider_id})
         r = as_admin.get('/projects/' + project2)
         assert r.ok
-        assert r.json()['providers'] == {'compute': provider_id}
+        assert r.json()['providers']['compute'] == provider_id
 
         # Can't set provider on subject/session
         r = as_admin.post('/subjects', json={'project': project, 'code': 'subject2', 'providers': {'compute': provider_id}})
@@ -344,3 +366,205 @@ def test_project_providers(api_db, data_builder, as_user, as_admin):
 
     finally:
         api_db.providers.remove({'_id': bson.ObjectId(provider_id)})
+
+
+def test_provider_selection_user(data_builder, file_form, as_user, as_admin, api_db, with_site_settings, second_storage_provider):
+
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+
+    # Add user to project
+    uid = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'admin'})
+    assert r.ok
+
+    # try to upload a file and verify site provider
+    r = as_user.post('/projects/' + project + '/files', files=file_form('upload-test.csv'))
+    assert r.ok
+    files = r.json()
+    assert len(files) == 1
+    assert files[0]['name'] == 'upload-test.csv'
+    assert files[0]['provider_id'] == 'deadbeefdeadbeefdeadbeef'
+
+    # User project with provider as non site provider
+    project = data_builder.create_project(providers={'storage': second_storage_provider})
+    uid = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'admin'})
+    assert r.ok
+    r = as_user.post('/projects/' + project + '/files', files=file_form('upload-test2.csv'))
+    assert r.ok
+    files = r.json()
+    assert len(files) == 1
+    assert files[0]['name'] == 'upload-test2.csv'
+    assert files[0]['provider_id'] == second_storage_provider
+
+
+    # Inhert the provider settings from the parent group
+    group = data_builder.create_group(providers={'storage': second_storage_provider})
+    project = data_builder.create_project(group=group)
+    uid = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'admin'})
+    assert r.ok
+    r = as_user.post('/projects/' + project + '/files', files=file_form('upload-test3.csv'))
+    assert r.ok
+    files = r.json()
+    assert len(files) == 1
+    assert files[0]['name'] == 'upload-test3.csv'
+    assert files[0]['provider_id'] == second_storage_provider
+
+
+    # Revert provider settings to verify site provider is selected
+    # Providers are inherited on create so remove from both containers
+    api_db.groups.update_one({"_id": group}, {'$set': {'providers': {}}})
+    api_db.projects.update_one({"_id": bson.ObjectId(project)}, {'$set': {'providers': {}}})
+    r = as_user.post('/projects/' + project + '/files', files=file_form('upload-test4.csv'))
+    assert r.ok
+    files = r.json()
+    assert len(files) == 1
+    assert files[0]['name'] == 'upload-test4.csv'
+    assert files[0]['provider_id'] == 'deadbeefdeadbeefdeadbeef'
+
+def test_provider_selection_job(data_builder, file_form, as_user, as_admin, api_db, with_site_settings, second_storage_provider):
+
+    group = data_builder.create_group()
+    project = data_builder.create_project()
+    acquisition = data_builder.create_acquisition()
+    api_db.acquisitions.update({'_id': acquisition}, {'$set': {'parents': {'group': group, 'project': project}}})
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.txt')).ok
+
+    site_storage = str(api_db.singletons.find({'_id': 'site'})[0]['providers']['storage'])
+
+    job = data_builder.create_job(inputs={
+        'test': {'type': 'acquisition', 'id': acquisition, 'name': 'test.txt'}
+    })
+
+    metadata = {
+        'project':{
+            'label': 'engine project test',
+            'info': {'test': 'p'},
+            'tags': ['one', 'two']
+        },
+        'session':{
+            'label': 'engine session',
+            'subject': {
+                'code': 'engine subject',
+                'sex': 'male',
+                'age': 100000000000,
+            },
+            'info': {'test': 's', 'file.txt': 'Hello'},
+            'tags': ['one', 'two']
+        },
+        'acquisition':{
+            'label': 'engine acquisition',
+            'timestamp': '2016-06-20T21:57:36+00:00',
+            'info': {'test': 'a'},
+            'files':[
+                {
+                    'name': 'one.csv',
+                    'type': 'engine type 0',
+                    'info': {'test': 'f1'}
+                }
+            ],
+            'tags': ['one', 'two']
+        }
+    }
+
+    r = as_admin.post('/engine',
+        params={'level': 'acquisition', 'id': acquisition, 'job': job, 'filename_path':False},
+        files=file_form('one.csv', 'folderA/two.csv', meta=metadata)
+    )
+    assert r.ok
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    a = r.json()
+    found = False
+    for file_ in a['files']:
+        if file_['name'] == 'one.csv':
+            found = True
+            assert file_['provider_id'] == site_storage
+            break
+    assert found
+
+    # Change the project provider so new files are not on site provider
+    api_db.groups.update_one({"_id": group}, {'$set': {'providers.storage': bson.ObjectId(second_storage_provider)}})
+    api_db.projects.update_one({"_id": project}, {'$set': {'providers.storage': bson.ObjectId(second_storage_provider)}})
+
+    metadata['acquisition']['files'] = [
+        {
+            'name': 'two.csv',
+            'type': 'engine type 0',
+            'info': {'test': 'f2'}
+        }
+    ]
+    r = as_admin.post('/engine',
+        params={'level': 'acquisition', 'id': acquisition, 'job': job, 'filename_path':False},
+        files=file_form('two2.csv', meta=metadata)
+    )
+    assert r.ok
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    a = r.json()
+    found = False
+    for file_ in a['files']:
+        print file_['provider_id']
+        if file_['name'] == 'two2.csv':
+            if file_['provider_id'] == second_storage_provider:
+                found = True
+            #assert file_['provider_id'] == second_storage_provider
+            #break
+    assert found
+
+
+
+    # Specify provider on the group so new files are not on site provider
+    api_db.groups.update_one({"_id": group}, {'$set': {'providers.storage': bson.ObjectId(second_storage_provider)}})
+    api_db.projects.update_one({"_id": project}, {'$set': {'providers': {}}})
+    metadata['acquisition']['files'] = [
+        {
+            'name': 'three.csv',
+            'type': 'engine type 0',
+            'info': {'test': 'f3'}
+        }
+    ]
+    r = as_admin.post('/engine',
+        params={'level': 'acquisition', 'id': acquisition, 'job': job, 'filename_path':False},
+        files=file_form('three.csv', meta=metadata)
+    )
+    assert r.ok
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    a = r.json()
+    found = False
+    for file_ in a['files']:
+        if file_['name'] == 'three.csv':
+            found = True
+            assert file_['provider_id'] == second_storage_provider
+            break
+    assert found
+
+
+    # Remove provider so  new files are again on site provider
+    api_db.groups.update_one({"_id": group}, {'$set': {'providers': {}}})
+    api_db.projectss.update_one({"_id": project}, {'$set': {'providers': {}}})
+    metadata['acquisition']['files'] = [
+        {
+            'name': 'four.csv',
+            'type': 'engine type 0',
+            'info': {'test': 'f4'}
+        }
+    ]
+    r = as_admin.post('/engine',
+        params={'level': 'acquisition', 'id': acquisition, 'job': job, 'filename_path':False},
+        files=file_form('four.csv', meta=metadata)
+    )
+    assert r.ok
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    a = r.json()
+    found = False
+    for file_ in a['files']:
+        if file_['name'] == 'four.csv':
+            found = True
+            assert file_['provider_id'] == site_storage
+            break
+    assert found
