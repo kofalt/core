@@ -7,8 +7,8 @@ import dateutil
 from .. import config
 
 from ..auth import containerauth, always_ok
-from ..dao import containerstorage, containerutil
-from ..dao.containerstorage import AnalysisStorage
+from ..dao import  containerutil
+from ..dao.basecontainerstorage import ContainerStorage
 from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
 from ..web.request import log_access, AccessType
@@ -39,8 +39,10 @@ class BulkHandler(base.RequestHandler):
         #if not self.user_is_admin and not self.is_true('join_avatars'):
         #    self._filter_permissions(result, self.uid)
 
-        self.dest_storage = getattr(containerstorage, containerutil.singularize(self.payload['destination_container_type']).capitalize() + 'Storage')()
-        self.source_storage = getattr(containerstorage, containerutil.singularize(source_cont_name).capitalize() + 'Storage')()
+        self.dest_storage = ContainerStorage.factory(self.payload['destionation_container_type'])
+        #self.dest_storage = getattr(containerstorage, containerutil.singularize(self.payload['destination_container_type']).capitalize() + 'Storage')()
+        self.source_storage = ContainerStorage.factory(source_cont_name)
+        #self.source_storage = getattr(containerstorage, containerutil.singularize(source_cont_name).capitalize() + 'Storage')()
 
         source_list = []
         dest_list = []
@@ -58,7 +60,7 @@ class BulkHandler(base.RequestHandler):
 
         self._validate_inputs(source_cont_name, source_list, dest_list)
 
-        getattr(self, '_' + operation + '_' + source_cont_name)()
+        getattr(self, '_' + operation + '_' + source_cont_name + '_to_' + dest_cont_name)()
 
     def _validate_inputs(self, source_cont, source_list, dest_list):
         """
@@ -92,10 +94,15 @@ class BulkHandler(base.RequestHandler):
             raise APIValidationException('The following destinations are not valid: {}'.format(', '.join(str(s) for s in missing)))
 
 
-    def _move_sessions(self):
+    def _move_sessions_to_projects(self):
+
+
+
+        project = self.dest_storage.get_el(payload['destinations'][0])
+
 
         # We move sessions to new project for now. 
-        #Add a dest of session later
+        # Add a dest of session later
         query = {'project': {'$in': self.payload['sources']}}
         source_subjects = config.db.subjects.find_many(
             query, user=None, projection={'_id': 1, 'code': 1})
@@ -105,7 +112,7 @@ class BulkHandler(base.RequestHandler):
             source_subject_ids.add(source['_id'])
             source_subject_codes.add(source['code'])
 
-        # Conflicts are sessions that exist in the destination already
+        # Conflicts are subjects that exist in the destination already
         conflicts = config.db.subjects.find_many({
             'code': {'$in': source_subject_codes},
             'project': {'$in': self.payload['destinations']}
@@ -136,45 +143,104 @@ class BulkHandler(base.RequestHandler):
 
         sessions = config.db.sessions.aggregate([
             {'subject': {'$in': search_subjects}},
-            {'$group': 'subject', 'count': {'$sum': 1}},
+            {'$group': {'_id':'$subject', 'count': {'$sum':1}}},
             {'$match': {'count': {'$gt': 1}}},
-            {'$project': {'_id': 1}}
+            {'$project': {'subject': 1}}
         ])
-        copy_sessions = []
+        copy_subjects = []
         for session in sessions:
-            copy_sessions.append(session['session'])
+            copy_subjects.append(session['session'])
 
         sessions = config.db.sessions.aggregate([
             {'subject': {'$in': search_subjects}},
-            {'$group': 'subject', 'count': {'$sum': 1}},
+            {'$group': {'_id': '$subject', 'count': {'$sum': 1}}},
             {'$match': {'count': {'$eq': 1}}},
-            {'$project': {'_id': 1}}
+            {'$project': {'subject': 1}}
         ])
-        move_sessions = []
+        move_subjects = []
         for session in sessions:
-            move_sessions.append(session['session'])
+            move_subjects.append(session['session'])
 
-        print 'we have these sessions to copy'
-        print copy_sessions
-        print 'we have these sessions to move'
-        print move_sessions
+        # Perhaps we can make this better with a single aggregation
+        #sessions = config.db.sessions.aggregate([
+        #    {'subject': {'$in': search_subjects}},
+        #    { '$bucket': {
+        #        'groupBy': ,
+        #        'boundaries': [ 0, 200, 400 ],
+        #          default: "Other",
+        #          output: {
+        #            "count": { $sum: 1 },
+        #            "titles" : { $push: "$title" }
+        #          }
+        #        }
+        #    }
 
+
+        print 'we have these subjects to copy'
+        print copy_subjects
+        print 'we have these subjects to move'
+        print move_subjects
+
+        # quick sanity check
+        assert len(source_subjects) == (
+            len(move_subjects) + len(copy_subjects) + len(conflict_subjects))
 
         if self.payload['conflict_mode'] == 'move':
             sessions = config.db.sessions.find_many(
                 {'subject': {'$in': conflict_subjects}},
                 {'_id': 1})
         for session in sessions:
-            move_sessions.append(session['_id'])
+            move_subjects.append(session['_id'])
 
-        print 'move sessions after conflit'
-        print move_sessions
+        print 'move sessions after conflict'
+        print move_subjects
 
 
-        # TODO: This is where I left off.  Need to update the project in the sessions, perhaps the permissions too
-        config.db.sessions.update_many(
-                {'_id': {'$in': move_sessions}}, 
-                {'project': self.payload['destinations'][0], }
+
+        # Move sesssions just need to have the pointers and permissions adjusted
+        query = {'subject': {'$in': move_subjects}}
+        update = {
+            '$set': {
+                'parents.project': project['_id'],
+                'project': project['_id'],
+                'permissions' : project['permissions']
+            }
+        }
+
+        # Validate this method really works as expected
+        containerutil.bulk_propagate_changes('session', move_subjects, query, update)
+
+        # Copy sessions need to be copied including all related sub docs.
+        # With mongo 4.1 we can do this in a pipeline.
+        # Currently we have to pass the data back and update docs manually
+        for subject in copy_subjects:
+            # For each subject in copy subjects we need to copy the related analyses too.  Containers as well??
+            # So we cant do a bulk copy like this
+            #subjects = config.db.subjects.find_many({_'id': {'$in': copy_subjects}})
+            #for subject in subjects:
+            #    subject['_id'] = None
+            #    subject['permissions'] = project['permissions']
+            #    subject.project = project['_id']
+            #    subject['parents']['project'] = project['_id']
+
+            subject_doc = config.db.subjects.find_one({_'id': {'$in': copy_subjects}})
+            subject_doc['_id'] = None
+            subject_doc['permissions'] = project['permissions']
+            subject_doc['project'] = project['_id']
+            subject_doc['parents']['project'] = project['_id']
+            new_subject = config.db.analyses.insert(subject_doc)
+            
+            analysis = config.db.analyses.find_many({'parent.type': 'subject', 'parent.id': subject})
+            for analysis in analysis:
+                analysis['_id'] = None
+                analysis['permissions'] = project['permissions']
+                analysis['parent']['id'] = subject
+                analysis['parents']['subject'] = new_subject.last_inserted_id
+                analysis['parents']['project'] = project['id']
+
+                config.db.analysis.insert(analysis)
+            
+
 
 #        Requires a 2 phase approach.
 #First is the dry run the second is with the action set to do it
