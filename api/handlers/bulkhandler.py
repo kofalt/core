@@ -22,7 +22,9 @@ class BulkHandler(base.RequestHandler):
 
         self.payload = request.json_body
         self.source_storage = None
-        self.dest_stroage = None
+        self.dest_storage = None
+        self.source_list = None
+        self.dest_list = None
 
         super(BulkHandler, self).__init__(request, response)
 
@@ -44,19 +46,16 @@ class BulkHandler(base.RequestHandler):
         self.source_storage = ContainerStorage.factory(source_cont_name)
         #self.source_storage = getattr(containerstorage, containerutil.singularize(source_cont_name).capitalize() + 'Storage')()
 
-        source_list = []
-        dest_list = []
+        self.source_list = []
+        self.dest_list = []
         if source_cont_name != 'groups':
             for _s in self.payload['sources']:
-                print _s
-                import sys
-                sys.stdout.flush()
-                source_list.append(bson.ObjectId(_s['_id']))
+                self.source_list.append(bson.ObjectId(_s['_id']))
             for _d in self.payload['destinations']:
-                dest_list.append(bson.ObjectId(_d['_id']))
+                self.dest_list.append(bson.ObjectId(_d['_id']))
         else:
-            source_list = self.payload['sources']
-            dest_list = self.payload(['destinations'])
+            self.source_list = self.payload['sources']
+            self.dest_list = self.payload(['destinations'])
 
         self._validate_inputs(source_cont_name, source_list, dest_list)
 
@@ -96,26 +95,37 @@ class BulkHandler(base.RequestHandler):
 
     def _move_sessions_to_projects(self):
 
+        # TODO: Do we assume all sessions come from the same project?
+        # IF so we need to validate this.  
+        # If not we need to group the sessions by project and loop over the groups
+        source_session = self.dest_storage.get_el(payload['destinations'][0])
+        source_project = source_subject['project']
 
+        # Find all the source subjects first.
+        source_subjects = config.db.sessions.aggregate([
+            {'project': source_project, '_id': {'$in': self.payload['sources']}},
+            {'$lookup': {
+                'subjects',
+                'subject',
+                '_id',
+                'subject_doc'
+            }},
+            {'$project': {'_id': 1, 'subject_doc.code': 1}}
+        ])
 
-        project = self.dest_storage.get_el(payload['destinations'][0])
-
-
-        # We move sessions to new project for now. 
-        # Add a dest of session later
-        query = {'project': {'$in': self.payload['sources']}}
-        source_subjects = config.db.subjects.find_many(
-            query, user=None, projection={'_id': 1, 'code': 1})
+        #query = {'project': {'$in': self.payload['sources']}}
+        #source_subjects = config.db.subjects.find_many(
+        #    query, user=None, projection={'_id': 1, 'code': 1})
         source_subject_ids = set()
         source_subject_codes = set()
         for source in source_subjects:
             source_subject_ids.add(source['_id'])
-            source_subject_codes.add(source['code'])
+            source_subject_codes.add(source['subject_doc']['code'])
 
         # Conflicts are subjects that exist in the destination already
         conflicts = config.db.subjects.find_many({
             'code': {'$in': source_subject_codes},
-            'project': {'$in': self.payload['destinations']}
+            'project': self.dest_list[0]
         })
 
         # first we find conflicts as those are needed for dry run regardless.
@@ -135,10 +145,11 @@ class BulkHandler(base.RequestHandler):
 
 
         # Next we need to find the two sets that are not conflicts
-            # copy: conflicts have more than one session in the source project
-            # move: subjects that have just the one session in the conflict  list
+            # copy: subjects that have more than one session in the source project
+            # move: subjects that have just the one session in the source project
+                # Techinically if all the sessions are in the move session
 
-        # We just leave conflicts alone.
+        # We just leave conflicts alone for now.
         search_subjects = source_subject_ids - set(conflict_subjects)
 
         sessions = config.db.sessions.aggregate([
