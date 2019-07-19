@@ -90,7 +90,7 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
 
 
 
-def bulk_propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
+def bulk_propagate_changes(cont_name, cont_ids, query, update, top_level_update=None, include_refs=False):
     """
     Bulk Propagates changes through the hierarcy from the bottom to the current cont_name level, iteratively.
     cont_name and cont_ids refer to top level containers (which WILL be modified here)
@@ -100,9 +100,12 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, include_refs=Fals
         raise Exception('Must input a list of containers')
     if query is None:
         query = {}
+    if not top_level_update:
+        top_level_update = update
 
     containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
     query.update({'parents.' + singularize(cont_name): {'$in': cont_ids}})
+
 
     if include_refs:
         analysis_update = copy.deepcopy(update)
@@ -120,7 +123,21 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, include_refs=Fals
     # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
     for cur_cont in containers:
         if cont_name == cur_cont:
+
+            print 'updating top level so remove parents find'
+            print 'this is the initial query'
+            print query
+            for key in ['parents.group', 'parents.project', 'parents.subject', 'parents.session', 'parents']:
+                if query.get(key):
+                    print 'removing key'
+                    print key
+                    del query[key]
+            query.update({'_id': {'$in': cont_ids}})
+            print 'this is the query after we are done'
+            print query
+            config.db[cur_cont].update_many(query, top_level_update)
             return
+
         config.db[cur_cont].update_many(query, update)
 
     raise Exception('Never reached top level container from: {}'.format(cont_name))
