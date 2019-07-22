@@ -2,5 +2,11 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "title": "Bulk",
     "type": "object",
-    "allOf": [{"$ref": "../definitions/bulk.json#/definitions/move-sessions"}]
+    "allOf": [{"$ref": "../definitions/bulk.json#/definitions/move-sessions"}],
+	"example": {
+        "sources": ["5c6d69c4a6490f00160cc489", "5c6d69c4a6490f00170cc48c", "5c6f0e3e9f3fbde31560c6ad"],
+        "destination_container_type": "projects",
+        "destinations": ["5c6f040da91ced00257524e6"],
+        "conflict_mode": "move"
+	}
 }
