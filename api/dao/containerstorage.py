@@ -340,6 +340,202 @@ class SessionStorage(ContainerStorage):
         return {'info': 0, 'files.info': 0, 'analyses': 0, 'tags': 0, 'age': 0}
 
 
+    def move_sessions_to_project(self, source_list, dest_project, conflict_mode=None):
+
+        dest_project_obj = ProjectStorage().get_el(dest_project)
+
+        # Find all the source subjects first.
+        source_subjects = config.db.sessions.aggregate([
+            {'$match': {'_id': {'$in': source_list}}},
+            {'$group': {'_id': '$subject'}},
+            {'$lookup':{
+                'from': 'subjects',
+                'localField': '_id',
+                'foreignField': '_id',
+                'as': 'subject_doc'
+            }},
+            {'$project': {'_id': 1, 'subject_doc.code': 1, 'subject_doc.project': 1}}
+        ])
+
+        source_subject_ids = []
+        source_subject_codes = []
+        source_projects = []
+        source_subject_id_by_code = {} # We need the mapping of source id by code for conflicts later
+        for source in source_subjects:
+            source_subject_ids.append(source['_id'])
+            source_projects.append(source['subject_doc'][0]['project'])
+            # not all subejcts have a code.  If not they will not be a conflict anyway
+            if source['subject_doc'][0].get('code'):
+                source_subject_codes.append(source['subject_doc'][0]['code'])
+                source_subject_id_by_code[source['subject_doc'][0]['code']] = source['_id']
+
+
+        # Conflict codes are subject codes that exist in the destination already
+        conflicts = config.db.subjects.find({
+            'code': {'$in': source_subject_codes},
+            'project': dest_project_obj['_id']
+            }, projection={'_id': 1, 'code': 1})
+
+        # first we find conflicts as those are needed for dry run regardless.
+        conflict_subject_codes = []
+        conflict_subject_dest_ids_by_code = {}
+        for conflict in conflicts:
+            conflict_subject_codes.append(conflict['code'])
+            conflict_subject_dest_ids_by_code[conflict['code']] = conflict['_id']
+
+        # Without explicit conflict mode we assume a dry run
+        if not conflict_mode:
+            return conflict_subject_codes
+
+        # The id of the subjects in the source that have the same code
+        conflict_subject_source_ids = []
+        #conflict_subject_source_ids_by_code = {} # might be needed for conflict resolution later
+        conflicts = config.db.subjects.find(
+            {
+                'code': {'$in': conflict_subject_codes},
+                'project': {'$in': list(set(source_projects))}
+            },
+            projection={'_id': 1, 'code': 1})
+
+        for conflict in conflicts:
+            conflict_subject_source_ids.append(conflict['_id'])
+            #conflict_subject_source_ids_by_code[conflict['code']] = conflict['_id']
+
+
+        # We need source projects for all the sessions to update
+
+        # Next we need to find the two sets that are not conflicts
+            # copy: subjects that have more than one session in the source project
+            # move: subjects that have just the one session in the source project
+                # TODO:
+                # Techinically if all the sessions are in the source list then its a move
+
+        # We just leave conflicts alone for now.
+        search_subjects = list(set(source_subject_ids) - set(conflict_subject_source_ids))
+
+        sessions = config.db.sessions.aggregate([
+            {'$match': {'subject': {'$in': search_subjects}}},
+            {'$group': {'_id': '$subject', 'count': {'$sum':1}}},
+            {'$match': {'count': {'$gt': 1}}},
+            {'$project': {'_id': 1}}
+        ])
+        copy_subjects = []
+        for session in sessions:
+            copy_subjects.append(session['_id'])
+
+        sessions = config.db.sessions.aggregate([
+            {'$match': {'subject': {'$in': search_subjects}}},
+            {'$group': {'_id': '$subject', 'count': {'$sum': 1}}},
+            {'$match': {'count': {'$eq': 1}}},
+            {'$project': {'_id': 1}}
+        ])
+        move_subjects = []
+        for session in sessions:
+            move_subjects.append(session['_id'])
+
+        # Perhaps we can make this better with a single aggregation
+        #sessions = config.db.sessions.aggregate([
+        #    {'subject': {'$in': search_subjects}},
+        #    { '$bucket': {
+        #        'groupBy': ,
+        #        'boundaries': [ 0, 200, 400 ],
+        #          default: "Other",
+        #          output: {
+        #            "count": { $sum: 1 },
+        #            "titles" : { $push: "$title" }
+        #          }
+        #        }
+        #    }
+
+
+        # quick sanity check
+        assert len(source_subject_ids) == (
+            len(move_subjects) + len(copy_subjects) + len(conflict_subject_source_ids))
+
+        if conflict_mode == 'move':
+            # We have to move the sessions which means updating the session to have the new
+            # subject id,  parent, project, and permissions
+            # But we need to find the ID of the subject in the dest project first.
+            for code in conflict_subject_codes:
+                query = {
+                    'parents.subject': source_subject_id_by_code[code],
+                    '_id': {'$in': source_list}
+                }
+                update = {'$set': {
+                    'subject': conflict_subject_dest_ids_by_code[code],
+                    'parents.subject': conflict_subject_dest_ids_by_code[code],
+                    'parents.project': dest_project_obj['_id'],
+                    'project': dest_project_obj['_id'],
+                    'permissions': dest_project_obj['permissions']
+                }}
+
+                moves = []
+                sessions = config.db.sessions.find({
+                    'subject': source_subject_id_by_code[code],
+                    '_id': {'$in': source_list}}, projection={'_id': 1})
+                for session in sessions:
+                    moves.append(session['_id'])
+
+                containerutil.bulk_propagate_changes('sessions', moves, query, 
+                    update, include_refs=True)
+
+
+        # Move subjects just need to have the pointers and permissions adjusted
+        query = {}
+        update = {
+            '$set': {
+                'parents.project': dest_project_obj['_id'],
+                'project': dest_project_obj['_id'],
+                'permissions': dest_project_obj['permissions']
+            }
+        }
+
+        # TODO: Validate this method really works as expected
+        containerutil.bulk_propagate_changes('subjects', move_subjects, query,
+             update, include_refs=True)
+
+        # Copy sessions need to be copied including all related sub docs.
+        # With mongo 4.1 we can do this in a pipeline.
+        # Currently we have to pass the data back and update docs manually
+        for subject in copy_subjects:
+            subject_doc = config.db.subjects.find_one({'_id': {'$in': copy_subjects}})
+            del subject_doc['_id']
+            subject_doc['permissions'] = dest_project_obj['permissions']
+            subject_doc['project'] = dest_project_obj['_id']
+            subject_doc['parents']['project'] = dest_project_obj['_id']
+            new_subject = config.db.subject.insert_one(subject_doc)
+
+            analysis = config.db.analyses.find({'parent.type': 'subject', 'parent.id': subject})
+            for a in analysis:
+                a['_id'] = None
+                a['permissions'] = dest_project_obj['permissions']
+                a['parent']['id'] = new_subject.inserted_id
+                a['parents']['subject'] = new_subject.inserted_id
+                a['parents']['project'] = dest_project_obj['id']
+
+                config.db.analysis.insert_one(analysis)
+
+            # Find the sessions for this subject that need to be moved now
+            sessions = config.db.sessions.find({
+                'subject': subject, '_id': {'$in': source_list}}, projection={'_id': 1})
+            moves = []
+            for session in sessions:
+                moves.append(session['_id'])
+
+
+            # Now the sessions can be moved to the new subject with propagation
+            #query = {'subject': subject, '_id': {'$in': self.source_list}}
+            query = {}
+            update = {'$set': {
+                'permissions': dest_project_obj['permissions'],
+                'project': dest_project_obj['_id'],
+                'parents.project': dest_project_obj['_id'],
+                'parents.subject': new_subject.inserted_id,
+                'subject': new_subject.inserted_id,
+                }}
+            containerutil.bulk_propagate_changes('sessions', moves, query, update, include_refs=True)
+
+
 class AcquisitionStorage(ContainerStorage):
 
     def __init__(self):
