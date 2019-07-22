@@ -503,17 +503,31 @@ class SessionStorage(ContainerStorage):
             subject_doc['permissions'] = dest_project_obj['permissions']
             subject_doc['project'] = dest_project_obj['_id']
             subject_doc['parents']['project'] = dest_project_obj['_id']
+            # These we need to do one at a time because we need the inserted id.
+            # We could tweak this by creating a placeholder and then updating the unique 
+            # placeholder once the final subjects are flushed and have vaild objectIds
             new_subject = config.db.subject.insert_one(subject_doc)
 
             analysis = config.db.analyses.find({'parent.type': 'subject', 'parent.id': subject})
+            # We might have a memory issue depending on the size of  anayses we have to move
+            # At the max doc size of 16 mb this could be 800MB.
+            insert_analyses = []
+            count = 0
+            page = 50
             for a in analysis:
                 a['_id'] = None
                 a['permissions'] = dest_project_obj['permissions']
                 a['parent']['id'] = new_subject.inserted_id
                 a['parents']['subject'] = new_subject.inserted_id
                 a['parents']['project'] = dest_project_obj['id']
-
-                config.db.analysis.insert_one(analysis)
+                if count <= page:
+                    insert_analyses.append(a)
+                else:
+                    config.db.analysis.insert_many(insert_analyses)
+                    insert_analyses = []
+                    count = 0
+            if insert_analyses:
+                config.db.analysis.insert_many(insert_analyses)
 
             # Find the sessions for this subject that need to be moved now
             sessions = config.db.sessions.find({
