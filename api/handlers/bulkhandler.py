@@ -1,18 +1,11 @@
-
 import bson
-import copy
-import datetime
-import dateutil
 
-from .. import config
-
-from ..auth import containerauth, always_ok
-from ..dao import  containerutil
+from ..auth import containerauth
 from ..dao.basecontainerstorage import ContainerStorage
 from ..web import base
-from ..web.errors import APIPermissionException, APIValidationException, InputValidationException
-from ..web.request import log_access, AccessType
-
+from ..web.errors import APIPermissionException, APIValidationException
+#from ..web.request import log_access, AccessType
+from collections import namedtuple
 
 class BulkHandler(base.RequestHandler):
     """
@@ -28,23 +21,12 @@ class BulkHandler(base.RequestHandler):
 
         super(BulkHandler, self).__init__(request, response)
 
-    def bulk(self, operation, source_cont_name, **kwargs):
+
+    def bulk(self, operation, source_cont_name):
         """Entry point for the bulk operations"""
 
-
-        # TODO: perform some permission checks first
-        #permchecker = self._get_permchecker(container)
-        # This line exec the actual get checking permissions using the decorator permchecker
-        #result = permchecker(self.storage.exec_op)('GET', _id)
-        #if result is None:
-        #    self.abort(404, 'Element not found in container {} {}'.format(self.storage.cont_name, _id))
-        #if not self.user_is_admin and not self.is_true('join_avatars'):
-        #    self._filter_permissions(result, self.uid)
-
         self.dest_storage = ContainerStorage.factory(self.payload['destination_container_type'])
-        #self.dest_storage = getattr(containerstorage, containerutil.singularize(self.payload['destination_container_type']).capitalize() + 'Storage')()
         self.source_storage = ContainerStorage.factory(source_cont_name)
-        #self.source_storage = getattr(containerstorage, containerutil.singularize(source_cont_name).capitalize() + 'Storage')()
 
         self.source_list = []
         self.dest_list = []
@@ -57,11 +39,32 @@ class BulkHandler(base.RequestHandler):
             self.source_list = self.payload['sources']
             self.dest_list = self.payload(['destinations'])
 
-        self._validate_inputs(source_cont_name)
+        self._validate_inputs()
+
+
+        ## This is a stub to hold the assumed uid on the handler. We have multiple uids to check
+        #Handler = namedtuple('Handler', 'uid, scope')
+        #
+        #dest_cont = self.dest_storage.get_el(self.dest_list[0])
+        #source_cont = self.source_storage.get_el(self.source_list[0])
+        ## The container auth takes the object not the name. So we need to load the parent 
+        #self.source_permchecker = containerauth.default_container(Handler(self.source_list[0], self.scope), source_cont)
+        #dest_permchecker = containerauth.default_container(Handler(self.dest_list[0], self.scope), dest_cont)
+
+        #result = dest_permchecker(self.dest_storage.exec_op)('PUT', self.dest_list[0], payload=None)
+        #if result is None:
+        #    raise APIPermissionException('You do not have permission on the destination container')
+        ## TODO: perform some permission checks first
+        ## TODO: There does not seem to be a bulk perm checker. Do we want to check all the sources first?
+        ## FOr now just check the first one
+        #result = self.source_permchecker(self.source_storage.exec_op)('PUT', self.source_list[0], payload=None)
+        #if result is None:
+        #    raise APIPermissionException('You do not have permission on the destination container')
+
 
         getattr(self, '_' + operation + '_' + source_cont_name + '_to_' + self.payload['destination_container_type'])()
 
-    def _validate_inputs(self, source_cont):
+    def _validate_inputs(self):
         """
         Validate inputs are given and exist in the system
         """
@@ -91,10 +94,6 @@ class BulkHandler(base.RequestHandler):
             for dst in dests:
                 dest_set.add(dst['_id'])
             missing = set(self.dest_list) - dest_set
-            print 'we have missing'
-            print missing
-            import sys
-            sys.stdout.flush
             raise APIValidationException('The following destinations are not valid: {}'.format(', '.join(str(s) for s in missing)))
 
 
@@ -119,7 +118,7 @@ class BulkHandler(base.RequestHandler):
 
         if (not self.payload.get('conflict_mode', False) or
                 self.payload['conflict_mode'] is None or self.payload['conflict_mode'] == ''):
-            return self.source_storage.move_sessions_to_project(self.source_list, self.dest_list[0], conflict_mode=self.payload.get('conflict_mode'))
+            return self.source_storage.move_sessions_to_project(self.source_list, self.dest_list[0], conflict_mode=None)
 
 
         self.source_storage.move_sessions_to_project(self.source_list, self.dest_list[0], conflict_mode=self.payload.get('conflict_mode'))
