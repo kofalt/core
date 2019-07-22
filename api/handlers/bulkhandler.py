@@ -116,14 +116,16 @@ class BulkHandler(base.RequestHandler):
                 'foreignField': '_id',
                 'as': 'subject_doc'
             }},
-            {'$project': {'_id': 1, 'subject_doc.code': 1}}
+            {'$project': {'_id': 1, 'subject_doc.code': 1, 'subject_doc.project': 1}}
         ])
 
         source_subject_ids = []
         source_subject_codes = []
+        source_projects = []
         source_subject_id_by_code = {} # We need the mapping of source id by code for conflicts later
         for source in source_subjects:
             source_subject_ids.append(source['_id'])
+            source_projects.append(source['subject_doc'][0]['project'])
             # not all subejcts have a code.  If not they will not be a conflict anyway
             if source['subject_doc'][0].get('code'):
                 source_subject_codes.append(source['subject_doc'][0]['code'])
@@ -153,11 +155,11 @@ class BulkHandler(base.RequestHandler):
             # TODO: Raise an error
             return conflict_subject_codes
 
-        # Th the id of the subjects in the source that have the same code
+        # The id of the subjects in the source that have the same code
         conflict_subject_source_ids = []
         #conflict_subject_source_ids_by_code = {} # might be needed for conflict resolution later
         conflicts = config.db.subjects.find(
-                {'code': {'$in': conflict_subject_codes}, 'project': dest_project['_id']},
+                {'code': {'$in': conflict_subject_codes}, 'project': {'$in': list(set(source_projects))}},
             projection={'_id': 1, 'code': 1})
         for conflict in conflicts:
             conflict_subject_source_ids.append(conflict['_id'])
@@ -220,6 +222,12 @@ class BulkHandler(base.RequestHandler):
         print copy_subjects
         print 'we have these subjects to move'
         print move_subjects
+        print 'we have these conflict subjects'
+        print conflict_subject_source_ids
+        print 'Innintal total size of subjects'
+        print source_subject_ids
+        import sys
+        sys.stdout.flush()
 
         # quick sanity check
         assert len(source_subject_ids) == (
