@@ -553,6 +553,26 @@ class SessionStorage(ContainerStorage):
             containerutil.bulk_propagate_changes('sessions', moves, query, update, include_refs=True)
 
 
+    def move_sessions_to_subject(self, source_list, dest_subject, conflict_mode=None):
+
+        dest_subject_obj = SubjectStorage().get_el(dest_subject)
+
+        query = {}
+        update = {'$set': {
+            'parents.subject': dest_subject_obj['_id'],
+            'parents.project': dest_subject_obj['parents']['project'],
+            'parents.group': dest_subject_obj['parents']['group'],
+            'subject': dest_subject_obj['_id'],
+            'project': dest_subject_obj['parents']['project'],
+            'group': dest_subject_obj['parents']['group'],
+            'permissions': dest_subject_obj['permissions']
+        }}
+
+        # Sessions can not have conflicts so just bilndly move them all over to the new subject.
+        containerutil.bulk_propagate_changes('sessions', source_list, query,
+             update, include_refs=True)
+
+
     def move_sessions_to_project(self, source_list, dest_project, conflict_mode=None):
 
         dest_project_obj = ProjectStorage().get_el(dest_project)
