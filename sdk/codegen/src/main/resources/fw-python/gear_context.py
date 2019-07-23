@@ -249,7 +249,7 @@ class GearContext(object):
         kwargs['folders'] = folders
         return self._download_bids('session', target_dir, kwargs)
 
-    def download_project_bids(self, target_dir='work/bids', src_data=False, subjects=None, sessions=None, folders=None):
+    def download_project_bids(self, target_dir='work/bids', src_data=False, subjects=None, sessions=None, folders=None, **kwargs):
         """Download the project in bids format to target_dir.
 
         :param str target_dir: The destination directory (otherwise work/bids will be used)
