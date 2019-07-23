@@ -123,6 +123,8 @@ def convert_to_datatype(value, datatype):
 
     except ValueError:
         return nil_value
+    except TypeError:
+        return nil_value
 
 def file_filter_to_regex(filter_spec):
     """Convert a file-filter-spec to a regular expression
