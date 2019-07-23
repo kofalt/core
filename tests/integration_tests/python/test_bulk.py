@@ -198,3 +198,69 @@ def test_bulk_move_session_to_project_skip(data_builder, api_db, as_admin):
     assert api_db.sessions.find({'project': bson.ObjectId(projects[0].id)}).count() == 4
     assert api_db.sessions.find({'project': bson.ObjectId(projects[1].id)}).count() == 9
     assert api_db.sessions.find({'project': bson.ObjectId(projects[2].id)}).count() == 4
+
+
+def test_bulk_move_session_to_subject(data_builder, api_db, as_admin):
+    """Test bulk move sessions to subject"""
+    projects = _create_project_tree(data_builder)
+
+    project1 = projects[0].id
+    dest_subject  = projects[0].subjects[1].id
+
+    # The sessions we are going to attempt to movea
+    # First in the same project.
+    sources = projects[0].subjects[0].sessions + projects[0].subjects[2].sessions + projects[0].subjects[3].sessions
+
+    
+    r = as_admin.post('/bulk/move/sessions', json={
+	"sources": sources,
+	"destination_container_type": "subjects",
+	"destinations": [dest_subject],
+	"conflict_mode": ""
+    })
+    assert r.ok
+
+    object_ids = []
+    for s in sources:
+        object_ids.append(bson.ObjectId(s))
+    moved_sessions = api_db.sessions.find({'_id': {'$in': object_ids}})
+    for session in moved_sessions:
+        assert str(session['project']) == project1
+        assert str(session['parents']['project']) == project1
+        assert str(session['subject']) == dest_subject
+        assert str(session['parents']['subject']) == dest_subject
+
+
+    #Verify the session counts to make sure no sessions were lost or added
+    assert api_db.sessions.find({'project': bson.ObjectId(projects[0].id)}).count() == 7
+    assert api_db.sessions.find({'project': bson.ObjectId(projects[1].id)}).count() == 6
+    assert api_db.sessions.find({'project': bson.ObjectId(projects[2].id)}).count() == 4
+
+
+    # Now move sessions from multiple projects
+    sources = projects[0].subjects[0].sessions + projects[1].subjects[2].sessions + projects[2].subjects[1].sessions
+
+    r = as_admin.post('/bulk/move/sessions', json={
+	"sources": sources,
+	"destination_container_type": "subjects",
+	"destinations": [dest_subject],
+	"conflict_mode": ""
+    })
+    assert r.ok
+
+    object_ids = []
+    for s in sources:
+        object_ids.append(bson.ObjectId(s))
+    moved_sessions = api_db.sessions.find({'_id': {'$in': object_ids}})
+    for session in moved_sessions:
+        assert str(session['project']) == project1
+        assert str(session['parents']['project']) == project1
+        assert str(session['subject']) == dest_subject
+        assert str(session['parents']['subject']) == dest_subject
+        # TODO: verify permissions are passed too
+
+
+    #Verify the session counts to make sure no sessions were lost or added
+    assert api_db.sessions.find({'project': bson.ObjectId(projects[0].id)}).count() == 11
+    assert api_db.sessions.find({'project': bson.ObjectId(projects[1].id)}).count() == 4
+    assert api_db.sessions.find({'project': bson.ObjectId(projects[2].id)}).count() == 2

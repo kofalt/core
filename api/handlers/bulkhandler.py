@@ -123,3 +123,15 @@ class BulkHandler(base.RequestHandler):
 
         self.source_storage.move_sessions_to_project(self.source_list, self.dest_list[0], conflict_mode=self.payload.get('conflict_mode'))
         return True
+
+
+    def _move_sessions_to_subjects(self):
+        '''
+        Moves all sessions in the soruce list to the destination project
+        Subjects that do not exist in the destination will be copied
+        Conflicts are not an issue so its just a bulk move to update pointers
+        '''
+
+        self.source_storage.move_sessions_to_subject(self.source_list, self.dest_list[0], conflict_mode=None)
+        return True
+
