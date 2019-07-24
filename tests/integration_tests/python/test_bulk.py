@@ -78,6 +78,22 @@ def _create_project_tree(data_builder):
 
     return projects
 
+
+def test_bulk_invalid_operations(as_admin):
+
+    r = as_admin.post('/bulk/invalid_operation/projects')
+    assert not r.ok
+    assert r.status_code == 404
+
+    r = as_admin.post('/bulk/move/invalid_container')
+    assert not r.ok
+    assert r.status_code == 404
+
+    # Valid operations and containers that are not implemented yet will give a 501 as opposed to 404
+    r = as_admin.post('/bulk/move/subjects', json={})
+    assert not r.ok
+    assert r.status_code == 501
+
 def test_bulk_move_session_to_project_move(data_builder, api_db, as_admin):
     """ Test moving sessions to project with the move conflict resolution"""
     projects = _create_project_tree(data_builder)
