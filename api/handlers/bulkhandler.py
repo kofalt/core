@@ -25,6 +25,15 @@ class BulkHandler(base.RequestHandler):
     def bulk(self, operation, source_cont_name):
         """Entry point for the bulk operations"""
 
+
+        if not getattr(self,
+            ('_' + operation + '_' + source_cont_name + '_to_' +
+             self.payload['destination_container_type']),
+             None):
+
+            self.abort(501, 'This method is not implemented yet')
+
+
         self.dest_storage = ContainerStorage.factory(self.payload['destination_container_type'])
         self.source_storage = ContainerStorage.factory(source_cont_name)
 
