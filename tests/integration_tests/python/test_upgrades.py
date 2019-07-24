@@ -1329,6 +1329,7 @@ def test_check_for_cas_files(api_db, checks):
     api_db.acquisitions.delete_one({'_id': acquisition_id})
     api_db.sessions.delete_one({'_id': session_id})
 
+
 def test_65(api_db, database):
     api_db.users.insert({'_id': 'user1', 'firstname': 'upgrade_test', 'root': False})
     api_db.users.insert({'_id': 'user2', 'firstname': 'upgrade_test', 'root': True})
@@ -1342,3 +1343,100 @@ def test_65(api_db, database):
 
     api_db.users.delete_many({'firstname': 'upgrade_test'})
 
+
+def test_66(api_db, database):
+    if not api_db.modalities.find_one({'_id': 'MR'}):
+        api_db.modalities.insert_one({
+            "_id": "MR",
+            "classification": {
+                "Measurement": ["B0", "B1", "T1", "T2", "T2*", "PD", "MT", "ASL", "Perfusion", "Diffusion", "Spectroscopy", "Susceptibility", "Velocity", "Fingerprinting"],
+                "Intent": ["Localizer", "Shim", "Calibration", "Fieldmap", "Structural", "Functional", "Screenshot", "Non-Image"],
+                "Features": ["Quantitative", "Multi-Shell", "Multi-Echo", "Multi-Flip", "Multi-Band", "Steady-State", "3D", "Compressed-Sensing", "Eddy-Current-Corrected", "Fieldmap-Corrected", "Gradient-Unwarped", "Motion-Corrected", "Physio-Corrected", "Derived", "In-Plane", "Phase", "Magnitude"]
+            }
+        })
+
+    # Ideal situation
+    acquisition_1_id = api_db.acquisitions.insert_one({
+        'files': [
+            {'classification': {
+                'Measurement': ['B0', 'Spectroscopy'],  # NOTE: Intent is not set
+                'Features': ['3D']
+            }},
+            {'classification': {
+                'Measurement': ['Spectroscopy', 'ASL'],
+                'Intent': ['Shim']
+            }}
+        ]
+    }).inserted_id
+
+    # This shouldn't be the case
+    acquisition_2_id = api_db.acquisitions.insert_one({
+        'files': None
+    }).inserted_id
+
+    # Another less than ideal case
+    acquisition_3_id = api_db.acquisitions.insert_one({
+        'files': [
+            {},
+            {'classification': None},
+            {'classification': {
+                'Measurement': ['Spectroscopy', 'ASL'],
+                'Intent': ['Shim']
+            }}
+        ]
+    }).inserted_id
+
+    # Mongo is schemaless
+    acquisition_4_id = api_db.acquisitions.insert_one({
+        'files': [
+            {'classification': {
+                'Measurement': None,
+                'Features': ['3D']
+            }},
+            {'classification': {
+                'Intent': ['Shim']  # NOTE: Measurement is not set
+            }},
+            {'classification': {
+                'Measurement': ['Spectroscopy', 'ASL'],
+                'Intent': ['Shim']
+            }}
+
+        ]
+    }).inserted_id
+
+    database.upgrade_to_66()
+
+    modality = api_db.modalities.find_one({'_id': 'MR'})
+    assert 'Spectroscopy' not in modality['classification']['Measurement']
+    assert 'Spectroscopy' in modality['classification']['Intent']
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_1_id})
+    assert acquisition['files'][0]['classification']['Measurement'] == ['B0']
+    assert acquisition['files'][0]['classification']['Intent'] == ['Spectroscopy']
+
+    assert acquisition['files'][1]['classification']['Measurement'] == []
+    assert acquisition['files'][1]['classification']['Intent'] == ['Shim', 'Spectroscopy']
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_2_id})
+    assert acquisition['files'] == None  # Won't be set to [] because it should
+                                         # never be retrieved from mongo
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_3_id})
+    assert acquisition['files'][0] == {}
+    assert acquisition['files'][1]['classification'] == None
+
+    assert acquisition['files'][2]['classification']['Measurement'] == []
+    assert acquisition['files'][2]['classification']['Intent'] == ['Shim', 'Spectroscopy']
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_4_id})
+    assert acquisition['files'][0]['classification']['Measurement'] == None
+    assert acquisition['files'][0]['classification']['Features'] == ['3D']
+
+    assert acquisition['files'][1]['classification'].get('Measurement') == None
+    assert acquisition['files'][1]['classification']['Intent'] == ['Shim']
+
+    assert acquisition['files'][2]['classification']['Measurement'] == []
+    assert acquisition['files'][2]['classification']['Intent'] == ['Shim', 'Spectroscopy']
+
+    api_db.acquisitions.delete_many({'_id': {'$in': [acquisition_1_id, acquisition_2_id,
+                                        acquisition_3_id, acquisition_4_id]}})
