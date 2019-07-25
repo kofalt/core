@@ -2397,7 +2397,87 @@ def upgrade_to_65():
     config.db.users.update_many({'root': True}, {'$set': {'roles': ['site_admin']}, '$unset': {'root': ''}})
 
 
+def update_file_classifications_to_66(container, container_name):
+    """Updates files classification to be compliant with version 65 MR modality
+    """
+    files = container.get('files', [])
+    for file_ in container.get('files', []):
+        classification = file_.get('classification') or {}
+        measurement = classification.get('Measurement')
+        if measurement:
+            if 'Spectroscopy' in measurement:
+                measurement.remove('Spectroscopy')
+                classification.setdefault('Intent', []).append('Spectroscopy')
+            if 'ASL' in measurement:
+                measurement.remove('ASL')
+            if 'Velocity' in measurement:
+                measurement.remove('Velocity')
+            classification['measurement'] = measurement
+    config.db[container_name].update({'_id': container['_id']}, {'$set': {'files': files}})
+    return True
+
+
 def upgrade_to_66():
+    """Update the MR modality to include a larger set of measurements and features,
+        while also removing some items from measurements, so this will also
+        require ensuring each file with a modality of MR is corrected to reflect
+        the classification changes
+    """
+    # First remove the classifications that are to be removed or moved from
+    # the modality
+    modality_removal_update = {
+        '$pull': {
+            'classification.Measurement': {'$in': [
+                'ASL',
+                'Spectroscopy',
+                'Velocity'
+            ]}
+        }
+    }
+    config.db.modalities.update({'_id': 'MR'}, modality_removal_update)
+
+    # Add the ones to the correct classification fields
+    modality_add_update = {
+        '$push': {
+            'classification.Intent': {'$each': [
+                'Spectroscopy'
+            ]},
+            'classification.Measurement': {'$each': [
+                'MRA',
+                'CEST',
+                'T1rho',
+                'SVS',
+                'CSI',
+                'EPSI',
+                'BOLD',
+                'Phoenix'
+            ]},
+            'classification.Features': {'$each': [
+                '2D', 'AAscout', 'Spin-Echo', 'Gradient-Echo', 'EPI', 'WASSR',
+                'FAIR', 'FAIREST', 'PASL', 'EPISTAR', 'PICORE', 'pCASL', 'MPRAGE',
+                'MP2RAGE', 'FLAIR', 'SWI', 'QSM', 'RMS', 'DTI', 'DSI', 'DKI',
+                'HARDI', 'NODDI', 'Water-Reference', 'Transmit-Reference', 'SBRef',
+                'Uniform', 'Singlerep', 'QC', 'TRACE', 'FA', 'MIP', 'Navigator',
+                'Contrast-Agent', 'Phase-Contrast', 'TOF', 'VASO', 'iVASO', 'DSC',
+                'DCE', 'Task', 'Resting-State', 'PRESS', 'STEAM', 'M0', 'Phase-Reversed',
+                'Spiral', 'SPGR', 'Control', 'Label'
+            ]}
+        }
+    }
+    config.db.modalities.update({'_id': 'MR'}, modality_add_update)
+
+    # Loop through all MR files and set the modality
+    container_names = ['projects', 'subjects', 'sessions', 'acquisitions']
+    for container_name in container_names:
+        cursor = config.db[container_name].find({
+            'files.classification.Measurement': {
+                '$in': ['Spectroscopy', 'ASL', 'Velocity']
+            }
+        })
+        process_cursor(cursor, update_file_classifications_to_66, container_name)
+
+
+def upgrade_to_67():
     '''
     Upgrade all files to have a set Storage Provider
     Set up initial site-level Storage and Compute Providers
@@ -2509,86 +2589,6 @@ def upgrade_provider_id(storage_id):
     for result in results:
         result['exchange']['rootfs-provider-id'] = storage_id
         config.db.gears.update({'_id': result['_id']}, result)
-
-
-def update_file_classifications_to_67(container, container_name):
-    """Updates files classification to be compliant with version 65 MR modality
-    """
-    files = container.get('files', [])
-    for file_ in container.get('files', []):
-        classification = file_.get('classification') or {}
-        measurement = classification.get('Measurement')
-        if measurement:
-            if 'Spectroscopy' in measurement:
-                measurement.remove('Spectroscopy')
-                classification.setdefault('Intent', []).append('Spectroscopy')
-            if 'ASL' in measurement:
-                measurement.remove('ASL')
-            if 'Velocity' in measurement:
-                measurement.remove('Velocity')
-            classification['measurement'] = measurement
-    config.db[container_name].update({'_id': container['_id']}, {'$set': {'files': files}})
-    return True
-
-
-def upgrade_to_67():
-    """Update the MR modality to include a larger set of measurements and features,
-        while also removing some items from measurements, so this will also
-        require ensuring each file with a modality of MR is corrected to reflect
-        the classification changes
-    """
-    # First remove the classifications that are to be removed or moved from
-    # the modality
-    modality_removal_update = {
-        '$pull': {
-            'classification.Measurement': {'$in': [
-                'ASL',
-                'Spectroscopy',
-                'Velocity'
-            ]}
-        }
-    }
-    config.db.modalities.update({'_id': 'MR'}, modality_removal_update)
-
-    # Add the ones to the correct classification fields
-    modality_add_update = {
-        '$push': {
-            'classification.Intent': {'$each': [
-                'Spectroscopy'
-            ]},
-            'classification.Measurement': {'$each': [
-                'MRA',
-                'CEST',
-                'T1rho',
-                'SVS',
-                'CSI',
-                'EPSI',
-                'BOLD',
-                'Phoenix'
-            ]},
-            'classification.Features': {'$each': [
-                '2D', 'AAscout', 'Spin-Echo', 'Gradient-Echo', 'EPI', 'WASSR',
-                'FAIR', 'FAIREST', 'PASL', 'EPISTAR', 'PICORE', 'pCASL', 'MPRAGE',
-                'MP2RAGE', 'FLAIR', 'SWI', 'QSM', 'RMS', 'DTI', 'DSI', 'DKI',
-                'HARDI', 'NODDI', 'Water-Reference', 'Transmit-Reference', 'SBRef',
-                'Uniform', 'Singlerep', 'QC', 'TRACE', 'FA', 'MIP', 'Navigator',
-                'Contrast-Agent', 'Phase-Contrast', 'TOF', 'VASO', 'iVASO', 'DSC',
-                'DCE', 'Task', 'Resting-State', 'PRESS', 'STEAM', 'M0', 'Phase-Reversed',
-                'Spiral', 'SPGR', 'Control', 'Label'
-            ]}
-        }
-    }
-    config.db.modalities.update({'_id': 'MR'}, modality_add_update)
-
-    # Loop through all MR files and set the modality
-    container_names = ['projects', 'subjects', 'sessions', 'acquisitions']
-    for container_name in container_names:
-        cursor = config.db[container_name].find({
-            'files.classification.Measurement': {
-                '$in': ['Spectroscopy', 'ASL', 'Velocity']
-            }
-        })
-        process_cursor(cursor, update_file_classifications_to_67, container_name)
 
 
 

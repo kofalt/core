@@ -1344,69 +1344,7 @@ def test_65(api_db, database):
     api_db.users.delete_many({'firstname': 'upgrade_test'})
 
 
-def test_66(api_db, database, data_builder):
-
-    # Confirm it fails with a missing acquisition file id
-    acquisition = data_builder.create_acquisition();
-    api_db.acquisitions.update({'_id': bson.ObjectId(acquisition)}, {'$set': {'files': [{'name': 'No id for me'}]}})
-    with pytest.raises(RuntimeError):
-        database.upgrade_to_66()
-    api_db.acquisitions.remove({'_id': bson.ObjectId(acquisition)})
-
-    # Confirm it fails with a missing session file id
-    session= data_builder.create_session();
-    api_db.sessions.update({'_id': bson.ObjectId(session)}, {'$set': {'files': [{'name': 'No id for me'}]}})
-    with pytest.raises(RuntimeError):
-        database.upgrade_to_66()
-    api_db.sessions.remove({'_id': bson.ObjectId(session)})
-
-    # Confirm it fails with a missing subject file id
-    project = data_builder.create_project();
-    api_db.projects.update({'_id': bson.ObjectId(project)}, {'$set': {'files': [{'name': 'No id for me'}]}})
-    with pytest.raises(RuntimeError):
-        database.upgrade_to_66()
-
-
-    # Confirm it fails with a missing subject file id
-    subject= data_builder.create_subject(public=True, project=project, label='no id files');
-    api_db.subjects.update({'_id': bson.ObjectId(subject)}, {'$set': {'files': [{'name': 'No id for me'}]}})
-    with pytest.raises(RuntimeError):
-        database.upgrade_to_66()
-    api_db.subjects.remove({'_id': bson.ObjectId(subject)})
-
-    # Confirm it fails with a missing collection file id
-    collection = data_builder.create_collection();
-    api_db.collections.update({'_id': bson.ObjectId(collection)}, {'$set': {'files': [{'name': 'No id for me'}]}})
-    with pytest.raises(RuntimeError):
-        database.upgrade_to_66()
-    api_db.collections.remove({'_id': bson.ObjectId(collection)})
-
-
-    # Confirm it fails with a missing analysis input  id
-    collection = data_builder.create_collection();
-    api_db.collections.update({'_id': bson.ObjectId(collection)}, {'$set': {'inputs': [{'name': 'No id for me'}]}})
-    with pytest.raises(RuntimeError):
-        database.upgrade_to_66()
-    api_db.collections.remove({'_id': bson.ObjectId(collection)})
-
-
-    # cleanup project after since its a dep on the above containers
-    api_db.projects.remove({'_id': bson.ObjectId(project)})
-
-    database.upgrade_to_66()
-
-    local_storage = api_db.providers.find_one({'label': 'Primary Storage'})
-    assert local_storage
-    assert api_db.providers.find_one({'label': 'Static Compute'})
-
-    # Spot check files to be sure they have a provider id now
-    # Due to the order the tests run we already have files in the system with the test provider id
-    # So this test does not provide much value
-    # a = api_db.acquisitions.find_one({'files.0': {'$exists': 'true'}})
-    # assert a['files'][0].get('provider_id') == local_storage['_id']
-
-
-def test_67(api_db, database):
+def test_66(api_db, database):
     if not api_db.modalities.find_one({'_id': 'MR'}):
         api_db.modalities.insert_one({
             "_id": "MR",
@@ -1466,7 +1404,7 @@ def test_67(api_db, database):
         ]
     }).inserted_id
 
-    database.upgrade_to_67()
+    database.upgrade_to_66()
 
     modality = api_db.modalities.find_one({'_id': 'MR'})
     assert 'Spectroscopy' not in modality['classification']['Measurement']
@@ -1502,4 +1440,66 @@ def test_67(api_db, database):
 
     api_db.acquisitions.delete_many({'_id': {'$in': [acquisition_1_id, acquisition_2_id,
                                         acquisition_3_id, acquisition_4_id]}})
+
+
+def test_67(api_db, database, data_builder):
+
+    # Confirm it fails with a missing acquisition file id
+    acquisition = data_builder.create_acquisition();
+    api_db.acquisitions.update({'_id': bson.ObjectId(acquisition)}, {'$set': {'files': [{'name': 'No id for me'}]}})
+    with pytest.raises(RuntimeError):
+        database.upgrade_to_67()
+    api_db.acquisitions.remove({'_id': bson.ObjectId(acquisition)})
+
+    # Confirm it fails with a missing session file id
+    session= data_builder.create_session();
+    api_db.sessions.update({'_id': bson.ObjectId(session)}, {'$set': {'files': [{'name': 'No id for me'}]}})
+    with pytest.raises(RuntimeError):
+        database.upgrade_to_67()
+    api_db.sessions.remove({'_id': bson.ObjectId(session)})
+
+    # Confirm it fails with a missing subject file id
+    project = data_builder.create_project();
+    api_db.projects.update({'_id': bson.ObjectId(project)}, {'$set': {'files': [{'name': 'No id for me'}]}})
+    with pytest.raises(RuntimeError):
+        database.upgrade_to_67()
+
+
+    # Confirm it fails with a missing subject file id
+    subject= data_builder.create_subject(public=True, project=project, label='no id files');
+    api_db.subjects.update({'_id': bson.ObjectId(subject)}, {'$set': {'files': [{'name': 'No id for me'}]}})
+    with pytest.raises(RuntimeError):
+        database.upgrade_to_67()
+    api_db.subjects.remove({'_id': bson.ObjectId(subject)})
+
+    # Confirm it fails with a missing collection file id
+    collection = data_builder.create_collection();
+    api_db.collections.update({'_id': bson.ObjectId(collection)}, {'$set': {'files': [{'name': 'No id for me'}]}})
+    with pytest.raises(RuntimeError):
+        database.upgrade_to_67()
+    api_db.collections.remove({'_id': bson.ObjectId(collection)})
+
+
+    # Confirm it fails with a missing analysis input  id
+    collection = data_builder.create_collection();
+    api_db.collections.update({'_id': bson.ObjectId(collection)}, {'$set': {'inputs': [{'name': 'No id for me'}]}})
+    with pytest.raises(RuntimeError):
+        database.upgrade_to_67()
+    api_db.collections.remove({'_id': bson.ObjectId(collection)})
+
+
+    # cleanup project after since its a dep on the above containers
+    api_db.projects.remove({'_id': bson.ObjectId(project)})
+
+    database.upgrade_to_67()
+
+    local_storage = api_db.providers.find_one({'label': 'Primary Storage'})
+    assert local_storage
+    assert api_db.providers.find_one({'label': 'Static Compute'})
+
+    # Spot check files to be sure they have a provider id now
+    # Due to the order the tests run we already have files in the system with the test provider id
+    # So this test does not provide much value
+    # a = api_db.acquisitions.find_one({'files.0': {'$exists': 'true'}})
+    # assert a['files'][0].get('provider_id') == local_storage['_id']
 
