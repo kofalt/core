@@ -339,7 +339,8 @@ class SessionStorage(ContainerStorage):
     def get_list_projection(self):
         return {'info': 0, 'files.info': 0, 'analyses': 0, 'tags': 0, 'age': 0}
 
-
+    # Keeps the same signature even if mode is not required
+    # pylint: disable=unused-argument
     def move_sessions_to_subject(self, source_list, dest_subject, conflict_mode=None):
 
         dest_subject_obj = SubjectStorage().get_el(dest_subject)
