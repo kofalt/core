@@ -1,9 +1,9 @@
 """
 Purpose of this module is to define all the permissions checker decorators for the ContainerHandler classes.
 """
-
 from . import _get_access, INTEGER_PERMISSIONS
 from ..web.errors import APIPermissionException
+from ..config import db
 
 
 def default_container(handler, container=None, target_parent_container=None):
@@ -199,3 +199,48 @@ def list_public_request(exec_op):
             query['public'] = True
         return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination)
     return f
+
+
+def validate_container_permissions(containers, container_type, user_id, permission):
+
+    """Check if the permission  is allowed for the list of containers.
+    Containers must all be of the same type
+
+
+    Arguments:
+        containers (list): The list containing Ids of containers to check
+        container_type (string): The container type we are checking
+        user_id (str): id of the user to check
+        permission (str): Permission we would like to validate; ro, rw, admin
+
+    Returns:
+        bool: True if access is permitted, false otherwise
+    """
+
+    permission_levels = ['admin', 'rw', 'ro']
+    container_types = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
+
+
+    if container_type not in container_types:
+        raise ValueError('This function is not able to validate the permissions of {}'.format(container_type))
+
+    if permission not in permission_levels:
+        raise ValueError('This is not a valid permission: {}'.format(container_type))
+
+    perms = []
+    for p in permission_levels:
+        perms.append(p)
+        if p == permission:
+            break
+
+    return len(containers) == db[container_type].find({
+        '_id': {'$in':containers},
+        'permissions': {
+            '$elemMatch': {
+                '$and': [
+                    {'_id': user_id},
+                    {'access': {'$in': perms}}
+                ]
+            }
+        }
+    }).count()

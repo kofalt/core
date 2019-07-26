@@ -1,11 +1,10 @@
 import bson
 
-from ..auth import containerauth
+from ..auth.containerauth import validate_container_permissions
 from ..dao.basecontainerstorage import ContainerStorage
 from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException
 #from ..web.request import log_access, AccessType
-from collections import namedtuple
 
 class BulkHandler(base.RequestHandler):
     """
@@ -24,7 +23,6 @@ class BulkHandler(base.RequestHandler):
 
     def bulk(self, operation, source_cont_name):
         """Entry point for the bulk operations"""
-
 
         if not getattr(self,
             ('_' + operation + '_' + source_cont_name + '_to_' +
@@ -48,28 +46,16 @@ class BulkHandler(base.RequestHandler):
             self.source_list = self.payload['sources']
             self.dest_list = self.payload(['destinations'])
 
+        if not self.user_is_admin:
+
+            if not validate_container_permissions(
+                    self.dest_list, self.payload['destination_container_type'], self.uid, 'rw'):
+                raise APIPermissionException('You do not have sufficient permission on destination container')
+
+            if not validate_container_permissions(self.source_list, source_cont_name, self.uid, 'ro'):
+                raise APIPermissionException('You do not have read permission on all the source containers')
+
         self._validate_inputs()
-
-
-        ## This is a stub to hold the assumed uid on the handler. We have multiple uids to check
-        #Handler = namedtuple('Handler', 'uid, scope')
-        #
-        #dest_cont = self.dest_storage.get_el(self.dest_list[0])
-        #source_cont = self.source_storage.get_el(self.source_list[0])
-        ## The container auth takes the object not the name. So we need to load the parent 
-        #self.source_permchecker = containerauth.default_container(Handler(self.source_list[0], self.scope), source_cont)
-        #dest_permchecker = containerauth.default_container(Handler(self.dest_list[0], self.scope), dest_cont)
-
-        #result = dest_permchecker(self.dest_storage.exec_op)('PUT', self.dest_list[0], payload=None)
-        #if result is None:
-        #    raise APIPermissionException('You do not have permission on the destination container')
-        ## TODO: perform some permission checks first
-        ## TODO: There does not seem to be a bulk perm checker. Do we want to check all the sources first?
-        ## FOr now just check the first one
-        #result = self.source_permchecker(self.source_storage.exec_op)('PUT', self.source_list[0], payload=None)
-        #if result is None:
-        #    raise APIPermissionException('You do not have permission on the destination container')
-
 
         getattr(self, '_' + operation + '_' + source_cont_name + '_to_' + self.payload['destination_container_type'])()
 

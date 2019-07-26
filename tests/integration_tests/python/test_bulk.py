@@ -1,4 +1,3 @@
-
 from mock import patch
 import bson
 import pytest
@@ -78,6 +77,83 @@ def _create_project_tree(data_builder):
 
     return projects
 
+def test_bulk_invalid_permissions(as_admin, as_user, data_builder):
+
+    projects = _create_project_tree(data_builder)
+    project1 = projects[0].id
+    project2 = projects[1].id
+
+    userid = as_user.get('/users/self').json()['_id']
+
+    sources = (
+        [projects[0].subjects[0].sessions[0], projects[0].subjects[1].sessions[1]]
+    )
+
+    r = as_user.post('/bulk/move/sessions', json={
+	"sources": sources,
+	"destination_container_type": "projects",
+	"destinations": [project2],
+	"conflict_mode": "move"
+    })
+    assert not r.ok
+    assert r.status_code == 403
+
+    # With read permissions on destination
+    r = as_admin.post('/projects/' + project2 + '/permissions', json={
+        '_id': userid,
+        'access': 'ro'
+    })
+    assert r.ok
+
+    r = as_user.post('/bulk/move/sessions', json={
+	"sources": sources,
+	"destination_container_type": "projects",
+	"destinations": [project2],
+	"conflict_mode": "move"
+    })
+    assert not r.ok
+    assert r.status_code == 403
+
+
+    # With read permissions on source
+    r = as_admin.post('/projects/' + project1 + '/permissions', json={
+        '_id': userid,
+        'access': 'ro'
+    })
+    assert r.ok
+    r = as_user.post('/bulk/move/sessions', json={
+	"sources": sources,
+	"destination_container_type": "projects",
+	"destinations": [project2],
+	"conflict_mode": "move"
+    })
+    assert not r.ok
+    assert r.status_code == 403
+
+    # With read permissions on source and write on destination
+    r = as_admin.put('/projects/' + project2 + '/permissions/' + userid, json={
+        'access': 'rw'
+    })
+    assert r.ok
+    r = as_user.post('/bulk/move/sessions', json={
+	"sources": sources,
+	"destination_container_type": "projects",
+	"destinations": [project2],
+	"conflict_mode": "move"
+    })
+    assert r.ok
+
+    print projects[0].subjects[0].sessions[2]
+
+    # Works as Admin without explicit permissions
+    r = as_admin.post('/bulk/move/sessions', json={
+	"sources": [projects[0].subjects[0].sessions[2]],
+	"destination_container_type": "projects",
+	"destinations": [project2],
+	"conflict_mode": "move"
+    })
+    assert r.ok
+
 
 def test_bulk_invalid_operations(as_admin):
 
@@ -90,7 +166,12 @@ def test_bulk_invalid_operations(as_admin):
     assert r.status_code == 404
 
     # Valid operations and containers that are not implemented yet will give a 501 as opposed to 404
-    r = as_admin.post('/bulk/move/subjects', json={})
+    r = as_admin.post('/bulk/move/subjects', json={
+	"sources": ['anycontainer'],
+	"destination_container_type": "projects",
+	"destinations": ['anyproject'],
+	"conflict_mode": "move"
+        })
     assert not r.ok
     assert r.status_code == 501
 
