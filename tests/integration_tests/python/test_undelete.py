@@ -20,12 +20,14 @@ def containers(data_builder, as_admin, file_form, api_db):
     """Populate DB with test dataset including deleted and non-deleted entries."""
     p_1 = data_builder.create_project()
     s_1_1 = data_builder.create_session(project=p_1)
+    su_1_1 = as_admin.get('/sessions/' + s_1_1).json()['subject']['_id']
     c_1_1_1 = data_builder.create_collection()
     an_1_1_1 = as_admin.post('/sessions/' + s_1_1 + '/analyses', files=file_form(
         'analysis.csv', meta={'label': 'no-job', 'inputs': [{'name': 'analysis.csv'}]})).json()['_id']
     ac_1_1_1 = data_builder.create_acquisition(session=s_1_1)
     ac_1_1_2 = data_builder.create_acquisition(session=s_1_1)
     s_1_2 = data_builder.create_session(project=p_1)
+    su_1_2 = as_admin.get('/sessions/' + s_1_2).json()['subject']['_id']
     ac_1_2_1 = data_builder.create_acquisition(session=s_1_2)
     p_2 = data_builder.create_project()
     s_2_1 = data_builder.create_session(project=p_2)
@@ -39,16 +41,19 @@ def containers(data_builder, as_admin, file_form, api_db):
     assert as_admin.delete('/acquisitions/' + ac_1_1_1 + '/files/f_1_1_1_1').ok
     assert as_admin.delete('/acquisitions/' + ac_1_1_1).ok
     assert as_admin.delete('/sessions/' + s_1_1).ok
+    assert as_admin.delete('/subjects/' + su_1_1).ok
     assert as_admin.delete('/projects/' + p_1).ok
 
     containers = attrdict.AttrDict(
         p_1=p_1,
         s_1_1=s_1_1,
+        su_1_1=su_1_1,
         c_1_1_1=c_1_1_1,
         an_1_1_1=an_1_1_1,
         ac_1_1_1=ac_1_1_1,
         ac_1_1_2=ac_1_1_2,
         s_1_2=s_1_2,
+        su_1_2=su_1_2,
         ac_1_2_1=ac_1_2_1,
         p_2=p_2,
         s_2_1=s_2_1,
@@ -58,6 +63,7 @@ def containers(data_builder, as_admin, file_form, api_db):
     def is_deleted(cont_key, filename=None):
         cont_name = {'p': 'projects',
                      's': 'sessions',
+                     'su': 'subjects',
                      'ac': 'acquisitions',
                      'an': 'analyses',
                      'c': 'collections',
@@ -80,14 +86,22 @@ def test_undelete_noop(undelete, containers):
     undelete('acquisitions', containers.ac_2_1_1, filename='f_2_1_1_1')
 
 
-def test_undelete_scope(undelete, containers, as_admin, api_db):
+def test_undelete_scope(undelete, containers):
     assert containers.is_deleted('p_1')
     assert containers.is_deleted('s_1_1')
     assert containers.is_deleted('s_1_2')
     undelete('projects', containers.p_1)
     assert not containers.is_deleted('p_1')
     assert containers.is_deleted('s_1_1')
+    assert containers.is_deleted('su_1_1')
     assert not containers.is_deleted('s_1_2')
+    assert not containers.is_deleted('su_1_2')
+
+    assert containers.is_deleted('su_1_1')
+    assert containers.is_deleted('s_1_1')
+    undelete('subjects', containers.su_1_1)
+    assert not containers.is_deleted('su_1_1')
+    assert containers.is_deleted('s_1_1')
 
     assert containers.is_deleted('s_1_1')
     assert containers.is_deleted('ac_1_1_1')
@@ -123,6 +137,9 @@ def test_undelete_options(undelete, containers):
     assert containers.is_deleted('s_1_2')
 
     undelete('projects', containers.p_1)
+    assert containers.is_deleted('s_1_2')
+
+    undelete('projects', containers.p_1, always_propagate=True, dry_run=True)
     assert containers.is_deleted('s_1_2')
 
     undelete('projects', containers.p_1, always_propagate=True)

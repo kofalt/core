@@ -24,8 +24,8 @@ from api import config
 from api.dao.containerutil import pluralize, propagate_changes
 
 
-log = logging.getLogger('scitran.undelete')
-cont_names = ['projects', 'sessions', 'acquisitions', 'analyses', 'collections']
+log = logging.getLogger('flywheel.undelete')
+cont_names = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses', 'collections']
 cont_names_str = '|'.join(cont_names)
 
 
@@ -36,19 +36,21 @@ def main(*argv):
     ap.add_argument('filename', nargs='?', help='filename within container (optional)')
     ap.add_argument('--include-parents', action='store_true', help='restore deleted parent containers')
     ap.add_argument('--always-propagate', action='store_true', help='propagate even without deleted tag')
+    ap.add_argument('--dry-run', action='store_true', help='run without applying db changes')
     args = ap.parse_args(argv or sys.argv[1:] or ['--help'])
 
     try:
         undelete(args.cont_name, args.cont_id, filename=args.filename,
                  include_parents=args.include_parents,
-                 always_propagate=args.always_propagate)
+                 always_propagate=args.always_propagate,
+                 dry_run=args.dry_run)
         log.info('Done.')
     except (AssertionError, RuntimeError, ValueError) as exc:
         log.error(exc.message)
         sys.exit(1)
 
 
-def undelete(cont_name, cont_id, filename=None, include_parents=False, always_propagate=False):
+def undelete(cont_name, cont_id, filename=None, include_parents=False, always_propagate=False, dry_run=False):
     if cont_name not in cont_names:
         raise ValueError('Invalid cont_name "{}" (must be one of {})'.format(cont_name, cont_names_str))
     if not bson.ObjectId.is_valid(cont_id):
@@ -79,13 +81,15 @@ def undelete(cont_name, cont_id, filename=None, include_parents=False, always_pr
                 deleted_time = 'at the same time as' if parent['deleted'] == container['deleted'] else 'after'
                 raise RuntimeError(msg.format(parent_str, deleted_time, cont_str))
             log.info('Removing "deleted" tag from parent %s...', parent_str)
-            config.db[parent_name].update_one({'_id': parent_id}, unset_deleted)
+            if not dry_run:
+                config.db[parent_name].update_one({'_id': parent_id}, unset_deleted)
 
     if filename is None:
         # Undeleting a container (and any children/referrers)
         if 'deleted' in container:
             log.info('Removing "deleted" tag from %s...', cont_str)
-            config.db[cont_name].update_one({'_id': cont_id}, unset_deleted)
+            if not dry_run:
+                config.db[cont_name].update_one({'_id': cont_id}, unset_deleted)
             propagate_query = {'deleted': container['deleted']}
         elif always_propagate:
             propagate_query = {}
@@ -93,7 +97,8 @@ def undelete(cont_name, cont_id, filename=None, include_parents=False, always_pr
             log.info('Skipping %s - has no "deleted" tag', cont_str)
             return
         log.info('Removing "deleted" tag from child/referring containers...')
-        propagate_changes(cont_name, cont_id, propagate_query, unset_deleted, include_refs=True)
+        if not dry_run:
+            propagate_changes(cont_name, cont_id, propagate_query, unset_deleted, include_refs=True)
 
     else:
         # Undeleting a single file
@@ -105,7 +110,8 @@ def undelete(cont_name, cont_id, filename=None, include_parents=False, always_pr
                     return
                 log.info('Removing "deleted" tag from file %s...', file_str)
                 del f['deleted']
-                config.db[cont_name].update_one({'_id': cont_id}, {'$set': {'files': container['files']}})
+                if not dry_run:
+                    config.db[cont_name].update_one({'_id': cont_id}, {'$set': {'files': container['files']}})
                 break
         else:
             raise RuntimeError('Cannot find file {}'.format(file_str))
@@ -126,6 +132,8 @@ def get_parent_refs(cont_name, cont_id, filename=None):
     elif cont_name == 'acquisitions':
         parent_name, parent_id = 'sessions', container['session']
     elif cont_name == 'sessions':
+        parent_name, parent_id = 'subjects', container['subject']
+    elif cont_name == 'subjects':
         parent_name, parent_id = 'projects', container['project']
 
     if parent_name is None:
