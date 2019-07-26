@@ -2535,7 +2535,6 @@ def upgrade_to_67():
 
     config.db.singletons.update({'_id':'site'},
         {
-            "$addToSet": {"center_gears": "site-gear"},
             "$set": {
                 "providers": {
                     "storage": storage.inserted_id,
