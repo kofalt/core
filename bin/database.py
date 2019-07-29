@@ -45,7 +45,7 @@ def get_db_version():
         version = config.db.version.find_one({'_id': 'version'})
     if version is None or version.get('database') is None:
         return (0, {}, {})
-    return version.get('database'), version.get('applied_fixes', {}), version.get('applied_checks', {})
+    return int(version.get('database')), version.get('applied_fixes', {}), version.get('applied_checks', {})
 
 
 def confirm_schema_match():
@@ -62,7 +62,7 @@ def confirm_schema_match():
     """
 
     db_version, applied_fixes, applied_checks = get_db_version()
-    if not isinstance(db_version, int) or db_version > CURRENT_DATABASE_VERSION:
+    if not db_version or db_version > CURRENT_DATABASE_VERSION:
         logging.error('The stored db schema version of %s is incompatible with required version %s',
                        str(db_version), CURRENT_DATABASE_VERSION)
         sys.exit(43)
