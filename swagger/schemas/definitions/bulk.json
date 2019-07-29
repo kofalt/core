@@ -33,9 +33,7 @@
                 }
             },
             "required": ["sources", "destination_container_type", "destinations", "conflict_mode"],
-            "additionalProperties": false,
-            "x-sdk-model": "bulk",
-            "x-sdk-container-mixin": "bulk-mixin"
+            "additionalProperties": false
         }
     }
 }
