@@ -45,3 +45,5 @@ After running make.sh (above), tests can be run by invoking `sdk/scripts/docker-
 * **x-sdk-include-empty** - On a JSON definition - indicates that the following list of properties should be included on JSON even when empty.
 * **x-sdk-ignore-properties** - On a JSON schema includes a list of properties to exclude in codegen
 * **x-sdk-schema** - Overrides a schema with the definition provided
+* **x-sdk-model** - Use this name for the generated SDK model, merging any models with the same name.
+* **x-sdk-container-mixin** - Name of class to mix-in to the SDK model for extended functionality.
