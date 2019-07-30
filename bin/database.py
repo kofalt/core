@@ -62,7 +62,7 @@ def confirm_schema_match():
     """
 
     db_version, applied_fixes, applied_checks = get_db_version()
-    if not db_version or db_version > CURRENT_DATABASE_VERSION:
+    if db_version is None or db_version > CURRENT_DATABASE_VERSION:
         logging.error('The stored db schema version of %s is incompatible with required version %s',
                        str(db_version), CURRENT_DATABASE_VERSION)
         sys.exit(43)
