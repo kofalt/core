@@ -38,6 +38,8 @@ def make_clients():
     fw = flywheel.Flywheel(api_key)
     if device_key:
         fw_device = flywheel.Flywheel(device_key)
+    else:
+        fw_device = None
     fw.enable_feature('beta')
 
     # Mock cli login
