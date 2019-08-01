@@ -20,7 +20,11 @@ def create_drone_client(host, secret, method, name, port=443, **kwargs):
         util.set_verify_ssl(session)
 
         # Get auth status to determine device id
-        base_uri = 'https://{}:{}/api'.format(host, port)
+        force_insecure = kwargs.pop('_force_insecure', False) == True
+        if force_insecure:
+            base_uri = 'http://{}:{}/api'.format(host, port)
+        else:
+            base_uri = 'https://{}:{}/api'.format(host, port)
 
         session.headers.update({
             'X-SciTran-Auth': secret,
@@ -47,6 +51,11 @@ def create_drone_client(host, secret, method, name, port=443, **kwargs):
         if 'key' not in device:
             raise RuntimeError('Got device, but could not get key!')
 
-        api_key = '{}:{}:{}'.format(host, port, device['key'])
+        # NOTE: _force_insecure is not recommended nor supported for general consumption
+        if force_insecure:
+            api_key = '{}:{}:__force_insecure:{}'.format(host, port, device['key'])
+        else:
+            api_key = '{}:{}:{}'.format(host, port, device['key'])
+
 
     return Client(api_key, **kwargs)

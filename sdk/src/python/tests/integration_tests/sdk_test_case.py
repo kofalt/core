@@ -32,12 +32,42 @@ def get_api_key():
 
     return api_key, device_key
 
+def make_drone_client():
+    if init_db.SCITRAN_PERSISTENT_DB_URI:
+        drone_secret = os.environ['SCITRAN_CORE_DRONE_SECRET']
+        site_url = urlparse(os.environ['SCITRAN_SITE_API_URL'])
+
+        host = site_url.hostname
+        port = site_url.port
+        force_insecure = True
+    elif 'SdkTestDroneSecret' in os.environ:
+        drone_secret = os.environ['SdkTestDroneSecret']
+        api_key = os.environ.get('SdkTestKey')
+        api_key_parts = api_key.split(':')
+
+        host = api_key_parts[0]
+        if len(api_key_parts) > 2:
+            port = int(api_key_parts[1])
+        else:
+            port = 443
+
+        force_insecure = '__force_insecure' in api_key_parts
+    else:
+        # No drone secret
+        return None
+
+    return flywheel.create_drone_client(host, drone_secret, 'test',
+        'flywheel-test', port=port, _force_insecure=force_insecure)
+
+
 def make_clients():
     api_key, device_key = get_api_key()
 
     fw = flywheel.Flywheel(api_key)
     if device_key:
         fw_device = flywheel.Flywheel(device_key)
+    else:
+        fw_device = None
     fw.enable_feature('beta')
 
     # Mock cli login
@@ -60,6 +90,12 @@ def make_clients():
 
 class SdkTestCase(unittest.TestCase):
     fw, client, fw_device = make_clients()
+
+    @property
+    def fw_drone(self):
+        if not hasattr(self, '_fw_drone'):
+            self._fw_drone = make_drone_client()
+        return self._fw_drone
 
     @classmethod
     def rand_string_lower(self, length=10):
