@@ -47,6 +47,11 @@ def create_drone_client(host, secret, method, name, port=443, **kwargs):
         if 'key' not in device:
             raise RuntimeError('Got device, but could not get key!')
 
-        api_key = '{}:{}:{}'.format(host, port, device['key'])
+        # NOTE: _force_insecure is not recommended nor supported for general consumption
+        if kwargs.pop('_force_insecure', False):
+            api_key = '{}:{}:__force_insecure:{}'.format(host, port, device['key'])
+        else:
+            api_key = '{}:{}:{}'.format(host, port, device['key'])
+
 
     return Client(api_key, **kwargs)
