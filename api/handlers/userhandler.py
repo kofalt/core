@@ -286,7 +286,8 @@ class UserHandler(base.RequestHandler):
         except APIAuthProviderException:
             raise InputValidationException
         token['last_used'] = datetime.datetime.utcnow()
-        query = {key: token[key] for key in ('auth_type', 'scopes', 'uid')}
+        query = {key: token[key] for key in ('auth_type', 'scopes', 'uid', )}
+        query['identity.email'] = token['identity']['email']
         config.db.user_auth_tokens.update_one(
             query, {'$set': token},
             upsert=True
