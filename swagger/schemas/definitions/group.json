@@ -41,7 +41,7 @@
           "type": "object",
           "properties": {
             "_id":{"type":"string"},
-            "label": {"$ref": "#/definitions/label"}
+            "label": {"type":"string"}
           },
           "additionalProperties": false
         },

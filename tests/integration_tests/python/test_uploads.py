@@ -396,6 +396,27 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
     assert len(acq_children) == 1
     assert acq_children[0]['name'] == 'group.label.test.6'
 
+    # No group label given
+    project_label_2 = prefix + '-second-project-label-2'
+    r = as_device.post('/upload/reaper', files=upload_file_form(
+        group={'label': ''},
+        project={'label': project_label_2},
+        session={'uid': 'group.label.test.7'},
+    ))
+    assert r.ok
+    files = r.json()
+
+    # Device uploads should always go to the site provider
+    assert files[0]['provider_id'] == str(site_provider)
+
+    # get session created by the upload
+    sessions = as_root.get('/projects/' + unknown_group_unsorted_project + '/sessions').json()
+    found = False
+    for ses in sessions:
+        if ses['uid'] == 'group.label.test.7':
+            found = True
+    assert found == True
+
     # clean up
     data_builder.delete_group(group_1, recursive=True)
     data_builder.delete_group(group_2, recursive=True)
