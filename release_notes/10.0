@@ -1,0 +1,44 @@
+# Providers
+New in version 10 is the concept of providers.  There are 2 classes of providers; storage and compute.  Storage providers are used to determine where flywheel data files will be saved. These can be either local block storage or object storage like S3. Compute providers are used by condor to control where engines are run.  
+
+The primary new feature of this release is the ability to have multiple providers in a single install.  This means you can have a local storage provider along with one or more google storage providers all saving files in the same flywheel instance.  Or engines running on compute resources in both GCP and AWS.
+
+## Upgrading
+When upgrading the flywheel install you will need to be sure that the providers are converted over to the new provider configuration correctly.  A couple of tools have been provided to ease the upgrade process and in most cases it should be an automatic conversion.  
+The storage provider will be converted to the provider configuration automatically based on the the values stored in the SCITRAN_PERSISTENT_FS_URL environment variable. 
+The compute providers will be converted via a command based on the values in the prod.engine-scalar.yaml file. 
+1.  Storage Provider
+	* A database upgrade will run during the upgrade to version 67. This will create the primary storage provider automatically and associate all existing files with this new provider.  If there are any errors converting the storage provider the upgrade will not complete and flywheel will roll back to the last version.
+
+2.  Compute Providers
+	* The following script will try to convert the engine scalars into compute providers automatically. <br>
+	`docker/run-cmd.sh create-compute-providers`<br>
+	If this command is successful then not action will need to be take and the flywheel upgrade is successful.  If there are errors from this script they will output to the console indicating the issue that is preventing an automatic conversion.
+	 
+## Adding New Providers
+CLI utilities have been created to facilitate the addition of new providers. The basic command is: <br> `provider add {storage|compute} {aws|gc}`<br>
+##### Example
+Add a new google cloud storage provider
+`provider add storage gc`
+
+### Assigning Providers To Projects or Groups
+Once a provider has been created it can be assigned to either a group or project using the cli by referencing the 24 character provider id.  Once providers have been assigned to a group or project they can not be changed
+
+`provider assign {group|project} <containerid> [--compute <providerId>] [--storage <providerId>] `
+##### Example
+Assigning storage provider '5d3f6abcbde9af00014e5867' to the 'scitran' group
+`provider assign group scitran --storage 5d3f6abcbde9af00014e5867`
+
+
+### Lab Edition
+New in version 10 is the ability to enable Lab Edition on groups or projects.  
+Each flywheel instance will have one site level compute and one site level storage provider assigned. Groups or Projects that do not have Lab Edition enable will behave exactly as they have in prior version of Flywheel.  All files will default to the site level storage provider and all gears will default to running on the site level compute provider.  Enabling lab edition will change the behavior in a few key ways. 
+
+1. Isolated Storage Providers.
+	For groups or projects that have lab edition enabled all files will be saved to the assigned storage provider for the group or project. This allows adding multiple groups each with a separate storage provider and the files from each group will be contained in the bucket or directory configured in the storage provider allowing discrete usage and tracking.
+	
+2. Isolate Compute Providers.
+	For groups or projects that have lab edition enabled all jobs will run on the assigned compute provider. The exception is the defined list of Center-Gears that are allowed to run on the site Compute Provider
+
+	#### Center Gears
+	A defined list of Gear Names which are allowed to run on the site level compute provider. 
