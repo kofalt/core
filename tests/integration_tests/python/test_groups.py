@@ -1,7 +1,7 @@
 import bson
 from dateutil.parser import parse
 
-def test_groups(as_user, as_admin, data_builder):
+def test_groups(as_user, as_admin, data_builder, api_db):
     # Cannot find a non-existant group
     r = as_admin.get('/groups/non-existent')
     assert r.status_code == 404
@@ -16,6 +16,7 @@ def test_groups(as_user, as_admin, data_builder):
     assert r.ok
     initial_modified = r.json()['modified']
     created = r.json()['created']
+    assert r.json()['revision'] == 1
 
     # Test that POST group with same id doesn't update created
     r = as_admin.post('/groups', json={'_id': group})
@@ -46,6 +47,7 @@ def test_groups(as_user, as_admin, data_builder):
     d1 = parse(first_modified)
     d2 = parse(second_modified)
     assert d2 > d1
+    assert r.json()['revision'] == 2
 
     # Try adding a tag with a slash
     tag_name = 'Grey/2'
@@ -63,6 +65,7 @@ def test_groups(as_user, as_admin, data_builder):
     third_modified = r.json()['modified']
     d3 = parse(third_modified)
     assert d3 > d2
+    assert r.json()['revision'] == 3
 
     # Try editting the tag so that it includes a slash
     new_tag_name = 'B/rown'
@@ -80,6 +83,7 @@ def test_groups(as_user, as_admin, data_builder):
     fourth_modified = r.json()['modified']
     d4 = parse(fourth_modified)
     assert d4 > d3
+    assert r.json()['revision'] == 4
 
     # Delete the tag
     r = as_user.delete('/groups/' + group + '/tags/' + new_tag_name)
@@ -91,6 +95,7 @@ def test_groups(as_user, as_admin, data_builder):
     fith_modified = r.json()['modified']
     d5 = parse(fith_modified)
     assert d5 > d4
+    assert r.json()['revision'] == 5
 
     # Add a permission to the group
     user = {'access': 'rw', '_id': user_id}
@@ -103,6 +108,7 @@ def test_groups(as_user, as_admin, data_builder):
     six_modified = r.json()['modified']
     d6 = parse(six_modified)
     assert d6 > d5
+    assert r.json()['revision'] == 6
 
     # Edit a permission in the group
     user = {'access': 'ro', '_id': user_id}
@@ -120,6 +126,7 @@ def test_groups(as_user, as_admin, data_builder):
     seven_modified = r.json()['modified']
     d7 = parse(seven_modified)
     assert d7 > d6
+    assert r.json()['revision'] == 7
 
     # Delete a permission in the group
     r = as_user.delete('/groups/' + group + '/permissions/' + user['_id'])
@@ -131,6 +138,7 @@ def test_groups(as_user, as_admin, data_builder):
     eight_modified = r.json()['modified']
     d8 = parse(eight_modified)
     assert d8 > d7
+    assert r.json()['revision'] == 8
 
     group2 = data_builder.create_group()
     r = as_admin.post('/groups/' + group2 + '/permissions', json={'access':'admin','_id':'user@user.com'})

@@ -59,6 +59,7 @@
               "timezone":     {"$ref":"container.json#/definitions/timezone"},
               "created":      {"$ref":"created-modified.json#/definitions/created"},
               "modified":     {"$ref":"created-modified.json#/definitions/modified"},
+              "revision":     {"$ref":"common.json#/definitions/revision"},
               "info_exists":  {"type": "boolean"},
               "permissions":{
                   "type":"array",

@@ -9,6 +9,7 @@
                         },
     "created":          {},
     "modified":         {},
+    "revision":         {},
     "label":             {},
     "permissions":            {
                           "type": "array",

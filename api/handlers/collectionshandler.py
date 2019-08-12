@@ -3,7 +3,7 @@ import datetime
 
 from .. import config
 from ..auth import containerauth, always_ok, require_privilege, Privilege
-from ..dao import containerstorage, containerutil, noop
+from ..dao import containerstorage, containerutil, dbutil, noop
 from ..validators import verify_payload_exists
 
 from .containerhandler import ContainerHandler
@@ -43,6 +43,7 @@ class CollectionsHandler(ContainerHandler):
         }]
         payload['curator'] = self.uid
         payload['created'] = payload['modified'] = datetime.datetime.utcnow()
+        payload['revision'] = 1
         result = mongo_validator(self.storage.exec_op)('POST', payload=payload)
 
         if result.acknowledged:
@@ -89,7 +90,10 @@ class CollectionsHandler(ContainerHandler):
         operator = '$addToSet' if contents['operation'] == 'add' else '$pull'
         if not bson.ObjectId.is_valid(_id):
             self.abort(400, 'not a valid object id')
-        config.db.acquisitions.update_many({'_id': {'$in': acq_ids}}, {operator: {'collections': bson.ObjectId(_id)}})
+
+        update_doc = {operator: {'collections': bson.ObjectId(_id)}}
+        dbutil.update_modified_and_revision(update_doc)
+        config.db.acquisitions.update_many({'_id': {'$in': acq_ids}}, update_doc)
 
 
     def delete(self, **kwargs):

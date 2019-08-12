@@ -177,7 +177,6 @@ class SubjectStorage(ContainerStorage):
 
     def create_or_update_el(self, payload, origin, **kwargs):
         if self.dbc.find_one({'_id': payload['_id'], 'deleted': {'$exists': False}}):
-            payload['modified'] = datetime.datetime.utcnow()
             # Pop _id from mongo payload (immutable - would raise error)
             payload_copy = copy.deepcopy(payload)
             _id = payload_copy.pop('_id')

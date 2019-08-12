@@ -134,6 +134,7 @@ class GroupHandler(base.RequestHandler):
             return {'_id': payload['_id']}
 
         payload['created'] = payload['modified'] = datetime.datetime.utcnow()
+        payload['revision'] = 1
         payload['permissions'] = [{'_id': self.uid, 'access': 'admin'}] if self.uid else []
         # Validate any providers (for new group)
         providers.validate_provider_updates({}, payload.get('providers'), self.user_is_admin)

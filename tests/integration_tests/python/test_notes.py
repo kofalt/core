@@ -4,6 +4,7 @@ def test_notes(data_builder, as_user, as_admin):
 
     r = as_admin.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'rw'})
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 2
 
     # Add a note
     note_text = 'test note'
@@ -19,6 +20,7 @@ def test_notes(data_builder, as_user, as_admin):
     r = as_user.get('/projects/' + project + '/notes/' + note)
     assert r.ok
     assert r.json()['text'] == note_text
+    assert as_user.get('/projects/' + project).json()['revision'] == 3
 
     # Modify note
     note_text_2 = 'modified note'
@@ -29,6 +31,7 @@ def test_notes(data_builder, as_user, as_admin):
     r = as_user.get('/projects/' + project + '/notes/' + note)
     assert r.ok
     assert r.json()['text'] == note_text_2
+    assert as_user.get('/projects/' + project).json()['revision'] == 4
 
     # Delete note
     r = as_user.delete('/projects/' + project + '/notes/' + note)
@@ -36,6 +39,7 @@ def test_notes(data_builder, as_user, as_admin):
 
     r = as_user.get('/projects/' + project + '/notes/' + note)
     assert r.status_code == 404
+    assert as_user.get('/projects/' + project).json()['revision'] == 5
 
 
 def test_analysis_notes(data_builder, file_form, as_admin):

@@ -43,6 +43,7 @@
                 "group":       {"$ref":"common.json#/definitions/lowercase-string-id"},
                 "created":     {"$ref":"created-modified.json#/definitions/created"},
                 "modified":    {"$ref":"created-modified.json#/definitions/modified"},
+                "revision":    {"$ref":"common.json#/definitions/revision"},
                 "templates":    {"type":"object"},
                 "permissions": {"$ref":"permission.json#/definitions/permission-output-list"},
                 "files":{

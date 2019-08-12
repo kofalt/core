@@ -13,6 +13,7 @@
                         },
         "created":      {},
         "modified":     {},
+		"revision":     {},
         "notes":        {"type": "array",  "items": {"$ref": "note.json"}},
 		"files": 		{
 							"type": ["array", "null"],

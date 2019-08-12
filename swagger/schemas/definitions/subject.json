@@ -113,6 +113,7 @@
 
               "created":          {"$ref":"created-modified.json#/definitions/created"},
               "modified":         {"$ref":"created-modified.json#/definitions/modified"},
+              "revision":         {"$ref":"common.json#/definitions/revision"},
               "permissions":      {"$ref":"permission.json#/definitions/permission-output-list"},
               "public":           {"$ref":"container.json#/definitions/public"},
 

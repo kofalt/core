@@ -17,6 +17,7 @@
             "permissions": {"$ref": "permission.json#/definitions/permission-output-list"},
             "created": {"$ref":"created-modified.json#/definitions/created"},
             "modified": {"$ref":"created-modified.json#/definitions/modified"},
+            "revision": {"$ref":"common.json#/definitions/revision"},
             "tags": {"$ref":"tag.json#/definitions/tag-list"},
             "providers": {"$ref":"provider.json#/definitions/provider-links"},
             "editions": {"$ref": "common.json#/definitions/editions"}
@@ -48,7 +49,7 @@
         "group-output":{
           "type": "object",
           "allOf": [{"$ref":"#/definitions/group"}],
-          "required": ["permissions", "created","modified","_id"],
+          "required": ["permissions", "created","modified", "revision", "_id"],
           "x-sdk-model": "group",
           "x-sdk-container-mixin": "group-mixin"
         },

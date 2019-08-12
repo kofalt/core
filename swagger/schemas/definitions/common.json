@@ -90,6 +90,13 @@
                     "type": "boolean"
                 }
             }
+        },
+        "revision": {
+            "oneOf": [
+                {"type": "integer"},
+                {"type": "null"}
+            ],
+            "description": "An incremental document revision number"
         }
     }
 }

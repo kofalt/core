@@ -15,6 +15,11 @@ def test_collections(data_builder, as_admin, as_user, as_public):
     assert r.ok
     collection = r.json()['_id']
 
+    # Verify revision
+    r = as_user.get('/collections/' + collection)
+    assert r.ok
+    assert r.json()['revision'] == 1
+
     # Make sure admin can't see without exhaustive or permissions
     r = as_admin.get('/collections')
     assert r.ok
@@ -64,10 +69,15 @@ def test_collections(data_builder, as_admin, as_user, as_public):
     })
     assert r.ok
 
+    r = as_admin.get('/collections/' + collection)
+    assert r.ok
+    assert r.json()['revision'] == 2
+
     # test if collection is listed at acquisition
     r = as_admin.get('/acquisitions/' + acquisition)
     assert r.ok
     assert collection in r.json()['collections']
+    assert r.json()['revision'] == 2
 
 
     ###
@@ -96,6 +106,10 @@ def test_collections(data_builder, as_admin, as_user, as_public):
     r = as_admin.post('/projects/' + project2 + '/permissions', json={'_id': uid, 'access': 'rw'})
     assert r.ok
 
+    r = as_admin.get('/collections/' + collection)
+    assert r.ok
+    assert r.json()['revision'] == 3
+
     # add session2 to collection
     r = as_user.put('/collections/' + collection, json={
         'contents': {
@@ -106,6 +120,10 @@ def test_collections(data_builder, as_admin, as_user, as_public):
         }
     })
     assert r.ok
+
+    r = as_user.get('/collections/' + collection)
+    assert r.ok
+    assert r.json()['revision'] == 4
 
     r = as_admin.put('/collections/' + collection + '/permissions/' + uid, json={'access': 'ro'})
     assert r.ok

@@ -16,12 +16,13 @@ from ..auth import listauth, always_ok
 from ..dao import noop
 from ..dao import liststorage
 from ..dao import containerutil
+from ..dao import dbutil
 from ..dao import containerstorage
 from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
 from ..web.request import AccessType
 from ..jobs.mappers import RulesMapper
 from ..site.providers import get_provider
-from ..site import StorageProviderService 
+from ..site import StorageProviderService
 
 def initialize_list_configurations():
     """
@@ -213,8 +214,14 @@ class PermissionsListHandler(ListHandler):
         result = super(PermissionsListHandler, self).post(cont_name, list_name, **kwargs)
 
         if cont_name == 'groups' and self.request.params.get('propagate') =='true':
-            self._propagate_permissions(cont_name, _id, query={'permissions._id' : payload['_id']}, update={'$set': {'permissions.$.access': payload['access']}})
-            self._propagate_permissions(cont_name, _id, query={'permissions._id': {'$ne': payload['_id']}}, update={'$addToSet': {'permissions': payload}})
+            # Set modified / revision time
+            update_doc = {'$set': {'permissions.$.access': payload['access']}}
+            dbutil.update_modified_and_revision(update_doc)
+            self._propagate_permissions(cont_name, _id, query={'permissions._id' : payload['_id']}, update=update_doc)
+
+            insert_doc = {'$addToSet': {'permissions': payload}}
+            dbutil.update_modified_and_revision(insert_doc)
+            self._propagate_permissions(cont_name, _id, query={'permissions._id': {'$ne': payload['_id']}}, update=insert_doc)
         elif cont_name != 'groups':
             self._propagate_permissions(cont_name, _id)
         return result
@@ -226,8 +233,13 @@ class PermissionsListHandler(ListHandler):
         payload = self.request.json_body
         payload['_id'] = kwargs.get('_id')
         if cont_name == 'groups' and self.request.params.get('propagate') =='true':
-            self._propagate_permissions(cont_name, _id, query={'permissions._id' : payload['_id']}, update={'$set': {'permissions.$.access': payload['access']}})
-            self._propagate_permissions(cont_name, _id, query={'permissions._id': {'$ne': payload['_id']}}, update={'$addToSet': {'permissions': payload}})
+            update_doc = {'$set': {'permissions.$.access': payload['access']}}
+            dbutil.update_modified_and_revision(update_doc)
+            self._propagate_permissions(cont_name, _id, query={'permissions._id' : payload['_id']}, update=update_doc)
+
+            insert_doc = {'$addToSet': {'permissions': payload}}
+            dbutil.update_modified_and_revision(insert_doc)
+            self._propagate_permissions(cont_name, _id, query={'permissions._id': {'$ne': payload['_id']}}, update=insert_doc)
         elif cont_name != 'groups':
             self._propagate_permissions(cont_name, _id)
         return result
@@ -254,6 +266,7 @@ class PermissionsListHandler(ListHandler):
                 update = {'$set': {
                     'permissions': config.db[cont_name].find_one({'_id': oid}, {'permissions': 1})['permissions']
                 }}
+                dbutil.update_modified_and_revision(update)
                 containerutil.propagate_changes(cont_name, oid, {}, update)
             except APIStorageException:
                 self.abort(500, 'permissions not propagated from {} {} down hierarchy'.format(cont_name, _id))
@@ -320,6 +333,7 @@ class TagsListHandler(ListHandler):
             new_value = payload.get('value')
             query = {'$and':[{'tags': current_value}, {'tags': {'$ne': new_value}}]}
             update = {'$set': {'tags.$': new_value}}
+            dbutil.update_modified_and_revision(update)
             self._propagate_group_tags(cont_name, _id, query, update)
         return result
 
@@ -330,6 +344,7 @@ class TagsListHandler(ListHandler):
             deleted_tag = kwargs.get('value')
             query = {}
             update = {'$pull': {'tags': deleted_tag}}
+            dbutil.update_modified_and_revision(update)
             self._propagate_group_tags(cont_name, _id, query, update)
         return result
 
@@ -690,7 +705,7 @@ class FileListHandler(ListHandler):
 
         # Server-Sent Events are fired in the browser in such a way that one cannot dictate their headers.
         # For these endpoints, authentication must be disabled because the normal Authorization header will not be present.
-        # In this case, the document id will serve instead. Because of the lack of headers we also need to 
+        # In this case, the document id will serve instead. Because of the lack of headers we also need to
         # return an origin based on the origin packfile request.
         if check_user:
             query['user'] = self.uid

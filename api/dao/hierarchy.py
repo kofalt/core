@@ -13,7 +13,7 @@ from .basecontainerstorage import ContainerStorage
 from ..auth import has_access
 from ..web.errors import APIStorageException, APINotFoundException, APIPermissionException, APIConflictException
 from ..web.request import AccessType
-from . import containerutil
+from . import containerutil, dbutil
 
 
 log = config.log
@@ -296,9 +296,11 @@ def hashes_equal_or_empty(hash1, hash2):
 
 def add_file(cont_name, _id, fileinfo):
     fileinfo['created'] = datetime.datetime.utcnow()
+    update_doc = {'$push': {'files': fileinfo}}
+    dbutil.update_modified_and_revision(update_doc)
     return config.db[cont_name].find_one_and_update(
         {'_id': _id},
-        {'$push': {'files': fileinfo}},
+        update_doc,
         return_document=pymongo.collection.ReturnDocument.AFTER
     )
 
@@ -309,9 +311,12 @@ def update_file(cont_name, _id, fileinfo):
     for k,v in fileinfo.iteritems():
         update_set['files.$.' + k] = v
 
+    update_doc = {'$set': update_set}
+    dbutil.update_modified_and_revision(update_doc)
+
     return config.db[cont_name].find_one_and_update(
         {'_id': _id, 'files.name': fileinfo['name']},
-        {'$set': update_set},
+        update_doc,
         return_document=pymongo.collection.ReturnDocument.AFTER
     )
 
@@ -324,18 +329,23 @@ def replace_file(cont_name, _id, existing_fileinfo, fileinfo, access_logger):
     fileinfo['created'] = existing_fileinfo['created']
     fileinfo['replaced'] = datetime.datetime.utcnow()
 
+    update_doc = {'$set': {'files.$': fileinfo}}
+    dbutil.update_modified_and_revision(update_doc)
+
     return config.db[cont_name].find_one_and_update(
         {'_id': _id, 'files.name': fileinfo['name']},
-        {'$set': {'files.$': fileinfo}},
+        update_doc,
         return_document=pymongo.collection.ReturnDocument.AFTER
     )
 
 
 
 def remove_file(cont_name, _id, filename):
+    update_doc = {'$pull': {'files': {'name': filename}}}
+    dbutil.update_modified_and_revision(update_doc)
     return config.db[cont_name].find_one_and_update(
         {'_id': _id, 'files.name': filename},
-        {'$pull': {'files': {'name': filename}}},
+        update_doc,
         return_document=pymongo.collection.ReturnDocument.AFTER
     )
 

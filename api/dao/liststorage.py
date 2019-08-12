@@ -4,7 +4,7 @@ import copy
 import datetime
 
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
-from . import consistencychecker, containerutil
+from . import consistencychecker, containerutil, dbutil
 from .. import config
 from .. import util
 from ..jobs import rules
@@ -83,8 +83,8 @@ class ListStorage(object):
             query[self.list_name] = {'$not': {'$elemMatch': exclude_params} }
         update = {
             '$push': {self.list_name: payload},
-            '$set': {'modified': datetime.datetime.utcnow()}
         }
+        dbutil.update_modified_and_revision(update)
         result = self.dbc.update_one(query, update)
         if result.matched_count < 1:
             raise APIConflictException('Item already exists in list.')
@@ -102,18 +102,18 @@ class ListStorage(object):
                 {self.list_name: {'$elemMatch': query_params}},
                 {self.list_name: {'$not': {'$elemMatch': exclude_params} }}
             ]
-        mod_elem['modified'] = datetime.datetime.utcnow()
         update = {
             '$set': mod_elem
         }
+        dbutil.update_modified_and_revision(update)
         return self.dbc.update_one(query, update)
 
     def _delete_el(self, _id, query_params):
         query = {'_id': _id}
         update = {
-            '$pull': {self.list_name: query_params},
-            '$set': {'modified': datetime.datetime.utcnow()}
+            '$pull': {self.list_name: query_params}
         }
+        dbutil.update_modified_and_revision(update)
         return self.dbc.update_one(query, update)
 
     def _get_el(self, _id, query_params):
@@ -175,8 +175,8 @@ class FileStorage(ListStorage):
                 {self.list_name: {'$elemMatch': query_params}},
                 {self.list_name: {'$not': {'$elemMatch': exclude_params} }}
             ]
-        mod_elem['modified'] = datetime.datetime.utcnow()
         update['$set'] = mod_elem
+        dbutil.update_modified_and_revision(update)
 
         self.dbc.find_one_and_update(query, update)
         self._update_session_compliance(_id)
@@ -192,7 +192,9 @@ class FileStorage(ListStorage):
         for f in files:
             if f['name'].encode('utf-8') == query_params['name']:
                 f['deleted'] = datetime.datetime.utcnow()
-        result = self.dbc.update_one({'_id': _id}, {'$set': {'files': files, 'modified': datetime.datetime.utcnow()}})
+        update = {'$set': {'files': files}}
+        dbutil.update_modified_and_revision(update)
+        result = self.dbc.update_one({'_id': _id}, update)
         self._update_session_compliance(_id)
         return result
 
@@ -236,11 +238,13 @@ class FileStorage(ListStorage):
         query = {'_id': _id }
         query[self.list_name] = {'$elemMatch': query_params}
 
+        now = datetime.datetime.utcnow()
         if not update.get('$set'):
-            update['$set'] = {'files.$.modified': datetime.datetime.utcnow()}
+            update['$set'] = {'files.$.modified': now}
         else:
-            update['$set']['files.$.modified'] = datetime.datetime.utcnow()
+            update['$set']['files.$.modified'] = now
 
+        dbutil.update_modified_and_revision(update, modified=now)
         result = self.dbc.update_one(query, update)
         self._update_session_compliance(_id)
 
@@ -263,9 +267,9 @@ class FileStorage(ListStorage):
         """
         container_before = self.get_container(_id)
         update = {
-            '$set': {'modified': datetime.datetime.utcnow()},
             '$unset': {self.list_name + '.$.measurements': True}
         }
+        dbutil.update_modified_and_revision(update)
 
         if self.use_object_id:
             _id = bson.objectid.ObjectId(_id)
@@ -354,9 +358,9 @@ class StringListStorage(ListStorage):
     def _create_el(self, _id, payload, exclude_params):
         query = {'_id': _id, self.list_name: {'$ne': payload}}
         update = {
-            '$push': {self.list_name: payload},
-            '$set': {'modified': datetime.datetime.utcnow()}
+            '$push': {self.list_name: payload}
         }
+        dbutil.update_modified_and_revision(update)
         result = self.dbc.update_one(query, update)
         if result.matched_count < 1:
             raise APIConflictException('Item already exists in list.')
@@ -371,9 +375,9 @@ class StringListStorage(ListStorage):
             ]
         }
         update = {
-            '$set': {self.list_name + '.$': payload,
-            'modified': datetime.datetime.utcnow()}
+            '$set': {self.list_name + '.$': payload}
         }
+        dbutil.update_modified_and_revision(update)
         return self.dbc.update_one(query, update)
 
     def _get_el(self, _id, query_params):

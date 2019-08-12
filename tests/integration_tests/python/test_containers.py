@@ -500,6 +500,9 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_us
     project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
     session = data_builder.create_session()
     # Projects must have a provider for job/gear uploads to work
+    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
+    r = as_admin.put('/projects/' + project, json=update)
+    assert r.ok
 
     # Add User to permissions
     as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
@@ -965,6 +968,8 @@ def test_edit_file_attributes(data_builder, as_user, as_admin, file_form):
     r = as_user.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
 
+    assert as_user.get('/projects/' + project).json()['revision'] == 3
+
     file_object = r.json()
     assert file_object['type'] == payload['type']
     assert file_object['modality'] == payload['modality']
@@ -1010,6 +1015,7 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     r = as_user.get('/projects/' + project)
     assert r.ok
     assert not r.json()['info']
+    assert r.json()['revision'] == 2
 
     # Send improper payload
     r = as_user.post('/projects/' + project + '/info', json={
@@ -1049,6 +1055,7 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     r = as_user.get('/projects/' + project)
     assert r.ok
     assert r.json()['info'] == project_info
+    assert r.json()['revision'] == 3
 
 
     # Use 'set' to add new key
@@ -1067,6 +1074,7 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     r = as_user.get('/projects/' + project)
     assert r.ok
     assert r.json()['info'] == project_info
+    assert r.json()['revision'] == 4
 
 
     # Use 'set' to do full replace of "map" key
@@ -1079,6 +1087,7 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     r = as_user.get('/projects/' + project)
     assert r.ok
     assert r.json()['info'] == project_info
+    assert r.json()['revision'] == 5
 
 
     # Use 'delete' to unset "map" key
@@ -1092,6 +1101,7 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     r = as_user.get('/projects/' + project)
     assert r.ok
     assert r.json()['info'] == project_info
+    assert r.json()['revision'] == 6
 
 
     # Use 'delete' on keys that do not exist
@@ -1103,6 +1113,7 @@ def test_edit_container_info(data_builder, as_admin, as_user):
     r = as_user.get('/projects/' + project)
     assert r.ok
     assert r.json()['info'] == project_info
+    assert r.json()['revision'] == 7
 
     # Test info is not returned on list endpoints
     r = as_user.get('/projects')
@@ -1151,7 +1162,7 @@ def test_edit_file_info(data_builder, as_user, as_admin, file_form):
 
     # Add User to permissions
     as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
-
+    assert as_user.get('/projects/' + project).json()['revision'] == 2
 
     # Assert getting file info 404s properly
     r = as_user.get('/projects/' + project + '/files/' + 'not_real.txt' + '/info')
@@ -1161,8 +1172,11 @@ def test_edit_file_info(data_builder, as_user, as_admin, file_form):
 
     r = as_user.post('/projects/' + project + '/files', files=file_form(file_name))
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 3
+
     r = as_user.post('/projects/' + project + '/files', files=file_form(file_name_fwd), params={'filename_path':True})
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 4
 
     r = as_user.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
@@ -1226,11 +1240,13 @@ def test_edit_file_info(data_builder, as_user, as_admin, file_form):
         'replace': file_info
     })
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 5
 
     r = as_user.post('/projects/' + project + '/files/' + file_name_fwd + '/info', json={
         'replace': file_info
     })
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 6
 
     r = as_user.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
@@ -1250,6 +1266,7 @@ def test_edit_file_info(data_builder, as_user, as_admin, file_form):
         'set': {'map': 'no longer a map'}
     })
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 7
 
     file_info['map'] = 'no longer a map'
     r = as_user.get('/projects/' + project + '/files/' + file_name + '/info')
@@ -1262,6 +1279,7 @@ def test_edit_file_info(data_builder, as_user, as_admin, file_form):
         'set': {'map': 'no longer a map'}
     })
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 8
 
     file_info['map'] = 'no longer a map'
     r = as_user.get('/projects/' + project + '/files/' + file_name + '/info')
@@ -1274,6 +1292,7 @@ def test_edit_file_info(data_builder, as_user, as_admin, file_form):
         'delete': ['map', 'a']
     })
     assert r.ok
+    assert as_user.get('/projects/' + project).json()['revision'] == 9
 
     file_info.pop('map')
     file_info.pop('a')
@@ -1734,7 +1753,9 @@ def test_container_delete_tag(data_builder, default_payload, as_admin, as_user, 
     assert r.json()['reason'] == 'analysis_conflict'
 
     # verify that a non-referenced file _can_ be deleted from the same acquisition
+    assert as_user.get('/acquisitions/' + acquisition).json()['revision'] == 5
     assert as_admin.delete('/acquisitions/' + acquisition + '/files/test2.csv').ok
+    assert as_user.get('/acquisitions/' + acquisition).json()['revision'] == 6
 
     # delete collection
     assert collection in as_admin.get('/acquisitions/' + acquisition).json()['collections']
@@ -1873,3 +1894,91 @@ def test_uidcheck(data_builder, as_user, as_public):
     result = r.json()
     assert set(result['sessions']) == set([session_uid1, session_uid2])
     assert set(result['acquisitions']) == set([acquisition_uid1, acquisition_uid2])
+
+
+def test_revisions(data_builder, as_user, as_admin, api_db):
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    subject = data_builder.create_subject(project=project, label='subj-1001')
+    session = data_builder.create_session(subject={'_id': subject})
+    acquisition = data_builder.create_acquisition(session=session)
+    user_id = as_user.get('/users/self').json()['_id']
+
+    containers = [('group', group), ('project', project),
+        ('subject', subject), ('session', session), ('acquisition', acquisition)]
+
+    def test_expected_revisions(expected):
+        for container_type, container_id in containers:
+            r = as_admin.get('/{}s/{}'.format(container_type, container_id))
+            assert r.ok
+            assert r.json()['revision'] == expected[container_type], \
+                'Expected revision to be {} for {}, but got {} instead'.format(
+                expected[container_type], container_type, r.json()['revision'])
+
+    # Check that every container has an initial revision of 1
+    test_expected_revisions({
+        'group': 1,
+        'project': 1,
+        'subject': 2,  # Except subject, which gets updated when session is created
+        'session': 1,
+        'acquisition': 1
+    })
+
+    # Update group permissions
+    r = as_admin.post('/groups/' + group + '/permissions', json={'_id': user_id, 'access': 'ro'})
+    assert r.ok
+    test_expected_revisions({
+        'group': 2,
+        'project': 1,
+        'subject': 2,
+        'session': 1,
+        'acquisition': 1
+    })
+
+    # Update group permissions with propagate
+    r = as_admin.put('/groups/' + group + '/permissions/' + user_id + '?propagate=true', json={'_id': user_id, 'access': 'rw'})
+    assert r.ok
+    test_expected_revisions({
+        'group': 3,
+        'project': 2,
+        'subject': 3,
+        'session': 2,
+        'acquisition': 2
+    })
+
+    # Update project permissions
+    r = as_admin.put('/projects/' + project + '/permissions/' + user_id, json={'_id': user_id, 'access': 'admin'})
+    assert r.ok
+    test_expected_revisions({
+        'group': 3,
+        'project': 3,
+        'subject': 4,
+        'session': 3,
+        'acquisition': 3
+    })
+
+    # Update session label
+    r = as_admin.put('/sessions/' + session, json={'label': 'Test Session'})
+    assert r.ok
+
+    test_expected_revisions({
+        'group': 3,
+        'project': 3,
+        'subject': 5,  # Update to session also upserts to subject
+        'session': 4,
+        'acquisition': 3
+    })
+
+    # Delete session and check propagation
+    r = as_admin.delete('/sessions/' + session)
+    assert r.ok
+
+    ses_doc = api_db.sessions.find_one({'_id': bson.ObjectId(session)})
+    assert ses_doc is not None
+    assert 'deleted' in ses_doc
+    assert ses_doc['revision'] == 5
+
+    acq_doc = api_db.acquisitions.find_one({'_id': bson.ObjectId(acquisition)})
+    assert acq_doc is not None
+    assert 'deleted' in acq_doc
+    assert acq_doc['revision'] == 4

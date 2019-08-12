@@ -7,7 +7,7 @@ from .. import config
 from .. import util
 from .. import validators
 from ..auth import containerauth, always_ok, require_privilege, Privilege
-from ..dao import containerstorage, containerutil, noop, dbutil
+from ..dao import containerstorage, containerutil, dbutil, noop
 from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
@@ -345,6 +345,7 @@ class ContainerHandler(base.RequestHandler):
         payload['created'] = payload['modified'] = datetime.datetime.utcnow()
         if payload.get('timestamp'):
             payload['timestamp'] = dateutil.parser.parse(payload['timestamp'])
+        payload['revision'] = 1
         permchecker = self._get_permchecker(parent_container=parent_container)
 
         if cont_name == 'projects':
@@ -575,6 +576,7 @@ class ContainerHandler(base.RequestHandler):
             # Don't overwrite deleted timestamp for already deleted children
             query = {'deleted': {'$exists': False}}
             update = {'$set': {'deleted': deleted_at}}
+            dbutil.update_modified_and_revision(update)
             containerutil.propagate_changes(cont_name, bson.ObjectId(_id), query, update, include_refs=True)
             return {'deleted': 1}
         else:

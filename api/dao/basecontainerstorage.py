@@ -329,6 +329,7 @@ class ContainerStorage(object):
         if recursive and r_payload:
             containerutil.propagate_changes(self.cont_name, _id, {}, {'$set': util.mongo_dict(r_payload)}, include_refs=include_refs)
 
+        dbutil.update_modified_and_revision(update)
         return self.dbc.update_one({'_id': _id}, update)
 
     def replace_el(self, _id, payload):
@@ -343,7 +344,9 @@ class ContainerStorage(object):
         _id = self.format_id(_id)
         self.cleanup_ancillary_data(_id)
         if self.use_delete_tag:
-            return self.dbc.update_one({'_id': _id}, {'$set': {'deleted': datetime.datetime.utcnow()}})
+            update = {'$set': {'deleted': datetime.datetime.utcnow()}}
+            dbutil.update_modified_and_revision(update)
+            return self.dbc.update_one({'_id': _id}, update)
         return self.dbc.delete_one({'_id':_id})
 
     def cleanup_ancillary_data(self, _id):
@@ -454,11 +457,7 @@ class ContainerStorage(object):
         _id = self.format_id(_id)
         query = {'_id': _id}
 
-        if not update.get('$set'):
-            update['$set'] = {'modified': datetime.datetime.utcnow()}
-        else:
-            update['$set']['modified'] = datetime.datetime.utcnow()
-
+        dbutil.update_modified_and_revision(update)
         return self.dbc.update_one(query, update)
 
     @staticmethod

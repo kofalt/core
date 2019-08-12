@@ -277,12 +277,19 @@ def test_add_rename_remove_group_tag(data_builder, as_admin):
 
     r = as_admin.get('/groups/' + group)
     assert r.ok and tag in r.json()['tags']
+    assert r.json()['revision'] == 2
+
     r = as_admin.get('/projects/' + project)
     assert r.ok and tag in r.json()['tags']
+    assert r.json()['revision'] == 2
+
     r = as_admin.get('/sessions/' + session)
     assert r.ok and tag in r.json()['tags']
+    assert r.json()['revision'] == 2
+
     r = as_admin.get('/acquisitions/' + acquisition)
     assert r.ok and tag in r.json()['tags']
+    assert r.json()['revision'] == 2
 
     # Rename tag
     payload = {'value': tag_renamed}
@@ -291,12 +298,19 @@ def test_add_rename_remove_group_tag(data_builder, as_admin):
 
     r = as_admin.get('/groups/' + group)
     assert r.ok and tag_renamed in r.json()['tags']
+    assert r.json()['revision'] == 3
+
     r = as_admin.get('/projects/' + project)
     assert r.ok and tag_renamed in r.json()['tags']
+    assert r.json()['revision'] == 3
+
     r = as_admin.get('/sessions/' + session)
     assert r.ok and tag_renamed in r.json()['tags']
+    assert r.json()['revision'] == 3
+
     r = as_admin.get('/acquisitions/' + acquisition)
     assert r.ok and tag_renamed in r.json()['tags']
+    assert r.json()['revision'] == 3
 
     # Delete tag
     r = as_admin.delete('/groups/' + group + '/tags/' + tag_renamed)
@@ -304,9 +318,16 @@ def test_add_rename_remove_group_tag(data_builder, as_admin):
 
     r = as_admin.get('/groups/' + group)
     assert r.ok and tag_renamed not in r.json()['tags']
+    assert r.json()['revision'] == 4
+
     r = as_admin.get('/projects/' + project)
     assert r.ok and tag_renamed not in r.json()['tags']
+    assert r.json()['revision'] == 4
+
     r = as_admin.get('/sessions/' + session)
     assert r.ok and tag_renamed not in r.json()['tags']
+    assert r.json()['revision'] == 4
+
     r = as_admin.get('/acquisitions/' + acquisition)
     assert r.ok and tag_renamed not in r.json()['tags']
+    assert r.json()['revision'] == 4

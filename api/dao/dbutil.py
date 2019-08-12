@@ -1,5 +1,6 @@
 import collections
 import copy
+import datetime
 import random
 import time
 
@@ -174,3 +175,21 @@ def paginate_pipe(collection, pipeline, pagination):
 
     page = next(collection.aggregate(pipeline), {'total': 0, 'results': []})
     return page
+
+def update_modified_and_revision(update_doc, modified=None):
+    """Ensure that the 'revision' field is being incremented in the given update, and that
+    the 'modified' time is being set.
+
+    Args:
+        update_doc (dict): The update doc to modify
+        modified (datetime): The modified time (otherwise datetime.utcnow() will be used)
+
+    Return:
+        dict: The update_doc object
+    """
+    if update_doc is not None:
+        if modified is None:
+            modified = datetime.datetime.utcnow()
+        update_doc.setdefault('$inc', {}).setdefault('revision', 1)
+        update_doc.setdefault('$set', {}).setdefault('modified', modified)
+    return update_doc

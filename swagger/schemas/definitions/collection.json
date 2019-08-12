@@ -71,6 +71,7 @@
                 "curator":     {"$ref": "common.json#/definitions/user-id"},
                 "created":     {"$ref": "created-modified.json#/definitions/created"},
                 "modified":    {"$ref": "created-modified.json#/definitions/modified"},
+                "revision":    {"$ref":"common.json#/definitions/revision"},
                 "permissions":{
                     "type":"array",
                     "items":{"$ref":"permission.json#/definitions/permission-output-default-required"}

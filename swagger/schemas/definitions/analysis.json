@@ -90,9 +90,10 @@
 				"description": {"$ref":"common.json#/definitions/description"},
 				"label":       {"$ref":"common.json#/definitions/label"},
 				"parent":      {"$ref":"#/definitions/parent"},
-                "parents":      {"$ref":"container.json#/definitions/parents"},
+				"parents":     {"$ref":"container.json#/definitions/parents"},
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
-				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
+				"modified":    {"$ref":"created-modified.json#/definitions/modified"},
+				"revision":    {"$ref":"common.json#/definitions/revision"}
 			},
 			"required":["_id", "label", "created", "modified"],
           	"x-sdk-container-mixin": "analysis-mixin"
@@ -117,7 +118,8 @@
 				"parent":      {"$ref":"#/definitions/parent"},
                 "parents":      {"$ref":"container.json#/definitions/parents"},
 				"created":     {"$ref":"created-modified.json#/definitions/created"},
-				"modified":    {"$ref":"created-modified.json#/definitions/modified"}
+				"modified":    {"$ref":"created-modified.json#/definitions/modified"},
+				"revision":    {"$ref":"common.json#/definitions/revision"}
 			},
 			"required":["_id", "label", "created", "modified"],
           	"x-sdk-container-mixin": "analysis-mixin"

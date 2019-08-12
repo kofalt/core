@@ -10,7 +10,7 @@ import fs.errors
 
 from flywheel_common import storage
 from . import config, util, validators
-from .dao import containerutil, hierarchy
+from .dao import containerutil, dbutil, hierarchy
 from .dao.containerstorage import SubjectStorage, SessionStorage, AcquisitionStorage
 from .jobs import rules
 from .jobs.jobs import Job, JobTicket, Logs
@@ -646,7 +646,6 @@ class PackfilePlacer(Placer):
         # Updates if existing
         updates = util.mongo_dict({
             'permissions': self.permissions,
-            'modified': self.timestamp,
         })
 
         # Properties on insert
@@ -673,11 +672,14 @@ class PackfilePlacer(Placer):
                 'subject': subject['_id']
             }
 
+        update_doc = {
+            '$set': updates,
+            '$setOnInsert': insert_map
+        }
+        dbutil.update_modified_and_revision(update_doc)
+
         session = config.db.sessions.find_one_and_update(
-            query, {
-                '$set': updates,
-                '$setOnInsert': insert_map
-            },
+            query, update_doc,
             upsert=True,
             return_document=pymongo.collection.ReturnDocument.AFTER
         )
@@ -697,7 +699,6 @@ class PackfilePlacer(Placer):
         # Updates if existing
         updates = {}
         updates['permissions'] = self.permissions
-        updates['modified']    = self.timestamp
         updates = util.mongo_dict(updates)
 
         # Extra properties on insert
@@ -713,11 +714,14 @@ class PackfilePlacer(Placer):
         if 'timestamp' in insert_map:
             insert_map['timestamp'] = dateutil.parser.parse(insert_map['timestamp'])
 
+        update_doc = {
+            '$set': updates,
+            '$setOnInsert': insert_map
+        }
+        dbutil.update_modified_and_revision(update_doc)
+
         acquisition = config.db.acquisitions.find_one_and_update(
-            query, {
-                '$set': updates,
-                '$setOnInsert': insert_map
-            },
+            query, update_doc,
             upsert=True,
             return_document=pymongo.collection.ReturnDocument.AFTER
         )
