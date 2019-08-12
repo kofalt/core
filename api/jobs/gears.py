@@ -64,11 +64,8 @@ def get_gear(_id):
         raise APINotFoundException('Cannot find gear {}'.format(_id))
     return gear
 
-def get_latest_gear(name, include_invalid=False):
-    query = {'gear.name': name}
-    if not include_invalid:
-        query['gear.custom.flywheel.invalid'] = {'$ne': True}
-    gears = config.db.gears.find(query).sort('created', direction=-1).limit(1)
+def get_latest_gear(name):
+    gears = config.db.gears.find({'gear.name': name, 'gear.custom.flywheel.invalid': {'$ne': True}}).sort('created', direction=-1).limit(1)
     if gears.count() > 0:
         return gears[0]
 
@@ -183,7 +180,7 @@ def filter_optional_inputs(geardoc):
 
 def insert_gear(doc):
     gear_tools.validate_manifest(doc['gear'])
-    last_gear = get_latest_gear(doc['gear']['name'], include_invalid=True)
+    installed_gears = get_all_gear_versions(doc['gear']['name'])
 
     # This can be mongo-escaped and re-used later
     if doc.get("invocation-schema"):
@@ -196,8 +193,9 @@ def insert_gear(doc):
 
     result = config.db.gears.insert(doc)
 
-    if last_gear:
-        auto_update_rules(doc['_id'], last_gear.get('_id'))
+    if installed_gears:
+        installed_gear_ids = [str(gear['_id']) for gear in installed_gears]
+        auto_update_rules(doc['_id'], installed_gear_ids)
 
     return result
 
@@ -225,8 +223,8 @@ def check_for_gear_insertion(doc):
     if conflict is not None:
         raise Exception('Gear "' + doc['gear']['name'] + '" version "' + doc['gear']['version'] + '" already exists, consider changing the version string.')
 
-def auto_update_rules(gear_id, last_gear_id):
-    config.db.project_rules.update_many({'gear_id': str(last_gear_id), 'auto_update': True}, {"$set": {'gear_id': str(gear_id)}})
+def auto_update_rules(gear_id, installed_gear_ids):
+    config.db.project_rules.update_many({'gear_id': {'$in': installed_gear_ids}, 'auto_update': True}, {"$set": {'gear_id': str(gear_id)}})
 
 def get_registry_connectivity():
     """
