@@ -71,6 +71,13 @@ def test_gear_add_versioning(default_payload, randstr, data_builder, as_admin,
     assert sum(gear['gear']['name'] == gear_name for gear in all_gears) == 2
     assert not any(gear['gear']['version'] == gear_version_3 for gear in all_gears)
 
+    # list gears with ?all_versions=true&include_invalid=true, test gear name occurs 3x
+    r = as_root.get('/gears', params={'fields': 'all', 'all_versions': 'true', 'include_invalid': 'true'})
+    assert r.ok
+    all_gears = r.json()
+    assert sum(gear['gear']['name'] == gear_name for gear in all_gears) == 3
+    assert any(gear['gear']['version'] == gear_version_3 for gear in all_gears)
+
     # try to create gear w/ same name and version (gear_version_2)
     r = as_admin.post('/gears/' + gear_name, json=gear_payload)
     assert not r.ok

@@ -61,7 +61,8 @@ class GearsHandler(base.RequestHandler):
         filters = self.request.GET.getall('filter')
         filtered = False
 
-        gears = get_gears(all_versions=self.is_true('all_versions'))
+        gears = get_gears(all_versions=self.is_true('all_versions'),
+            include_invalid=self.is_true('include_invalid'))
         if 'single_input' in filters:
             filtered = True
             gears = [gear for gear in gears if count_file_inputs(filter_optional_inputs(gear)) <= 1]
@@ -72,7 +73,8 @@ class GearsHandler(base.RequestHandler):
         if filtered:
             return gears
 
-        gear_page = get_gears(all_versions=self.is_true('all_versions'), pagination=self.pagination)
+        gear_page = get_gears(all_versions=self.is_true('all_versions'),
+            include_invalid=self.is_true('include_invalid'), pagination=self.pagination)
         return self.format_page(gear_page)
 
     @require_privilege(Privilege.is_user)
