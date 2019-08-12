@@ -297,6 +297,10 @@ endpoints = [
             route('/<cid:{oid}>/rules/<rid:{oid}>',  RuleHandler,                              m=['GET', 'PUT', 'DELETE']),
         ]),
 
+        # Subjects
+        prefix('/subjects', [
+            route('/<cid:{oid}>/jobs',          ContainerHandler, h='get_jobs_by_subject',     m=['GET']),
+        ]),
 
         # Sessions
 
