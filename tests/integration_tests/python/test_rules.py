@@ -859,6 +859,78 @@ def test_auto_update_rules(data_builder, api_db, as_admin):
     assert r.ok
 
 
+def test_auto_update_invalid_rule(data_builder, api_db, as_admin):
+    # Create gear and project
+    gear_config = {'param': {'type': 'boolean', 'default': True}}
+    gearv1 = data_builder.create_gear(gear={'name': 'auto-update-gear', 'version': '0.0.1', 'config': gear_config})
+    project = data_builder.create_project()
+
+    # Post with only auto-update
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gearv1,
+        'name': 'test_auto_update_rule',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'tabular data'}],
+        'disabled': False,
+        'auto_update': True
+    })
+    assert r.ok
+    rule_id = r.json()['_id']
+
+    # Post with only auto-update
+    r = as_admin.post('/projects/' + project + '/rules', json={
+        'gear_id': gearv1,
+        'name': 'test_auto_update_rule_2',
+        'any': [],
+        'not': [],
+        'all': [{'type': 'file.type', 'value': 'tabular data'}],
+        'disabled': False,
+        'auto_update': True
+    })
+    assert r.ok
+    rule2_id = r.json()['_id']
+
+    # Should auto-update all rules to gearv2
+    gearv2 = data_builder.create_gear(gear={'name': 'auto-update-gear', 'version': '0.0.2', 'config': gear_config})
+
+    # Set gear to invalid
+    api_db.gears.update_one({'_id':  bson.ObjectId(gearv2)}, {'$set': {'gear.custom.flywheel.invalid': True}})
+
+    # Bump first rule down to latest valid gear
+    r = as_admin.put('/projects/' + project + '/rules/' + rule_id, json={
+        'gear_id': gearv1
+    })
+    assert r.ok
+
+    # Validate state
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert r.json().get('gear_id') == gearv1
+    assert r.json().get('auto_update')
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule2_id)
+    assert r.ok
+    assert r.json().get('gear_id') == gearv2
+    assert r.json().get('auto_update')
+
+    # Create gear v3
+    gearv3 = data_builder.create_gear(gear={'name': 'auto-update-gear', 'version': '0.0.3', 'config': gear_config})
+
+    # Check that rules got automatically updated
+    r = as_admin.get('/projects/' + project + '/rules/' + rule_id)
+    assert r.ok
+    assert r.json().get('gear_id') == gearv3
+    assert not r.json().get('config')
+    assert r.json().get('auto_update')
+
+    r = as_admin.get('/projects/' + project + '/rules/' + rule2_id)
+    assert r.ok
+    assert r.json().get('gear_id') == gearv3
+    assert not r.json().get('config')
+    assert r.json().get('auto_update')
+
+
 def test_rules_rerun_after_file_replace(randstr, data_builder, file_form, as_root, as_admin, with_user, api_db):
     """
     Always run jobs from rules where at least one of the inputs were "replaced" during the upload.
