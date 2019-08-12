@@ -64,8 +64,11 @@ def get_gear(_id):
         raise APINotFoundException('Cannot find gear {}'.format(_id))
     return gear
 
-def get_latest_gear(name):
-    gears = config.db.gears.find({'gear.name': name, 'gear.custom.flywheel.invalid': {'$ne': True}}).sort('created', direction=-1).limit(1)
+def get_latest_gear(name, include_invalid=False):
+    query = {'gear.name': name}
+    if not include_invalid:
+        query['gear.custom.flywheel.invalid'] = {'$ne': True}
+    gears = config.db.gears.find(query).sort('created', direction=-1).limit(1)
     if gears.count() > 0:
         return gears[0]
 
@@ -180,7 +183,7 @@ def filter_optional_inputs(geardoc):
 
 def insert_gear(doc):
     gear_tools.validate_manifest(doc['gear'])
-    last_gear = get_latest_gear(doc['gear']['name'])
+    last_gear = get_latest_gear(doc['gear']['name'], include_invalid=True)
 
     # This can be mongo-escaped and re-used later
     if doc.get("invocation-schema"):
