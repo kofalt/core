@@ -20,16 +20,19 @@ from ..web.errors import APIValidationException, APINotFoundException
 
 log = config.log
 
-def get_gears(all_versions=False, pagination=None):
+def get_gears(all_versions=False, pagination=None, include_invalid=False):
     """
     Fetch the install-global gears from the database
     """
+    match = {}
+    if not include_invalid:
+        match['gear.custom.flywheel.invalid'] = {'$ne': True}
 
     if all_versions:
         kwargs = {
             # Invalid disables a gear from running entirely.
             # https://github.com/flywheel-io/gears/tree/master/spec#reserved-custom-keys
-            'filter': { 'gear.custom.flywheel.invalid': {'$ne': True} },
+            'filter': match,
 
             'sort': [('gear.name', 1), ('created', -1)]
         }
@@ -40,10 +43,7 @@ def get_gears(all_versions=False, pagination=None):
         pagination['pipe_key'] = lambda key: 'original.' + key
 
     pipe = [
-        {'$match': {
-            # Same as above.
-            'gear.custom.flywheel.invalid': {'$ne': True}}
-        },
+        {'$match': match},
         {'$sort': {
             'gear.name': 1,
             'created': -1,
