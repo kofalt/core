@@ -367,7 +367,10 @@ class SessionStorage(ContainerStorage):
 
         # Find all the source subjects first.
         source_subjects = config.db.sessions.aggregate([
-            {'$match': {'_id': {'$in': source_list}}},
+            {'$match': {
+                '_id': {'$in': source_list},
+                'deleted': {'$exists': False}
+            }},
             {'$group': {'_id': '$subject'}},
             {'$lookup':{
                 'from': 'subjects',
@@ -375,7 +378,7 @@ class SessionStorage(ContainerStorage):
                 'foreignField': '_id',
                 'as': 'subject_doc'
             }},
-            {'$project': {'_id': 1, 'subject_doc.code': 1, 'subject_doc.project': 1}}
+            {'$project': {'_id': 1, 'subject_doc.code': 1, 'subject_doc.project': 1}},
         ])
 
         source_subject_ids = []
@@ -393,23 +396,25 @@ class SessionStorage(ContainerStorage):
                 source_subject_codes.append(source['subject_doc'][0]['code'])
                 source_subject_id_by_code[source['subject_doc'][0]['code']] = source['_id']
 
-
         # Conflict codes are subject codes that exist in the destination already
         conflicts = config.db.subjects.find({
             'code': {'$in': source_subject_codes},
-            'project': dest_project_obj['_id']
+            'project': dest_project_obj['_id'],
+            'deleted': {'$exists': False}
             }, projection={'_id': 1, 'code': 1})
 
         # first we find conflicts as those are needed for dry run regardless.
         conflict_subject_codes = []
+        conflict_subject_ids = []
         conflict_subject_dest_ids_by_code = {}
         for conflict in conflicts:
             conflict_subject_codes.append(conflict['code'])
+            conflict_subject_ids.append(conflict['_id'])
             conflict_subject_dest_ids_by_code[conflict['code']] = conflict['_id']
 
         # Without explicit conflict mode we assume a dry run
         if not conflict_mode:
-            return conflict_subject_codes
+            return conflict_subject_ids
 
         # The id of the subjects in the source that have the same code
         conflict_subject_source_ids = []

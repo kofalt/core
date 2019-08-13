@@ -19,17 +19,17 @@
                 "destinations": {
                     "type": "array",
                     "items": {
-                        "type": "string",
+                        "type": "string"
+                    },
                     "description": "Array with a single continer Id of the destination container's Id"
-                    }
                 },
                 "conflict_mode": {
                     "type": "string",
                     "items": {
                         "type": "string",
-                        "enum": ["skip", "copy", null],
+                        "enum": ["skip", "copy", null]
+                    },
                     "description": "How to handle conflicts.  A value of null results in a dry run only"
-                    }
                 }
             },
             "required": ["sources", "destination_container_type", "destinations", "conflict_mode"],

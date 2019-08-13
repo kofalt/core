@@ -57,7 +57,7 @@ class BulkHandler(base.RequestHandler):
 
         self._validate_inputs()
 
-        getattr(self, '_' + operation + '_' + source_cont_name + '_to_' + self.payload['destination_container_type'])()
+        return getattr(self, '_' + operation + '_' + source_cont_name + '_to_' + self.payload['destination_container_type'])()
 
     def _validate_inputs(self):
         """
@@ -110,11 +110,8 @@ class BulkHandler(base.RequestHandler):
     		ii. Or skip the move entirely.
         '''
 
-
-        if (not self.payload.get('conflict_mode', False) or
-                self.payload['conflict_mode'] is None or self.payload['conflict_mode'] == ''):
+        if (self.payload.get('conflict_mode') is None or self.payload['conflict_mode'] == ''):
             return self.source_storage.move_sessions_to_project(self.source_list, self.dest_list[0], conflict_mode=None)
-
 
         self.source_storage.move_sessions_to_project(self.source_list, self.dest_list[0], conflict_mode=self.payload.get('conflict_mode'))
         return True
