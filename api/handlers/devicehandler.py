@@ -113,6 +113,13 @@ class DeviceHandler(base.RequestHandler):
         return {'key': key}
 
     @require_privilege(Privilege.is_drone)
+    def get_self(self):
+        device_id = self.origin.get('id', '')
+        device = self.storage.get_container(device_id)
+        self.join_api_key(device)
+        return device
+
+    @require_privilege(Privilege.is_drone)
     def put_self(self):
         device_id = self.origin.get('id', '')
         device = self.storage.get_container(device_id)

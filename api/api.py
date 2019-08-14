@@ -215,6 +215,7 @@ endpoints = [
         route( '/devices',              DeviceHandler,                 m=['POST']),
         prefix('/devices', [
             route('/status',            DeviceHandler, h='get_status', m=['GET']),
+            route('/self',              DeviceHandler, h='get_self',   m=['GET']),
             route('/self',              DeviceHandler, h='put_self',   m=['PUT']),
             route('/<device_id:{oid}>', DeviceHandler,                 m=['GET', 'PUT', 'DELETE']),
             route('/<device_id:{oid}>/key', DeviceHandler, h='regenerate_key', m=['POST']),

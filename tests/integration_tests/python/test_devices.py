@@ -8,6 +8,11 @@ def test_devices(as_public, as_user, as_admin, as_drone, api_db):
     r = as_public.get('/devices')
     assert r.status_code == 403
 
+    # make sure at least one device request hits core before proceeding
+    # (so that the device gets an entry in the collection even if running device tests only)
+    r = as_drone.get('/groups')
+    assert r.ok
+
     # get all devices
     r = as_user.get('/devices?join_keys=true')
     assert r.ok
@@ -49,6 +54,19 @@ def test_devices(as_public, as_user, as_admin, as_drone, api_db):
     r = as_admin.get('/devices/' + drone_id)
     assert r.ok
     assert 'key' in r.json()
+
+    # try to get device self as user
+    r = as_admin.get('/devices/self')
+    assert r.status_code == 403
+
+    # get device self - verify that as_drone is the bootstrapper
+    r = as_drone.get('/devices/self')
+    assert r.ok
+    device = r.json()
+    assert device['_id'] == drone_id
+    assert device['type'] == as_drone.headers['X-SciTran-Method']
+    assert device['name'] == as_drone.headers['X-SciTran-Name']
+    assert 'key' in device  # devices can also access their own key
 
     # try to do device check-in as user
     r = as_user.put('/devices/self')
