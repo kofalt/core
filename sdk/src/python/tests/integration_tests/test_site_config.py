@@ -22,6 +22,11 @@ class SiteConfigTestCases(SdkTestCase):
         self.assertIsNotNone(config.signed_url)
         self.assertEqual(type(config.signed_url), bool)
 
+        # Multiproject should exist and be enabled for integration tests
+        self.assertIsNotNone(config.features)
+        self.assertIsNotNone(config.features.multiproject)
+        self.assertTrue(config.features.job_ask)
+
         site = config.site
         self.assertIsNotNone(site.name)
         self.assertIsNotNone(site.central_url)

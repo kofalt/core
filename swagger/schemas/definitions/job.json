@@ -440,6 +440,11 @@
           "type": "array",
           "items": {"type": "string"},
           "description": "A set of job.tags matches"
+        },
+        "compute-provider": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "A set of compute providers to match"
         }
       },
       "additionalProperties":false,

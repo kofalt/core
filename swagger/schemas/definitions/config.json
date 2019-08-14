@@ -11,6 +11,14 @@
                 "job_tickets": {
                     "type": "boolean",
                     "description": "Whether or not this server supports new job tickets"
+                },
+                "job_ask": {
+                    "type": "boolean",
+                    "description": "Whether or not this server supports the /jobs/ask endpoint"
+                },
+                "multiproject": {
+                    "type": "boolean",
+                    "description": "Whether or not this server has the multiproject feature enabled"
                 }
             },
             "additionalProperties": {"type": "boolean"},
