@@ -378,7 +378,7 @@ class SessionStorage(ContainerStorage):
                 'foreignField': '_id',
                 'as': 'subject_doc'
             }},
-            {'$project': {'_id': 1, 'subject_doc.code': 1, 'subject_doc.project': 1}},
+            {'$project': {'_id': 1, 'subject_doc.code': 1, 'subject_doc.project': 1}}
         ])
 
         source_subject_ids = []
@@ -414,7 +414,30 @@ class SessionStorage(ContainerStorage):
 
         # Without explicit conflict mode we assume a dry run
         if not conflict_mode:
-            return conflict_subject_ids
+            # To get the list of session ids corresponding to the conflicting subjects
+            conflict_sessions = config.db.sessions.aggregate([
+                {'$match': {
+                    '_id': {'$in': source_list},
+                    'deleted': {'$exists': False}
+                }},
+                {'$lookup':{
+                    'from': 'subjects',
+                    'localField': 'subject',
+                    'foreignField': '_id',
+                    'as': 'subject_doc'
+                }},
+                {'$project': {'_id': 1, 'subject_doc.code': 1}},
+                {'$match': {
+                    'subject_doc.code': {'$in': conflict_subject_codes}
+                }}
+            ])
+
+            conflict_session_ids = []
+            for conflict in conflict_sessions:
+                print conflict
+                conflict_session_ids.append(conflict['_id'])
+
+            return conflict_session_ids
 
         # The id of the subjects in the source that have the same code
         conflict_subject_source_ids = []
