@@ -80,7 +80,7 @@
                     "required": ["uid"]
                 }
             },
-            "required": ["group", "project", "session", "acquisition"],
+            "required": ["group", "project", "session"],
             "additionalProperties": false
         },
         "uid-match-upload-input": {

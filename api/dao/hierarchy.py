@@ -535,7 +535,6 @@ def upsert_bottom_up_hierarchy(metadata, type_='uid', user=None, origin=None):
     try:
         _ = 'label' in group or group['_id']
         _ = project['label']
-        _ = acquisition['uid']
         session_uid = session['uid']
     except Exception as e:
         log.error(metadata)

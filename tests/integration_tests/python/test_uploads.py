@@ -417,12 +417,67 @@ def test_reaper_upload(data_builder, randstr, upload_file_form, file_form, as_ad
             found = True
     assert found == True
 
+    # Test reaper (uid) uploads to session level
+    group_6 = data_builder.create_group()
+    proj_1 = data_builder.create_project(group=group_6, label='reaper-upload-session')
+
+    # uid upload payload w/o acquisition level should be allowed now
+    r = as_device.post('/upload/reaper', files=file_form('session-file-1.txt', meta={
+        'group': {'_id': group_6},
+        'project': {'label': 'reaper-upload-session'},
+        'session': {'uid': 'session-uid', 'label': 'reaper-upload-session',
+                    'files': [{'name': 'session-file-1.txt'}]},
+    }))
+    assert r.ok
+    r = as_admin.post('/resolve', json={'path': [group_6, 'reaper-upload-session', 'reaper-upload-session']})
+    assert r.ok
+    sess_id = r.json()['path'][-1]['_id']
+    sess_children = r.json()['children']
+    assert len(sess_children) == 1
+    assert sess_children[0]['name'] == 'session-file-1.txt'
+
+    # Move session to a different group/proj
+    group_7 = data_builder.create_group()
+    proj_2 = data_builder.create_project(group=group_7, label='reaper-upload-session-2')
+
+    r = as_admin.put('/sessions/' + sess_id, json={'project': proj_2})
+    assert r.ok
+
+    # Verify that uid placement works on session level uploads after session move
+    r = as_device.post('/upload/reaper', files=file_form('session-file-2.txt', meta={
+        'group': {'_id': group_6},
+        'project': {'label': 'reaper-upload-session'},
+        'session': {'uid': 'session-uid', 'label': 'reaper-upload-session',
+                    'files': [{'name': 'session-file-2.txt'}]},
+    }))
+    assert r.ok
+
+    r = as_admin.post('/resolve', json={'path': [group_7, 'reaper-upload-session-2', 'reaper-upload-session']})
+    assert r.ok
+    sess_children = r.json()['children']
+    assert len(sess_children) == 2
+    assert sess_children[0]['name'] == 'session-file-1.txt'
+    assert sess_children[1]['name'] == 'session-file-2.txt'
+
+    # Check that acquisition.uid is required if acquisition is given
+    r = as_device.post('/upload/reaper', files=file_form('test.txt', meta={
+        'group': {'_id': group_6},
+        'project': {'label': 'reaper-upload-session'},
+        'session': {'uid': 'session-uid', 'label': 'reaper-upload-session'},
+        'acquisition': {'label': 'reaper-upload-session',
+                        'files': [{'name': 'test.txt'}]},
+    }))
+    assert r.status_code == 400
+    assert r.json()['error'] == "'uid' is a required property"
+
     # clean up
     data_builder.delete_group(group_1, recursive=True)
     data_builder.delete_group(group_2, recursive=True)
     data_builder.delete_group(group_3, recursive=True)
     data_builder.delete_group(group_4, recursive=True)
     data_builder.delete_group(group_5, recursive=True)
+    data_builder.delete_group(group_6, recursive=True)
+    data_builder.delete_group(group_7, recursive=True)
     data_builder.delete_project(unknown_group_unsorted_project, recursive=True)
 
 def test_label_upload_unknown_group_project(data_builder, file_form, as_device, as_admin, as_drone):
