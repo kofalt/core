@@ -45,6 +45,8 @@ CONTAINER_HIERARCHY = [
     'acquisitions'
 ]
 
+CONTAINER_PROPAGATE = ('acquisitions', 'sessions', 'subjects', 'projects', 'groups')
+
 # Generate {child: parent} and {parent: child} maps from ordered hierarchy list
 CHILD_FROM_PARENT = {p: CONTAINER_HIERARCHY[ind+1] for ind, p in enumerate(CONTAINER_HIERARCHY[:-1] )}
 PARENT_FROM_CHILD = {c: CONTAINER_HIERARCHY[ind]   for ind, c in enumerate(CONTAINER_HIERARCHY[1:]  )}
@@ -60,11 +62,10 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
 
     if isinstance(cont_id, list):
         raise Exception('only one container can be specified')
-    
+
     if query is None:
         query = {}
 
-    containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
     query.update({'parents.' + singularize(cont_name): cont_id})
 
     if include_refs:
@@ -77,11 +78,11 @@ def propagate_changes(cont_name, cont_id, query, update, include_refs=False):
         config.db.jobs.update_many(job_query, analysis_update)
 
     # Non standard containers only need to update related analysis and jobs, if any
-    if cont_name not in containers:
+    if cont_name not in CONTAINER_PROPAGATE:
         return
 
     # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
-    for cur_cont in containers:
+    for cur_cont in CONTAINER_PROPAGATE:
         config.db[cur_cont].update_many(query, update)
         if cont_name == cur_cont:
             return
@@ -103,9 +104,7 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, top_level_update=
     if not top_level_update:
         top_level_update = update
 
-    containers = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
     query.update({'parents.' + singularize(cont_name): {'$in': cont_ids}})
-
 
     if include_refs:
         analysis_update = copy.deepcopy(update)
@@ -117,11 +116,11 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, top_level_update=
         config.db.jobs.update_many(job_query, analysis_update)
 
     # Non standard containers only need to update related analysis and jobs, if any
-    if cont_name not in containers:
+    if cont_name not in CONTAINER_PROPAGATE:
         return
 
     # TODO validate we dont send in invalid data in the update.  Can only be common data to the current level of hierarccy we are updating
-    for cur_cont in containers:
+    for cur_cont in CONTAINER_PROPAGATE:
         if cont_name == cur_cont:
             for key in ['parents.group', 'parents.project', 'parents.subject', 'parents.session', 'parents']:
                 if query.get(key):

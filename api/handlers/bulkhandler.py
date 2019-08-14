@@ -4,7 +4,8 @@ from ..auth.containerauth import validate_container_permissions
 from ..dao.basecontainerstorage import ContainerStorage
 from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException
-#from ..web.request import log_access, AccessType
+from ..validators import validate_data
+from ..auth import require_privilege, Privilege
 
 class BulkHandler(base.RequestHandler):
     """
@@ -20,17 +21,16 @@ class BulkHandler(base.RequestHandler):
 
         super(BulkHandler, self).__init__(request, response)
 
-
+    @require_privilege(Privilege.is_user)
     def bulk(self, operation, source_cont_name):
         """Entry point for the bulk operations"""
 
-        if not getattr(self,
-            ('_' + operation + '_' + source_cont_name + '_to_' +
-             self.payload['destination_container_type']),
-             None):
+        validate_data(self.payload, 'bulk.json', 'input', 'POST')
 
+        method = '_{}_{}_to_{}'.format(operation, source_cont_name,
+                                       self.payload['destination_container_type'])
+        if not getattr(self, method):
             self.abort(501, 'This method is not implemented yet')
-
 
         self.dest_storage = ContainerStorage.factory(self.payload['destination_container_type'])
         self.source_storage = ContainerStorage.factory(source_cont_name)
@@ -57,17 +57,17 @@ class BulkHandler(base.RequestHandler):
 
         self._validate_inputs()
 
-        return getattr(self, '_' + operation + '_' + source_cont_name + '_to_' + self.payload['destination_container_type'])()
+        return getattr(self, method)()
 
     def _validate_inputs(self):
         """
         Validate inputs are given and exist in the system
         """
 
-        if not len(self.source_list):
+        if not self.source_list:
             raise APIValidationException('You must provide at least one source')
 
-        if not len(self.dest_list):
+        if not self.dest_list:
             raise APIValidationException('You must provide at least one destination')
 
         if len(self.source_list) > 1 and len(self.dest_list) > 1:
