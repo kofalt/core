@@ -60,6 +60,93 @@ def test_payload():
     with pytest.raises(jsonschema.exceptions.ValidationError):
         validators._validate_json(payload, schema, resolver)
 
+
+def test_group_post_json_schema():
+    schema_uri = validators.schema_uri('input', 'group-new.json')
+    schema, resolver = validators._resolve_schema(schema_uri)
+
+    """Positive Test Cases"""
+    # Most basic input
+    happy_payload = {'_id': 'new_group'}
+    validators._validate_json(happy_payload, schema, resolver)
+    # label is optional
+    happy_payload = {'_id': 'new_group_id', 'label': 'new_group_label'}
+    validators._validate_json(happy_payload, schema, resolver)
+    # Can set lab edition
+    happy_payload['editions'] = {'lab': True}
+    validators._validate_json(happy_payload, schema, resolver)
+    happy_payload['editions'] = {'lab': False}
+    validators._validate_json(happy_payload, schema, resolver)
+    # Can set both compute and storage providers
+    happy_payload['providers'] = {
+        'compute': 'a'*24, 'storage': 'b'*24}  # Provider IDs must be 24 chars
+    validators._validate_json(happy_payload, schema, resolver)
+    # Setting to providers to empty is OK too
+    happy_payload['providers'] = {}
+    validators._validate_json(happy_payload, schema, resolver)
+
+    """Negative Test Cases"""
+    def assert_raises_validation_error(payload):
+        with pytest.raises(jsonschema.exceptions.ValidationError):
+            validators._validate_json(payload, schema, resolver)
+    # Must have label at least _id
+    bad_payload = {}
+    assert_raises_validation_error(bad_payload)
+    # Lab editions must be bool
+    bad_payload = {'_id': 'an_id', 'editions': {'lab': 'not_bool'}}
+    assert_raises_validation_error(bad_payload)
+    del bad_payload['editions']
+    # Cannot add only storage provider
+    bad_payload['providers'] = {'storage': 'a'*24}
+    assert_raises_validation_error(bad_payload)
+    # Cannot add only compute provider
+    bad_payload['providers'] = {'compute': 'b'*24}
+    assert_raises_validation_error(bad_payload)
+
+
+def test_group_put_json_schema():
+    schema_uri = validators.schema_uri('input', 'group-update.json')
+    schema, resolver = validators._resolve_schema(schema_uri)
+
+    """Positive Test Cases"""
+    # Modifying with no changes is ok
+    happy_payload = {}
+    validators._validate_json(happy_payload, schema, resolver)
+    # _id is optional
+    happy_payload = {'_id': 'new_group_id'}
+    validators._validate_json(happy_payload, schema, resolver)
+    # label is optional
+    happy_payload = {'label': 'new_group_label'}
+    validators._validate_json(happy_payload, schema, resolver)
+    # Can set lab edition
+    happy_payload['editions'] = {'lab': True}
+    validators._validate_json(happy_payload, schema, resolver)
+    happy_payload['editions'] = {'lab': False}
+    validators._validate_json(happy_payload, schema, resolver)
+    # Can set both compute and storage providers
+    happy_payload['providers'] = {
+        'compute': 'a'*24, 'storage': 'b'*24}  # Provider IDs must be 24 chars
+    validators._validate_json(happy_payload, schema, resolver)
+    # Setting to providers to empty is OK too
+    happy_payload['providers'] = {}
+    validators._validate_json(happy_payload, schema, resolver)
+
+    """Negative Test Cases"""
+    def assert_raises_validation_error(payload):
+        with pytest.raises(jsonschema.exceptions.ValidationError):
+            validators._validate_json(payload, schema, resolver)
+    # Lab editions must be bool
+    bad_payload = {'_id': 'an_id', 'editions': {'lab': 'not_bool'}}
+    assert_raises_validation_error(bad_payload)
+    del bad_payload['editions']
+    # Cannot add only storage provider
+    bad_payload['providers'] = {'storage': 'a'*24}
+    assert_raises_validation_error(bad_payload)
+    # Cannot add only compute provider
+    bad_payload['providers'] = {'compute': 'b'*24}
+    assert_raises_validation_error(bad_payload)
+
+
 def test_file_output_valid():
     payload = [{
         'modified': '2018-02-07T17:27:21+00:00',
