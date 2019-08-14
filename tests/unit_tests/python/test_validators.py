@@ -1,5 +1,4 @@
 import logging
-
 import jsonschema.exceptions
 import pytest
 import fnmatch, json, os, os.path, re
@@ -39,12 +38,15 @@ EXAMPLES_MAP = {
     'output/user.json': 'user_jane_doe.json'
 }
 
+
 class StubHandler:
     def abort(iself, code, message):
         err_m = str(code) + ' ' + message
         raise Exception(err_m)
 
+
 default_handler = StubHandler()
+
 
 def test_payload():
     payload = {
@@ -156,6 +158,7 @@ def test_file_output_valid():
     schema, resolver = validators._resolve_schema(schema_uri)
     validators._validate_json(payload, schema, resolver)
 
+
 def test_file_output_invalid():
     payload = [{
         'modified': '2018-02-07T17:27:21+00:00'
@@ -164,6 +167,7 @@ def test_file_output_invalid():
     schema, resolver = validators._resolve_schema(schema_uri)
     with pytest.raises(jsonschema.exceptions.ValidationError):
         validators._validate_json(payload, schema, resolver)
+
 
 def test_jsonschema_validate_enum_with_null():
     schema = {
@@ -175,8 +179,8 @@ def test_jsonschema_validate_enum_with_null():
     jsonschema.validate('true', schema)
     jsonschema.validate(None, schema)
 
-# ===== Automated Tests =====
 
+# ===== Automated Tests =====
 # Parametrized test that example payloads are valid
 def test_example_payload_valid(schema_type, schema_name):
     example_data = load_example_data(schema_type, schema_name)
@@ -187,6 +191,7 @@ def test_example_payload_valid(schema_type, schema_name):
         schema_uri = validators.schema_uri(schema_type, '{0}.json'.format(schema_name))
         schema, resolver = validators._resolve_schema(schema_uri)
         validators._validate_json(example_data, schema, resolver)
+
 
 # Generate unit tests for all schema files
 # These tests will fail if examples are missing
@@ -214,6 +219,7 @@ def pytest_generate_tests(metafunc):
             test_args.append( (schema_type, schema_name) )
 
     metafunc.parametrize('schema_type,schema_name', test_args)
+
 
 # Helper to load the example data from a file
 def load_example_data(schema_type, schema_name):
