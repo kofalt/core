@@ -370,12 +370,6 @@ def test_analysis_join_origin(data_builder, file_form, as_admin, as_drone, api_d
     assert r.ok
     job = r.json().get('job')
 
-    # Projects must have a provider for job/gear uploads to work
-    project = r.json().get('parents').get('project')
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
-
     # Engine upload
     r = as_drone.post('/engine',
         params={'level': 'analysis', 'id': analysis, 'job': job},
