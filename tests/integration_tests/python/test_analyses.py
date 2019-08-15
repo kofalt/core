@@ -1,12 +1,9 @@
 import cStringIO
-import os
 import tarfile
-
 import bson
 
 
 def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, with_site_settings, site_gear):
-
     group = data_builder.create_group()
     project = data_builder.create_project()
 
