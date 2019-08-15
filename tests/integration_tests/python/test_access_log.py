@@ -518,10 +518,6 @@ def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
     gear = data_builder.create_gear(gear=gear_doc)
 
     project = data_builder.create_project()
-    # Projects must have a provider for gear uploads to work 
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
 
     session = data_builder.create_session(project=project)
     subject = str(api_db.subjects.find_one({'project': bson.ObjectId(project)})['_id'])
