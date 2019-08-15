@@ -471,6 +471,84 @@ def test_jobs_full(data_builder, default_payload, as_public, as_user, as_admin, 
     r = as_admin.get('/jobs/stats', params={'tags': 'auto,unused', 'last': '2'})
     assert r.ok
 
+
+def test_orphaned_jobs_are_not_retried_indefinitely(api_db, as_admin, data_builder, file_form, default_payload):
+
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(project=project)
+    acquisition = data_builder.create_acquisition(session=session)
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Dupe of test_queue.py
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+
+    # Insert running job into database
+    job_data = {
+        'gear_id': gear,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': { 'two-digit multiple of ten': 20 },
+        'destination': {
+            'type': 'acquisition',
+            'id': acquisition
+        },
+        'tags': [ 'test-tag' ]
+    }
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job1_id = r.json()['_id']
+
+    # start job (Adds logs)
+    r = as_admin.get('/jobs/next')
+    assert r.ok
+
+    api_db.jobs.update({'_id': bson.ObjectId(job1_id)}, {'$set': {
+        "modified" : datetime.datetime(1980, 1, 1),
+        "created" : datetime.datetime(1980, 1, 1),
+        "produced_metadata" : {},
+        "saved_files" : [],
+        "state" : "running",
+        "attempt": 2
+    }})
+
+    r = as_admin.post('/jobs/reap')
+    assert r.ok
+    assert r.json().get('orphaned') == 1
+
+    r = as_admin.get('/jobs/next')
+    job2 = r.json()
+    assert job2['attempt'] == 3
+    print(job2)
+
+    api_db.jobs.update({'_id': bson.ObjectId(job2['id'])}, {'$set': {
+        "modified" : datetime.datetime(1980, 1, 1),
+        "created" : datetime.datetime(1980, 1, 1),
+        "produced_metadata" : {},
+        "saved_files" : [],
+        "state" : "running",
+        "attempt": 3
+    }})
+
+    r = as_admin.post('/jobs/reap')
+    assert r.ok
+    assert r.json().get('orphaned') == 1
+
+    r = as_admin.get('/jobs/next')
+    assert r.status_code == 400
+
+
 def question(struct):
     """
     Create a question with required values filled out.

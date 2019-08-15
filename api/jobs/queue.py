@@ -240,7 +240,7 @@ class Queue(object):
 
         # Add job tags, config, attempt number, and/or previous job ID, if present
         tags            = job_map.get('tags', [])
-        attempt_n       = job_map.get('attempt_n', 1)
+        attempt         = job_map.get('attempt', 1)
         previous_job_id = job_map.get('previous_job_id', None)
         batch           = job_map.get('batch', None) # A batch id if this job is part of a batch run
         label           = job_map.get('label', "")
@@ -383,7 +383,7 @@ class Queue(object):
         if gear_name not in tags:
             tags.append(gear_name)
 
-        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt_n,
+        job = Job(gear, inputs, destination=destination, tags=tags, config_=config_, attempt=attempt,
             previous_job_id=previous_job_id, origin=origin, batch=batch, parents=parents, profile=profile,
             related_container_ids=list(related_containers), label=label, compute_provider_id=compute_provider_id)
 
