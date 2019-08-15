@@ -25,6 +25,10 @@
                 "compute": {"$ref":"common.json#/definitions/objectid"},
                 "storage": {"$ref":"common.json#/definitions/objectid"}
             },
+            "dependencies": {
+                "compute": ["storage"],
+                "storage": ["compute"]
+            },
             "additionalProperties": false,
             "description": "Links to providers for containers"
         },
