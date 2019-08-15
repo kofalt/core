@@ -1,10 +1,11 @@
 import time
 import bson
 import pytest
+from pprint import pprint
 
 from api.web.request import AccessType
-
 from api.access_log import create_entry, bulk_log_access
+
 
 class MockRequest:
     def __init__(self, method, path):
@@ -15,7 +16,6 @@ class MockRequest:
 
 # NOTE these tests assume they are not running in parallel w/ other tests
 # by relying on the last entry in the logs
-
 def test_access_log_succeeds(data_builder, as_admin, log_db, with_site_settings):
     project = data_builder.create_project()
     session = data_builder.create_session()
@@ -504,11 +504,9 @@ def test_bulk_access(data_builder, as_admin, log_db):
     assert log2['request_path'] == '/test/bulk_log_access'
     assert log2['context']['file']['name'] == 'example.csv'
 
+
 def test_job_access(data_builder, as_admin, as_drone, log_db, default_payload,
                     file_form, api_db, with_site_settings):
-
-    from pprint import pprint
-
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {
         'dicom': {
