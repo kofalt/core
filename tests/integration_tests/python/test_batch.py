@@ -1081,9 +1081,11 @@ def test_batch_providers(compute_provider, data_builder, api_db, as_user, as_adm
     assert as_admin.put('/site/settings', json={'center_gears': []}).ok
 
     # Create project provider
-    project_provider = data_builder.create_compute_provider()
+    compute_provider_id = data_builder.create_compute_provider()
     r = as_admin.put('/projects/' + project, json={
-        'providers': {'compute': project_provider}
+        'providers': {
+            'compute': compute_provider_id,
+            'storage': data_builder.create_storage_provider()}
     })
     assert r.ok
 
@@ -1101,7 +1103,7 @@ def test_batch_providers(compute_provider, data_builder, api_db, as_user, as_adm
     r = as_admin.get('/jobs?filter=batch="{}"'.format(batch_id))
     r_jobs = r.json()
     assert len(r_jobs) == 1
-    assert r_jobs[0]['compute_provider_id'] == project_provider
+    assert r_jobs[0]['compute_provider_id'] == compute_provider_id
 
     r = as_admin.post('/batch/' + batch_id + '/cancel')
     assert r.ok
@@ -1120,7 +1122,7 @@ def test_batch_providers(compute_provider, data_builder, api_db, as_user, as_adm
     assert r.ok
     r_jobs = r.json()
     assert len(r_jobs) == 1
-    assert r_jobs[0]['compute_provider_id'] == project_provider
+    assert r_jobs[0]['compute_provider_id'] == compute_provider_id
 
     r = as_admin.post('/batch/' + batch_id + '/cancel')
     assert r.ok
