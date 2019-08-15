@@ -388,8 +388,8 @@ class DataBuilder(object):
                 payload['_id'] = self.randstr()
 
             if 'providers' not in payload:
-                # TODO: Add storage provider when appropriate
                 payload['providers'] = {
+                    'storage': self.get_or_create('storage_provider'),
                     'compute': self.get_or_create('compute_provider'),
                 }
         if resource == 'gear' and 'name' not in payload['gear']:
