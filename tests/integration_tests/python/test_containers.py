@@ -968,7 +968,7 @@ def test_edit_file_attributes(data_builder, as_user, as_admin, file_form):
     r = as_user.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
 
-    assert as_user.get('/projects/' + project).json()['revision'] == 3
+    assert as_user.get('/projects/' + project).json()['revision'] == 4
 
     file_object = r.json()
     assert file_object['type'] == payload['type']
@@ -1989,6 +1989,7 @@ def test_file_tag_revisions(data_builder, as_admin, file_form):
     project = data_builder.create_project(group=group)
     session = data_builder.create_session(subject={'code': 'compliant'}, label='compliant')
     acquisition = data_builder.create_acquisition(label='non-compliant')
+    assert as_admin.get('/acquisitions/' + acquisition).json()['revision'] == 1
 
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('file.txt')).ok
     assert as_admin.get('/acquisitions/' + acquisition).json()['revision'] == 2
