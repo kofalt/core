@@ -1,12 +1,13 @@
 import datetime
 import os
 import sys
-
+import json
+import bson
 from bson.objectid import ObjectId
 import pytest
 
 from api import config, util
-from api.site.storage_provider_service import StorageProviderService
+from api.site.providers.repository import get_provider
 
 
 @pytest.fixture(scope='function')
@@ -21,26 +22,31 @@ def cleanup_deleted(mocker, monkeypatch, with_site_settings):
 
 
 def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_db, cleanup_deleted, with_site_settings):
+    """
+    This tests that tickets (which allow downloading a file) get deleted
+    after 72 hours and not before.
+    """
     session_id = data_builder.create_session()
-    
-    # Projects must have a provider for job/gear uploads to work
-    r = as_admin.get('/sessions/' + session_id)
-    assert r.ok
-    project = r.json().get('parents').get('project')
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    
+    session = as_admin.get('/sessions/' + session_id)
+    project_id = json.loads(session.content)['parents']['project']
+    project = as_admin.get('/projects/' + project_id)
+    storage_provider = get_provider(
+        json.loads(project.content)['providers']['storage'])
+
     file_name_1 = '%s.csv' % randstr()
     file_content_1 = randstr()
-    as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))
+    as_admin.post('/sessions/' + session_id + '/files',
+                  files=file_form((file_name_1, file_content_1)))
 
     # get the ticket
-    r = as_admin.get('/sessions/' + session_id + '/files/' + file_name_1, params={'ticket': ''})
+    r = as_admin.get('/sessions/' + session_id + '/files/' + file_name_1,
+                     params={'ticket': ''})
     assert r.ok
     ticket = r.json()['ticket']
 
     # download the file
-    assert as_admin.get('/sessions/' + session_id + '/files/' + file_name_1, params={'ticket': ticket}).ok
+    assert as_admin.get('/sessions/' + session_id + '/files/' + file_name_1,
+                        params={'ticket': ticket}).ok
 
     # Test that the file won't be deleted if it was deleted in the last 72 hours
     d = datetime.datetime.now() - datetime.timedelta(hours=70)
@@ -56,11 +62,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     file_id_1 = file_info['_id']
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
-
-    # TODO: we will have to be sure we get the same provider when we move to multi provider support
-    storage_service = StorageProviderService()
-    storage = storage_service.determine_provider(None, None, force_site_provider=True)
-    assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_1, util.path_from_uuid(file_id_1)) is not None
 
     # file won't be deleted after 72 hours if the origin is a user
     d = datetime.datetime.now() - datetime.timedelta(hours=73)
@@ -71,8 +74,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     )
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
-
-    assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_1, util.path_from_uuid(file_id_1)) is not None
 
     # file deleted after 72 hours if the origin is not a user
     api_db['sessions'].find_one_and_update(
@@ -83,7 +86,8 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # file removed from the filesystem
-    assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1)) is None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_1, util.path_from_uuid(file_id_1)) is None
 
     # file also removed from the database
     document = api_db['sessions'].find_one(
@@ -93,7 +97,6 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     assert document is None
 
     # check when the parent container is deleted
-
     session_id_2 = data_builder.create_session()
 
     file_name_2 = '%s.csv' % randstr()
@@ -127,8 +130,10 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # files still exist
-    assert storage.storage_plugin.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is not None
-    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_2, util.path_from_uuid(file_id_2)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_3, util.path_from_uuid(file_id_3)) is not None
 
     # file won't be deleted after 72 hours if the origin is a user
     d = datetime.datetime.now() - datetime.timedelta(hours=73)
@@ -140,8 +145,10 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
-    assert storage.storage_plugin.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is not None
-    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_2, util.path_from_uuid(file_id_2)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_3, util.path_from_uuid(file_id_3)) is not None
 
     # file deleted after 72 hours if the origin is not a user
     api_db['sessions'].find_one_and_update(
@@ -152,15 +159,20 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     cleanup_deleted.main('--log-level', 'DEBUG', '--reaper')
 
     # first file removed from the filesystem
-    assert storage.storage_plugin.get_file_info(file_id_2, util.path_from_uuid(file_id_2)) is None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_2, util.path_from_uuid(file_id_2)) is None
     # but the second file is still there
-    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_3, util.path_from_uuid(file_id_3)) is not None
 
     # upload a file into the first session to see that it is kept when we use the --all flag
     # but others which are marked to delete will be removed
     file_name_4 = '%s.csv' % randstr()
     file_content_4 = randstr()
-    as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_4, file_content_4)))
+    as_admin.post(
+        '/sessions/' + session_id + '/files',
+        files=file_form((file_name_4, file_content_4))
+    )
 
     file_info = api_db['sessions'].find_one(
         {'files.name': file_name_4}
@@ -170,9 +182,11 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
     # with --all flag we delete every files which are marked to delete
     # don't care about the origin
     cleanup_deleted.main('--log-level', 'DEBUG', '--all')
-    assert storage.storage_plugin.get_file_info(file_id_3, util.path_from_uuid(file_id_3)) is None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_3, util.path_from_uuid(file_id_3)) is None
     # we keep files which are not marked
-    assert storage.storage_plugin.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is not None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_4, util.path_from_uuid(file_id_4)) is not None
 
     # Mark the first session as deleted
     api_db['sessions'].find_one_and_update(
@@ -182,27 +196,24 @@ def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_d
 
     # now the fourth file will be deleted too
     cleanup_deleted.main('--log-level', 'DEBUG', '--all')
-    assert storage.storage_plugin.get_file_info(file_id_4, util.path_from_uuid(file_id_4)) is None
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_4, util.path_from_uuid(file_id_4)) is None
 
 
 def test_cleanup_single_project(data_builder, default_payload, randstr, file_form, as_admin, as_drone, api_db, cleanup_deleted, with_site_settings, site_gear):
-
     # Some tests are leaving partial jobs in the db that kill the tests
     # This is a quick and dirty way to get to a clean state without filtering 
     api_db.jobs.remove({})
 
-    project_id = data_builder.create_project()
-    session_id = data_builder.create_session()
     acquisition_id = data_builder.create_acquisition()
+    acquisition = as_admin.get('/acquisitions/' + acquisition_id)
+    session_id = json.loads(acquisition.content)['parents']['session']
+    session = as_admin.get('/sessions/' + session_id)
+    project_id = json.loads(session.content)['parents']['project']
+    project = as_admin.get('/projects/' + project_id)
+    storage_provider = get_provider(
+        json.loads(project.content)['providers']['storage'])
 
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project_id, json=update)
-    
-    # TODO: we will have to be sure we get the same provider when we move to multi provider support
-    storage_service = StorageProviderService()
-    storage = storage_service.determine_provider(None, None, force_site_provider=True)
-    
     file_name_1 = '%s.csv' % randstr()
     file_content_1 = randstr()
     as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))
@@ -218,7 +229,6 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
         'inputs': [{'type': 'session', 'id': session_id, 'name': file_name_1}]
     })
     assert r.ok
-    analysis = r.json()['_id']
 
     # get the ticket
     r = as_admin.get('/sessions/' + session_id + '/files/' + file_name_1, params={'ticket': ''})
@@ -229,11 +239,8 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
     assert as_admin.get('/sessions/' + session_id + '/files/' + file_name_1, params={'ticket': ticket}).ok
 
     # run a job
-    #gear_doc = default_payload['gear']
-    import bson
     api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'dicom': {'base': 'file'}}}})
     gear = site_gear
-    # gear = data_builder.create_gear(gear=gear_doc)
 
     job_data = {
         'gear_id': gear,
@@ -267,7 +274,6 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
     # verify that job ticket has been created
     job_ticket = api_db.job_tickets.find_one({'job': job_id})
     assert job_ticket['timestamp']
-
 
     produced_metadata = {
         'project': {
@@ -312,7 +318,8 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
     cleanup_deleted.main('--log-level', 'DEBUG', '--all', '--project', project_id, '--job-phi')
 
     # Make sure file is still there
-    assert storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1))
+    assert storage_provider.storage_plugin.get_file_info(
+        file_id_1, util.path_from_uuid(file_id_1))
 
     # Make sure job phi is still there
     r = as_admin.get('/jobs/' + job_id)
@@ -332,7 +339,8 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
     cleanup_deleted.main('--log-level', 'DEBUG', '--all', '--project', project_id, '--job-phi')
 
     # Make sure file is not there
-    assert not storage.storage_plugin.get_file_info(file_id_1, util.path_from_uuid(file_id_1))
+    assert not storage_provider.storage_plugin.get_file_info(
+        file_id_1, util.path_from_uuid(file_id_1))
 
     # Check job phi
     r = as_admin.get('/jobs/' + job_id)
