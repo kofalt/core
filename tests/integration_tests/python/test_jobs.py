@@ -1071,11 +1071,6 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     gear2 = data_builder.create_gear()
     project = data_builder.create_project()
 
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
-
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
@@ -1198,7 +1193,9 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     assert r.ok
     assert r.json()['logs'] == expected_job_logs
 
-def test_job_state_transition_from_complete(data_builder, default_payload, as_admin, as_drone, api_db, file_form):
+
+def test_job_state_transition_from_complete(
+        data_builder, default_payload, as_admin, as_drone, api_db, file_form):
     # create gear
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {'dicom': {'base': 'file'}}
@@ -1206,16 +1203,8 @@ def test_job_state_transition_from_complete(data_builder, default_payload, as_ad
 
     # create acq with file (for input)
     acquisition = data_builder.create_acquisition()
-
-    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
-    assert r.ok
-
-    # Projects must have a provider for job/gear uploads to work
-    r = as_admin.get('/acquisitions/' + acquisition)
-    assert r.ok
-    project = r.json().get('parents').get('project')
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
+    r = as_admin.post(
+        '/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
     assert r.ok
 
     # create job
@@ -2404,18 +2393,18 @@ def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, 
     session = data_builder.create_session(label='job-detail session')
     acquisition = data_builder.create_acquisition(label='job-detail acquisition')
 
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
-
-    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
-    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
-
-    assert as_admin.post('/acquisitions/' + acquisition + '/files/test.csv/info', json={
-        'replace': {
-            'input_key': 'input_value'
-        }
-    }).ok
+    assert as_admin.post(
+        '/acquisitions/' + acquisition + '/files',
+        files=file_form('test.zip')
+    ).ok
+    assert as_admin.post(
+        '/acquisitions/' + acquisition + '/files',
+        files=file_form('test.csv')
+    ).ok
+    assert as_admin.post(
+        '/acquisitions/' + acquisition + '/files/test.csv/info',
+        json={'replace': {'input_key': 'input_value'}}
+    ).ok
 
     job_data = {
         'gear_id': gear,
@@ -2634,6 +2623,7 @@ def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, 
     r = as_admin.get('/jobs/' + job + '/detail')
     assert r.ok
 
+
 def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin, as_drone, api_db, file_form, with_site_settings):
     # create gear
     gear_doc = default_payload['gear']['gear']
@@ -2645,15 +2635,11 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     gear = data_builder.create_gear(gear=gear_doc)
     gear2 = data_builder.create_gear()
     project = data_builder.create_project()
-    session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
-    r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
-    assert r.ok
-
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
+    assert as_admin.post(
+        '/acquisitions/' + acquisition + '/files',
+        files=file_form('test.zip')
+    ).ok
 
     # create invalid rule for the project
     result = api_db.project_rules.insert_one({

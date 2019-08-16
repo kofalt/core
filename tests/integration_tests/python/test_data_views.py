@@ -752,16 +752,11 @@ def test_adhoc_data_view_zip_members(data_builder, file_form, as_admin, with_sit
         assert row['value'] == str(i)
         assert row['value2'] == str(2*i)
 
+
 def test_adhoc_data_view_analyses_files(data_builder, file_form, as_admin, as_drone, api_db, with_site_settings):
     project = data_builder.create_project(label='test-project')
     session = data_builder.create_session(project=project, subject=subject1, label='ses-01')
     acquisition = data_builder.create_acquisition(session=session, label='scout')
-    
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
-    
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
 
     gear1 = data_builder.create_gear(gear={'name': 'data-view-gear1', 'version': '0.0.12', 'inputs': {'csv': {'base': 'file'}}})

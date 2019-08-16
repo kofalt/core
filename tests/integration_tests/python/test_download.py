@@ -947,6 +947,7 @@ def test_subject_download(data_builder, as_admin, file_form, with_site_settings)
     assert r.ok
     assert r.json()['file_cnt'] == 2
 
+
 def test_full_project_download(data_builder, file_form, as_admin, as_root, as_drone, api_db, with_site_settings):
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
     project = data_builder.create_project(label='project1')
@@ -960,17 +961,11 @@ def test_full_project_download(data_builder, file_form, as_admin, as_root, as_dr
     acquisition3 = data_builder.create_acquisition(label='acquisition3', session=session3)
     acquisition4 = data_builder.create_acquisition(label='acquisition4', session=session4)
 
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
-
     # Set metadata on session
-    as_admin.post('/sessions/' + session + '/info', json={
-        'replace': {
-            'test': 'test_data'
-        }
-    })
+    as_admin.post(
+        '/sessions/' + session + '/info',
+        json={'replace': {'test': 'test_data'}}
+    )
 
     # upload the same file to each container created and use different tags to
     # facilitate download filter tests:
