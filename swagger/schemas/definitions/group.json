@@ -49,7 +49,7 @@
         "group-output":{
           "type": "object",
           "allOf": [{"$ref":"#/definitions/group"}],
-          "required": ["permissions", "created","modified", "revision", "_id"],
+          "required": ["permissions", "created","modified", "_id"],
           "x-sdk-model": "group",
           "x-sdk-container-mixin": "group-mixin"
         },
