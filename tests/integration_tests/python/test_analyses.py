@@ -64,6 +64,7 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, wi
     job = r.json().get('job')
     assert job
     assert not r.json().get('permissions')
+    assert r.json()['revision'] == 2  # Starts at 2 due to job creation
 
     # Engine upload
     r = as_drone.post('/engine',
@@ -72,6 +73,7 @@ def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, wi
     assert r.ok
 
     check_files(as_admin, analysis, 'files', 'output.csv')
+    assert as_admin.get('/analyses/' + analysis).json()['revision'] == 3
     api_db.analyses.delete_one({'_id': bson.ObjectId(analysis)})
 
     # Create job-based analysis at acquisition level
@@ -245,6 +247,7 @@ def test_offline_analysis(data_builder, as_admin, file_form, api_db, with_site_s
     })
     assert r.ok
     analysis = r.json()['_id']
+    assert as_admin.get('/analyses/' + analysis).json()['revision'] == 1
 
     check_files(as_admin, analysis, 'inputs', 'input.csv')
 
@@ -254,6 +257,7 @@ def test_offline_analysis(data_builder, as_admin, file_form, api_db, with_site_s
         {'name': 'output2.csv', 'info': {'bar': 'bar'}},
     ]))
     assert r.ok
+    assert as_admin.get('/analyses/' + analysis).json()['revision'] == 3  # 2 file updates
 
     check_files(as_admin, analysis, 'files', 'output1.csv', 'output2.csv')
 
@@ -277,6 +281,7 @@ def test_legacy_analysis(data_builder, as_admin, file_form, api_db, with_site_se
     }))
     assert r.ok
     analysis = r.json()['_id']
+    assert as_admin.get('/analyses/' + analysis).json()['revision'] == 1
 
     check_files(as_admin, analysis, 'inputs', 'input.csv')
     check_files(as_admin, analysis, 'files', 'output.csv')

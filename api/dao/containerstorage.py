@@ -473,7 +473,8 @@ class AnalysisStorage(ContainerStorage):
             },
             'created': datetime.datetime.utcnow(),
             'modified': datetime.datetime.utcnow(),
-            'user': origin.get('id')
+            'user': origin.get('id'),
+            'revision': 1
         }
 
         for key in defaults:

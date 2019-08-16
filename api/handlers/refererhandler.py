@@ -82,7 +82,7 @@ class AnalysesHandler(RefererHandler):
         except ValueError:
             # Legacy analysis - accept direct file uploads (inputs and outputs)
             # we choose the provider based on the session which will be the same as the analysis currently
-            analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin, 
+            analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin,
                     container_type=singularize(cont_name), id_=cid)
 
         # Check and raise if non-admin user attempts to override compute provider

@@ -456,7 +456,8 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
             parent_type:    parent['_id'],
             'permissions':  parent['permissions'],
             'public':       parent.get('public', False),
-            'created':      timestamp
+            'created':      timestamp,
+            'revision':     1
         }
         if cont_type == 'session':
             insert_vals['group'] = parent['group']

@@ -814,6 +814,7 @@ class AnalysisJobPlacer(Placer):
         update = {'$set': {'files': self.saved}}
         if job is not None:
             update['$set']['job'] = job.id_
+        dbutil.update_modified_and_revision(update)
         config.db.analyses.update_one(query, update)
 
         if job is not None:
