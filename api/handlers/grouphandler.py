@@ -57,7 +57,7 @@ class GroupHandler(base.RequestHandler):
         return result
 
     def get_all(self, uid=None):
-        projection = {'label': 1, 'created': 1, 'modified': 1, 'permissions': 1, 'tags': 1, 'editions': 1}
+        projection = {'label': 1, 'created': 1, 'modified': 1, 'permissions': 1, 'tags': 1, 'editions': 1, 'revision': 1}
         permchecker = groupauth.list_permission_checker(self, uid)
         page = permchecker(self.storage.exec_op)('GET', projection=projection, pagination=self.pagination)
         results = page['results']
