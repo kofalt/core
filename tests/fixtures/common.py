@@ -99,8 +99,19 @@ def with_site_settings(session, api_db):
                 'aws_secret_access_key': os.environ.get('AWS_SECRET_ACCESS_KEY')
             }
             type_ = 'aws'
+        elif scheme == 'gc':
+            # GC uses gcs_key path
+            with open(params['private_key'], 'rU') as f:
+                creds = json.load(f)
+            config = {
+                "path": path,
+                "bucket": bucket_name
+            }
+            if params.get('region'):
+                config['region'] = params['region'] # Not required on GC
+            type_ = 'gc'
         else:
-            # Gcp is a special case that uses local via pyfs
+            # local via pyfs
             config = {"path": persistent_fs_url}
             creds = None
             type_ = 'local'

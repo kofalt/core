@@ -28,7 +28,6 @@ setup(
         ],
         'flywheel.storage': [
             'osfs = api.storage.py_fs.py_fs_storage:PyFsStorage',
-            'gc = api.storage.py_fs.py_fs_storage:PyFsStorage',
         ]
     },
 )

@@ -104,7 +104,7 @@ class Providers(object):
             type_=doc['provider_type'],
             label=doc['label'],
             config=doc['config'],
-            creds=doc.get('creds'), #Creds is not required in local or gc currently,
+            creds=doc.get('creds'), #Creds is not required in local
             id_=doc['_id'])
         provider.origin = doc['origin']
         provider.modified = doc['modified']

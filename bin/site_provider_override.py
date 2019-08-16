@@ -6,6 +6,7 @@ import datetime
 import logging
 import sys
 import os
+import json
 
 from flywheel_common.providers import ProviderClass, create_provider
 from flywheel_common.storage import parse_storage_url
@@ -34,7 +35,7 @@ def main(*argv):
         config_ = {
             'bucket': bucket_name,
             'path': path,
-            'region': params.get('region', None)
+            'region': params.get('region', "")
         }
 
         creds = {
@@ -44,9 +45,14 @@ def main(*argv):
         }
         type_ = 'aws'
     elif scheme == 'gc':
-        # GC uses gcs_key path
-        creds = None
-        config_ = {"path": os.environ['SCITRAN_PERSISTENT_FS_URL']}
+        with open(params['private_key'], 'rU') as f:
+            creds = json.load(f)
+        config_ = {
+            "path": path,
+            "bucket": bucket_name,
+        }
+        if params.get('region'):
+            config_['region'] = params['region']
         type_ = 'gc'
 
     else:

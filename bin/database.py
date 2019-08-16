@@ -2498,10 +2498,14 @@ def upgrade_to_67():
     scheme, bucket_name, path, params = parse_storage_url(config.persistent_fs_url)
 
     if scheme == 's3':
+        region = params.get('region')
+        if not region:
+            # At this point if we dont have a region let the error bubble up
+            region = os.environ['AWS_DEFAULT_REGION']
         config_ = {
             'bucket': bucket_name,
             'path': path,
-            'region': params.get('region', None)
+            'region': region
         }
 
         creds = {
@@ -2513,7 +2517,12 @@ def upgrade_to_67():
         # GC uses gcs_key path
         with open(params['private_key'], 'rU') as f:
             creds = json.load(f)
-        config_ = {"path": config.persistent_fs_url}
+        config_ = {
+            "path": path,
+            "bucket": bucket_name
+        }
+        if params.get('region'):
+            config_['region'] = params['region'] # Not required on GC
         type_ = 'gc'
 
     else:
