@@ -72,6 +72,9 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form, ap
     assert r.ok
     assert r.json()['classification'] == {}
 
+    # Check initial revision
+    assert as_admin.get('/projects/' + project).json()['revision'] == 2
+
     as_admin.delete('/modalities/MR')
 
     # add modality information
@@ -92,6 +95,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form, ap
     r = as_admin.put('/projects/' + project + '/files/' + file_name, json={
         'modality': 'MR'
     })
+    assert as_admin.get('/projects/' + project).json()['revision'] == 3
 
     api_db.projects.update({
         '_id': bson.ObjectId(project),
@@ -152,6 +156,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form, ap
         'replace': file_cls
     })
     assert r.ok
+    assert as_admin.get('/projects/' + project).json()['revision'] == 4
 
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
     assert r.ok
@@ -163,6 +168,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form, ap
         'add': {'Intent': ['Functional']}
     })
     assert r.ok
+    assert as_admin.get('/projects/' + project).json()['revision'] == 5
 
     file_cls['Intent'].append('Functional')
     r = as_admin.get('/projects/' + project + '/files/' + file_name + '/info')
@@ -176,6 +182,7 @@ def test_edit_file_classification(data_builder, as_admin, as_user, file_form, ap
                    'Measurement': ['B1']}
     })
     assert r.ok
+    assert as_admin.get('/projects/' + project).json()['revision'] == 6
 
     file_cls['Intent'] = ['Functional']
     file_cls['Measurement'] = ['T1']
