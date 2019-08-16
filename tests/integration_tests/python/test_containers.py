@@ -500,11 +500,6 @@ def test_get_container(data_builder, default_payload, file_form, as_drone, as_us
     project = data_builder.create_project()
     session = data_builder.create_session()
 
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
-    
     # Add User to permissions
     as_admin.post('/projects/' + project + '/permissions', json={'_id': 'user@user.com', 'access': 'admin'})
 
