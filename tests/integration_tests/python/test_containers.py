@@ -1982,3 +1982,25 @@ def test_revisions(data_builder, as_user, as_admin, api_db):
     assert acq_doc is not None
     assert 'deleted' in acq_doc
     assert acq_doc['revision'] == 4
+
+
+def test_file_tag_revisions(data_builder, as_admin, file_form):
+    group = data_builder.create_group()
+    project = data_builder.create_project(group=group)
+    session = data_builder.create_session(subject={'code': 'compliant'}, label='compliant')
+    acquisition = data_builder.create_acquisition(label='non-compliant')
+
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('file.txt')).ok
+    assert as_admin.get('/acquisitions/' + acquisition).json()['revision'] == 2
+
+    # Add tag
+    assert as_admin.post('/acquisitions/' + acquisition + '/tags', json={'value': 'file-tag'}).ok
+    assert as_admin.get('/acquisitions/' + acquisition).json()['revision'] == 3
+
+    # Rename tag
+    assert as_admin.put('/acquisitions/' + acquisition + '/tags/file-tag', json={'value': 'hello_world'}).ok
+    assert as_admin.get('/acquisitions/' + acquisition).json()['revision'] == 4
+
+    # Delete tag
+    assert as_admin.delete('/acquisitions/' + acquisition + '/tags/hello_world').ok
+    assert as_admin.get('/acquisitions/' + acquisition).json()['revision'] == 5
