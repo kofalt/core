@@ -5,7 +5,7 @@ from flywheel_common.providers import ProviderClass, create_provider
 from . import get_site_settings
 from ..types import Origin
 from . import providers
-from ..config import local_fs_url
+from .. import config
 
 class StorageProviderService(object):
 
@@ -25,6 +25,9 @@ class StorageProviderService(object):
         site_doc = get_site_settings()
         if not site_doc.providers.get('storage'):
             raise ValueError('Site settings are not configured for a storage provider')
+
+        if not config.is_multiproject_enabled():
+            return providers.get_provider(site_doc.providers['storage'])
 
         if force_site_provider:
             return providers.get_provider(site_doc.providers['storage'])
@@ -61,4 +64,4 @@ class StorageProviderService(object):
     def get_local_storage(self):
         """ Local storage is a storage plugin that supports get_fs. But it will not clean up automatically"""
         return create_provider(ProviderClass.storage.value, 'local', 'temp_storage',
-                               {'path': local_fs_url}, None)
+                               {'path': config.local_fs_url}, None)

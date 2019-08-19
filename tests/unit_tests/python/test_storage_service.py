@@ -1,6 +1,8 @@
 '''Test the provider selection from the storage service'''
 import pytest
 
+from mock import patch
+
 from api.site.storage_provider_service import StorageProviderService
 
 def test_provider_selection(mocker, with_site_settings):
@@ -19,46 +21,57 @@ def test_provider_selection(mocker, with_site_settings):
     mocker.patch('api.jobs.jobs.Job.get', return_value=job)
     storage_service = StorageProviderService()
 
-    # Error if origin is not matched
-    provider = None
-    with pytest.raises(ValueError):
-        provider = storage_service.determine_provider({'type': 'bad'}, None, None)
-    assert provider == None
 
-    # device origin gets the site provider
-    provider = storage_service.determine_provider({'type': 'device'}, None, file_size)
-    assert provider == site_settings.providers['storage']
+    with patch('api.site.storage_provider_service.config') as patched_config:
+
+        # Without multiproject we always return the site storage provider regardless
+        patched_config.is_multiproject_enabled.return_value = False
+        provider = storage_service.determine_provider(None, None, file_size)
+        assert provider == site_settings.providers['storage']
+
+        # With multiporject storage selections vary
+        patched_config.is_multiproject_enabled.return_value = True
+
+        # Error if origin is not matched
+        provider = None
+        with pytest.raises(ValueError):
+            provider = storage_service.determine_provider({'type': 'bad'}, None, None)
+        assert provider is None
+
+        # device origin gets the site provider
+        provider = storage_service.determine_provider({'type': 'device'}, None, file_size)
+        assert provider == site_settings.providers['storage']
 
 
-    # Job origin gets site when using center gears
-    provider = storage_service.determine_provider({'type': 'job', 'id': '1234'}, container, file_size)
-    assert provider == site_settings.providers['storage']
-
-    # Job origin without a center gear and the selection moves up to the site provider.
-    mocker.patch('api.site.providers.get_provider_id_for_container', return_value=(True, 1234))
-    mocker.patch('api.jobs.jobs.Job.get', return_value=job_no_gear)
-    provider = None
-    with pytest.raises(ValueError):
+        # Job origin gets site when using center gears
         provider = storage_service.determine_provider({'type': 'job', 'id': '1234'}, container, file_size)
-    assert provider == None
+        assert provider == site_settings.providers['storage']
 
-    # Job origin without a center gear but a parent project/group has a provider
-    mocker.patch('api.site.providers.get_provider_id_for_container', return_value=(False, 4321))
-    provider = storage_service.determine_provider({'type': 'job', 'id': '1234'}, container, file_size)
-    assert provider == 4321
+        # Job origin without a center gear and the selection moves up to the site provider.
+        mocker.patch('api.site.providers.get_provider_id_for_container', return_value=(True, 1234))
+        mocker.patch('api.jobs.jobs.Job.get', return_value=job_no_gear)
+        provider = None
+        with pytest.raises(ValueError):
+            provider = storage_service.determine_provider({'type': 'job', 'id': '1234'}, container, file_size)
+        assert provider is None
+
+        # Job origin without a center gear but a parent project/group has a provider
+        mocker.patch('api.site.providers.get_provider_id_for_container', return_value=(False, 4321))
+        provider = storage_service.determine_provider({'type': 'job', 'id': '1234'}, container, file_size)
+        assert provider == 4321
 
 
-    # user origin gets the container provider or a parent group/project provider
-    provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
-    assert provider == 4321
+        # user origin gets the container provider or a parent group/project provider
+        provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
+        assert provider == 4321
 
-    mocker.patch('api.site.providers.get_provider_id_for_container', return_value=(True, 2222))
-    # This will be true once the storage quota checks are implemented
-    # with pytest.raises(ValueError):
-        # provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
-    # Without quota checks we just return the site provider for now
-    provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
-    assert provider == site_settings.providers['storage']
+        mocker.patch('api.site.providers.get_provider_id_for_container', return_value=(True, 2222))
+        # This will be true once the storage quota checks are implemented
+        # with pytest.raises(ValueError):
+            # provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
+        # Without quota checks we just return the site provider for now
+        provider = storage_service.determine_provider({'type': 'user'}, container, file_size)
+        assert provider == site_settings.providers['storage']
 
 def mocked_return(value):
     return value
