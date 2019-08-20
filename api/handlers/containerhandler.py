@@ -197,18 +197,9 @@ class ContainerHandler(base.RequestHandler):
         permchecker(noop)('GET', cid)
 
         analyses = AnalysisStorage().get_analyses(None, 'subject', cont['_id'])
-        #sessions = containerstorage.SessionStorage().get_all_el(query={'subject': cont['_id']}, user={'_id': self.uid}, projection={'_id': 1})
         acquisitions = cont.get('acquisitions', [])
         parents = self.storage.get_parents(cont)
 
-        #acq_set = [('acquisition', aq['_id']) for aq in acquisitions]
-        #ana_set = [('analysis', an['_id']) for an in analyses]
-        #ses_set = [('session', ses['_id']) for ses in sessions]
-
-        
-        #parent_set = []
-        #for k, v in parents.iteritems():
-        #   parent_set.append((k, v))
 
         # Get query params
         states = self.request.GET.getall('states')
@@ -230,17 +221,8 @@ class ContainerHandler(base.RequestHandler):
                         [('analysis', an['_id']) for an in analyses] +
                         [('acquisition', aq['_id']) for aq in acquisitions]
                     ]
-        jobs = Queue.search_containers(cont_refs, states=states, tags=tags, limit=limit, skip=skip)
-        inputs = {}
-        for job in jobs:
-            for i in jobs['inputs']:
-                inputs[i['type']].append(i['id'])
-
-        print 'we have some inputs'
-        print inputs
-        import sys
-        sys.stdout.flush()
-
+        jobs = Queue.search_containers(cont_refs, states=states, tags=tags,
+                limit=limit, skip=skip, user_id=self.uid)
 
         unique_jobs = {}
         gear_ids = set()
@@ -251,7 +233,6 @@ class ContainerHandler(base.RequestHandler):
                 if clean_job.get('gear_id') and clean_job['gear_id'] not in gear_ids:
                     gear_ids.add(clean_job['gear_id'])
 
-        #response = {'jobs': sorted(unique_jobs.values(), key=lambda job: job.created)}
         response = {'jobs': unique_jobs.values()}
         if join_gears:
             gears = config.db.gears.find({'_id': {'$in': [bson.ObjectId(gear_id) for gear_id in gear_ids]}})
