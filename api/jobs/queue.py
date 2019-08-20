@@ -14,7 +14,7 @@ from .jobs import Job, Logs, JobTicket
 from .gears import get_gear, validate_gear_config, fill_gear_default_values
 from ..dao.containerutil import (
     create_filereference_from_dictionary, create_containerreference_from_dictionary,
-    create_containerreference_from_filereference, FileReference
+    create_containerreference_from_filereference, FileReference, pluralize
 )
 from .job_util import resolve_context_inputs
 from ..web import errors
@@ -614,7 +614,7 @@ class Queue(object):
         return [Job.load(result)]
 
     @staticmethod
-    def search_containers(containers, states=None, tags=None, limit=100, skip=0):
+    def search_containers(containers, states=None, tags=None, limit=100, skip=0, user_id=None):
         """
         Search the queue for jobs that mention at least one of a set of containers and (optionally) match some set of states or tags.
 
@@ -623,6 +623,7 @@ class Queue(object):
         @param tags: an array of strings
         @param limit: Limit on search.
         @param skip: number of records to skip. This is a sorted query so skips on large collections will be slow.  Caution!
+        @param user_id: Filters jobs to only readable input projects for this user
         """
 
         conts_by_type = {}
@@ -644,12 +645,61 @@ class Queue(object):
             query['tags'] = {"$in": tags}
 
         # For now, mandate reverse-crono sort
-        return config.db.jobs.aggregate([
+        jobs = config.db.jobs.aggregate([
             {'$match': query},
             {'$sort': {'modified': pymongo.DESCENDING}},
             {'$skip': skip},
             {'$limit': limit},
         ])
+
+        if user_id is None:
+            return jobs
+
+        done = False
+        jobs_processed = 0
+        job_results = []
+        while not done:
+
+            inputs_to_check = {
+                'project': set(),
+                'subject': set(),
+                'session': set(),
+                'acquisition': set()
+            }
+
+            jobs = list(config.db.jobs.aggregate([
+                {'$match': query},
+                {'$sort': {'modified': pymongo.DESCENDING}},
+                {'$skip': jobs_processed},
+                {'$limit': limit - len(job_results)},
+            ]))
+
+            if not jobs:
+                break
+
+            for j in jobs:
+                jobs_processed += 1
+                for i in j['inputs']:
+                    inputs_to_check[i['type']].add(bson.ObjectId(i['id']))
+
+            bad_inputs = set()
+            for type_, inputs in inputs_to_check.iteritems():
+                for bad_input in config.db[pluralize(type_)].find({
+                        '_id': {'$in': list(inputs)},
+                        'permissions': {'$not': {'$elemMatch': {'_id' : user_id}}}
+                    }, {'_id':1}):
+
+                    bad_inputs.add(str(bad_input['_id']))
+
+            for job in jobs:
+                for i in job['inputs']:
+                    if i['id'] not in bad_inputs:
+                        job_results.append(job)
+
+            if len(job_results) == limit:
+                break
+
+        return job_results
 
     @staticmethod
     def scan_for_orphans():
