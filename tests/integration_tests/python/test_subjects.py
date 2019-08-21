@@ -267,12 +267,13 @@ def test_subject_notes(data_builder, as_admin, as_public, file_form):
     assert r.status_code == 404
 
 
-def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form, with_site_settings, site_gear):
+def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form, with_site_settings, site_gear, as_user):
     # Create gear, project and subject with one input file
     api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'csv': {'base': 'file'}}}})
     gear = site_gear
     # Projects must have a provider for drone uploads to work
     project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
+    project2 = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
 
     r = as_admin.post('/subjects', json={'project': project, 'code': 'test'})
     assert r.ok
@@ -341,6 +342,41 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form, with_
     r = as_admin.get('/subjects/' + subject)
     assert r.ok
     assert 'result.txt' in [f['name'] for f in r.json()['files']]
+
+    ### Test jobs on subject endpoint
+    # We have 3 jobs that build for the subject currently
+
+    # Create job with second project as destination
+    r = as_admin.post('/jobs/add', json={
+        'gear_id': gear,
+        'inputs': {'csv': {'type': 'subject', 'id': subject, 'name': 'input.csv'}},
+        'destination': {'type': 'project', 'id': project2}
+    })
+    assert r.ok
+
+    r = as_admin.get('/jobs')
+    print 'we have some jobs'
+    print len(r.json())
+
+    # Add permission for user
+    uid = as_user.get('/users/self').json()['_id']
+    r = as_admin.post('/projects/' + project + '/permissions', json={
+        '_id': uid,
+        'access': 'admin'
+        })
+    assert r.ok
+    r = as_user.get('/subjects/' + subject + '/jobs')
+    assert r.ok
+    assert len(r.json()['jobs']) == 3
+
+    r = as_admin.post('/projects/' + project2 + '/permissions', json={
+        '_id': uid,
+        'access': 'admin'
+        })
+
+    r = as_user.get('/subjects/' + subject + '/jobs')
+    assert r.ok
+    assert len(r.json()['jobs']) == 4
 
 
 def test_subject_move_via_session(data_builder, as_admin, as_user, default_payload, file_form, with_site_settings):

@@ -655,51 +655,37 @@ class Queue(object):
         if user_id is None:
             return jobs
 
-        done = False
-        jobs_processed = 0
-        job_results = []
-        while not done:
 
-            inputs_to_check = {
-                'project': set(),
-                'subject': set(),
-                'session': set(),
-                'acquisition': set()
-            }
+        # Filter bad inputs
+        inputs_to_check = {
+            'project': set(),
+            'subject': set(),
+            'session': set(),
+            'acquisition': set()
+        }
 
-            jobs = list(config.db.jobs.aggregate([
-                {'$match': query},
-                {'$sort': {'modified': pymongo.DESCENDING}},
-                {'$skip': jobs_processed},
-                {'$limit': limit - len(job_results)},
-            ]))
+        jobs = list(jobs)
 
-            if not jobs:
-                break
+        for j in jobs:
+            for i in j['inputs']:
+                inputs_to_check[i['type']].add(bson.ObjectId(i['id']))
 
-            for j in jobs:
-                jobs_processed += 1
-                for i in j['inputs']:
-                    inputs_to_check[i['type']].add(bson.ObjectId(i['id']))
+        bad_inputs = set()
+        for type_, inputs in inputs_to_check.iteritems():
+            for bad_input in config.db[pluralize(type_)].find({
+                    '_id': {'$in': list(inputs)},
+                    'permissions': {'$not': {'$elemMatch': {'_id' : user_id}}}
+                }, {'_id':1}):
 
-            bad_inputs = set()
-            for type_, inputs in inputs_to_check.iteritems():
-                for bad_input in config.db[pluralize(type_)].find({
-                        '_id': {'$in': list(inputs)},
-                        'permissions': {'$not': {'$elemMatch': {'_id' : user_id}}}
-                    }, {'_id':1}):
+                bad_inputs.add(str(bad_input['_id']))
 
-                    bad_inputs.add(str(bad_input['_id']))
-
-            for job in jobs:
-                for i in job['inputs']:
-                    if i['id'] not in bad_inputs:
-                        job_results.append(job)
-
-            if len(job_results) == limit:
-                break
-
-        return job_results
+        for job in jobs:
+            tmp_inputs = []
+            for i in job['inputs']:
+                if i['id'] not in bad_inputs:
+                    tmp_inputs.append(i)
+            job['inputs'] = tmp_inputs
+        return jobs
 
     @staticmethod
     def scan_for_orphans():
