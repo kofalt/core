@@ -30,7 +30,7 @@ class GroupStorage(ContainerStorage):
 
     def _to_mongo(self, payload):
         # Ascertain defaults in our model for consistency
-        payload.setdefault('editions', {}).setdefault('lab', True)
+        payload.setdefault('editions', {}).setdefault('lab', False)
 
     def _fill_default_values(self, cont):
         cont = super(GroupStorage,self)._fill_default_values(cont)
@@ -38,7 +38,7 @@ class GroupStorage(ContainerStorage):
             if 'permissions' not in cont:
                 cont['permissions'] = []
             if 'editions' not in cont:
-                cont['editions'] = {'lab': True}
+                cont['editions'] = {'lab': False}
         return cont
 
     def create_el(self, payload, origin):
@@ -96,11 +96,11 @@ class ProjectStorage(ContainerStorage):
     def _to_mongo(self, payload):
         if not payload.get('editions'):
             # Ascertain defaults in our model for consistency
-            payload['editions'] = {'lab': True}
+            payload['editions'] = {'lab': False}
             return
 
         if not 'lab' in payload['editions']:
-            payload['editions']['lab'] = True
+            payload['editions']['lab'] = False
 
     def create_el(self, payload, origin):
 

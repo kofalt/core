@@ -271,11 +271,8 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form, with_
     # Create gear, project and subject with one input file
     api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'csv': {'base': 'file'}}}})
     gear = site_gear
-    project = data_builder.create_project()
     # Projects must have a provider for drone uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
+    project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
 
     r = as_admin.post('/subjects', json={'project': project, 'code': 'test'})
     assert r.ok

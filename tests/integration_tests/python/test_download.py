@@ -948,8 +948,9 @@ def test_subject_download(data_builder, as_admin, file_form, with_site_settings)
     assert r.json()['file_cnt'] == 2
 
 def test_full_project_download(data_builder, file_form, as_admin, as_root, as_drone, api_db, with_site_settings):
+    # Projects must have a provider for job/gear uploads to work
     gear = data_builder.create_gear(gear={'inputs': {'csv': {'base': 'file'}}})
-    project = data_builder.create_project(label='project1')
+    project = data_builder.create_project(label='project1', providers={'storage': 'deadbeefdeadbeefdeadbeef'})
     subject = data_builder.create_subject(code='subject1', project=project, type='animal', species='dog')
     session = data_builder.create_session(label='session1', project=project, subject={'_id': subject})
     session2 = data_builder.create_session(label='session2', project=project, subject={'_id': subject})
@@ -959,11 +960,6 @@ def test_full_project_download(data_builder, file_form, as_admin, as_root, as_dr
     acquisition2 = data_builder.create_acquisition(label='acquisition2', session=session2)
     acquisition3 = data_builder.create_acquisition(label='acquisition3', session=session3)
     acquisition4 = data_builder.create_acquisition(label='acquisition4', session=session4)
-
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
 
     # Set metadata on session
     as_admin.post('/sessions/' + session + '/info', json={

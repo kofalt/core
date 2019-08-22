@@ -21,15 +21,10 @@ def cleanup_deleted(mocker, monkeypatch, with_site_settings):
 
 
 def test_cleanup_deleted_files(data_builder, randstr, file_form, as_admin, api_db, cleanup_deleted, with_site_settings):
+    project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
+    subject = data_builder.create_subject(project=project, code='deleted_files_test')
     session_id = data_builder.create_session()
-    
-    # Projects must have a provider for job/gear uploads to work
-    r = as_admin.get('/sessions/' + session_id)
-    assert r.ok
-    project = r.json().get('parents').get('project')
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    
+
     file_name_1 = '%s.csv' % randstr()
     file_content_1 = randstr()
     as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))
@@ -191,18 +186,13 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
     # This is a quick and dirty way to get to a clean state without filtering 
     api_db.jobs.remove({})
 
-    project_id = data_builder.create_project()
+    # Projects must have a provider for job/gear uploads to work
+    storage_service = StorageProviderService()
+    storage = storage_service.determine_provider(None, None, force_site_provider=True)
+    project_id = data_builder.create_project(providers={'storage': str(storage.provider_id)})
     session_id = data_builder.create_session()
     acquisition_id = data_builder.create_acquisition()
 
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project_id, json=update)
-    
-    # TODO: we will have to be sure we get the same provider when we move to multi provider support
-    storage_service = StorageProviderService()
-    storage = storage_service.determine_provider(None, None, force_site_provider=True)
-    
     file_name_1 = '%s.csv' % randstr()
     file_content_1 = randstr()
     as_admin.post('/sessions/' + session_id + '/files', files=file_form((file_name_1, file_content_1)))
@@ -229,11 +219,9 @@ def test_cleanup_single_project(data_builder, default_payload, randstr, file_for
     assert as_admin.get('/sessions/' + session_id + '/files/' + file_name_1, params={'ticket': ticket}).ok
 
     # run a job
-    #gear_doc = default_payload['gear']
     import bson
     api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'dicom': {'base': 'file'}}}})
     gear = site_gear
-    # gear = data_builder.create_gear(gear=gear_doc)
 
     job_data = {
         'gear_id': gear,

@@ -1147,12 +1147,8 @@ def test_failed_job_output(data_builder, default_payload, as_user, as_admin, as_
     }
     gear = data_builder.create_gear(gear=gear_doc)
     gear2 = data_builder.create_gear()
-    project = data_builder.create_project()
-
     # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
+    project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
 
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
@@ -1283,17 +1279,11 @@ def test_job_state_transition_from_complete(data_builder, default_payload, as_ad
     gear = data_builder.create_gear(gear=gear_doc)
 
     # create acq with file (for input)
+    # Projects must have a provider for job/gear uploads to work
+    project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
     acquisition = data_builder.create_acquisition()
 
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
-    assert r.ok
-
-    # Projects must have a provider for job/gear uploads to work
-    r = as_admin.get('/acquisitions/' + acquisition)
-    assert r.ok
-    project = r.json().get('parents').get('project')
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
     assert r.ok
 
     # create job
@@ -2477,14 +2467,11 @@ def test_job_detail(data_builder, default_payload, as_admin, as_user, as_drone, 
         'test_context_value': 3,
         'context': {
             'test_context_value': 'project_context_value'
-        }
-    })
+        }},
+        providers={'storage': 'deadbeefdeadbeefdeadbeef'}
+    )
     session = data_builder.create_session(label='job-detail session')
     acquisition = data_builder.create_acquisition(label='job-detail acquisition')
-
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
 
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.csv')).ok
@@ -2722,15 +2709,11 @@ def test_failed_rule_execution(data_builder, default_payload, as_user, as_admin,
     }
     gear = data_builder.create_gear(gear=gear_doc)
     gear2 = data_builder.create_gear()
-    project = data_builder.create_project()
+    # Projects must have a provider for job/gear uploads to work
+    project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip'))
-    assert r.ok
-
-    # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
-    r = as_admin.put('/projects/' + project, json=update)
     assert r.ok
 
     # create invalid rule for the project

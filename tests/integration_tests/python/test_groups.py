@@ -199,8 +199,8 @@ def test_groups_editions(as_admin):
     assert r.ok
     r = as_admin.get('/groups/' + group_id)
     group = r.json()
-    # By default lab edition is True
-    assert group['editions']['lab'] == True
+    # By default lab edition is False
+    assert group['editions']['lab'] == False
 
 def test_groups_editions_feature(as_admin, data_builder, as_user, with_site_settings, api_db):
     group = data_builder.create_group()

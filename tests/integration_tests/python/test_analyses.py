@@ -8,16 +8,13 @@ import bson
 def test_online_analysis(data_builder, as_admin, as_drone, file_form, api_db, with_site_settings, site_gear):
 
     group = data_builder.create_group()
-    project = data_builder.create_project()
+    project = data_builder.create_project(providers={'storage': 'deadbeefdeadbeefdeadbeef'})
     # Projects must have a provider for job/gear uploads to work
-    update = {'providers': {'storage': 'deadbeefdeadbeefdeadbeef'}}
 
     # Update our specifc gear
     api_db.gears.update({'_id': bson.ObjectId(site_gear)}, {'$set': {'gear.inputs': {'csv': {'base': 'file'}}}})
     gear = site_gear
 
-    r = as_admin.put('/projects/' + project, json=update)
-    assert r.ok
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('input.csv')).ok
