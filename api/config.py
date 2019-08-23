@@ -59,9 +59,10 @@ DEFAULT_CONFIG = {
     },
     'features': {
         # Permanent API features should exist here
-        'job_tickets': True,   # Job completion tickets, which allow a new success/failure flow and advanced profiling.
-        'job_ask': True,       # Job queue /jobs/ask route.
-        'multiproject': False  # Multiproject support
+        'job_tickets': True,     # Job completion tickets, which allow a new success/failure flow and advanced profiling.
+        'job_ask': True,         # Job queue /jobs/ask route.
+        'multiproject': False,   # Multiproject support,
+        'healthcare_api': False, # Google Healthcare API integration
     },
     'persistent': {
         'db_uri':     'mongodb://localhost:27017/scitran',
@@ -129,7 +130,7 @@ def apply_runtime_features(config):
     """Apply any features that must be determined at runtime"""
 
 
-    # TODO: These shold be static constants from the provider class but this creates ciruclar 
+    # TODO: These shold be static constants from the provider class but this creates ciruclar
     # dependencies on the import ordering
     # We short circuit the lookup if there is not the possibility for using signed urls
     # We could do an aggregate but generally simple single queries are faster than aggregates
