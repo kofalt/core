@@ -86,8 +86,9 @@ classdef Finder < handle
         function args = makeArgs_(obj, args)
             % Concatenate filter strings with ','
             filter = {};
+            operators = {'=', '<', '>'}; 
             for i = 1:numel(args)
-                if contains(args{i}, {'=', '<', '>'})
+                if any(cellfun(@(x) ~isempty(strfind(args{i}, x)), operators))
                     filter = [filter; args{i}];
                 else
                     i = i - 1;
