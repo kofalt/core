@@ -198,8 +198,6 @@ class ContainerHandler(base.RequestHandler):
 
         analyses = AnalysisStorage().get_analyses(None, 'subject', cont['_id'])
         acquisitions = cont.get('acquisitions', [])
-        parents = self.storage.get_parents(cont)
-
 
         # Get query params
         states = self.request.GET.getall('states')
@@ -209,13 +207,11 @@ class ContainerHandler(base.RequestHandler):
         limit = int(self.request.params.get('limit', 10000))
         skip = int(self.request.params.get('skip', 0))
 
-
         # Cont refs include 
         # a file on the subject
         # a file on one of the sessions of the subject
         # a file on one of the acquisitions related to those subjects
         # Or the destination of the job is a container in the above hierarchy.
-
         cont_refs = [containerutil.ContainerReference(cont_type, str(cont_id)) for cont_type, cont_id in
                         [('subject', cont['_id'])] +
                         [('analysis', an['_id']) for an in analyses] +
