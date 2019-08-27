@@ -4,12 +4,19 @@ from ..auth import containerauth
 from ..dao.basecontainerstorage import ContainerStorage
 from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException
-#from ..web.request import log_access, AccessType
 from collections import namedtuple
+from ..validators import validate_data
 
 class BulkHandler(base.RequestHandler):
     """
+    Handle that processes bulk operations.
+    The method it assigned based on the dynamically supplied operation
     """
+
+    bulk_operations = {
+        'copy': {
+        }
+    }
 
     def __init__(self, request=None, response=None):
 
@@ -21,18 +28,16 @@ class BulkHandler(base.RequestHandler):
 
         super(BulkHandler, self).__init__(request, response)
 
-
+    @require_login
     def bulk(self, operation, source_cont_name):
         """Entry point for the bulk operations"""
 
+        validate_data(self.payload, 'bulk.json', 'input', 'POST')
 
-        if not getattr(self,
-            ('_' + operation + '_' + source_cont_name + '_to_' +
-             self.payload['destination_container_type']),
-             None):
-
+        method = '_{}_{}_to_{}'.format(operation, source_cont_name,
+                                       self.payload['destination_container_type'])
+        if not getattr(self, method):
             self.abort(501, 'This method is not implemented yet')
-
 
         self.dest_storage = ContainerStorage.factory(self.payload['destination_container_type'])
         self.source_storage = ContainerStorage.factory(source_cont_name)
@@ -50,28 +55,9 @@ class BulkHandler(base.RequestHandler):
 
         self._validate_inputs()
 
-
-        ## This is a stub to hold the assumed uid on the handler. We have multiple uids to check
-        #Handler = namedtuple('Handler', 'uid, scope')
-        #
-        #dest_cont = self.dest_storage.get_el(self.dest_list[0])
-        #source_cont = self.source_storage.get_el(self.source_list[0])
-        ## The container auth takes the object not the name. So we need to load the parent 
-        #self.source_permchecker = containerauth.default_container(Handler(self.source_list[0], self.scope), source_cont)
-        #dest_permchecker = containerauth.default_container(Handler(self.dest_list[0], self.scope), dest_cont)
-
-        #result = dest_permchecker(self.dest_storage.exec_op)('PUT', self.dest_list[0], payload=None)
-        #if result is None:
-        #    raise APIPermissionException('You do not have permission on the destination container')
         ## TODO: perform some permission checks first
         ## TODO: There does not seem to be a bulk perm checker. Do we want to check all the sources first?
-        ## FOr now just check the first one
-        #result = self.source_permchecker(self.source_storage.exec_op)('PUT', self.source_list[0], payload=None)
-        #if result is None:
-        #    raise APIPermissionException('You do not have permission on the destination container')
-
-
-        getattr(self, '_' + operation + '_' + source_cont_name + '_to_' + self.payload['destination_container_type'])()
+        getattr(self, method)()
 
     def _validate_inputs(self):
         """
@@ -131,7 +117,6 @@ class BulkHandler(base.RequestHandler):
 
 
         self.source_storage.move_sessions_to_project(self.source_list, self.dest_list[0], conflict_mode=self.payload.get('conflict_mode'))
-        return True
 
 
     def _move_sessions_to_subjects(self):
@@ -142,5 +127,3 @@ class BulkHandler(base.RequestHandler):
         '''
 
         self.source_storage.move_sessions_to_subject(self.source_list, self.dest_list[0], conflict_mode=None)
-        return True
-

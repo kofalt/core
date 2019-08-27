@@ -352,7 +352,8 @@ class SessionStorage(ContainerStorage):
             'subject': dest_subject_obj['_id'],
             'project': dest_subject_obj['parents']['project'],
             'group': dest_subject_obj['parents']['group'],
-            'permissions': dest_subject_obj['permissions']
+            'permissions': dest_subject_obj['permissions'],
+            'modified': datetime.datetime.utcnow(),
         }}
 
         # Sessions can not have conflicts so just bilndly move them all over to the new subject.
@@ -466,6 +467,7 @@ class SessionStorage(ContainerStorage):
                     'subject': conflict_subject_dest_ids_by_code[code],
                     'parents.subject': conflict_subject_dest_ids_by_code[code],
                     'parents.project': dest_project_obj['_id'],
+                    'parents.group': dest_project_obj['parents']['group'],
                     'project': dest_project_obj['_id'],
                     'permissions': dest_project_obj['permissions']
                 }}
@@ -479,7 +481,6 @@ class SessionStorage(ContainerStorage):
 
                 containerutil.bulk_propagate_changes('sessions', moves, query,
                     update, include_refs=True)
-
 
         # Move subjects just need to have the pointers and permissions adjusted
         query = {}
@@ -498,17 +499,17 @@ class SessionStorage(ContainerStorage):
         # Copy sessions need to be copied including all related sub docs.
         # With mongo 4.1 we can do this in a pipeline.
         # Currently we have to pass the data back and update docs manually
+        new_subjects = []
         for subject in copy_subjects:
             subject_doc = config.db.subjects.find_one({'_id': bson.ObjectId(subject)})
             del subject_doc['_id']
+            subject_doc['_id'] = bson.ObjectId()
             subject_doc['permissions'] = dest_project_obj['permissions']
             subject_doc['project'] = dest_project_obj['_id']
             subject_doc['parents']['group'] = dest_project_obj['parents']['group']
             subject_doc['parents']['project'] = dest_project_obj['_id']
-            # These we need to do one at a time because we need the inserted id.
-            # We could tweak this by creating a placeholder and then updating the unique
-            # placeholder once the final subjects are flushed and have vaild objectIds
-            new_subject = config.db.subjects.insert_one(subject_doc)
+
+            new_subjects.append(subject_doc)
 
             analysis = config.db.analyses.find({'parent.type': 'subject', 'parent.id': subject})
             # We might have a memory issue depending on the size of  anayses we have to move
@@ -518,9 +519,8 @@ class SessionStorage(ContainerStorage):
             page = 50
             for a in analysis:
                 a['_id'] = None
-                a['permissions'] = dest_project_obj['permissions']
-                a['parent']['id'] = new_subject.inserted_id
-                a['parents']['subject'] = new_subject.inserted_id
+                a['parent']['id'] = subject_doc['_id']
+                a['parents']['subject'] = subject_doc['_id']
                 a['parents']['project'] = dest_project_obj['id']
                 a['parents']['group'] = dest_project_obj['parents']['group']
                 if count <= page:
@@ -546,10 +546,14 @@ class SessionStorage(ContainerStorage):
                 'project': dest_project_obj['_id'],
                 'parents.group': dest_project_obj['parents']['group'],
                 'parents.project': dest_project_obj['_id'],
-                'parents.subject': new_subject.inserted_id,
-                'subject': new_subject.inserted_id,
+                'parents.subject': subject_doc['_id'],
+                'subject': subject_doc['_id']
                 }}
             containerutil.bulk_propagate_changes('sessions', moves, query, update, include_refs=True)
+
+        # Save all the new subjects in one call
+        # There will be time where the new containers exist prior to the new subject existing
+        config.db.subjects.insert_many(new_subjects)
 
 
 class AcquisitionStorage(ContainerStorage):
