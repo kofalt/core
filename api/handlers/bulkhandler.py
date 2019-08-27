@@ -6,6 +6,7 @@ from ..web import base
 from ..web.errors import APIPermissionException, APIValidationException
 from collections import namedtuple
 from ..validators import validate_data
+from ..auth import require_privilege, Privilege
 
 class BulkHandler(base.RequestHandler):
     """
@@ -28,7 +29,7 @@ class BulkHandler(base.RequestHandler):
 
         super(BulkHandler, self).__init__(request, response)
 
-    @require_login
+    @require_privilege(Privilege.is_user)
     def bulk(self, operation, source_cont_name):
         """Entry point for the bulk operations"""
 
