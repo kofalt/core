@@ -14,11 +14,6 @@ class BulkHandler(base.RequestHandler):
     The method it assigned based on the dynamically supplied operation
     """
 
-    bulk_operations = {
-        'copy': {
-        }
-    }
-
     def __init__(self, request=None, response=None):
 
         self.payload = request.json_body
@@ -37,7 +32,9 @@ class BulkHandler(base.RequestHandler):
 
         method = '_{}_{}_to_{}'.format(operation, source_cont_name,
                                        self.payload['destination_container_type'])
-        if not getattr(self, method):
+        try:
+            getattr(self, method)
+        except AttributeError:
             self.abort(501, 'This method is not implemented yet')
 
         self.dest_storage = ContainerStorage.factory(self.payload['destination_container_type'])

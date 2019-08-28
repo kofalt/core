@@ -90,7 +90,12 @@ def test_bulk_invalid_operations(as_admin):
     assert r.status_code == 404
 
     # Valid operations and containers that are not implemented yet will give a 501 as opposed to 404
-    r = as_admin.post('/bulk/move/subjects', json={})
+    r = as_admin.post('/bulk/move/subjects', json={
+        "sources": ['anycontainer'],
+        "destination_container_type": "projects",
+        "destinations": ['anyproject'],
+        "conflict_mode": "move"
+        })
     assert not r.ok
     assert r.status_code == 501
 

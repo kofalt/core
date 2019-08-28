@@ -553,7 +553,8 @@ class SessionStorage(ContainerStorage):
 
         # Save all the new subjects in one call
         # There will be time where the new containers exist prior to the new subject existing
-        config.db.subjects.insert_many(new_subjects)
+        if new_subjects:
+            config.db.subjects.insert_many(new_subjects)
 
 
 class AcquisitionStorage(ContainerStorage):

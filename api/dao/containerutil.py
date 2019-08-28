@@ -45,7 +45,7 @@ CONTAINER_HIERARCHY = [
     'acquisitions'
 ]
 
-CONTAINER_PROPAGATE = ('aquisitions', 'sessions', 'subjects', 'projects', 'groups'))
+CONTAINER_PROPAGATE = ('acquisitions', 'sessions', 'subjects', 'projects', 'groups')
 
 # Generate {child: parent} and {parent: child} maps from ordered hierarchy list
 CHILD_FROM_PARENT = {p: CONTAINER_HIERARCHY[ind+1] for ind, p in enumerate(CONTAINER_HIERARCHY[:-1] )}
