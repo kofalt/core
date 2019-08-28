@@ -432,11 +432,7 @@ class SessionStorage(ContainerStorage):
                 }}
             ])
 
-            conflict_session_ids = []
-            for conflict in conflict_sessions:
-                conflict_session_ids.append(conflict['_id'])
-
-            return conflict_session_ids
+            return [conflict['_id'] for conflict in conflict_sessions]
 
         # The id of the subjects in the source that have the same code
         conflict_subject_source_ids = []

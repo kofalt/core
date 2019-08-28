@@ -202,7 +202,6 @@ def list_public_request(exec_op):
 
 
 def validate_container_permissions(containers, container_type, user_id, permission):
-
     """Check if the permission  is allowed for the list of containers.
     Containers must all be of the same type
 
