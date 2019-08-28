@@ -60,3 +60,10 @@ Groups or Projects that do NOT have Lab Edition enabled will be restricted by th
 	* Can not create ad hoc subjects
 	* Can not create ad hoc analyses
 
+
+### Potential Errors
+#### The following gear(s) do not exist
+If you see this error during the upgrade process take note of the gear name that is listed.  You can safely edit the file
+`/opt/flywheel/gear-config.json`
+Remove the offending gear then restart the upgrade process.
+
