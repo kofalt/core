@@ -11,7 +11,8 @@ from api import config
 from process_cursor import process_cursor
 
 AVAILABLE_FIXES = {
-    62: [ 'fix_subject_age_62' ]
+    62: [ 'fix_subject_age_62' ],
+    66: [ 'fix_move_flair_from_measurement_to_feature_66' ]
 }
 
 def get_available_fixes(db_version, applied_fixes):
@@ -177,3 +178,30 @@ def fix_subject_age_62():
     subjects_with_age = config.db.subjects.find({"age": {"$exists": True}})
     process_cursor(subjects_with_age, move_subject_age_to_session)
 
+
+def move_flair_for_files_in_doc(container, container_name):
+    files = container.get('files', [])
+    for file_ in container.get('files', []):
+        classification = file_.get('classification') or {}
+        measurement = classification.get('Measurement')
+        if measurement:
+            if 'FLAIR' in measurement:
+                measurement.remove('FLAIR')
+                if not isinstance(classification.get('Features'), list):
+                    classification['Features'] = []
+                classification['Features'].append('FLAIR')
+    config.db[container_name].update({'_id': container['_id']}, {'$set': {'files': files}})
+    return True
+
+
+def fix_move_flair_from_measurement_to_feature_66():
+    """
+    Move FLAIR from classification.Measurement to classification.Features
+        for MR modality
+    """
+    collection_names = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses']
+    for collection_name in collection_names:
+        cursor = config.db[collection_name].find({'files.classification.Measurement': 'FLAIR'})
+        process_cursor(cursor, move_flair_for_files_in_doc, collection_name)
+
+    config.db.modalities.update({'_id': 'MR'}, {'$pull': {'classification.Measurement': 'FLAIR'}})
