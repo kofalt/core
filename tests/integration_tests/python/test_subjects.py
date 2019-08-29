@@ -352,7 +352,8 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form, with_
         if j['id'] == analysis:
             assert len(j['inputs']) > 0
 
-    # Move the subject to project 2 which has no read permission for the user
+    # Move the subject to project 2 which has read permission for the user
+    # Since project 1 does not have user read input should be filtered
     assert as_admin.put('/subjects/' + subject,
                         json={'project': project2}).ok
 
@@ -364,14 +365,11 @@ def test_subject_jobs(api_db, data_builder, as_admin, as_drone, file_form, with_
         })
     assert r.ok
 
-    print 'project 1 perms'
-    print as_admin.get('/projects/' + project).json()['permissions']
-    print 'project 2 perms'
-    print as_admin.get('/projects/' + project2).json()['permissions']
-    print project2
-    print as_admin.get('/subjects/' + subject).json()['permissions']
-    # TODO: permissions are not propagated
-    api_db.subjects.update({'_id': bson.ObjectId(subject)}, {'$set': {'permissions': [{'access': 'admin', '_id': uid}]}})
+    # TODO: remove this once permission propagte is fixed
+    # This prevents this branch from merging before its resolved
+    proj_perms = as_admin.get('/projects/' + project2).json()['permissions']
+    subj_perms = as_admin.get('/subjects/' + subject).json()['permissions']
+    assert subj_perms == proj_perms
 
     r = as_user.get('/subjects/' + subject + '/jobs')
     assert r.ok
