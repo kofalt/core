@@ -63,7 +63,7 @@ def second_storage_provider(session, api_db, with_site_settings):
         "created": datetime.datetime.utcnow(),
         "config":{"path": new_dir},
         "modified": datetime.datetime.utcnow(),
-        "label":"Local Storage Test",
+        "label":"LocalStorageTest",
         "provider_class":"storage",
         "provider_type":"local",
         "creds": {}
@@ -82,10 +82,9 @@ def with_site_settings(session, api_db):
     if not api_db.get_collection('providers'):
         api_db.create_collection('providers')
 
-    provider = api_db.providers.find_one({'label':'Primary Storage'})
+    provider = api_db.providers.find_one({'label':'PrimaryStorage'})
 
     if not provider:
-
         scheme, bucket_name, path, params = parse_storage_url(persistent_fs_url)
         if scheme == 's3':
             config = {
@@ -123,7 +122,7 @@ def with_site_settings(session, api_db):
             "config": config,
             "creds": creds,
             "modified": datetime.datetime.utcnow(),
-            "label":"Primary Storage",
+            "label":"PrimaryStorage",
             "provider_class":"storage",
             "provider_type": type_
         })
@@ -132,7 +131,7 @@ def with_site_settings(session, api_db):
     else:
         storage_provider_id = provider['_id']
 
-    provider = api_db.providers.find_one({'label': 'Static Compute'})
+    provider = api_db.providers.find_one({'label': 'StaticCompute'})
     if not provider:
         provider = api_db.providers.insert_one({
             "origin": {"type":"system", "id":"system"},
@@ -140,7 +139,7 @@ def with_site_settings(session, api_db):
             "config": {},
             "creds": {},
             "modified": datetime.datetime.utcnow(),
-            "label": "Static Compute",
+            "label": "StaticCompute",
             "provider_class": "compute",
             "provider_type": "static"
         })
@@ -257,14 +256,14 @@ def default_payload():
         'compute_provider': {
             'provider_class': 'compute',
             'provider_type': 'static',
-            'label': 'test compute',
+            'label': 'testcompute',
             'config': {},
             'creds' : {}
         },
         'storage_provider': {
             'provider_class': 'storage',
             'provider_type': 'local',
-            'label': 'test storage',
+            'label': 'teststorage',
             'config': {'path': '/var'},
             'creds': {}
         },

@@ -24,7 +24,7 @@ def _make_provider(cls=ProviderClass.storage.value):
     provider = BaseProvider(
         provider_class=cls,
         provider_type='test',
-        provider_label='test provider',
+        provider_label='testProvider',
         config={'test': 'value'},
         creds={'test': 'value2'})
 
@@ -38,7 +38,7 @@ def _make_compute_provider():
     provider = StaticComputeProvider(
         provider_class='compute',
         provider_type='static',
-        provider_label='test compute provider',
+        provider_label='testComputeProvider',
         config={},
         creds=None)
 
@@ -52,7 +52,7 @@ def _make_storage_provider():
     provider = LocalStorageProvider(
         provider_class='storage',
         provider_type='local',
-        provider_label='test storage provider',
+        provider_label='testStorageProvider',
         config={'path': '/var'},
         creds=None)
 
@@ -126,7 +126,7 @@ def test_storage_provider_mapper_patch(api_db):
 
     try:
         config2 = {'path': '/var/scitran'}
-        provider.label = 'My Provider'
+        provider.label = 'MyProvider'
         provider.config = config2
         mapper.patch(provider_id, provider)
 
@@ -134,7 +134,7 @@ def test_storage_provider_mapper_patch(api_db):
         result = mapper.get(provider_id)
 
         assert result.modified >= result.created
-        assert result.label == 'My Provider'
+        assert result.label == 'MyProvider'
         assert result.config == config2
         assert result.provider_class == ProviderClass.storage.value
     finally:
@@ -155,7 +155,7 @@ def test_provider_mapper_find_all(api_db):
         # This provider is the default site provider so exclude it from our tests if present
         final_results = []
         for result in results:
-            if result.label != 'Primary Storage':
+            if result.label != 'PrimaryStorage':
                 final_results.append(result)
 
         assert len(final_results) == 1
@@ -175,7 +175,7 @@ def test_provider_mapper_find_all(api_db):
         results = list(mapper.find_all())
         final_results = []
         for result in results:
-            if not (result.label == 'Primary Storage' or result.label == 'Static Compute'):
+            if not (result.label == 'PrimaryStorage' or result.label == 'StaticCompute'):
                 final_results.append(result)
         assert len(final_results) == 2
 
@@ -188,12 +188,12 @@ def test_provider_mapper_find_all(api_db):
 def test_provider_factory_error():
     # Non-existent storage
     with pytest.raises(errors.ValidationError):
-        provider = create_provider(ProviderClass.storage.value, 'garbage', 'garbage test', {}, {})
+        provider = create_provider(ProviderClass.storage.value, 'garbage', 'garbagetest', {}, {})
 
 def test_provider_factory_static_compute():
     # Static compute
     test_config = {'value': 'test'}
-    provider = create_provider(ProviderClass.compute.value, 'static', 'compute test', test_config, None)
+    provider = create_provider(ProviderClass.compute.value, 'static', 'computetest', test_config, None)
     assert provider is not None
     assert provider.config == test_config
 
@@ -208,7 +208,7 @@ def test_provider_factory_storage(mocker):
     mock_get_signed = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_signed_url', return_value='url')
     mock_get_info = mocker.patch('api.storage.py_fs.py_fs_storage.PyFsStorage.get_file_info', return_value={'filesize': 100})
     test_config = {'path': local_fs_url}
-    provider = create_provider(ProviderClass.storage.value, 'local', 'local test', test_config, None)
+    provider = create_provider(ProviderClass.storage.value, 'local', 'localtest', test_config, None)
     # The call to create_flywheel_fs is different instances.
     # We can assume it was called if the storage_plugins is created. But it might have been called 2 or more times
     # TODO: find a way to mock an interface function with spy.. the count does not get recorded
@@ -248,7 +248,7 @@ def test_provider_repository_insert_and_update(api_db):
 
         # Try to update non-existent
         with pytest.raises(errors.ResourceNotFound):
-            providers.update_provider(bson.ObjectId(), {'label': 'New Label'})
+            providers.update_provider(bson.ObjectId(), {'label': 'NewLabel'})
 
         # Try to update provider class
         with pytest.raises(errors.ValidationError):
@@ -263,11 +263,11 @@ def test_provider_repository_insert_and_update(api_db):
             providers.update_provider(provider_id, {'config': {'x':'y'}})
 
         # Successful update
-        providers.update_provider(provider_id, {'label': 'New Label', 'config': {'path': '/var'}})
+        providers.update_provider(provider_id, {'label': 'NewLabel', 'config': {'path': '/var'}})
 
         result = mapper.get(provider_id)
         assert result.config == {'path': u'/var'}
-        assert result.label == 'New Label'
+        assert result.label == 'NewLabel'
     finally:
         api_db.providers.remove({'_id': provider_id})
 
@@ -298,7 +298,7 @@ def test_provider_repository_load(api_db):
         # These are the defaults  so exclude from our tests if present
         final_results = [];
         for result in results:
-            if not (result.label == 'Primary Storage' or result.label == 'Static Compute'):
+            if not (result.label == 'PrimaryStorage' or result.label == 'StaticCompute'):
                 final_results.append(result)
         # Adjust once the compute providers are ready
         assert len(final_results) == 2

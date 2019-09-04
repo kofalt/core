@@ -3,14 +3,14 @@ import bson
 VALID_PROVIDER = {
     'provider_class': 'compute',
     'provider_type': 'static',
-    'label': 'My Provider',
+    'label': 'MyProvider',
     'config': {},
     'creds': {}
 }
 VALID_STORAGE_PROVIDER = {
     'provider_class': 'storage',
     'provider_type': 'local',
-    'label': 'My Storage Provider',
+    'label': 'MyStorageProvider',
     'config': {'path': '/var'},
     'creds': {}
 }
@@ -22,7 +22,8 @@ def test_providers_initial_state(as_user, with_site_settings, api_db):
 
     static_provider_id = None
     for provider in r.json():
-        if provider['provider_class'] == 'compute' and provider['label'] == 'Static Compute':
+        if (provider['provider_class'] == 'compute' and
+            provider['label'] == 'StaticCompute'):
             static_provider_id = provider['_id']
 
     assert static_provider_id is not None
