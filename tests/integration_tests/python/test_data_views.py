@@ -1629,3 +1629,70 @@ def test_adhoc_data_view_deleted_container(data_builder, file_form, as_admin):
     # Only the row first the first session that wasn't deleted should be returned
     assert rows[0]['session.id'] == session1
 
+def test_data_view_description(data_builder, as_admin):
+    project = data_builder.create_project(label='test-project-desc')
+
+    # Verify description is persisted and returned
+    desc = 'This is a test descritpion that should be returned in as is' 
+    r = as_admin.post('/containers/{}/views'.format(project), json={
+        'label': 'just a test',
+        'columns': [
+            { 'src': 'project.label', 'dst': 'project' },
+        ],
+        'description': desc
+    })
+    assert r.ok
+    r = as_admin.get('/views/' + r.json()['_id'])
+    assert r.ok
+    assert r.json()['description'] == desc
+    r = as_admin.delete('/views/' + r.json()['_id'])
+    assert r.ok
+
+
+def test_data_view_origin(data_builder, as_admin, as_user, as_device):
+    project = data_builder.create_project(label='test-project-origin')
+    r = as_admin.post('/containers/{}/views'.format(project), json={
+        'label': 'test view',
+        'columns': [
+            {'src': 'project.label', 'dst': 'project'},
+        ]
+    })
+    assert r.ok
+    r = as_admin.get('/views/' + r.json()['_id'])
+    assert r.ok
+    assert r.json()['origin'] == {'id': 'admin@user.com', 'type': 'user'}
+    r = as_admin.delete('/views/' + r.json()['_id'])
+    assert r.ok
+
+    # Verify origin as user
+    r = as_admin.post('/projects/{}/permissions'.format(project),
+                      json={'_id': 'user@user.com', 'access': 'rw'})
+    assert r.ok
+    r = as_user.post('/containers/{}/views'.format(project), json={
+        'label': 'test view',
+        'columns': [
+            {'src': 'project.label', 'dst': 'project'},
+        ]
+    })
+    assert r.ok
+    r = as_admin.get('/views/' + r.json()['_id'])
+    assert r.ok
+    assert r.json()['origin'] == {'id': 'user@user.com', 'type': 'user'}
+    r = as_admin.delete('/views/' + r.json()['_id'])
+    assert r.ok
+
+    # Verify origin as device
+    r = as_device.post('/containers/{}/views'.format(project), json={
+        'label': 'test view',
+        'columns': [
+            {'src': 'project.label', 'dst': 'project'},
+        ]
+    })
+    assert r.ok
+    r = as_admin.get('/views/' + r.json()['_id'])
+    assert r.ok
+    assert r.json()['origin']
+    assert r.json()['origin']['type'] == 'device'
+    assert r.json()['origin']['id']
+    r = as_admin.delete('/views/' + r.json()['_id'])
+    assert r.ok

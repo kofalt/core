@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions": {
+    "origin": {
+        "type": "object",
+        "properties": {
+            "type": {
+                "type": "string"
+            },
+            "id": {
+                "type": ["string", "null"]
+            }
+        },
+        "required": [ "type" ],
+        "additionalProperties": false
+    }
+  }
+}
