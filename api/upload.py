@@ -155,7 +155,7 @@ def process_upload(request, strategy, access_logger, container_type=None, id_=No
             field.provider_id = final_storage.provider_id
 
         field.mimetype = util.guess_mimetype(field.filename)  # TODO: does not honor metadata's mime type if any
-        field.modified = timestamp
+        field.created = field.modified = timestamp
 
         # create a file-attribute map commonly used elsewhere in the codebase.
         # Stands in for a dedicated object... for now.
@@ -392,6 +392,7 @@ def make_file_attrs(field, origin):
         '_id': field.uuid,
         'provider_id': field.provider_id,
         'name': field.filename,
+        'created': field.created,
         'modified': field.modified,
         'size': field.size,
         'mimetype': field.mimetype,

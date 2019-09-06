@@ -1,6 +1,7 @@
 import webapp2
 import webapp2_extras.routes
 
+from .callbacks                         import VirusScanCallbackHandler
 from .handlers.abstractcontainerhandler import AbstractContainerHandler
 from .handlers.collectionshandler       import CollectionsHandler
 from .handlers.confighandler            import Config, Version
@@ -400,6 +401,11 @@ endpoints = [
         route('/subjects/master-code', MasterSubjectCodeHandler, m=['GET', 'POST']),
         prefix('/subjects/master-code', [
             route('/<_id:[^/]+>',      MasterSubjectCodeHandler, h='verify_code', m=['GET'])
+        ]),
+
+        # Callbacks
+        prefix('/callbacks/virus-scan', [
+            route('/<cont_name:{cname}>/<cid:{oid}>/<list_name:files>/<name:{fname}>', VirusScanCallbackHandler, m=['POST']),
         ]),
     ]),
 ]
