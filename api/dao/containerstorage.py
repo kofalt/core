@@ -482,27 +482,11 @@ class SessionStorage(ContainerStorage):
             # subject id,  parent, project, and permissions
             # But we need to find the ID of the subject in the dest project first.
             for code in conflict_subject_codes:
-                query = {
-                    'parents.subject': source_subject_id_by_code[code],
-                    '_id': {'$in': source_list}
-                }
-                update = {'$set': {
-                    'subject': conflict_subject_dest_ids_by_code[code],
-                    'parents.subject': conflict_subject_dest_ids_by_code[code],
-                    'parents.project': dest_project_obj['_id'],
-                    'project': dest_project_obj['_id'],
-                    'permissions': dest_project_obj['permissions']
-                }}
-
-                moves = []
-                sessions = config.db.sessions.find({
-                    'subject': source_subject_id_by_code[code],
-                    '_id': {'$in': source_list}}, projection={'_id': 1})
-                for session in sessions:
-                    moves.append(session['_id'])
-
-                containerutil.bulk_propagate_changes('sessions', moves, query,
-                    update, include_refs=True)
+                self._move_sessions(
+                    source_list,
+                    source_subject=conflict_subject_dest_ids_by_code[code],
+                    dest_subject=conflict_subject_dest_ids_by_code[code],
+                    dest_project=dest_project_obj)
 
 
         # Move subjects just need to have the pointers and permissions adjusted
@@ -517,18 +501,49 @@ class SessionStorage(ContainerStorage):
         }
 
         containerutil.bulk_propagate_changes('subjects', move_subjects, query,
-             update, include_refs=True)
+                                             update, include_refs=True)
 
+
+        self._copy_subjects(subjects=copy_subjects, dest_project=dest_project_obj)
+
+
+    def _move_sessions(self, session_list, source_subject, dest_subject, dest_project):
+        query = {
+            'parents.subject': source_subject,
+            '_id': {'$in': session_list}
+        }
+        update = {'$set': {
+            'subject': dest_subject,
+            'parents.subject': dest_subject,
+            'parents.project': dest_project['_id'],
+            'project': dest_project['_id'],
+            'permissions': dest_project['permissions']
+        }}
+
+        moves = []
+        sessions = config.db.sessions.find({
+            'subject': source_subject,
+            '_id': {'$in': session_list}}, projection={'_id': 1})
+        for session in sessions:
+            moves.append(session['_id'])
+
+        containerutil.bulk_propagate_changes('sessions', moves, query,
+            update, include_refs=True)
+
+    def _copy_subjects(self, subjects, dest_project):
         # Copy sessions need to be copied including all related sub docs.
         # With mongo 4.1 we can do this in a pipeline.
         # Currently we have to pass the data back and update docs manually
-        for subject in copy_subjects:
+
+        source_list = [s['_id'] for s in subjects] 
+
+        for subject in subjects:
             subject_doc = config.db.subjects.find_one({'_id': bson.ObjectId(subject)})
             del subject_doc['_id']
-            subject_doc['permissions'] = dest_project_obj['permissions']
-            subject_doc['project'] = dest_project_obj['_id']
-            subject_doc['parents']['group'] = dest_project_obj['parents']['group']
-            subject_doc['parents']['project'] = dest_project_obj['_id']
+            subject_doc['permissions'] = dest_project['permissions']
+            subject_doc['project'] = dest_project['_id']
+            subject_doc['parents']['group'] = dest_project['parents']['group']
+            subject_doc['parents']['project'] = dest_project['_id']
             # These we need to do one at a time because we need the inserted id.
             # We could tweak this by creating a placeholder and then updating the unique
             # placeholder once the final subjects are flushed and have vaild objectIds
@@ -542,11 +557,11 @@ class SessionStorage(ContainerStorage):
             page = 50
             for a in analysis:
                 a['_id'] = None
-                a['permissions'] = dest_project_obj['permissions']
+                a['permissions'] = dest_project['permissions']
                 a['parent']['id'] = new_subject.inserted_id
                 a['parents']['subject'] = new_subject.inserted_id
-                a['parents']['project'] = dest_project_obj['id']
-                a['parents']['group'] = dest_project_obj['parents']['group']
+                a['parents']['project'] = dest_project['id']
+                a['parents']['group'] = dest_project['parents']['group']
                 if count <= page:
                     insert_analyses.append(a)
                 else:
@@ -566,10 +581,10 @@ class SessionStorage(ContainerStorage):
             # Now the sessions can be moved to the new subject with propagation
             query = {}
             update = {'$set': {
-                'permissions': dest_project_obj['permissions'],
-                'project': dest_project_obj['_id'],
-                'parents.group': dest_project_obj['parents']['group'],
-                'parents.project': dest_project_obj['_id'],
+                'permissions': dest_project['permissions'],
+                'project': dest_project['_id'],
+                'parents.group': dest_project['parents']['group'],
+                'parents.project': dest_project['_id'],
                 'parents.subject': new_subject.inserted_id,
                 'subject': new_subject.inserted_id,
                 }}

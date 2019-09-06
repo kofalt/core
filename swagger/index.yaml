@@ -54,6 +54,7 @@ tags:
 
 paths:
   $include:
+    - paths/bulk.yaml
     - paths/login.yaml
     - paths/download.yaml
     - paths/upload-by-label.yaml
