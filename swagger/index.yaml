@@ -12,6 +12,8 @@ consumes:
 - 'application/json'
 
 tags:
+  - name: bulk
+    description: Bulk container operations
   - name: users
     description: User operations
   - name: groups
