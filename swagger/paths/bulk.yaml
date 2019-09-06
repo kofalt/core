@@ -12,7 +12,7 @@ $template_arguments:
             in: body 
             required: true
             schema:
-                $ref: schemas/input/bulk.json#subject-move
+                $ref: schemas/input/bulk.json
         responses:
           '200':
             description: ''
