@@ -682,7 +682,10 @@ class Queue(object):
         for job in jobs:
             tmp_inputs = []
             for i in job['inputs']:
-                if i['id'] not in bad_inputs:
+                if i['id'] in bad_inputs:
+                    # The config inputs stores the details for the input
+                    del job['config']['inputs'][i['input']]
+                else:
                     tmp_inputs.append(i)
             job['inputs'] = tmp_inputs
         return jobs

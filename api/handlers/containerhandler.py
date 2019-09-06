@@ -162,6 +162,15 @@ class ContainerHandler(base.RequestHandler):
                     ]
         jobs = Queue.search_containers(cont_refs, states=states, tags=tags, limit=limit, skip=skip)
 
+        # create a map of analyses and acquisitions by _id
+        containers = None
+        if join_cont:
+            containers = analyses + acquisitions
+        return self._process_unique_jobs(jobs=jobs, join_gears=join_gears, containers=containers)
+
+
+    def _process_unique_jobs(self, jobs, join_gears, containers=None):
+
         unique_jobs = {}
         gear_ids = set()
         for job in jobs:
@@ -176,28 +185,23 @@ class ContainerHandler(base.RequestHandler):
         if join_gears:
             gears = config.db.gears.find({'_id': {'$in': [bson.ObjectId(gear_id) for gear_id in gear_ids]}})
             response['gears'] = {str(gear['_id']): gear for gear in gears}
-        if join_cont:
-            # create a map of analyses and acquisitions by _id
-            containers = {str(cont['_id']): cont for cont in analyses + acquisitions}
-            for container in containers.itervalues():
+        if containers:
+            response['containers'] = {}
+            for c in containers:
                 # No need to return perm arrays
-                container.pop('permissions', None)
-            response['containers'] = containers
+                c.pop('permissions', None)
+                response['containers'][str(c['_id'])] = c
         return response
 
 
-    def get_jobs_by_subject(self, cid):
-        # Same as get_jobs but for the subject container
-        self.config = self.container_handler_configurations['subjects']
+    def get_jobs_by_project(self, cid):
+        # Same as get_jobs but for the project level container with potential filters
+        self.config = self.container_handler_configurations["projects"]
         self.storage = self.config['storage']
         cont = self._get_container(cid, projection={'files': 0, 'metadata': 0}, get_children=True)
-
         permchecker = self._get_permchecker(cont)
 
         permchecker(noop)('GET', cid)
-
-        analyses = AnalysisStorage().get_analyses(None, 'subject', cont['_id'])
-        acquisitions = cont.get('acquisitions', [])
 
         # Get query params
         states = self.request.GET.getall('states')
@@ -207,40 +211,69 @@ class ContainerHandler(base.RequestHandler):
         limit = int(self.request.params.get('limit', 10000))
         skip = int(self.request.params.get('skip', 0))
 
+        allowed_levels = ['acquisition', 'session', 'subject']
+        lowest_level = None
+        lowest_id = None
+        parent_query = {'parents.project': bson.ObjectId(cid)}
+        analysis_levels = ['project', 'subject', 'session', 'acquisition']
+        for level, search in self.pagination.get('filter', {}).items():
+            if level not in allowed_levels:
+                # TODO: make this clean
+                raise Exception('invalid filter parameter for this endpoint')
+
+            if lowest_level is None or allowed_levels.index(level) < allowed_levels.index(lowest_level):
+                lowest_level = level
+                lowest_id = search
+        if lowest_level:
+            parent_query['_id'] = lowest_id
+            del parent_query['parents.' + lowest_level]
+
+        cont_set = []
+        subject_refs = []
+        session_refs = []
+        acquisition_refs = []
+        projection = {'_id': 1}
+        if join_cont:
+            projection = {}
+        subjects = containerstorage.SubjectStorage().get_all_el(parent_query, None, projection)
+        for s in subjects:
+            subject_refs.append(s['_id'])
+            cont_set.append(s['_id'])
+        sessions = containerstorage.SessionStorage().get_all_el(parent_query, None, projection)
+        for s in sessions:
+            session_refs.append(s['_id'])
+            cont_set.append(s['_id'])
+        acquisitions = containerstorage.AcquisitionStorage().get_all_el(parent_query, None, projection)
+        for a in acquisitions:
+            acquisition_refs.append(a['_id'])
+            cont_set.append(a['_id'])
+
+        # TODO: fully validate this is the correct set
+        analyses = AnalysisStorage().get_all_el(
+            {'parent.type': {'$in': analysis_levels},
+            'parent.id': {'$in': cont_set}}, None, {'_id': 1})
+
         # Cont refs include 
         # a file on the subject
         # a file on one of the sessions of the subject
         # a file on one of the acquisitions related to those subjects
         # Or the destination of the job is a container in the above hierarchy.
         cont_refs = [containerutil.ContainerReference(cont_type, str(cont_id)) for cont_type, cont_id in
-                        [('subject', cont['_id'])] +
-                        [('analysis', an['_id']) for an in analyses] +
-                        [('acquisition', aq['_id']) for aq in acquisitions]
+                     [('subject', s) for s in subject_refs] +
+                     [('session', s) for s in session_refs] +
+                     [('acquisition', aq) for aq in acquisition_refs] +
+                     [('analysis', an['_id']) for an in analyses]
                     ]
-        jobs = Queue.search_containers(cont_refs, states=states, tags=tags,
+        jobs = []
+        if cont_refs:
+            jobs = Queue.search_containers(cont_refs, states=states, tags=tags,
                 limit=limit, skip=skip, user_id=self.uid)
 
-        unique_jobs = {}
-        gear_ids = set()
-        for job in jobs:
-            if job['_id'] not in unique_jobs:
-                clean_job = remove_potential_phi_from_job(job)
-                unique_jobs[job['_id']] = Job.load(clean_job)
-                if clean_job.get('gear_id') and clean_job['gear_id'] not in gear_ids:
-                    gear_ids.add(clean_job['gear_id'])
-
-        response = {'jobs': unique_jobs.values()}
-        if join_gears:
-            gears = config.db.gears.find({'_id': {'$in': [bson.ObjectId(gear_id) for gear_id in gear_ids]}})
-            response['gears'] = {str(gear['_id']): gear for gear in gears}
+        # create a map of containers by _id
+        containers = None
         if join_cont:
-            # create a map of analyses and acquisitions by _id
-            containers = {str(cont['_id']): cont for cont in analyses + acquisitions}
-            for container in containers.itervalues():
-                # No need to return perm arrays
-                container.pop('permissions', None)
-            response['containers'] = containers
-        return response
+            containers = analyses + acquisitions + sessions + subjects
+        return self._process_unique_jobs(jobs=jobs, join_gears=join_gears, containers=containers)
 
 
     def get_all(self, cont_name, par_cont_name=None, par_id=None):
