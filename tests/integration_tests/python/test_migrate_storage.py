@@ -5,8 +5,9 @@ import sys
 import fs.move
 import fs.path
 import pytest
+import pymongo
 
-from api import util
+from api import config, util
 from api.site.storage_provider_service import StorageProviderService
 from api.site.providers import get_provider
 from bson.objectid import ObjectId
@@ -124,13 +125,15 @@ def files_to_migrate(data_builder, api_db, as_admin, randstr, file_form):
             pass
 
 
-def test_migrate_containers(
-    files_to_migrate, as_admin, migrate_storage, second_storage_provider):
-    """Testing collection migration"""
-    # get file stored by uuid in storage
-    (_, _, url_2, file_path_2, src_provider_id, file_id_2) = files_to_migrate[0]
 
-    source_fs = get_provider(src_provider_id).storage_plugin
+
+def test_migrate_containers(files_to_migrate, as_admin, migrate_storage, second_storage_provider):
+    """Testing collection migration"""
+
+    # get file stored by uuid in storage
+    (_, _, url_2, file_path_2, provider_id, file_id_2) = files_to_migrate[0]
+
+    source_fs = get_provider(provider_id).storage_plugin
     dest_fs = get_provider(second_storage_provider).storage_plugin
 
     # get the ticket
@@ -141,19 +144,13 @@ def test_migrate_containers(
     assert as_admin.get(url_2, params={'ticket': ticket}).ok
 
     # run the migration
-    migrate_storage.main(
-        '--containers',
-        '--source', src_provider_id,  # Filters on id to avoid migrating other test data in DB
-        '--destination', second_storage_provider
-    )
+    migrate_storage.main('--containers', '--destination', second_storage_provider)
+
     # Verify source file is not deleted
     assert source_fs.get_file_info(file_id_2, None) is not None
 
     # delete files from the source storage to clean up
     source_fs.remove_file(file_id_2, None)
-
-    # Verify file was moved to destination
-    assert dest_fs.get_file_info(file_id_2, None) is not None
 
     # get the files from the new filesystem
     # get the ticket
