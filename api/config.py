@@ -63,7 +63,7 @@ DEFAULT_CONFIG = {
         'job_tickets': True,   # Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,       # Job queue /jobs/ask route.
         'multiproject': False, # Multiproject support
-        'virus_scan': True,    # Scan files uploaded by users for viruses
+        'virus_scan': False,   # Scan files uploaded by users for viruses
     },
     'persistent': {
         'db_uri':     'mongodb://localhost:27017/scitran',

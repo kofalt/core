@@ -1,10 +1,9 @@
 from urllib import urlencode
 from urlparse import urljoin
 
-from .. import config
+from .. import config, signed_urls
 from ..dao import containerutil
 from ..site.providers.repository import get_provider
-from ..util import generate_signed_url
 from .base import BaseWebhook
 
 
@@ -33,10 +32,10 @@ class VirusScanWebhook(BaseWebhook):
             'container_id': parent_container['_id'],
             'file_name': file_info['name']
         }
-        signed_dowload_url = generate_signed_url(
+        signed_dowload_url = signed_urls.generate_signed_url(
             self._build_url(self.download_link_tempalte, **url_params)
         )
-        signed_response_url = generate_signed_url(
+        signed_response_url = signed_urls.generate_signed_url(
             self._build_url(self.response_link_tempalte, **url_params),
             method='POST'
         )

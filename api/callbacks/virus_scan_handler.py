@@ -1,18 +1,16 @@
 
-from .. import config, util
+from .. import signed_urls
 from ..dao.liststorage import FileStorage
 from ..web import base, errors
 
 
 class VirusScanCallbackHandler(base.RequestHandler):
     def post(self, cont_name, list_name, **kwargs):
-        util.verify_signed_url(self.request.url, 'POST')
-        _id = kwargs.pop('cid')
-        signature = self.get_param('signature')
-        filename = kwargs.get('name')
-        if not signature:
+        if not (self.get_param('signature') and self.get_param('expires')):
             raise errors.APIPermissionException
 
+        signed_urls.verify_signed_url(self.request.url, 'POST')
+        _id = kwargs.pop('cid')
         payload = self.request.json_body
         payload = {
             'virus_scan.state': payload['state']
