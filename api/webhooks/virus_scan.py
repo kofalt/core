@@ -1,9 +1,7 @@
-from urllib import urlencode
 from urlparse import urljoin
 
 from .. import config, signed_urls
 from ..dao import containerutil
-from ..site.providers.repository import get_provider
 from .base import BaseWebhook
 
 

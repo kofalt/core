@@ -7,13 +7,11 @@ import os
 import random
 import re
 import string
-import time
 import uuid
 
 import requests
 
 import bson
-import config
 import fs.errors
 import fs.path
 import pymongo
@@ -505,7 +503,9 @@ def parse_pagination_int_param(int_param):
 
 class dotdict(dict):
     def __getattr__(self, name):
-        return self[name]
+        if not self.get(name):
+            raise AttributeError
+        return self.get(name)
 
 def origin_to_str(origin):
     """Format an origin dictionary as a string"""

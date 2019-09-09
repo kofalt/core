@@ -11,7 +11,7 @@ import fs.path
 
 from ..types import Origin
 from ..web import base
-from .. import config, files, upload, util, validators
+from .. import config, files, upload, util, validators, signed_urls
 from ..auth import listauth, always_ok
 from ..dao import noop
 from ..dao import liststorage
@@ -433,7 +433,7 @@ class FileListHandler(ListHandler):
                 self.origin = ticket.get('origin')
             permchecker = always_ok
         elif signature:
-            util.verify_signed_url(self.request.url, 'GET')
+            signed_urls.verify_signed_url(self.request.url, 'GET')
             permchecker = always_ok
 
         # Grab fileinfo from db

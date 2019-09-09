@@ -5,7 +5,7 @@ from ..web import base, errors
 
 
 class VirusScanCallbackHandler(base.RequestHandler):
-    def post(self, cont_name, list_name, **kwargs):
+    def post(self, cont_name, **kwargs):
         if not (self.get_param('signature') and self.get_param('expires')):
             raise errors.APIPermissionException
 

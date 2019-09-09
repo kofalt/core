@@ -3,7 +3,6 @@ import json
 from requests import Session
 
 from ..web.encoder import custom_json_serializer
-from .. import config
 
 
 class BaseWebhook(object):
