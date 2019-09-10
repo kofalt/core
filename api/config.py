@@ -82,7 +82,7 @@ DEFAULT_CONFIG = {
         'verify_config': None
     },
     'webhooks': {
-        'virus_scan': 'http://192.168.50.106:5005/virus/scan'
+        'virus_scan': None
     }
 }
 

@@ -227,6 +227,9 @@ def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
 def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, data_builder, file_form):
     # setup
     mock_get_feature = mocker.patch('api.placer.config.get_feature', return_value={'virus_scan': True})
+    mock_config = config.get_config()
+    mock_config['webhooks']['virus_scan'] = 'http://localhost'
+    mock_get_feature = mocker.patch('api.placer.config.get_config', return_value=mock_config)
     mock_webhook_post = mocker.patch('api.webhooks.base.Session.post')
     orig_find = config.db['acquisitions'].find
     def wrap_find(*args, **kwargs):
