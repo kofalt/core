@@ -1256,3 +1256,43 @@ def test_full_project_download(data_builder, file_form, as_admin, as_root, as_dr
     assert analysis_output_json['type'] == 'tabular data'
     assert 'created' in analysis_output_json
     assert 'modified' in analysis_output_json
+
+def test_download_targets(data_builder, as_admin, file_form):
+    project = data_builder.create_project()
+    session1 = data_builder.create_session()
+    session2 = data_builder.create_session()
+    acquisition1 = data_builder.create_acquisition(session=session1)
+    acquisition2 = data_builder.create_acquisition(session=session2)
+    as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form(
+        'file1', meta={'name': 'file1', 'type': 'csv'}))
+    as_admin.post('/acquisitions/' + acquisition2 + '/files', files=file_form(
+        'file2', meta={'name': 'file2', 'type': 'csv'}))
+
+    r = as_admin.post('/download?type=full', json={
+        'optional': False,
+        'nodes': [
+            {'level': 'project', '_id': project}
+        ]
+    })
+    assert r.ok
+    ticket = r.json()['ticket']
+
+    r = as_admin.get('/download/' + ticket + '/targets')
+    assert r.ok
+    targets = r.json()
+
+    assert isinstance(targets, list)
+    assert len(targets) == 2
+    file1, file2 = sorted(targets, key=lambda target: target['filename'])
+
+    assert file1['filename'] == 'file1'
+    assert file1['container_type'] == 'acquisition'
+    assert file1['container_id'] == acquisition1
+    assert 'modified' in file1
+    assert 'dst_path' in file1
+
+    assert file2['filename'] == 'file2'
+    assert file2['container_type'] == 'acquisition'
+    assert file2['container_id'] == acquisition2
+    assert 'modified' in file2
+    assert 'dst_path' in file2

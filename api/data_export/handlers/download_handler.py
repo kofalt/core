@@ -83,3 +83,21 @@ class DownloadHandler(base.RequestHandler):
 
         # Raises if no files are found
         return strategy.create_summary(req_spec, uid)
+
+
+    def get_targets(self, ticket_id):
+        """List all download targets of a ticket"""
+        tickets = DownloadTickets()
+        ticket = tickets.get(ticket_id)
+
+        # Ticket validation
+        if not ticket:
+            raise errors.APINotFoundException('No such download ticket')
+        if ticket.ip != self.request.client_addr:
+            raise errors.InputValidationException('Ticket not for this source IP')
+
+        # TODO consider long target lists:
+        #  - enable filtering
+        #  - split across multiple docs
+        #  - stream multipart json
+        return ticket.targets

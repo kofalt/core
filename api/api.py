@@ -42,6 +42,9 @@ routing_regexes = {
     # Object ID: 24-character hex
     'oid': '[0-9a-f]{24}',
 
+    # UUID: 32 character hex partitioned as 8-4-4-4-12
+    'uuid': '[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}',
+
     # Container name
     'cname': 'groups|projects|subjects|sessions|acquisitions|collections|analyses',
 
@@ -97,6 +100,7 @@ endpoints = [
 
         route('/download',                                      DownloadHandler, h='download',              m=['GET', 'POST']),
         route('/download/summary',                              DownloadHandler, h='summary',               m=['POST']),
+        route('/download/<ticket_id:{uuid}>/targets',           DownloadHandler, h='get_targets',           m=['GET']),
         route('/upload/<strategy:label|uid|uid-match|reaper>',  Upload,          h='upload',                m=['POST']),
         route('/clean-packfiles',                               Upload,          h='clean_packfile_tokens', m=['POST']),
         route('/engine',                                        Upload,          h='engine',                m=['POST']),
