@@ -1,5 +1,12 @@
+import json
+import urlparse
+
+from api import config
+from mock import MagicMock
+
+
 def test_signed_url_reaper_upload(as_drone, mocker, api_db, with_site_settings):
-    
+
     # Upload without signed URLs returns 200 with None as the content
     payload = {
         'metadata': {
@@ -159,7 +166,7 @@ def test_signed_url_analysis_engine_upload(data_builder, file_form, as_drone, mo
         ]
     }
 
-    # Non Signed Url upload will return None 
+    # Non Signed Url upload will return None
     r = as_drone.post('/engine?upload_ticket=&level=%s&id=%s' % ('analysis', session_analysis),
                       json=payload)
 
@@ -217,5 +224,47 @@ def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
     r = as_drone.post('/projects/' + project + '/files?ticket=' + ticket_id)
     assert r.ok
 
-    #We dont have a move interface anymore
-    # assert not mock_move.called
+def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, data_builder, file_form):
+    # setup
+    mock_get_feature = mocker.patch('api.placer.config.get_feature', return_value={'virus_scan': True})
+    mock_webhook_post = mocker.patch('api.webhooks.base.Session.post')
+    orig_find = config.db['acquisitions'].find
+    def wrap_find(*args, **kwargs):
+        return orig_find(args[0])
+    mocker.patch.object(config.db['acquisitions'], 'find', wraps=wrap_find)
+    project = data_builder.create_project()
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition(session=session)
+    # upload file as drone
+    file_name = 'test.csv'
+    r = as_drone.post('/acquisitions/' + acquisition + '/files', POST=file_form(
+        file_name, meta={'name': file_name, 'type': 'csv'}))
+    assert r.ok
+    # file uploaded by drone won't be quarantined
+    r = as_drone.get('/acquisitions/' + acquisition + '/files/test.csv')
+    assert r.ok
+
+    uid = as_user.get('/users/self').json['_id']
+    r = as_drone.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'admin'})
+    assert r.ok
+
+    # upload file as user
+    r = as_user.post('/acquisitions/' + acquisition + '/files', POST=file_form(
+        file_name, meta={'name': file_name, 'type': 'csv'}))
+    assert r.ok
+    # user uploaded file is quarantined
+    r = as_user.get('/acquisitions/' + acquisition + '/files/test.csv')
+    assert not r.ok
+    assert r.status_code == 400
+
+    _, kwargs = mock_webhook_post.call_args_list[0]
+    webhook_payload = json.loads(kwargs['data'])
+    url_parts = list(urlparse.urlparse(webhook_payload['response_url']))
+    response_endpoint = url_parts[2].lstrip('/api')
+    # mark the file as clean using the response endpoint from the webhook
+    r = as_public.post('/{}?{}'.format(response_endpoint, url_parts[4]), json={'state': 'clean'})
+    assert r.ok
+
+    # now the file is accessible
+    r = as_user.get('/acquisitions/' + acquisition + '/files/test.csv')
+    assert r.ok

@@ -11,8 +11,8 @@ class VirusScanWebhook(BaseWebhook):
     """
 
     def __init__(self, callback_url):
-        self.download_link_tempalte = '{container}/{container_id}/files/{file_name}'
-        self.response_link_tempalte = 'callbacks/virus-scan/{container}/{container_id}/files/{file_name}'
+        self.download_link_template = '{container}/{container_id}/files/{file_name}'
+        self.response_link_template = 'callbacks/virus-scan/{container}/{container_id}/files/{file_name}'
         super(VirusScanWebhook, self).__init__([callback_url])
 
     @staticmethod
@@ -31,10 +31,10 @@ class VirusScanWebhook(BaseWebhook):
             'file_name': file_info['name']
         }
         signed_dowload_url = signed_urls.generate_signed_url(
-            self._build_url(self.download_link_tempalte, **url_params)
+            self._build_url(self.download_link_template, **url_params)
         )
         signed_response_url = signed_urls.generate_signed_url(
-            self._build_url(self.response_link_tempalte, **url_params),
+            self._build_url(self.response_link_template, **url_params),
             method='POST'
         )
         return {

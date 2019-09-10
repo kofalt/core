@@ -1,27 +1,28 @@
-import os
-import bson
 import copy
 import datetime
-import dateutil
 import json
+import os
 import uuid
 import zipfile
 
+import bson
+import dateutil
 import fs.path
 
+from .. import config, files, upload, util, validators
+from ..auth import always_ok, listauth
+from ..dao import containerstorage, containerutil, liststorage, noop
+from ..jobs.mappers import RulesMapper
+from ..signed_urls import verify_signed_url
+from ..site import StorageProviderService
+from ..site.providers import get_provider
 from ..types import Origin
 from ..web import base
-from .. import config, files, upload, util, validators, signed_urls
-from ..auth import listauth, always_ok
-from ..dao import noop
-from ..dao import liststorage
-from ..dao import containerutil
-from ..dao import containerstorage
-from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable, APIFileQuarantined
+from ..web.errors import (APIFileQuarantined, APIPermissionException,
+                          APIStorageException, APIUnknownUserException,
+                          RangeNotSatisfiable)
 from ..web.request import AccessType
-from ..jobs.mappers import RulesMapper
-from ..site.providers import get_provider
-from ..site import StorageProviderService
+
 
 def initialize_list_configurations():
     """
@@ -433,7 +434,7 @@ class FileListHandler(ListHandler):
                 self.origin = ticket.get('origin')
             permchecker = always_ok
         elif signature:
-            signed_urls.verify_signed_url(self.request.url, 'GET')
+            verify_signed_url(self.request.url, 'GET')
             permchecker = always_ok
 
         # Grab fileinfo from db

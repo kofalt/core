@@ -405,7 +405,7 @@ endpoints = [
 
         # Callbacks
         prefix('/callbacks/virus-scan', [
-            route('/<cont_name:{cname}>/<cid:{oid}>/<list_name:files>/<name:{fname}>', VirusScanCallbackHandler, m=['POST']),
+            route('/<cont_name:{cname}>/<cid:{oid}>/files/<name:{fname}>', VirusScanCallbackHandler, m=['POST']),
         ]),
     ]),
 ]

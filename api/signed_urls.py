@@ -37,7 +37,7 @@ def verify_signed_url(url, method):
         digestmod=hashlib.sha256
     ).hexdigest()
     if signature != calc_signature:
-        raise errors.APIPermissionException('Invalid siganture')
+        raise errors.APIPermissionException('Invalid signature')
     if expires < time.time():
         raise errors.APIPermissionException('Expired signed url')
 

@@ -1,11 +1,12 @@
 # coding=utf-8
-import bson
 import copy
 import datetime
 import json
 
+import bson
 import dateutil.parser
 import pytest
+
 
 def get_full_container(user, url, index):
     '''

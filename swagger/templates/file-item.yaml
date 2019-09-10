@@ -28,6 +28,8 @@ template: |
         - Make another request with the received ticket id in the "ticket" parameter. A valid "Authorization" header is no longer required.
 
       When "view" is true, [RFC7233](https://tools.ietf.org/html/rfc7233) range request headers are supported.
+
+      When virus_scan feature is enabled the quarantined files only can be downloaded using signed urls otherwise it will return with a HTTP 400 response.
     operationId: download_file_from_{{resource}}
     tags:
     - '{{tag}}'
@@ -55,6 +57,14 @@ template: |
         in: query
         type: string
         description: The filename of a zipfile member to download rather than the entire file
+      - name: signature
+        in: query
+        type: string
+        description: Url's signature (signed download url)
+      - name: expires
+        in: query
+        type: string
+        description: Signed url expiration time (epoch time)
     x-sdk-download-ticket: get_{{resource}}_download_ticket
     x-sdk-get-zip-info: get_{{resource}}_file_zip_info
     responses:
@@ -65,6 +75,8 @@ template: |
         examples:
           response:
             $ref: examples/output/file-download.json
+      '400':
+        description: The requested file is quarantined
   post:
     summary: Replace a file
     operationId: replace_{{resource}}_file

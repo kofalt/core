@@ -17,7 +17,7 @@ from .jobs.jobs import Job, JobTicket, Logs
 from .site.storage_provider_service import StorageProviderService
 from .web import encoder
 from .web.errors import FileFormException, APIException
-from .webhooks.virus_scan import VirusScanWebhook
+from .webhooks import VirusScanWebhook
 
 
 CHUNK_SIZE = 1048576

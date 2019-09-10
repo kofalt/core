@@ -60,6 +60,7 @@ paths:
     - paths/upload-by-reaper.yaml
     - paths/upload-by-uid.yaml
     - paths/upload-match-uid.yaml
+    - paths/callbacks.yaml
     - paths/clean-packfiles.yaml
     - paths/engine.yaml
     - paths/config.yaml
