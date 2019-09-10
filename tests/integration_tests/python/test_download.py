@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 import tarfile
+import time
 import zipfile
 
 from bson.objectid import ObjectId
@@ -792,6 +793,31 @@ def test_filters(data_builder, file_form, as_user, as_admin, with_site_settings)
     })
     assert r.ok
     assert r.json()['file_cnt'] == 3
+
+    # Filter by modified since
+    now = int(time.time())
+    r = as_user.post('/download', json={
+        'optional': False,
+        'filters': [
+            {'since': now - 1}
+        ],
+        'nodes': [
+            {'level': 'session', '_id': session},
+        ]
+    })
+    assert r.ok
+    assert r.json()['file_cnt'] == 3
+
+    r = as_user.post('/download', json={
+        'optional': False,
+        'filters': [
+            {'since': now + 1}
+        ],
+        'nodes': [
+            {'level': 'session', '_id': session},
+        ]
+    })
+    assert r.status_code == 404
 
     # Filter by tags
     r = as_user.post('/download', json={

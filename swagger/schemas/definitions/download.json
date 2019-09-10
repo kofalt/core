@@ -40,7 +40,8 @@
             "type": "object",
             "properties": {
                 "tags": {"$ref": "#/definitions/filter-definition"},
-                "types": {"$ref": "#/definitions/filter-definition"}
+                "types": {"$ref": "#/definitions/filter-definition"},
+                "since": {"type": "number"}
             }
         },
         "download-input": {

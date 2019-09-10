@@ -97,7 +97,6 @@ class DownloadHandler(base.RequestHandler):
             raise errors.InputValidationException('Ticket not for this source IP')
 
         # TODO consider long target lists:
-        #  - enable filtering
         #  - split across multiple docs
         #  - stream multipart json
         return ticket.targets

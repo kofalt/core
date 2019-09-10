@@ -1,5 +1,8 @@
 """Provides utility functions for filtering container file lists"""
 
+import datetime
+
+
 def filtered_files(container, filters):
     """Get a set of files on the given container that match the given filters.
 
@@ -21,7 +24,8 @@ def filtered_files(container, filters):
             for filter_ in filters:
                 type_as_list = [f['type']] if f.get('type') else []
                 if (file_filter_check(filter_.get('tags', {}), f.get('tags', [])) and
-                        file_filter_check(filter_.get('types', {}), type_as_list)):
+                        file_filter_check(filter_.get('types', {}), type_as_list) and
+                        file_modified_since(filter_.get('since'), f.get('modified'))):
                     included = True
                     break
         else:
@@ -48,7 +52,7 @@ def file_filter_check(property_filter, property_values):
         property_values (list): The set of property values to test against
 
     Returns:
-        bool: True if the the file should be included based on property values.
+        bool: True if the file should be included based on property values.
     """
     minus = set(property_filter.get('-', []) + property_filter.get('minus', []))
     plus = set(property_filter.get('+', []) + property_filter.get('plus', []))
@@ -60,4 +64,19 @@ def file_filter_check(property_filter, property_values):
         return False
     if plus and plus.isdisjoint(property_values):
         return False
+    return True
+
+
+def file_modified_since(since, file_modified):
+    """Check if file modification time is more recent than the filter epoch.
+
+    Args:
+        since (int): The filter epoch to compare against
+        file_modified (datetime.datetime): The file modification time
+
+    Returns:
+        bool: True if the file was modified after the filter epoch.
+    """
+    if since is not None and file_modified is not None:
+        return file_modified > datetime.datetime.utcfromtimestamp(since)
     return True
