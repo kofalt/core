@@ -442,7 +442,7 @@ class FileListHandler(ListHandler):
         if not fileinfo:
             self.abort(404, 'no such file')
 
-        if config.get_feature('virus_scan'):
+        if config.get_feature('virus_scan', False):
             virus_scan_state = fileinfo.get('virus_scan', {}).get('state')
             if virus_scan_state and virus_scan_state != 'clean' and ((not ticket_id and not signature) or ticket_id):
                 raise APIFileQuarantined

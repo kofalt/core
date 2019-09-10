@@ -99,13 +99,13 @@ class Placer(object):
             if not callback_url:
                 raise APIException('Callback url for virus scan webhook is not configured')
             webhook = VirusScanWebhook(callback_url)
-            failuers = webhook.call(file_info=file_attrs, parent={
+            failures = webhook.call(file_info=file_attrs, parent={
                 'type': self.container_type,
                 '_id': self.id_
             })
             file_attrs['virus_scan'] = {
                 'state': 'quarantined',
-                'webhoook_sent': not failuers
+                'webhoook_sent': not failures
             }
 
     def save_file(self, file_attrs=None, ignore_hash_replace=False):

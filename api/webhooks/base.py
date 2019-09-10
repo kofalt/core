@@ -15,12 +15,12 @@ class BaseWebhook(object):
 
     def call(self, *args, **kwargs):
         raise_for_status = kwargs.pop('raise_for_status', False)
-        failuers = []
+        failures = []
         for url in self.callback_urls:
             payload = self.build_request_body(*args, **kwargs)
             r = self.session.post(url, data=json.dumps(payload, default=custom_json_serializer))
             if raise_for_status:
                 r.raise_for_status()
             if not r.ok:
-                failuers.append(r)
-        return failuers
+                failures.append(r)
+        return failures
