@@ -97,7 +97,9 @@ class Placer(object):
         if self.origin['type'] == 'user':
             callback_url = config.get_config()['webhooks']['virus_scan']
             if not callback_url:
-                raise APIException('Callback url for virus scan webhook is not configured')
+                msg = 'Callback url for virus scan webhook is not configured.'
+                config.log.critical(msg)
+                raise APIException(msg)
             webhook = VirusScanWebhook(callback_url)
             failures = webhook.call(file_info=file_attrs, parent={
                 'type': self.container_type,

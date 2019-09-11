@@ -228,7 +228,7 @@ def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, da
     # setup
     mock_get_feature = mocker.patch('api.placer.config.get_feature', return_value={'virus_scan': True})
     mock_config = config.get_config()
-    mock_config['webhooks']['virus_scan'] = 'http://localhost'
+    mock_config['webhooks']['virus_scan'] = None
     mock_get_feature = mocker.patch('api.placer.config.get_config', return_value=mock_config)
     mock_webhook_post = mocker.patch('api.webhooks.base.Session.post')
     orig_find = config.db['acquisitions'].find
@@ -238,6 +238,7 @@ def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, da
     project = data_builder.create_project()
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition(session=session)
+
     # upload file as drone
     file_name = 'test.csv'
     r = as_drone.post('/acquisitions/' + acquisition + '/files', POST=file_form(
@@ -250,6 +251,16 @@ def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, da
     uid = as_user.get('/users/self').json['_id']
     r = as_drone.post('/projects/' + project + '/permissions', json={'_id': uid, 'access': 'admin'})
     assert r.ok
+
+    # user uploads fails if not webhook configure
+    r = as_user.post('/acquisitions/' + acquisition + '/files', POST=file_form(
+        file_name, meta={'name': file_name, 'type': 'csv'}))
+    assert not r.ok
+    assert r.status_code == 500
+
+    # set webhook
+    mock_config['webhooks']['virus_scan'] = 'http://localhost'
+    mock_get_feature.return_value = mock_config
 
     # upload file as user
     r = as_user.post('/acquisitions/' + acquisition + '/files', POST=file_form(
