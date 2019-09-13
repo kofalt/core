@@ -5,7 +5,8 @@ from api import config, signed_urls
 
 def test_virus_scan_handler(mocker, data_builder, as_public, file_form):
     # prepare
-    mock_exec_op = mocker.patch('api.callbacks.virus_scan_handler.FileStorage.exec_op')
+    mock_set_virus_scan_state = mocker.patch('api.callbacks.virus_scan_handler.liststorage.FileStorage.set_virus_scan_state')
+    mock_exec_op = mocker.patch('api.callbacks.virus_scan_handler.liststorage.FileStorage.exec_op', return_value={'virus_scan': {'state': 'quarantined'}})
     acquisition_id = '000000000000000000000000'
     endpoint = 'callbacks/virus-scan/acquisitions/{}/files/test.csv'.format(acquisition_id)
     url = urljoin(
@@ -17,20 +18,25 @@ def test_virus_scan_handler(mocker, data_builder, as_public, file_form):
     assert not r.ok
     assert r.status_code == 403
 
-    # valid request, clean
     signed_url = signed_urls.generate_signed_url(url, method='POST')
-    url_parts = list(urlparse.urlparse(signed_url))
-    r = as_public.post('/{}?{}'.format(endpoint, url_parts[4]), json={'state': 'clean'})
+    parsed_url = urlparse.urlparse(signed_url)
+
+    # valid request, clean
+    r = as_public.post('/{}?{}'.format(endpoint, parsed_url.query), json={'state': 'clean'})
     assert r.ok
-    mock_exec_op.assert_called_with('PUT', _id='000000000000000000000000', payload={'virus_scan.state': 'clean'}, query_params={'name': 'test.csv'})
-    mock_exec_op.reset_mock()
+    mock_set_virus_scan_state.assert_called_with(_id='000000000000000000000000', query_params={'name': 'test.csv'}, state='clean')
+    mock_set_virus_scan_state.reset_mock()
 
     # valid request, virus
-    r = as_public.post('/{}?{}'.format(endpoint, url_parts[4]), json={'state': 'virus'})
+    r = as_public.post('/{}?{}'.format(endpoint, parsed_url.query), json={'state': 'virus'})
     assert r.ok
-    mock_exec_op.assert_any_call('PUT', _id='000000000000000000000000', payload={'virus_scan.state': 'virus'}, query_params={'name': 'test.csv'})
-    mock_exec_op.assert_any_call('DELETE', _id='000000000000000000000000', query_params={'name': 'test.csv'})
+    mock_set_virus_scan_state.assert_called_with(_id='000000000000000000000000', query_params={'name': 'test.csv'}, state='virus')
 
     # invalid payload
-    r = as_public.post('/{}?{}'.format(endpoint, url_parts[4]), json={'state': 'wrong state'})
+    r = as_public.post('/{}?{}'.format(endpoint, parsed_url.query), json={'state': 'wrong state'})
+    assert not r.ok
+
+    # state already set
+    mock_exec_op.return_value = {'virus_scan': {'state': 'clean'}}
+    r = as_public.post('/{}?{}'.format(endpoint, parsed_url.query), json={'state': 'virus'})
     assert not r.ok

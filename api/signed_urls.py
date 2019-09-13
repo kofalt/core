@@ -1,9 +1,9 @@
-import datetime
+import base64
 import hashlib
 import hmac
 import time
 import urlparse
-from urllib import quote, urlencode
+from urllib import quote, unquote, urlencode
 
 from . import config
 from .web import errors
@@ -38,15 +38,16 @@ def generate_signed_url(url, method='GET', expires_in=3600):
     :expires_in: seconds until the url is valid
     :returns The generated signed url
     """
-    expires = int(time.time() + datetime.timedelta(seconds=expires_in).total_seconds())
-    url_parts = list(urlparse.urlparse(url))
-    url_parts[2] = quote(url_parts[2])
-    signature = _calc_hash(method, url_parts[1].rsplit(':', 1)[0], url_parts[2], expires)
-    query = dict(urlparse.parse_qsl(url_parts[4]))
+    expires = int(time.time()) + expires_in
+    parsed_url = urlparse.urlparse(url)
+    parsed_url = parsed_url._replace(path=quote(parsed_url.path))  # parsed_url is a namedtuple
+    host_name = parsed_url.netloc.rsplit(':', 1)[0]
+    signature = _calc_hash(method, host_name, parsed_url.path, expires)
+    query = dict(urlparse.parse_qsl(parsed_url.query))
     query['expires'] = expires
-    query['signature'] = signature
-    url_parts[4] = urlencode(query)
-    return urlparse.urlunparse(url_parts)
+    query['signature'] = base64.urlsafe_b64encode(signature)
+    parsed_url = parsed_url._replace(query=urlencode(query))
+    return urlparse.urlunparse(parsed_url)
 
 
 def verify_signed_url(url, method):
@@ -64,18 +65,21 @@ def verify_signed_url(url, method):
     :raises APIPermissionException: If the signature is invalid or the url is expired
     :returns: `True` if the url is valid
     """
-    url_parts = list(urlparse.urlparse(url))
-    query = dict(urlparse.parse_qsl(url_parts[4]))
-    expires = int(query.pop('expires'))
-    signature = query.pop('signature')
-    url_parts[4] = urlencode(query)
-    url = urlparse.urlunparse(url_parts)
-    calc_signature = _calc_hash(method, url_parts[1].rsplit(':', 1)[0], url_parts[2], expires)
-    if signature != calc_signature:
+    parsed_url = urlparse.urlparse(url)
+    query = dict(urlparse.parse_qsl(parsed_url.query))
+    signature = query.pop('signature', None)
+    expires = int(query.pop('expires', 0))
+    if not (signature and expires):
+        raise errors.APIPermissionException
+    parsed_url = parsed_url._replace(path=quote(unquote(parsed_url.path)), query=urlencode(query))
+    url = urlparse.urlunparse(parsed_url)
+    host_name = parsed_url.netloc.rsplit(':', 1)[0]
+    calc_signature = _calc_hash(method, host_name, parsed_url.path, expires)
+    signature = base64.urlsafe_b64decode(unquote(signature))
+    if not hmac.compare_digest(calc_signature, signature):
         raise errors.APIPermissionException('Invalid signature')
     if expires < time.time():
         raise errors.APIPermissionException('Expired signed url')
-
     return True
 
 
@@ -84,4 +88,4 @@ def _calc_hash(method, host, endpoint, expires):
         str(config.get_config()['core']['signed_url_secret']),
         msg='{}:{}:{}:{}'.format(method, host, endpoint, expires),
         digestmod=hashlib.sha256
-    ).hexdigest()
+    ).digest()

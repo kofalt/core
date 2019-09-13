@@ -107,7 +107,7 @@ class Placer(object):
             })
             file_attrs['virus_scan'] = {
                 'state': 'quarantined',
-                'webhoook_sent': not failures
+                'webhook_sent': not failures
             }
 
     def save_file(self, file_attrs=None, ignore_hash_replace=False):

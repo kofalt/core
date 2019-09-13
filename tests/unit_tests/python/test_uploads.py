@@ -224,7 +224,7 @@ def test_signed_url_filelisthandler_upload(as_drone, data_builder, mocker):
     r = as_drone.post('/projects/' + project + '/files?ticket=' + ticket_id)
     assert r.ok
 
-def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, data_builder, file_form):
+def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, as_admin, data_builder, file_form, api_db):
     # setup
     mock_get_feature = mocker.patch('api.placer.config.get_feature', return_value={'virus_scan': True})
     mock_config = config.get_config()
@@ -239,11 +239,31 @@ def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, da
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition(session=session)
 
+    gear_config = {'param': {'type': 'string', 'pattern': '^default|custom$', 'default': 'default'}}
+    gear = data_builder.create_gear(gear={'version': '0.0.1', 'config': gear_config})
+
+    # create rule
+    rule_json = {
+        'gear_id': gear,
+        'name': 'csv-job-trigger-rule',
+        'any': [],
+        'not': [],
+        'all': [
+            {'type': 'file.type', 'value': 'tabular data'},
+        ]
+    }
+
+    r = as_admin.post('/projects/' + project + '/rules', json=rule_json)
+    assert r.ok
+    rule = r.json['_id']
+
     # upload file as drone
     file_name = 'test.csv'
-    r = as_drone.post('/acquisitions/' + acquisition + '/files', POST=file_form(
-        file_name, meta={'name': file_name, 'type': 'csv'}))
+    r = as_drone.post('/acquisitions/' + acquisition + '/files', POST=file_form(file_name))
     assert r.ok
+    # job was created via rule since the file was uploaded by a trusted origin
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 1
     # file uploaded by drone won't be quarantined
     r = as_drone.get('/acquisitions/' + acquisition + '/files/test.csv')
     assert r.ok
@@ -263,9 +283,13 @@ def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, da
     mock_get_feature.return_value = mock_config
 
     # upload file as user
-    r = as_user.post('/acquisitions/' + acquisition + '/files', POST=file_form(
-        file_name, meta={'name': file_name, 'type': 'csv'}))
+    r = as_user.post('/acquisitions/' + acquisition + '/files', POST=file_form((file_name, 'some;content')))
     assert r.ok
+
+    # job was not created via rule since the file is quarantined
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 1
+
     # user uploaded file is quarantined
     r = as_user.get('/acquisitions/' + acquisition + '/files/test.csv')
     assert not r.ok
@@ -273,12 +297,23 @@ def test_upload_with_virus_scan_enabled(mocker, as_public, as_user, as_drone, da
 
     _, kwargs = mock_webhook_post.call_args_list[0]
     webhook_payload = json.loads(kwargs['data'])
-    url_parts = list(urlparse.urlparse(webhook_payload['response_url']))
-    response_endpoint = url_parts[2].lstrip('/api')
-    # mark the file as clean using the response endpoint from the webhook
-    r = as_public.post('/{}?{}'.format(response_endpoint, url_parts[4]), json={'state': 'clean'})
+    # can download the file using the signed url
+    parsed_url = urlparse.urlparse(webhook_payload['file_download_url'])
+    download_endpoint = parsed_url.path.replace('/api', '')
+    r = as_public.get('{}?{}'.format(download_endpoint, parsed_url.query))
+    assert r.ok
+    assert r.body == 'some;content'
+    # can use the signed response url to send back the virus scan result
+    parsed_url = urlparse.urlparse(webhook_payload['response_url'])
+    response_endpoint = parsed_url.path.replace('/api', '')
+    # mark the file as clean using
+    r = as_public.post('{}?{}'.format(response_endpoint, parsed_url.query), json={'state': 'clean'})
     assert r.ok
 
     # now the file is accessible
     r = as_user.get('/acquisitions/' + acquisition + '/files/test.csv')
     assert r.ok
+
+    # job was created via rule since the file is marked as clean
+    gear_jobs = [job for job in api_db.jobs.find({'gear_id': gear})]
+    assert len(gear_jobs) == 2
