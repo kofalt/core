@@ -103,7 +103,7 @@ class ReportHandler(base.RequestHandler):
         else:
             raise NotImplementedError('Report type {} is not supported'.format(report_type))
 
-        if not self.user_is_admin and not report.user_can_generate(self.uid):
+        if not self.user_is_admin and not report.user_can_generate(self.uid, self.roles):
             raise APIPermissionException('User {} does not have permissions to generate report'.format(self.uid))
 
         return report

@@ -49,7 +49,7 @@ class DailyUsageReport(Report):
         except (TypeError, ValueError) as e:
             raise APIReportParamsException('Invalid date specified: {}'.format(e))
 
-    def user_can_generate(self, uid):
+    def user_can_generate(self, uid, roles):
         """
         User generating report must be superuser
         """

@@ -108,9 +108,9 @@ def test_usage_report_permissions(as_user, as_public):
     assert r.status_code == 403
 
 
-def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload):
+def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload, with_site_settings):
     group = data_builder.create_group()
-    project = data_builder.create_project(label='usage', group=group)
+    project = data_builder.create_project(label='usage', group=group, providers={'storage': 'deadbeefdeadbeefdeadbeef'})
     session = data_builder.create_session()
     acquisition = data_builder.create_acquisition()
     analysis = as_admin.post('/sessions/' + session + '/analyses', files=file_form(meta={'label': 'test'})).json()['_id']
@@ -262,13 +262,13 @@ def test_collect_todays_usage(data_builder, file_form, as_user, as_admin, as_dro
     assert row['session_count'] == 1
 
 
-def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload):
+def test_usage_report(data_builder, file_form, as_user, as_admin, as_drone, api_db, default_payload, with_site_settings):
     # Test multiple days that cross a monthly boundary
     # Test center vs group gears
     # Test reaper vs analysis vs uploaded data
 
     group = data_builder.create_group()
-    project = data_builder.create_project(label='usage', group=group)
+    project = data_builder.create_project(label='usage', group=group, providers={'storage': 'deadbeefdeadbeefdeadbeef'})
 
     gear_doc = default_payload['gear']['gear']
     gear_doc['inputs'] = {

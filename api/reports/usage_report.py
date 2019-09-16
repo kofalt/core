@@ -107,7 +107,7 @@ class UsageReport(Report):
 
         return self._center_gears
 
-    def user_can_generate(self, uid):
+    def user_can_generate(self, uid, roles):
         """
         User generating report must be site admin
         """
