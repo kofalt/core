@@ -8,6 +8,7 @@ import zipfile
 
 from bson.objectid import ObjectId
 import pytest
+from requests_toolbelt.multipart.decoder import MultipartDecoder
 
 from api import config, util
 
@@ -1285,16 +1286,12 @@ def test_full_project_download(data_builder, file_form, as_admin, as_root, as_dr
 
 def test_download_targets(data_builder, as_admin, file_form):
     project = data_builder.create_project()
-    session1 = data_builder.create_session()
-    session2 = data_builder.create_session()
-    acquisition1 = data_builder.create_acquisition(session=session1)
-    acquisition2 = data_builder.create_acquisition(session=session2)
-    as_admin.post('/acquisitions/' + acquisition1 + '/files', files=file_form(
-        'file1', meta={'name': 'file1', 'type': 'csv'}))
-    as_admin.post('/acquisitions/' + acquisition2 + '/files', files=file_form(
-        'file2', meta={'name': 'file2', 'type': 'csv'}))
+    session = data_builder.create_session()
+    acquisition = data_builder.create_acquisition()
+    as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(
+        'file', meta={'name': 'file', 'type': 'csv', 'info': {'header': 'test'}}))
 
-    r = as_admin.post('/download?type=full', json={
+    r = as_admin.post('/download', params={'type': 'full', 'metadata': '1'}, json={
         'optional': False,
         'nodes': [
             {'level': 'project', '_id': project}
@@ -1303,22 +1300,24 @@ def test_download_targets(data_builder, as_admin, file_form):
     assert r.ok
     ticket = r.json()['ticket']
 
-    r = as_admin.get('/download/' + ticket + '/targets')
+    r = as_admin.get('/download/' + ticket + '/targets', stream=True)
     assert r.ok
-    targets = r.json()
+    r_parts = MultipartDecoder.from_response(r).parts
 
-    assert isinstance(targets, list)
-    assert len(targets) == 2
-    file1, file2 = sorted(targets, key=lambda target: target['filename'])
+    # NOTE loading all targets instead of iterating for test code simplicity
+    targets = [json.loads(part.content) for part in r_parts]
+    targets.sort(key=lambda target: target['dst_path'], reverse=True)
 
-    assert file1['filename'] == 'file1'
-    assert file1['container_type'] == 'acquisition'
-    assert file1['container_id'] == acquisition1
-    assert 'modified' in file1
-    assert 'dst_path' in file1
+    assert len(targets) == 6
 
-    assert file2['filename'] == 'file2'
-    assert file2['container_type'] == 'acquisition'
-    assert file2['container_id'] == acquisition2
-    assert 'modified' in file2
-    assert 'dst_path' in file2
+    # check metadata sidecars (proj, subj, sess, acq and (acq) file metadata)
+    for i, level in enumerate(('project', 'subject', 'session', 'acquisition', 'acquisition')):
+        assert targets[i]['container_type'] == level
+        assert targets[i]['download_type'] == 'metadata_sidecar'
+        assert targets[i]['dst_path'].endswith('flywheel.json')
+        assert 'metadata' in targets[i]
+
+    assert targets[5]['container_type'] == 'acquisition'
+    assert targets[5]['download_type'] == 'file'
+    assert targets[5]['dst_path'].endswith('file')
+    assert 'metadata' not in targets[5]

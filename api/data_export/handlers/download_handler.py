@@ -3,10 +3,12 @@
 from ... import io
 from ...web import base, errors
 
-from ..tar_download_writer import TarDownloadWriter
 from ..download_file_source import DownloadFileSource
-from ..strategy import create_download_strategy
+from ..json_target_writer import JsonTargetWriter
 from ..mappers import DownloadTickets
+from ..strategy import create_download_strategy
+from ..tar_download_writer import TarDownloadWriter
+
 
 class DownloadHandler(base.RequestHandler):
     """Handler that implements download endpoints"""
@@ -86,7 +88,7 @@ class DownloadHandler(base.RequestHandler):
 
 
     def get_targets(self, ticket_id):
-        """List all download targets of a ticket"""
+        """List all download targets for a ticket"""
         tickets = DownloadTickets()
         ticket = tickets.get(ticket_id)
 
@@ -96,7 +98,25 @@ class DownloadHandler(base.RequestHandler):
         if ticket.ip != self.request.client_addr:
             raise errors.InputValidationException('Ticket not for this source IP')
 
-        # TODO consider long target lists:
-        #  - resolve metadata sidecars
-        #  - stream multipart json
-        return ticket.targets
+        def response_handler(environ, start_response): # pylint: disable=unused-argument
+            # Start a multipart response and write targets as JSON
+            write = start_response('200 OK', [
+                ('Content-Type', 'multipart/form-data; boundary={}'.format(self.request.id)),
+                ('Connection', 'keep-alive')
+            ])
+
+            # Create the source
+            source = DownloadFileSource(ticket, self.request)
+            out = io.ResponseWriter(write)
+
+            try:
+                writer = JsonTargetWriter(out, self.request.id)
+                writer.write(source)
+                writer.close()
+            except Exception:  # pylint: disable=broad-except
+                # Bury exception and just truncate the response
+                self.log.exception('Error sending targets')
+
+            return ''
+
+        return response_handler

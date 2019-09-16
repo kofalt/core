@@ -1,5 +1,4 @@
 """Provides stream-based opening of download files"""
-import copy
 import json
 import cStringIO
 
@@ -105,6 +104,21 @@ class DownloadFileSource(object):
         else:
             raise OSError('Unexpected download type: {}'.format(target.download_type))
 
+    def get_metadata(self, target):
+        """Get the given (metadata sidecar) target's content"""
+        container = self._find_target_container(target)
+        if not container:
+            raise OSError('Could not resolve target {}={}, filename={}'.format(
+                target.container_type, target.container_id, target.filename))
+
+        # Filter blacklisted keys
+        metadata = container.copy()
+        for key in METADATA_BLACKLIST:
+            if key in metadata:
+                del metadata[key]
+
+        return metadata
+
     def _prefetch(self, target):
         """Prefetch all containers of the given type, if metadata is required"""
         # Right now assumes that anything other than files requires container fetch
@@ -171,17 +185,10 @@ class DownloadFileSource(object):
 
     def _open_metadata_sidecar(self, target):
         """Open the given download 'metadata file' target"""
-        container = self._find_target_container(target)
-        if not container:
-            raise OSError('Could not resolve target {}={}, filename={}'.format(
-                target.container_type, target.container_id, target.filename))
+        metadata = self.get_metadata(target)
 
         # Convert metadata to JSON
-        container = copy.deepcopy(container)
-        for key in METADATA_BLACKLIST:
-            if key in container:
-                del container[key]
-        data = json.dumps(container, indent=2, default=custom_json_serializer)
+        data = json.dumps(metadata, indent=2, default=custom_json_serializer)
 
         # Set the target size at open time
         target.size = len(data)
