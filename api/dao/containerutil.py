@@ -376,6 +376,7 @@ class ContainerReference(object):
     def file_uri(self, filename):
         collection = pluralize(self.type)
         cont = self.get()
+        filename = filename.encode('utf-8')
         if 'parent' in cont:
             par_coll, par_id = pluralize(cont['parent']['type']), cont['parent']['id']
             return '/{}/{}/{}/{}/files/{}'.format(par_coll, par_id, collection, self.id, filename)
