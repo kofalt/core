@@ -77,7 +77,9 @@ def propagate_changes(cont_name, cont_ids, query, update, include_refs=False):
 
     if cont_name in containers[:-1]:
         child_cont = containers[containers.index(cont_name) + 1]
-        child_ids = [c['_id'] for c in config.db[child_cont].find({singularize(cont_name): {'$in': cont_ids}}, [])]
+        child_attr = 'parents.{}'.format(singularize(cont_name))
+        child_ids = [c['_id'] for c in config.db[child_cont].find(
+            {child_attr: {'$in': cont_ids}}, [])]
 
         if child_ids:
             child_query = copy.deepcopy(query)

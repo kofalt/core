@@ -12,7 +12,8 @@ from process_cursor import process_cursor
 
 AVAILABLE_FIXES = {
     62: [ 'fix_subject_age_62' ],
-    66: [ 'fix_move_flair_from_measurement_to_feature_66' ]
+    66: [ 'fix_move_flair_from_measurement_to_feature_66' ],
+    67: [ 'fix_permission_recursion_67']
 }
 
 def get_available_fixes(db_version, applied_fixes):
@@ -205,3 +206,20 @@ def fix_move_flair_from_measurement_to_feature_66():
         process_cursor(cursor, move_flair_for_files_in_doc, collection_name)
 
     config.db.modalities.update({'_id': 'MR'}, {'$pull': {'classification.Measurement': 'FLAIR'}})
+
+
+def fix_permission_recursion_67():
+    """
+    It was discovered that permissions were not propagated correctly when recursing to lower level
+    containers.  This fix will reset the permissions for all containers back to the top project
+    level permissions
+    """
+
+    # We know for sure subjects were effected but we are not sure how far down the levels it goes
+    collection_names = ['subjects', 'sessions', 'acquisitions', 'analyses']
+    for project in config.db['projects'].find({}, {'_id': 1, 'permissions': 1}):
+        project_perms = project['permissions']
+        project_id = project['_id']
+        for collection_name in collection_names:
+            config.db[collection_name].update_many({'parents.project': project_id},
+                    {'$set': {'permissions': project_perms}})

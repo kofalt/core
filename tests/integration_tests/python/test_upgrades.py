@@ -1601,4 +1601,57 @@ def test_fix_move_flair_from_measurement_to_feature_66(api_db, fixes):
     api_db.acquisitions.delete_many({'_id': {'$in': [acquisition_1_id, acquisition_2_id,
                                         acquisition_3_id, acquisition_4_id]}})
 
+def test_fix_permission_recursion_67(api_db, fixes):
 
+    # Create hierarchy
+    valid_perms = [
+        {'_id': 'should-exist', 'access': 'has-it'},
+        {'_id': 'more-exist', 'access': 'has-it'}
+    ]
+
+    invalid_perms = [
+        {'_id': 'invalid-perms', 'access': 'has-it'}
+    ]
+
+    group = 'g1-fix-perms-67'
+    api_db.groups.insert_one({'_id': group})
+    project = bson.ObjectId()
+    api_db.projects.insert_one({
+        '_id': project,
+        'group': group,
+        'permissions': valid_perms
+        })
+
+    subject_with_valid = bson.ObjectId()
+    api_db.subjects.insert_one({
+        '_id': subject_with_valid,
+        'project': project,
+        'group': group,
+        'parents': {'project': project},
+        'permissions': valid_perms
+        })
+
+    subject_with_invalid = bson.ObjectId()
+    api_db.subjects.insert_one({
+        '_id': subject_with_invalid,
+        'project': project,
+        'group': group,
+        'parents': {'project': project},
+        'permissions': invalid_perms
+        })
+
+
+    # Run DB Fix
+    fixes.fix_permission_recursion_67()
+
+    valid = api_db.subjects.find_one({'_id': subject_with_valid})
+    assert valid['permissions'] == valid_perms
+
+    invalid = api_db.subjects.find_one({'_id': subject_with_invalid})
+    assert invalid['permissions'] == valid_perms
+
+
+    #cleanup
+    api_db.subjects.delete_many({'_id': {'$in': [valid, invalid]}})
+    api_db.projects.delete_many({'_id': project})
+    api_db.groups.delete_many({'_id': group})
