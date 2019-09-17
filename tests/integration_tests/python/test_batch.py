@@ -470,7 +470,6 @@ def test_no_input_context_batch(data_builder, default_payload, as_admin, file_fo
     gear_name = randstr()
     gear_doc = default_payload['gear']
     gear_doc['gear']['name'] = gear_name
-    # gear_doc['gear']['inputs']['test_context_value'] = {'base': 'context'}
     gear_doc['gear']['inputs'] = {
         'test_context_value': {
             'base': 'context'
