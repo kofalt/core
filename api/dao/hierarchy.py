@@ -421,6 +421,7 @@ def _create_query(cont, cont_type, parent_type, parent_id, upload_type):
     else:
         raise NotImplementedError('upload type {} is not handled by _create_query'.format(upload_type))
 
+# pylint: disable=unused-argument
 def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timestamp, origin=None):
     cont['modified'] = timestamp
     cont_name = containerutil.pluralize(cont_type)

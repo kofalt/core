@@ -13,7 +13,6 @@ def default_container(handler, container=None, target_parent_container=None):
     on the container before actually executing this method.
     """
     def g(exec_op):
-        # pylint: disable=unused-argument
         def f(method, _id=None, payload=None, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False, origin=None, features=None):
             projection = None
             errors = None
@@ -59,7 +58,7 @@ def default_container(handler, container=None, target_parent_container=None):
                 has_access = False
 
             if has_access:
-                return exec_op(method, _id=_id, payload=payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata, projection=projection)
+                return exec_op(method, _id=_id, payload=payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata, projection=projection, origin=origin, features=features)
             else:
                 error_msg = 'user not authorized to perform a {} operation on the container.'.format(method)
                 raise APIPermissionException(error_msg, errors=errors)
@@ -73,7 +72,7 @@ def collection_permissions(handler, container=None, _=None):
     Permissions are checked on the collection itself or not at all if the collection is new.
     """
     def g(exec_op):
-        def f(method, _id=None, payload = None, origin=None):
+        def f(method, _id=None, payload = None, origin=None, features=None):
             if method == 'GET' and container.get('public', False):
                 has_access = True
             elif method == 'GET':
@@ -88,7 +87,7 @@ def collection_permissions(handler, container=None, _=None):
                 has_access = False
 
             if has_access:
-                return exec_op(method, _id=_id, payload=payload, origin=origin)
+                return exec_op(method, _id=_id, payload=payload, origin=origin, features=features)
             else:
                 handler.abort(403, 'user not authorized to perform a {} operation on the container'.format(method))
         return f
@@ -97,7 +96,7 @@ def collection_permissions(handler, container=None, _=None):
 
 def default_referer(handler, parent_container=None):
     def g(exec_op):
-        def f(method, _id=None, payload=None, origin=None):
+        def f(method, _id=None, payload=None, origin=None, features=None):
             access = _get_access(handler.uid, parent_container, scope=handler.scope)
             if method == 'GET' and parent_container.get('public', False):
                 has_access = True
@@ -109,7 +108,7 @@ def default_referer(handler, parent_container=None):
                 has_access = False
 
             if has_access:
-                return exec_op(method, _id=_id, payload=payload, origin=origin)
+                return exec_op(method, _id=_id, payload=payload, origin=origin, features=features)
             else:
                 handler.abort(403, 'user not authorized to perform a {} operation on parent container'.format(method))
         return f
@@ -154,10 +153,10 @@ def has_any_referer_access(handler, method, container, parent_container):
 
 def any_referer(handler, container=None, parent_container=None):
     def g(exec_op):
-        def f(method, _id=None, payload=None, origin=None):
+        def f(method, _id=None, payload=None, origin=None, features=None):
             # finally we fall back on the default referrer
             if has_any_referer_access(handler, method, container, parent_container):
-                return exec_op(method, _id=_id, payload=payload, origin=origin)
+                return exec_op(method, _id=_id, payload=payload, origin=origin, features=features)
             else:
                 raise APIPermissionException('user not authorized to perform a {} operation on parent container'.format(method))
         return f
@@ -168,9 +167,9 @@ def public_request(handler, container=None):
     For public requests we allow only GET operations on containers marked as public.
     """
     def g(exec_op):
-        def f(method, _id=None, payload=None, origin=None):
+        def f(method, _id=None, payload=None, origin=None, features=None):
             if method == 'GET' and container.get('public', False):
-                return exec_op(method, _id=_id, payload=payload, origin=origin)
+                return exec_op(method, _id=_id, payload=payload, origin=origin, features=features)
             else:
                 handler.abort(403, 'not authorized to perform a {} operation on this container'.format(method))
         return f
@@ -178,7 +177,7 @@ def public_request(handler, container=None):
 
 def list_permission_checker(handler):
     def g(exec_op):
-        def f(method, query=None, user=None, public=False, projection=None, pagination=None):
+        def f(method, query=None, user=None, public=False, projection=None, pagination=None, features=None):
             if handler.scope:
                 query['$or'] = [{'parents.{}'.format(handler.scope['level']): handler.scope['id']},
                                 {'_id': handler.scope['id']}, {'public': True}]
@@ -188,14 +187,14 @@ def list_permission_checker(handler):
                 query['permissions'] = {'$elemMatch': {'_id': handler.uid}}
             if handler.is_true('public'):
                 query['$or'] = [{'public': True}, {'permissions': query.pop('permissions')}]
-            return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination)
+            return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination, features=features)
         return f
     return g
 
 
 def list_public_request(exec_op):
-    def f(method, query=None, user=None, public=False, projection=None, pagination=None):
+    def f(method, query=None, user=None, public=False, projection=None, pagination=None, features=None):
         if public:
             query['public'] = True
-        return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination)
+        return exec_op(method, query=query, user=user, public=public, projection=projection, pagination=pagination, features=features)
     return f
