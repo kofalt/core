@@ -388,6 +388,9 @@ class DataBuilder(object):
         # merge any kwargs on top of the default payload
         payload = copy.deepcopy(_default_payload[resource])
 
+        if resource == 'gear' and kwargs.get('gear', {}).get('inputs') is not None:
+            payload['gear'].pop('inputs')
+
         _merge_dict(payload, kwargs)
 
         # add missing required unique fields using randstr

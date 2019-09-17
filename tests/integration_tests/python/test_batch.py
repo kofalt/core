@@ -118,6 +118,13 @@ def test_batch(data_builder, as_user, as_admin, as_root, as_drone):
         'jobs': [
             {
                 'gear_id': gear,
+                'inputs': {
+                    'text': {
+                        'type': 'acquisition',
+                        'id': acquisition,
+                        'name': 'test.txt'
+                    }
+                },
                 'config': { 'two-digit multiple of ten': 20 },
                 'destination': {
                     'type': 'acquisition',
@@ -463,6 +470,7 @@ def test_no_input_context_batch(data_builder, default_payload, as_admin, file_fo
     gear_name = randstr()
     gear_doc = default_payload['gear']
     gear_doc['gear']['name'] = gear_name
+    # gear_doc['gear']['inputs']['test_context_value'] = {'base': 'context'}
     gear_doc['gear']['inputs'] = {
         'test_context_value': {
             'base': 'context'

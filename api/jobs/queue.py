@@ -16,7 +16,7 @@ from ..dao.containerutil import (
     create_filereference_from_dictionary, create_containerreference_from_dictionary,
     create_containerreference_from_filereference, FileReference
 )
-from .job_util import resolve_context_inputs
+from .job_util import resolve_context_inputs, validate_job_against_gear
 from ..web import errors
 from flywheel_common import errors as flywheel_errors
 from ..site import providers
@@ -216,6 +216,11 @@ class Queue(object):
         # https://github.com/flywheel-io/gears/tree/master/spec#reserved-custom-keys
         if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
             raise errors.InputValidationException('Gear marked as invalid, will not run!')
+
+        if not validate_job_against_gear(job_map, gear.get('gear', {})):
+            log.debug(job_map.get('inputs'))
+            log.debug(gear.get('gear', {}).get('inputs'))
+            raise errors.InputValidationException('Invalid inputs given for the gear')
 
         config_ = job_map.get('config', {})
         validate_gear_config(gear, config_)

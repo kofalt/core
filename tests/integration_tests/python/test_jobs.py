@@ -407,13 +407,13 @@ def test_jobs_full(data_builder, default_payload, as_public, as_user, as_admin, 
             'base': 'made-up'
         }
     }
-    gear3 = str(api_db.gears.insert(gear_doc))
+    gear3 = str(api_db.gears.insert({'gear': gear_doc}))
 
     job6 = copy.deepcopy(job_data)
     job6['gear_id'] = gear3
 
     r = as_admin.post('/jobs/add', json=job6)
-    assert r.status_code == 500
+    assert r.status_code == 400
 
     assert as_admin.delete('/gears/' + gear3).ok
 
@@ -997,13 +997,13 @@ def test_jobs_ask(data_builder, default_payload, as_public, as_user, as_admin, a
             'base': 'made-up'
         }
     }
-    gear3 = str(api_db.gears.insert(gear_doc))
+    gear3 = str(api_db.gears.insert({'gear': gear_doc}))
 
     job6 = copy.deepcopy(job_data)
     job6['gear_id'] = gear3
 
     r = as_admin.post('/jobs/add', json=job6)
-    assert r.status_code == 500
+    assert r.status_code == 400
 
     assert as_admin.delete('/gears/' + gear3).ok
 
@@ -1996,6 +1996,9 @@ def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, a
     gear_doc['inputs'] = {
         "api_key": {
           "base": "api-key"
+        },
+        "text": {
+            "base": "file"
         }
     }
     rw_gear = data_builder.create_gear(gear=gear_doc)
@@ -2005,6 +2008,9 @@ def test_scoped_job_api_key(randstr, data_builder, default_payload, as_public, a
         "api_key": {
           "base": "api-key",
           "read-only": True
+        },
+        "text": {
+            "base": "file"
         }
     }
     ro_gear = data_builder.create_gear(gear=gear_doc)
