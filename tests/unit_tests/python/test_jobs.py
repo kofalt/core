@@ -1,9 +1,11 @@
 import bson
 import mock
+import pytest
 from api.jobs import job_util
+from api.web import errors
 
 
-def test_validate_job_against_gear_should_return_true_if_job_no_inputs_and_gear_no_inputs():
+def test_validate_job_against_gear_should_return_if_job_no_inputs_and_gear_no_inputs():
     job_map = {
         '_id': bson.ObjectId(),
         'inputs': {},
@@ -13,12 +15,10 @@ def test_validate_job_against_gear_should_return_true_if_job_no_inputs_and_gear_
         'inputs': {}
     }
 
-    result = job_util.validate_job_against_gear(job_map, gear_doc)
-
-    assert result is True
+    job_util.validate_job_against_gear(job_map, gear_doc)
 
 
-def test_validate_job_against_gear_should_return_true_if_job_inputs_are_all_required_inputs():
+def test_validate_job_against_gear_should_return_if_job_inputs_are_all_required_inputs():
     job_map = {
         '_id': bson.ObjectId(),
         'inputs': {
@@ -35,12 +35,10 @@ def test_validate_job_against_gear_should_return_true_if_job_inputs_are_all_requ
         }
     }
 
-    result = job_util.validate_job_against_gear(job_map, gear_doc)
-
-    assert result is True
+    job_util.validate_job_against_gear(job_map, gear_doc)
 
 
-def test_validate_job_against_gear_should_return_true_if_job_doesnt_input_optional():
+def test_validate_job_against_gear_should_return_if_job_doesnt_input_optional():
     job_map = {
         '_id': bson.ObjectId(),
         'inputs': {
@@ -61,12 +59,10 @@ def test_validate_job_against_gear_should_return_true_if_job_doesnt_input_option
         }
     }
 
-    result = job_util.validate_job_against_gear(job_map, gear_doc)
-
-    assert result is True
+    job_util.validate_job_against_gear(job_map, gear_doc)
 
 
-def test_validate_job_against_gear_should_return_true_if_job_inputs_optional():
+def test_validate_job_against_gear_should_return_if_job_inputs_optional():
     job_map = {
         '_id': bson.ObjectId(),
         'inputs': {
@@ -88,12 +84,10 @@ def test_validate_job_against_gear_should_return_true_if_job_inputs_optional():
         }
     }
 
-    result = job_util.validate_job_against_gear(job_map, gear_doc)
-
-    assert result is True
+    job_util.validate_job_against_gear(job_map, gear_doc)
 
 
-def test_validate_job_against_gear_should_return_false_if_job_inputs_wrong_input():
+def test_validate_job_against_gear_should_raise_exception_if_job_inputs_wrong_input():
     job_map = {
         '_id': bson.ObjectId(),
         'inputs': {
@@ -115,12 +109,11 @@ def test_validate_job_against_gear_should_return_false_if_job_inputs_wrong_input
         }
     }
 
-    result = job_util.validate_job_against_gear(job_map, gear_doc)
+    with pytest.raises(errors.InputValidationException):
+        job_util.validate_job_against_gear(job_map, gear_doc)
 
-    assert result is False
 
-
-def test_validate_job_against_gear_should_return_false_if_job_inputs_non_file_or_context_input():
+def test_validate_job_against_gear_should_raise_exception_if_job_inputs_non_file_or_context_input():
     job_map = {
         '_id': bson.ObjectId(),
         'inputs': {
@@ -140,12 +133,11 @@ def test_validate_job_against_gear_should_return_false_if_job_inputs_non_file_or
         }
     }
 
-    result = job_util.validate_job_against_gear(job_map, gear_doc)
+    with pytest.raises(errors.InputValidationException):
+        job_util.validate_job_against_gear(job_map, gear_doc)
 
-    assert result is False
 
-
-def test_validate_job_against_gear_should_return_false_if_job_doesnt_input_all_required():
+def test_validate_job_against_gear_should_raise_exception_if_job_doesnt_input_all_required():
     job_map = {
         '_id': bson.ObjectId(),
         'inputs': {
@@ -170,9 +162,8 @@ def test_validate_job_against_gear_should_return_false_if_job_doesnt_input_all_r
         }
     }
 
-    result = job_util.validate_job_against_gear(job_map, gear_doc)
-
-    assert result is False
+    with pytest.raises(errors.InputValidationException):
+        job_util.validate_job_against_gear(job_map, gear_doc)
 
 
 def test_removing_phi_from_job_map():

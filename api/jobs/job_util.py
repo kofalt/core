@@ -2,13 +2,14 @@
 Job related utilities.
 """
 import copy
-from flywheel_common import errors
+from flywheel_common import errors as flywheel_errors
 
 from ..config import log
 from ..auth import has_access
 from ..dao.basecontainerstorage import ContainerStorage
 from ..dao.containerutil import singularize
 from ..web.request import AccessType
+from ..web import errors
 from ..site.providers import validate_provider_class
 
 
@@ -18,8 +19,9 @@ def validate_job_against_gear(job_map, gear_doc):
     Args:
         job_map (dict): A job object to validate
         gear_doc (dict): The gear object of the job
-    Return:
-        bool: Whether this is a valid job for the gear
+
+    Raises:
+        InputValidationException: raised if invalid job
     """
     # Ensure that all inputs in the job are valid and that all required input
     job_map = copy.deepcopy(job_map)
@@ -32,13 +34,14 @@ def validate_job_against_gear(job_map, gear_doc):
     for input_name, job_input in job_map.get('inputs', {}).items():
         # Check that the input is valid for the gear
         if gear_doc.get('inputs', {}).get(input_name, {}).get('base') not in ['file', 'context']:
-            return False
+            raise errors.InputValidationException('Cannot set non file or context input on job')
         try:
             required_inputs.remove(input_name)
         except ValueError:
             pass
 
-    return not bool(required_inputs)
+    if required_inputs:
+        raise errors.InputValidationException('Missing required inputs: %s', required_inputs)
 
 
 def remove_potential_phi_from_job(job_map):
@@ -195,11 +198,11 @@ def validate_job_compute_provider(job_map, request_handler, validate_provider=Fa
     compute_provider_id = job_map.get('compute_provider_id')
     if compute_provider_id:
         if not request_handler.user_is_admin:
-            raise errors.PermissionError('Only admin can override job provider!')
+            raise flywheel_errors.PermissionError('Only admin can override job provider!')
         if validate_provider:
             try:
                 validate_provider_class(compute_provider_id, 'compute')
-            except errors.ResourceNotFound:
-                raise errors.ValidationError('Provider id is not a regsitered provider on this system')
+            except flywheel_errors.ResourceNotFound:
+                raise flywheel_errors.ValidationError('Provider id is not a regsitered provider on this system')
 
     return compute_provider_id

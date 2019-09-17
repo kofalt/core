@@ -217,10 +217,7 @@ class Queue(object):
         if gear.get('gear', {}).get('custom', {}).get('flywheel', {}).get('invalid', False):
             raise errors.InputValidationException('Gear marked as invalid, will not run!')
 
-        if not validate_job_against_gear(job_map, gear.get('gear', {})):
-            log.debug(job_map.get('inputs'))
-            log.debug(gear.get('gear', {}).get('inputs'))
-            raise errors.InputValidationException('Invalid inputs given for the gear')
+        validate_job_against_gear(job_map, gear.get('gear', {}))
 
         config_ = job_map.get('config', {})
         validate_gear_config(gear, config_)
