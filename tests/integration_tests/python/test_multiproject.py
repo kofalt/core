@@ -111,6 +111,7 @@ def test_adhoc_not_lab(as_admin, data_builder, api_db, file_form, upload_file_fo
         'info': {'bar': 'bar'}
     })
     assert not r.ok
+    assert r.status_code == 403
 
     # Clean up the built data
     r = as_admin.get('/sessions?filter=uid=' + adhoc_session)
