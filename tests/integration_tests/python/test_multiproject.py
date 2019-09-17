@@ -100,6 +100,7 @@ def test_adhoc_not_lab(as_admin, data_builder, api_db, file_form, upload_file_fo
         ]
     })
     assert not r.ok
+    assert r.status_code == 403
 
     api_db.projects.update({'_id': bson.ObjectId(project)}, {'$set': {'editions.lab': True}})
     session2 = data_builder.create_session(project=project)
