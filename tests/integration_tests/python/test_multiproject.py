@@ -60,20 +60,22 @@ def test_adhoc_not_lab(as_admin, data_builder, api_db, file_form, upload_file_fo
 
 
     # With lab off users can not create adhoc subject, session, analyses
-    # Tries to create ad hoc project which inherts lab False from group
+    # Tries to create ad hoc subject which inherts lab False from group
     r = as_admin.get('/projects/' + project)
     assert r.ok
     assert r.json()['editions']['lab'] == False
+    # Direct post of subject is consided adhoc
     r = as_admin.post('/subjects', json={'project': project, 'code': 'test2--no-lab', 'firstname': 'foo', 'sex': 'male'})
     assert not r.ok
     assert r.status_code == 403
 
+    # Direct post of session is considered adhoc
     r = as_admin.post('/sessions', json={'project': project, 'label': 'test not create', 'subject': subject})
     assert not r.ok
     assert r.status_code == 403
 
 
-    # Can create an ad hoc anquisition.
+    # Reaper uploads not considered ad hoc, will create subject as needed
     adhoc_session = randstr()
     adhoc_project = randstr()
     r = as_drone.post('/upload/reaper', files=upload_file_form(
@@ -90,7 +92,7 @@ def test_adhoc_not_lab(as_admin, data_builder, api_db, file_form, upload_file_fo
     r = as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form(
         'input.txt', meta={'name': 'input.txt', 'type': 'txt'}))
     assert r.ok
-    # analysis with inputs is considered ad-hoc
+    # analysis with inputs is considered ad-hoc and not allowed
     r = as_admin.post('/projects/' + project + '/analyses', json={
         'label': 'analysis_label',
         'inputs': [
@@ -131,10 +133,10 @@ def test_adhoc_lab_edition(as_admin, data_builder, api_db, file_form, upload_fil
     assert r.json()['editions']['lab'] == True
     r = as_admin.get('/projects/' + project)
     assert r.ok
-    assert r.json()['editions']['lab'] == True 
+    assert r.json()['editions']['lab'] == True
 
 
-    # Create ad hoc from group level
+    # Not considered ad hoc from reaper workflow
     adhoc_session = randstr()
     r = as_drone.post('/upload/reaper', files=upload_file_form(
         group={'_id': group},
@@ -174,7 +176,7 @@ def test_adhoc_lab_edition(as_admin, data_builder, api_db, file_form, upload_fil
     assert r.ok
 
 
-    # NON ad-hoc creation
+    # Test ad-hoc creation. Should be allowed
     r = as_admin.get('/projects/' + project)
     assert r.ok
     assert r.json()['editions']['lab'] == True

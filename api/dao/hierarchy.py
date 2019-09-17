@@ -404,8 +404,8 @@ def _find_or_create_destination_project(group, project_label, timestamp, user, u
             project['description'] = 'This project was automatically created because unsortable data was detected. \
                                       Please move sessions to the appropriate project.'
 
-        # Origin does need to be checked on projects as they dont have ad-hoc restrictions
-        result = ContainerStorage.factory('project').create_el(project, None)
+        # Origin does need to be checked on projects as they dont have ad-hoc restriction
+        result = ContainerStorage.factory('project').create_el(project, None, features={'check_adhoc': False})
         project['_id'] = result.inserted_id
 
     return project
@@ -440,8 +440,6 @@ def _upsert_container(cont, cont_type, parent, parent_type, upload_type, timesta
         return _update_container_nulls(query, cont, cont_type)
 
     else:
-        ContainerStorage.factory(cont_type).check_adhoc(cont, origin)
-
         insert_vals = {
             parent_type:    parent['_id'],
             'permissions':  parent['permissions'],

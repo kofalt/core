@@ -349,9 +349,16 @@ class ContainerHandler(base.RequestHandler):
         if cont_name == 'sessions':
             self._handle_embedded_subject(payload, parent_container)
 
+        # Since all calls are so coupled we have to have these one off checks to pass context into the DAO
+        # Session and Subject are adhoc via direct post.  Analysys is the inverse
+        features = {'check_adhoc': False}
+        if cont_name == 'sessions' or cont_name == 'subjects':
+            features['check_adhoc'] = True
+
         # This line exec the actual request validating the payload that will create the new container
         # and checking permissions using respectively the two decorators, mongo_validator and permchecker
-        result = mongo_validator(permchecker(self.storage.exec_op))('POST', payload=payload, origin=self.origin)
+        result = mongo_validator(permchecker(self.storage.exec_op))(
+                'POST', payload=payload, origin=self.origin, features=features)
         if result and result.acknowledged:
             return {'_id': result.inserted_id}
         else:

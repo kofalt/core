@@ -41,7 +41,7 @@ class GroupStorage(ContainerStorage):
                 cont['editions'] = {'lab': False}
         return cont
 
-    def create_el(self, payload, origin):
+    def create_el(self, payload, origin, features={}):
         permissions = payload.pop('permissions')
         created = payload.pop('created')
         self._to_mongo(payload)
@@ -102,9 +102,10 @@ class ProjectStorage(ContainerStorage):
         if not 'lab' in payload['editions']:
             payload['editions']['lab'] = False
 
-    def create_el(self, payload, origin):
+    def create_el(self, payload, origin, features={}):
 
-        result = super(ProjectStorage, self).create_el(payload, origin)
+        features.setdefault('check_adhoc', False)
+        result = super(ProjectStorage, self).create_el(payload, origin, features=features)
         copy_site_rules_for_project(result.inserted_id)
         return result
 
@@ -220,13 +221,13 @@ class SessionStorage(ContainerStorage):
             cont = s_defaults
         return cont
 
-    def create_el(self, payload, origin):
+    def create_el(self, payload, origin, features={}):
 
         project = ProjectStorage().get_container(payload['project'])
         if project.get('template'):
             payload['project_has_template'] = True
             payload['satisfies_template'] = hierarchy.is_session_compliant(payload, project.get('template'))
-        return super(SessionStorage, self).create_el(payload, origin)
+        return super(SessionStorage, self).create_el(payload, origin, features=features)
 
     def update_el(self, _id, payload, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False):
         session = self.get_container(_id)
@@ -345,8 +346,9 @@ class AcquisitionStorage(ContainerStorage):
     def __init__(self):
         super(AcquisitionStorage,self).__init__('acquisitions', use_object_id=True, use_delete_tag=True, parent_cont_name='session', child_cont_name=None)
 
-    def create_el(self, payload, origin):
-        result = super(AcquisitionStorage, self).create_el(payload, origin)
+    def create_el(self, payload, origin, features={}):
+        result = super(AcquisitionStorage, self).create_el(
+            payload, origin, features=features)
         SessionStorage().recalc_session_compliance(payload['session'])
         return result
 
@@ -454,7 +456,7 @@ class AnalysisStorage(ContainerStorage):
 
 
     # pylint: disable=arguments-differ
-    def create_el(self, analysis, parent_type, parent_id, origin, uid=None):
+    def create_el(self, analysis, parent_type, parent_id, origin, uid=None, features={}):
         """
         Create an analysis.
         * Fill defaults if not provided
@@ -503,7 +505,7 @@ class AnalysisStorage(ContainerStorage):
         if analysis.get('info') is not None:
             analysis['info'] = util.mongo_sanitize_fields(analysis['info'])
 
-        result = super(AnalysisStorage, self).create_el(analysis, origin)
+        result = super(AnalysisStorage, self).create_el(analysis, origin, features=features)
         if not result.acknowledged:
             raise APIStorageException('Analysis not created for container {} {}'.format(parent_type, parent_id))
 

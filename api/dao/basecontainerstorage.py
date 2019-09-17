@@ -250,7 +250,8 @@ class ContainerStorage(object):
     # pylint: disable=unused-argument
     def exec_op(self, action, _id=None, payload=None, query=None, user=None,
                 public=False, projection=None, recursive=False, r_payload=None,
-                replace_metadata=False, unset_payload=None, pagination=None, origin=None):
+                replace_metadata=False, unset_payload=None, pagination=None, origin=None,
+                features=None):
         """
         Generic method to exec a CRUD operation from a REST verb.
         """
@@ -268,13 +269,29 @@ class ContainerStorage(object):
         if action == 'PUT':
             return self.update_el(_id, payload, unset_payload=unset_payload, recursive=recursive, r_payload=r_payload, replace_metadata=replace_metadata)
         if action == 'POST':
-            return self.create_el(payload, origin=origin)
+            return self.create_el(payload, origin=origin, features=features)
         raise ValueError('action should be one of GET, POST, PUT, DELETE')
 
 
-    def create_el(self, payload, origin):
+    def create_el(self, payload, origin, features=None):
+        """
+        Generic method to create a container element
 
-        if self.cont_name in ('sessions', 'subjects', 'analyses'):
+            Args:
+                payload (dict): dictionary with required data for the container type created
+                origin (dict): the origin fields of type and _id
+                features (dict): describes which feature/components are to be checked/validated
+
+            Returns:
+                dict: the container created
+            Raises: APIConflictException
+        """
+
+        if features is None:
+            # Set creation defaults here as the list grows
+            features = {'check_adhoc': False}
+
+        if features.get('check_adhoc', True):
             self.check_adhoc(payload, origin)
 
         self._to_mongo(payload)
@@ -612,15 +629,19 @@ class ContainerStorage(object):
         if origin and origin['type'] == Origin['device'].value:
             return
 
-        project_storage = ContainerStorage.factory('project')
         parents = self.get_parents(payload)
-        project = project_storage.get_container(parents['project'])
-        if not project['editions'].get('lab'):
+        # Check project first unless it is a project
+        if parents.get('project', None):
+            parent = ContainerStorage.factory('project').get_container(parents['project'])
+        else:
+            parent = ContainerStorage.factory('group').get_container(parents['group'])
+
+        if not parent['editions'].get('lab'):
             container = 'Container'
-            parent = payload.get('parent')
+            new_parent = payload.get('parent')
             parent_type = None
-            if parent:
-                parent_type = parent.get('type')
+            if new_parent:
+                parent_type = new_parent.get('type')
 
             if parent_type == 'session':
                 container = 'acquisition'

@@ -14,7 +14,7 @@ def default_container(handler, container=None, target_parent_container=None):
     """
     def g(exec_op):
         # pylint: disable=unused-argument
-        def f(method, _id=None, payload=None, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False, origin=None):
+        def f(method, _id=None, payload=None, unset_payload=None, recursive=False, r_payload=None, replace_metadata=False, origin=None, features=None):
             projection = None
             errors = None
             if method == 'GET' and container.get('public', False):

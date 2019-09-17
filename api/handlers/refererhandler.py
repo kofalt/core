@@ -82,14 +82,19 @@ class AnalysesHandler(RefererHandler):
         except ValueError:
             # Legacy analysis - accept direct file uploads (inputs and outputs)
             # we choose the provider based on the session which will be the same as the analysis currently
-            analysis = upload.process_upload(self.request, upload.Strategy.analysis, self.log_user_access, origin=self.origin, 
-                    container_type=singularize(cont_name), id_=cid)
+            analysis = upload.process_upload(
+                self.request, upload.Strategy.analysis, self.log_user_access,
+                origin=self.origin, container_type=singularize(cont_name), id_=cid)
 
         # Check and raise if non-admin user attempts to override compute provider
         job_util.validate_job_compute_provider(analysis.get('job', {}), self)
+        features = {'check_adhoc': False}
+        if analysis.get('inputs', None):
+            features['check_adhoc'] = True
 
         uid = None if self.user_is_admin else self.uid
-        result = self.storage.create_el(analysis, cont_name, cid, self.origin, uid)
+        result = self.storage.create_el(
+            analysis, cont_name, cid, self.origin, uid, features=features)
         return {'_id': result.inserted_id}
 
     @validators.verify_payload_exists
