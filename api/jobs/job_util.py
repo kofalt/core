@@ -12,6 +12,35 @@ from ..web.request import AccessType
 from ..site.providers import validate_provider_class
 
 
+def validate_job_against_gear(job_map, gear_doc):
+    """Validate that the job is valid for the gear
+
+    Args:
+        job_map (dict): A job object to validate
+        gear_doc (dict): The gear object of the job
+    Return:
+        bool: Whether this is a valid job for the gear
+    """
+    # Ensure that all inputs in the job are valid and that all required input
+    job_map = copy.deepcopy(job_map)
+    required_inputs = []
+    for gear_input, input_map in gear_doc.get('inputs', {}).items():
+        if input_map.get('base') == 'file':
+            if not input_map.get('optional', False) or input_map.get('required'):
+                required_inputs.append(gear_input)
+
+    for input_name, job_input in job_map.get('inputs', {}).items():
+        # Check that the input is valid for the gear
+        if gear_doc.get('inputs', {}).get(input_name, {}).get('base') not in ['file', 'context']:
+            return False
+        try:
+            required_inputs.remove(input_name)
+        except ValueError:
+            pass
+
+    return not bool(required_inputs)
+
+
 def remove_potential_phi_from_job(job_map):
     """Remove certain fields from jobs to simplify the endpoint, the fields
     are produced metadata and info objects on config.inputs items
