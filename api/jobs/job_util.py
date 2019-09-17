@@ -31,7 +31,7 @@ def validate_job_against_gear(job_map, gear_doc):
             if not input_map.get('optional', False) or input_map.get('required'):
                 required_inputs.append(gear_input)
 
-    for input_name, job_input in job_map.get('inputs', {}).items():
+    for input_name in job_map.get('inputs', {}).keys():
         # Check that the input is valid for the gear
         if gear_doc.get('inputs', {}).get(input_name, {}).get('base') not in ['file', 'context']:
             raise errors.InputValidationException('Cannot set non file or context input on job')
@@ -41,7 +41,7 @@ def validate_job_against_gear(job_map, gear_doc):
             pass
 
     if required_inputs:
-        raise errors.InputValidationException('Missing required inputs: %s', required_inputs)
+        raise errors.InputValidationException('Missing required inputs: {}'.format(required_inputs))
 
 
 def remove_potential_phi_from_job(job_map):
