@@ -2837,12 +2837,12 @@ def test_job_providers(compute_provider, data_builder, default_payload, as_publi
                 'name': 'test.zip'
             }
         },
-        'config': { 'two-digit multiple of ten': 20 },
+        'config': {'two-digit multiple of ten': 20},
         'destination': {
             'type': 'acquisition',
             'id': acquisition
         },
-        'tags': [ 'test-tag' ]
+        'tags': ['test-tag']
     }
 
     # === Non-center gear ===
@@ -3057,3 +3057,99 @@ def test_job_providers(compute_provider, data_builder, default_payload, as_publi
     r = as_admin.get('/jobs/' + job_id)
     assert r.ok
     assert r.json()['compute_provider_id'] == override_provider
+
+
+def test_jobs_projects_filter(compute_provider, data_builder, default_payload, as_user, as_admin, api_db, file_form, as_public):
+
+    gear_name = data_builder.randstr()
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['name'] = gear_name
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        }
+    }
+    gear_id = data_builder.create_gear(gear=gear_doc)
+    acquisition = data_builder.create_acquisition()
+
+    r = as_admin.get('/acquisitions/' + acquisition)
+    assert r.ok
+    result = r.json()
+    project = result['parents']['project']
+    subject = result['parents']['subject']
+    session = result['parents']['session']
+
+    assert as_admin.post('/acquisitions/' + acquisition + '/files', files=file_form('test.zip')).ok
+
+    # Projects default to pubic on creation so change that first
+    assert as_admin.put('/projects/' + project, json={'public': False}).ok
+    r = as_public.get('/projects/' + project + '/jobs')
+    assert not r.ok
+    assert r.status_code == 403
+
+    # Ensure that user is a project admin
+    user_id = as_user.get('/users/self').json()['_id']
+    assert as_admin.post('/projects/' + project + '/permissions', json={
+        'access': 'admin',
+        '_id': user_id
+    }).ok
+
+    job_data = {
+        'compute_provider_id': compute_provider,
+        'gear_id': gear_id,
+        'inputs': {
+            'dicom': {
+                'type': 'acquisition',
+                'id': acquisition,
+                'name': 'test.zip'
+            }
+        },
+        'config': {'two-digit multiple of ten': 20},
+        'destination': {
+            'type': 'session',
+            'id': session
+        },
+        'tags': ['test-tag']
+    }
+
+    # Assert our job is created
+    r = as_admin.post('/jobs/add', json=job_data)
+    assert r.ok
+    job_id = r.json()['_id']
+
+    r = as_admin.get('/jobs')
+    found = False
+    for j in r.json():
+        if j['_id'] == job_id:
+            assert j['parents']['project'] == project
+            found = True
+    assert found
+
+    # Assert we get our job from the projects filter
+    r = as_admin.get('/projects/' + project + '/jobs')
+    assert r.ok
+    found = False
+    for j in r.json():
+        if j['_id'] == job_id:
+            assert j['parents']['project'] == project
+            found = True
+    assert found
+
+    # Assert we get our job from the projects filter with a subject filter
+    r = as_admin.get('/projects/' + project + '/jobs?filter=subject=' + subject)
+    assert r.ok
+    found = False
+    for j in r.json():
+        if j['_id'] == job_id:
+            found = True
+    assert found
+
+    # Assert we dont get our job from the projects filter with a filter lower than the session
+    # The job was assigned to the session so it wont be on an acquisition filter
+    r = as_admin.get('/projects/' + project + '/jobs?filter=acquisition=' + acquisition)
+    assert r.ok
+    found = False
+    for j in r.json():
+        if j['_id'] == job_id:
+            found = True
+    assert not found

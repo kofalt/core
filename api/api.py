@@ -290,6 +290,7 @@ endpoints = [
         prefix('/projects', [
             route('/groups',               ContainerHandler, h='get_groups_with_project',      m=['GET']),
             route('/recalc',               ContainerHandler, h='calculate_project_compliance', m=['POST']),
+            route('/<cid:{oid}>/jobs',     ContainerHandler, h='get_project_jobs',             m=['GET']),
             route('/<cid:{oid}>/template', ContainerHandler, h='set_project_template',         m=['POST']),
             route('/<cid:{oid}>/template', ContainerHandler, h='delete_project_template',      m=['DELETE']),
             route('/<cid:{oid}>/recalc',   ContainerHandler, h='calculate_project_compliance', m=['POST']),
