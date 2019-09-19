@@ -216,8 +216,8 @@ def validate_container_permissions(containers, container_type, user_id, permissi
         bool: True if access is permitted, false otherwise
     """
 
-    permission_levels = ['admin', 'rw', 'ro']
-    container_types = ['acquisitions', 'sessions', 'subjects', 'projects', 'groups']
+    permission_levels = ('admin', 'rw', 'ro')
+    container_types = ('acquisitions', 'sessions', 'subjects', 'projects', 'groups')
 
 
     if container_type not in container_types:
