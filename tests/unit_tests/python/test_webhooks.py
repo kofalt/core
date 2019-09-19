@@ -1,8 +1,11 @@
 import datetime
 import json
 
+import mock
 import pytest
 import pytz
+import requests.exceptions
+
 from api.web.encoder import custom_json_serializer
 from api.webhooks.base import BaseWebhook
 from api.webhooks.virus_scan import VirusScanWebhook, signed_urls
@@ -42,13 +45,13 @@ def test_virus_scan_webhook(mocker):
     assert call_url == 'http://localhost/callback'
     assert json.loads(call_data) == expected_data
 
-    mock_session.post.return_value.raise_for_status.side_effect = Exception('Raised for status')
-    mock_session.post.return_value.ok = False
-    mock_session.post.return_value.content = 'Failed'
+    mock_response = mock.MagicMock()
+    mock_response.content = 'Some error happened'
+    mock_session.post.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
     # by default return failed responses if some happend
     failures = webhook.call(file_info=file_attrs, parent={'_id': '0000000', 'type': 'acquisition'})
-    assert 'Failed' in failures[0].content
+    assert 'Some error happened' in failures[0].response.content
     # raises if raise_for_status kwrag is true
-    with pytest.raises(Exception) as error:
+    with pytest.raises(requests.exceptions.HTTPError) as error:
         webhook.call(file_info=file_attrs, parent={'_id': '0000000', 'type': 'acquisition'}, raise_for_status=True)
-        assert 'Raised for status' in error.value
+    assert 'Some error happened' in error.value.response.content
