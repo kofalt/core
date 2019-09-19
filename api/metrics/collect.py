@@ -152,6 +152,24 @@ def collect_db_metrics():
         for label, count in status_counts.items():
             values.DEVICE_STATUS_COUNT.labels(*label).set(count)
 
+        # Files count
+        cont_names = ['projects', 'subjects', 'sessions', 'acquisitions', 'analyses', 'collections']
+        files_total_cnt = 0
+        files_quarantined_cnt = 0
+        files_virus_cnt = 0
+        for container in cont_names:
+            cursor = config.db.get_collection(container).aggregate(FILES_CNT_PIPELINE)
+            try:
+                result = next(cursor) # we will have at most one element in the cursor because of the $group
+                files_total_cnt += result.get('files_total_cnt', 0)
+                files_quarantined_cnt += result.get('files_quarantined_cnt', 0)
+                files_virus_cnt += result.get('files_virus_cnt', 0)
+            except StopIteration:
+                pass
+        values.FILES_COUNT.set(files_total_cnt)
+        values.FILES_QUARANTINED_COUNT.set(files_quarantined_cnt)
+        values.FILES_VIRUS_COUNT.set(files_virus_cnt)
+
     except: # pylint: disable=bare-except
         log.critical('Error collecting db metrics', exc_info=True)
 
@@ -159,3 +177,78 @@ def collect_db_metrics():
 def collect_metrics():
     with values.COLLECT_METRICS_TIME.time():
         collect_db_metrics()
+
+
+FILES_CNT_PIPELINE = [
+    {
+            '$match': {
+                'deleted': {'$exists': False}
+            }
+        },
+        {
+            '$project': {
+                'files': {
+                    '$ifNull': [
+                        {
+                            "$filter": {
+                                "input": "$files",
+                                "as": "item",
+                                "cond": { '$not': [{"$ifNull": ["$$item.deleted", False]}]}
+                            }
+                        },
+                        []
+                    ]
+                },
+            }
+        },
+        {
+            '$project': {
+                'quarantined_files': {
+                    '$ifNull': [
+                        {
+                            "$filter": {
+                                "input": "$files",
+                                "as": "item",
+                                "cond": { '$eq': [ "$$item.virus_scan.state", 'quarantined']}
+                            }
+                        },
+                        []
+                    ]
+                },
+                'virus_files': {
+                    '$ifNull': [
+                        {
+                            "$filter": {
+                                "input": "$files",
+                                "as": "item",
+                                "cond": { '$eq': [ "$$item.virus_scan.state", 'virus']}
+                            }
+                        },
+                        []
+                    ]
+                },
+                'files': 1
+            }
+        },
+        {
+            '$project': {
+                'files_total_cnt': {
+                    '$cond': {'if': {'$isArray': '$files'}, 'then': {'$size': '$files'}, 'else': 0}
+                },
+                'files_quarantined_cnt': {
+                    '$cond': {'if': {'$isArray': '$quarantined_files'}, 'then': {'$size': '$quarantined_files'}, 'else': 0}
+                },
+                'files_virus_cnt': {
+                    '$cond': {'if': {'$isArray': '$virus_files'}, 'then': {'$size': '$virus_files'}, 'else': 0}
+                }
+            }
+        },
+        {
+            '$group': {
+                '_id': None,
+                'files_total_cnt': {'$sum': '$files_total_cnt'},
+                'files_quarantined_cnt': {'$sum': '$files_quarantined_cnt'},
+                'files_virus_cnt': {'$sum': '$files_virus_cnt'}
+            }
+        }
+]

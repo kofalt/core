@@ -87,6 +87,15 @@ USER_LOGIN_COUNT = Gauge(prefix + 'user_login_count', 'The number of access logs
 # Last Event Timestamps: events: session_created, user_login, job_queued[_by_system, by_user]
 LAST_EVENT_TIME = Gauge(prefix + 'last_event_time', 'The seconds since an event as happened', ['event'], multiprocess_mode='livesum')
 
+# Count of files in the system
+FILES_COUNT = Gauge(prefix + 'files_count', 'Count of files in the system', [], multiprocess_mode='livesum')
+
+# The number of files in a "quarantined" state
+FILES_QUARANTINED_COUNT = Gauge(prefix + 'files_quarantined_count', 'The number of files in a "quarantined" state', [], multiprocess_mode='livesum')
+
+# The number of files in a "virus" state
+FILES_VIRUS_COUNT = Gauge(prefix + 'files_virus_count', 'The number of files in a "virus" state', [], multiprocess_mode='livesum')
+
 # ===== Meta =====
 COLLECT_METRICS_TIME = Summary(prefix + 'collect_metrics_time_seconds', 'Observed time to collect metrics, in seconds', [])
 
