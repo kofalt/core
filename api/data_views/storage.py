@@ -73,7 +73,7 @@ class DataViewStorage(ContainerStorage):
         return self.get_all_el(query, None, None)
 
     # pylint: disable=arguments-differ
-    def create_el(self, view, parent_id):
+    def create_el(self, view, parent_id, origin):
         """Create a new data view for parent_id
         
         Arguments:
@@ -88,8 +88,10 @@ class DataViewStorage(ContainerStorage):
         }
         for key in defaults:
             view.setdefault(key, defaults[key])
-        # We dont need origin on data views
-        result = super(DataViewStorage, self).create_el(view, None)
+
+        # We store origin on the document
+        view['origin'] = origin
+        result = super(DataViewStorage, self).create_el(view, origin=origin)
 
         if not result.acknowledged:
             raise APIStorageException('Data view not created for container {}'.format(parent_id))

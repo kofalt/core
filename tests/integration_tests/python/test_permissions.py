@@ -110,3 +110,33 @@ def test_group_permissions(data_builder, as_admin, as_public):
     # Verify delete
     r = as_admin.get(local_user_permissions_path)
     assert r.status_code == 404
+
+def test_permission_recursion(data_builder, as_admin):
+    """
+       Permissions changed on parent containers should propagate
+       down to children containers.
+    """
+
+    api_key = '4hOn5aBx/nUiI0blDbTUPpKQsEbEn74rH9z5KctlXw6GrMKdiceeeeee'
+    user = data_builder.create_user(api_key=api_key)
+    group = data_builder.create_group()
+    project1 = data_builder.create_project(group=group)
+    project2 = data_builder.create_project(group=group)
+
+    subject1 = data_builder.create_subject(code='recurs1', project=project1)
+    subject2 = data_builder.create_subject(code='recurs2', project=project2)
+
+    assert as_admin.put('/subjects/' + subject2,
+                        json={'project': project2})
+
+    assert as_admin.post('/projects/' + project2 + '/permissions',
+                         json={'_id': user, 'access': 'admin'}).ok
+
+    project1_perms = as_admin.get('/projects/' + project1).json()['permissions']
+    project2_perms = as_admin.get('/projects/' + project2).json()['permissions']
+    subject1_perms = as_admin.get('/subjects/' + subject1).json()['permissions']
+    subject2_perms = as_admin.get('/subjects/' + subject2).json()['permissions']
+
+    assert project1_perms != project2_perms
+    assert subject1_perms == project1_perms
+    assert subject2_perms == project2_perms

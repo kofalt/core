@@ -2561,16 +2561,21 @@ def upgrade_to_67():
 
 def upgrade_provider_id(storage_id):
 
-    #Check if any file does not have a vaild _id
+    # Check if any file does not have a vaild _id
     file_collections = ['acquisitions', 'analyses', 'collections', 'projects', 'sessions', 'subjects']
     for collection in file_collections:
-        if config.db[collection].find_one({'files': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        bad_files = list(config.db[collection].find({'files': {'$elemMatch': {"_id": {'$exists': False}}}}))
+        still_bad_files = try_provider_fix(bad_files, collection)
+        if still_bad_files:
             raise RuntimeError('Not all {} files have a file._id'.format(collection))
 
     input_collections = ['analyses']
     for collection in input_collections:
-        if config.db[collection].find_one({'inputs': {'$elemMatch': {"_id": {'$exists': False}}}}):
+        bad_files = list(config.db[collection].find({'inputs': {'$elemMatch': {"_id": {'$exists': False}}}}))
+        still_bad_files = try_provider_fix(bad_files, collection)
+        if still_bad_files:
             raise RuntimeError('Not all {} inputs have aa input._id'.format(collection))
+
 
     # if config.db.gears.find_one({'exchange': {'$elemMatch': {"rootfs-id": {'$exists': False}}}}):
     #    raise RuntimeError('Not all gear exchange files have a rootfs-id')
@@ -2599,6 +2604,43 @@ def upgrade_provider_id(storage_id):
         config.db.gears.update({'_id': result['_id']}, result)
 
 
+def try_provider_fix(bad_files, collection):
+    """
+    This processes a single one off case we found where the id is missing
+    on an analyses file and these are the steps we can take to located that
+    analyses file. All other cases will most likely be unique and we can
+    add them as we come across them
+    """
+    if collection == 'analyses':
+        saved_ids = []
+        for a in bad_files:
+            made_updates = False
+            for i in a['inputs']:
+                if i.get('_id') is None:
+                    related_type = containerutil.pluralize(i['origin']['type'])
+                    related = config.db[related_type].find_one(
+                        {'_id': bson.ObjectId(i['origin']['id'])})
+                    if related and related_type == 'jobs':
+                        more_related_type = containerutil.pluralize(related['destination']['type'])
+                        more_related = config.db[more_related_type].find_one(
+                            {'_id': bson.ObjectId(related['destination']['id'])})
+
+                        if more_related and more_related_type == 'acquisitions':
+                            for f in more_related['files']:
+                                if f.get('hash', 'wont') == i.get('hash', 'match'):
+                                    i['_id'] = f['_id']
+                                    made_updates = True
+            if made_updates:
+                config.db.analyses.update({'_id': a['_id']}, {'$set': {'inputs': a['inputs']}})
+                saved_ids.append(a['_id'])
+        if saved_ids:
+            print 'Alhamdulillah!  We actually fixed some {}, Precisely {}'.format(
+                collection, len(saved_ids))
+            new_bad_files = [a for a in bad_files if a['_id'] not in saved_ids]
+            return new_bad_files
+
+    # TODO: We can add in other types as we find them.
+    return bad_files
 
 def upgrade_schema(force_from = None):
     """

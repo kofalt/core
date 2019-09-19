@@ -1,4 +1,5 @@
 import collections
+import copy
 import random
 import time
 
@@ -67,6 +68,10 @@ def paginate_find(collection, find_kwargs, pagination):
     Raises PaginationError if the query is incompatible with the pagination:
      * `sort` in find_kwargs and `after_id` in pagination
     """
+
+    if 'filter' in find_kwargs:
+        find_kwargs['filter'] = _append_parents(find_kwargs['filter'])
+
     if pagination:
         if 'after_id' in pagination:
             if find_kwargs.get('sort'):
@@ -76,9 +81,12 @@ def paginate_find(collection, find_kwargs, pagination):
             pagination['sort'] = [('_id', pymongo.ASCENDING)]
 
         if 'filter' in pagination:
-            filter_ = find_kwargs.get('filter', {})
-            filter_.update(pagination['filter'])
-            find_kwargs['filter'] = filter_
+            parsed_filter = _append_parents(pagination['filter'])
+            org_filter = copy.deepcopy(find_kwargs.get('filter', {}))
+            # pagination should never override find_kwargs
+            find_kwargs['filter'] = parsed_filter
+            find_kwargs['filter'].update(org_filter)
+            find_kwargs.setdefault('filter', parsed_filter)
 
         if 'sort' in pagination:
             sort = find_kwargs.get('sort', [])
@@ -100,6 +108,28 @@ def paginate_find(collection, find_kwargs, pagination):
     }
     return page
 
+def _append_parents(filter_):
+    """
+        Processes the filter dictionary to pull container filters out of the
+        filter and returns them as a seperate dictionary
+
+        Args:
+            filter_ (dict): filter with the request filters as keys
+        Returns:
+            (dict, dict): A new modified version of the filter dictionary with
+                the container keys removed and a dictionary of the parent keys
+                with search filters as values
+    """
+    new_filter = copy.deepcopy(filter_)
+
+    #parents_query = {}
+    container_levels = ['group', 'project', 'subject', 'session', 'acquisition']
+    for term, search in filter_.items():
+        if term in container_levels:
+            new_filter['parents.' + term] = search
+            del new_filter[term]
+
+    return new_filter
 
 def paginate_pipe(collection, pipeline, pagination):
     """Return paginated `db.coll.aggregate()` results.

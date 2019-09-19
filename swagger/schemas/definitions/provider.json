@@ -6,19 +6,6 @@
             "enum": ["compute", "storage"],
             "description": "The provider class - one of compute or storage"
         },
-        "provider-origin": {
-            "type": "object",
-            "properties": {
-                "type": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": ["string", "null"]
-                }
-            },
-            "required": [ "type" ],
-            "additionalProperties":false
-        },
         "provider-links": {
             "type": "object",
             "properties": {
@@ -41,7 +28,7 @@
                     "type": "string",
                     "description": "A human readable label for the provider"
                 },
-                "origin": {"$ref": "#/definitions/provider-origin"},
+                "origin": {"$ref": "origin.json#/definitions/origin"},
                 "created": {"$ref":"created-modified.json#/definitions/created"},
                 "modified": {"$ref":"created-modified.json#/definitions/modified"},
                 "config": {

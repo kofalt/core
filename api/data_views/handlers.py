@@ -59,7 +59,7 @@ class DataViewHandler(base.RequestHandler):
         DataView(payload).validate_config()
 
         # Create
-        result = self.storage.create_el(payload, parent)
+        result = self.storage.create_el(payload, parent, origin=self.origin)
         if result.acknowledged:
             return {'_id': result.inserted_id}
         else:

@@ -12,7 +12,8 @@ def test_search_status(as_drone, as_user, as_public):
 
     r = as_mongoconnector_drone.get('/devices')
     assert r.ok
-    mongoconnector = [device for device in r.json() if device['name'] == 'mongo-connector'][0]
+
+    mongoconnector = [device for device in r.json() if device.get('name') == 'mongo-connector'][0]
     mongoconnector_id = mongoconnector['_id']
 
     r = as_mongoconnector_drone.get('/devices/' + mongoconnector_id)

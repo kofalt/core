@@ -100,6 +100,9 @@
           "description": "The parent container id"
         },
         "label": {"$ref": "common.json#/definitions/label"},
+        "description": {
+            "type": "string"
+        },
         "public": {
           "type": "boolean",
           "description": "Indicates whether or not the view is public"
@@ -128,6 +131,9 @@
       "properties": {
         "_id": {"$ref": "common.json#/definitions/objectid"},
         "label": {"$ref": "common.json#/definitions/label"},
+        "description": {
+            "type": "string"
+        },
         "public": {
           "type": "boolean",
           "description": "Indicates whether or not the view is public"
@@ -136,6 +142,7 @@
           "type": "array",
           "items": {"$ref": "#/definitions/column-spec"}
         },
+        "origin": {"$ref": "origin.json#/definitions/origin"},
         "fileSpec": {"$ref": "#/definitions/file-spec"},
         "includeIds": {
           "type": "boolean",
@@ -184,7 +191,8 @@
         "viewId":        { "$ref": "common.json#/definitions/objectid" },
         "containerType": { "$ref": "container.json#/definitions/container-type" },
         "containerId":   { "$ref": "container.json#/definitions/_id" },
-        "filename":      { "$ref": "file.json#/definitions/name" }
+        "filename":      { "$ref": "file.json#/definitions/name" },
+        "description": { "type": "string" }
       },
       "description": "A request to save data-view data to a container",
       "additionalProperties": false,

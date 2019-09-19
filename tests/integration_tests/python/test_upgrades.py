@@ -1503,3 +1503,155 @@ def test_67(api_db, database, data_builder):
     # a = api_db.acquisitions.find_one({'files.0': {'$exists': 'true'}})
     # assert a['files'][0].get('provider_id') == local_storage['_id']
 
+
+def test_fix_move_flair_from_measurement_to_feature_66(api_db, fixes):
+    if not api_db.modalities.find_one({'_id': 'MR'}):
+        api_db.modalities.insert_one({
+            "_id": "MR",
+            "classification": {
+                "Measurement": ["FLAIR"],
+                "Intent": ["Localizer", "Shim", "Calibration", "Fieldmap", "Structural", "Functional", "Screenshot", "Non-Image"],
+                "Features": ["Quantitative", "Multi-Shell", "Multi-Echo", "Multi-Flip", "Multi-Band", "Steady-State", "3D", "Compressed-Sensing", "Eddy-Current-Corrected", "Fieldmap-Corrected", "Gradient-Unwarped", "Motion-Corrected", "Physio-Corrected", "Derived", "In-Plane", "Phase", "Magnitude"]
+            }
+        })
+
+    # Ideal situation
+    acquisition_1_id = api_db.acquisitions.insert_one({
+        'files': [
+            {'classification': {
+                'Measurement': ['B0', 'FLAIR'],  # NOTE: Intent is not set
+                'Intent': ['Shim']
+            }},
+            {'classification': {
+                'Measurement': ['FLAIR'],
+                'Features': ['Some Feature']
+            }}
+        ]
+    }).inserted_id
+
+    # This shouldn't be the case
+    acquisition_2_id = api_db.acquisitions.insert_one({
+        'files': None
+    }).inserted_id
+
+    # Another less than ideal case
+    acquisition_3_id = api_db.acquisitions.insert_one({
+        'files': [
+            {},
+            {'classification': None},
+            {'classification': {
+                'Measurement': ['FLAIR'],
+                'Intent': ['Shim']
+            }}
+        ]
+    }).inserted_id
+
+    # Mongo is schemaless
+    acquisition_4_id = api_db.acquisitions.insert_one({
+        'files': [
+            {'classification': {
+                'Measurement': None,
+                'Features': ['3D']
+            }},
+            {'classification': {
+                'Intent': ['Shim']  # NOTE: Measurement is not set
+            }},
+            {'classification': {
+                'Measurement': ['FLAIR'],
+                'Intent': ['Shim']
+            }}
+
+        ]
+    }).inserted_id
+
+    fixes.fix_move_flair_from_measurement_to_feature_66()
+
+    modality = api_db.modalities.find_one({'_id': 'MR'})
+    assert 'Spectroscopy' not in modality['classification']['Measurement']
+    assert 'Spectroscopy' in modality['classification']['Intent']
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_1_id})
+    assert acquisition['files'][0]['classification']['Measurement'] == ['B0']
+    assert acquisition['files'][0]['classification']['Features'] == ['FLAIR']
+
+    assert acquisition['files'][1]['classification']['Measurement'] == []
+    assert acquisition['files'][1]['classification']['Features'] == ['Some Feature', 'FLAIR']
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_2_id})
+    assert acquisition['files'] == None  # Won't be set to [] because it should
+                                         # never be retrieved from mongo
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_3_id})
+    assert acquisition['files'][0] == {}
+    assert acquisition['files'][1]['classification'] == None
+
+    assert acquisition['files'][2]['classification']['Measurement'] == []
+    assert acquisition['files'][2]['classification']['Features'] == ['FLAIR']
+
+    acquisition = api_db.acquisitions.find_one({'_id': acquisition_4_id})
+    assert acquisition['files'][0]['classification']['Measurement'] == None
+    assert acquisition['files'][0]['classification']['Features'] == ['3D']
+
+    assert acquisition['files'][1]['classification'].get('Measurement') == None
+    assert acquisition['files'][1]['classification']['Intent'] == ['Shim']
+
+    assert acquisition['files'][2]['classification']['Measurement'] == []
+    assert acquisition['files'][2]['classification']['Features'] == ['FLAIR']
+
+    api_db.acquisitions.delete_many({'_id': {'$in': [acquisition_1_id, acquisition_2_id,
+                                        acquisition_3_id, acquisition_4_id]}})
+
+def test_fix_permission_recursion_67(api_db, fixes):
+
+    # Create hierarchy
+    valid_perms = [
+        {'_id': 'should-exist', 'access': 'has-it'},
+        {'_id': 'more-exist', 'access': 'has-it'}
+    ]
+
+    invalid_perms = [
+        {'_id': 'invalid-perms', 'access': 'has-it'}
+    ]
+
+    group = 'g1-fix-perms-67'
+    api_db.groups.insert_one({'_id': group})
+    project = bson.ObjectId()
+    api_db.projects.insert_one({
+        '_id': project,
+        'group': group,
+        'permissions': valid_perms
+        })
+
+    subject_with_valid = bson.ObjectId()
+    api_db.subjects.insert_one({
+        '_id': subject_with_valid,
+        'project': project,
+        'group': group,
+        'parents': {'project': project},
+        'permissions': valid_perms
+        })
+
+    subject_with_invalid = bson.ObjectId()
+    api_db.subjects.insert_one({
+        '_id': subject_with_invalid,
+        'project': project,
+        'group': group,
+        'parents': {'project': project},
+        'permissions': invalid_perms
+        })
+
+
+    # Run DB Fix
+    fixes.fix_permission_recursion_67()
+
+    valid = api_db.subjects.find_one({'_id': subject_with_valid})
+    assert valid['permissions'] == valid_perms
+
+    invalid = api_db.subjects.find_one({'_id': subject_with_invalid})
+    assert invalid['permissions'] == valid_perms
+
+
+    #cleanup
+    api_db.subjects.delete_many({'_id': {'$in': [valid, invalid]}})
+    api_db.projects.delete_many({'_id': project})
+    api_db.groups.delete_many({'_id': group})

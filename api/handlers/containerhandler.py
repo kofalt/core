@@ -6,8 +6,8 @@ import dateutil
 from .. import config
 from .. import util
 from .. import validators
-from ..auth import containerauth, always_ok
-from ..dao import containerstorage, containerutil, noop
+from ..auth import containerauth, always_ok, require_privilege, Privilege
+from ..dao import containerstorage, containerutil, noop, dbutil
 from ..dao.containerstorage import AnalysisStorage
 from ..jobs.jobs import Job
 from ..jobs.queue import Queue
@@ -184,6 +184,28 @@ class ContainerHandler(base.RequestHandler):
                 container.pop('permissions', None)
             response['containers'] = containers
         return response
+
+    @require_privilege(Privilege.is_user)
+    def get_project_jobs(self, cid):
+        """List all jobs within a project"""
+
+        self.config = self.container_handler_configurations['projects']
+        self.storage = self.config['storage']
+
+        cont = self._get_container(cid)
+        permchecker = self._get_permchecker(cont)
+        permchecker(noop)('GET', cid)
+        cid = bson.ObjectId(cid)
+
+        page = dbutil.paginate_find(config.db.jobs, {'filter': {'parents.project': {'$eq': cid}}}, self.pagination)
+        cleaned_results = []
+        if page.get('results'):
+            for job_map in page.get('results'):
+                cleaned_results.append(remove_potential_phi_from_job(job_map))
+            page['results'] = cleaned_results
+
+        return self.format_page(page)
+
 
     def get_all(self, cont_name, par_cont_name=None, par_id=None):
         self.config = self.container_handler_configurations[cont_name]
