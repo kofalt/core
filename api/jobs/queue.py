@@ -344,9 +344,6 @@ class Queue(object):
                 }
             elif input_type == 'context':
                 config_['inputs'][x] = inputs[x]
-            else:
-                # Note: API key inputs should not be passed as input
-                raise Exception('Non-file input base type')
 
         # Populate any context inputs for the gear
         resolve_context_inputs(config_, gear, destination.type, destination.id, perm_check_uid)
