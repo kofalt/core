@@ -24,7 +24,6 @@ def validate_job_against_gear(job_map, gear_doc):
         InputValidationException: raised if invalid job
     """
     # Ensure that all inputs in the job are valid and that all required input
-    job_map = copy.deepcopy(job_map)
     required_inputs = []
     for gear_input, input_map in gear_doc.get('inputs', {}).items():
         if input_map.get('base') == 'file':
