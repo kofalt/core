@@ -26,6 +26,7 @@ from .data_export.handlers              import DownloadHandler
 from .data_views.handlers               import DataViewHandler
 from .container.handlers                import TreeHandler
 from .site.handlers                     import SiteSettingsHandler, ProviderHandler
+from .triggers.handlers                 import VirusScanTriggerHandler
 from .web.base                          import RequestHandler
 from . import config
 
@@ -407,5 +408,11 @@ endpoints = [
         prefix('/callbacks/virus-scan', [
             route('/<cont_name:{cname}>/<cid:{oid}>/files/<name:{fname}>', VirusScanCallbackHandler, m=['POST']),
         ]),
+
+        # Triggers
+        prefix('/triggers', [
+            route('/virus-scan', VirusScanTriggerHandler, m=['GET']),
+        ]),
+
     ]),
 ]
