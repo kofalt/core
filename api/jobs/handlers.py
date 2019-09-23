@@ -244,6 +244,7 @@ class GearHandler(base.RequestHandler):
         }
 
         found_results = 0
+        total_results = 0
 
         # Get collection context, if any
         collection_id = self.get_param('collection')
@@ -267,7 +268,8 @@ class GearHandler(base.RequestHandler):
             analyses = AnalysisStorage().get_analyses(
                 None, cont_name, cid, projection={'_id': 1, 'label': 1},
                 pagination=self.pagination)
-            found_results += analyses['total']
+            found_results += len(analyses['results'])
+            total_results += analyses['total']
             response['children']['analyses'] = [
                 {'cont_type': 'analysis', '_id': a['_id'],
                  'label': a.get('label', '')} for a in analyses['results']]
@@ -280,8 +282,9 @@ class GearHandler(base.RequestHandler):
             # Grab subjects within the collection context
             pagination = copy.deepcopy(self.pagination)
             if 'limit' in self.pagination:
-                pagination = copy.deepcopy(self.pagination)
                 pagination['limit'] = self.pagination['limit'] - found_results
+            if 'skip' in self.pagination:
+                pagination['skip'] = self.pagination['skip'] - total_results
 
             children = SubjectStorage().get_all_el(
                 {'collections': collection_id}, None, projection={'_id': 1, 'label': 1},
@@ -291,14 +294,16 @@ class GearHandler(base.RequestHandler):
                  'label': c.get('label', '')} for c in children['results']]
 
             found_results += len(children['results'])
+            total_results += children['total']
             if self.pagination.get('limit') and found_results >= self.pagination['limit']:
                 return response
         elif cont_name not in ['analyses', 'acquisitions']:
             query = {}
             pagination = copy.deepcopy(self.pagination)
             if 'limit' in self.pagination:
-                pagination = copy.deepcopy(self.pagination)
                 pagination['limit'] = self.pagination['limit'] - found_results
+            if 'skip' in self.pagination:
+                pagination['skip'] = self.pagination['skip'] - total_results
             if collection_id:
                 query['collections'] = bson.ObjectId(collection_id)
             children = storage.get_children(
@@ -309,13 +314,16 @@ class GearHandler(base.RequestHandler):
                  'label': c.get('label', '')} for c in children['results']]
 
             found_results += len(children['results'])
+            total_results += children['total']
             if self.pagination.get('limit') and found_results >= self.pagination['limit']:
                 return response
 
-        start = self.pagination.get('skip', 0)
         count = self.pagination.get('limit', 100) - found_results
         if count < 1:
             count = 1
+        start = self.pagination.get('skip', 0) - total_results
+        if start < 0:
+            start = 0
         _files = add_suggest_info_to_files(
             gear, storage.get_el(
                 cid, {'files': {'$slice': [start, count]}}).get('files', []))
