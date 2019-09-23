@@ -134,7 +134,7 @@ class ContainerStorage(object):
             cont[containerutil.pluralize(self.child_cont_name)] = children
         return cont
 
-    def get_children(self, _id, query=None, projection=None, uid=None, include_subjects=True):
+    def get_children(self, _id, query=None, projection=None, uid=None, include_subjects=True, pagination=None):
         child_name = self.child_cont_name
         if self.cont_name == 'projects' and not include_subjects:
             child_name = 'session'
@@ -150,7 +150,7 @@ class ContainerStorage(object):
         if not projection:
             projection = {'info': 0, 'files.info': 0, 'subject': 0, 'tags': 0}
 
-        results = ContainerStorage.factory(child_name).get_all_el(query, None, projection)
+        results = ContainerStorage.factory(child_name).get_all_el(query, None, projection, pagination=pagination)
         return results
 
 

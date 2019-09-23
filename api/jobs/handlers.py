@@ -2,6 +2,7 @@
 API request handlers for the jobs module
 """
 import bson
+import copy
 import datetime
 import StringIO
 from jsonschema import ValidationError
@@ -221,8 +222,11 @@ class GearHandler(base.RequestHandler):
         if not gear:
             raise APINotFoundException('Gear with id {} not found.'.format(_id))
 
+        if self.pagination.get('after_id'):
+            raise InputValidationException('After_id is not allowed on this endpoint')
+
         storage = cs_factory(cont_name)
-        container = storage.get_container(cid)
+        container = storage.get_el(cid, projection={'files':0})
         if cont_name == 'analyses':
             container['permissions'] = storage.get_parent(cid, cont=container).get('permissions', [])
         if not self.user_is_admin and not has_access(self.uid, container, 'ro'):
@@ -239,32 +243,15 @@ class GearHandler(base.RequestHandler):
             'children':     {}
         }
 
-        if cont_name != 'analyses':
-            analyses = AnalysisStorage().get_analyses(None, cont_name, cid)
-            response['children']['analyses'] = [{'cont_type': 'analysis', '_id': a['_id'], 'label': a.get('label', '')} for a in analyses]
+        found_results = 0
 
         # Get collection context, if any
         collection_id = self.get_param('collection')
         collection = None
         if collection_id:
-
             if cont_name in ['projects', 'groups']:
                 raise InputValidationException('Cannot suggest for {} with a collection context.'.format(cont_name))
             collection = cs_factory('collections').get_container(collection_id)
-
-        # Get children
-        if cont_name == 'collections':
-            # Grab subjects within the collection context
-            children = SubjectStorage().get_all_el({'collections': collection_id}, None, None)
-            response['children']['subjects'] = [{'cont_type': 'subject', '_id': c['_id'], 'label': c.get('label', '')} for c in children]
-
-        elif cont_name not in ['analyses', 'acquisitions']:
-            query = {}
-            if collection_id:
-                query['collections'] = bson.ObjectId(collection_id)
-            children = storage.get_children(cid, query=query, projection={'files': 0})
-            response['children'][pluralize(storage.child_cont_name)] = [{'cont_type': singularize(storage.child_cont_name), '_id': c['_id'], 'label': c.get('label', '')} for c in children]
-
 
         # Get parents
         parents = storage.get_parent_tree(cid, cont=container)
@@ -276,7 +263,63 @@ class GearHandler(base.RequestHandler):
 
         response['parents'] = [{'cont_type': singularize(p['cont_type']), '_id': p['_id'], 'label': p.get('label', '')} for p in parents]
 
-        _files = add_suggest_info_to_files(gear, container.get('files', []))
+        if cont_name != 'analyses':
+            analyses = AnalysisStorage().get_analyses(
+                None, cont_name, cid, projection={'_id': 1, 'label': 1},
+                pagination=self.pagination)
+            found_results += analyses['total']
+            response['children']['analyses'] = [
+                {'cont_type': 'analysis', '_id': a['_id'],
+                 'label': a.get('label', '')} for a in analyses['results']]
+
+        if self.pagination.get('limit') and found_results >= self.pagination['limit']:
+            return response
+
+        # Get children
+        if cont_name == 'collections':
+            # Grab subjects within the collection context
+            pagination = copy.deepcopy(self.pagination)
+            if 'limit' in self.pagination:
+                pagination = copy.deepcopy(self.pagination)
+                pagination['limit'] = self.pagination['limit'] - found_results
+
+            children = SubjectStorage().get_all_el(
+                {'collections': collection_id}, None, projection={'_id': 1, 'label': 1},
+                pagination=pagination)
+            response['children']['subjects'] = [
+                {'cont_type': 'subject', '_id': c['_id'],
+                 'label': c.get('label', '')} for c in children['results']]
+
+            found_results += len(children['results'])
+            if self.pagination.get('limit') and found_results >= self.pagination['limit']:
+                return response
+        elif cont_name not in ['analyses', 'acquisitions']:
+            query = {}
+            pagination = copy.deepcopy(self.pagination)
+            if 'limit' in self.pagination:
+                pagination = copy.deepcopy(self.pagination)
+                pagination['limit'] = self.pagination['limit'] - found_results
+            if collection_id:
+                query['collections'] = bson.ObjectId(collection_id)
+            children = storage.get_children(
+                cid, query=query, projection={'_id': 1, 'label': 1}, pagination=pagination)
+            response['children'][pluralize(storage.child_cont_name)] = [
+                {'cont_type': singularize(storage.child_cont_name),
+                 '_id': c['_id'],
+                 'label': c.get('label', '')} for c in children['results']]
+
+            found_results += len(children['results'])
+            if self.pagination.get('limit') and found_results >= self.pagination['limit']:
+                return response
+
+        start = self.pagination.get('skip', 0)
+        count = self.pagination.get('limit', 100) - found_results
+        if count < 1:
+            count = 1
+        _files = add_suggest_info_to_files(
+            gear, storage.get_el(
+                cid, {'files': {'$slice': [start, count]}}).get('files', []))
+        found_results += len(_files)
         response['files'] = [{'name': f['name'], 'suggested': f['suggested']} for f in _files]
 
         return response

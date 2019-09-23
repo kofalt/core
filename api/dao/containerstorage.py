@@ -440,13 +440,15 @@ class AnalysisStorage(ContainerStorage):
         return ps.get_parent_tree(cont['parent']['id'], add_self=True)
 
 
-    def get_analyses(self, query, parent_type, parent_id, inflate_job_info=False, projection=None, **kwargs):
+    def get_analyses(self, query, parent_type, parent_id, inflate_job_info=False,
+                     projection=None, pagination=None, **kwargs):
+
         if query is None:
             query = {}
         query['parent.type'] = containerutil.singularize(parent_type)
         query['parent.id'] = bson.ObjectId(parent_id)
+        analyses = self.get_all_el(query, None, projection=projection, pagination=pagination, **kwargs)
 
-        analyses = self.get_all_el(query, None, projection, **kwargs)
         if inflate_job_info:
             for analysis in analyses:
                 self.inflate_job_info(analysis, remove_phi=True)
