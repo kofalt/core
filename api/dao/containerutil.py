@@ -123,8 +123,7 @@ def bulk_propagate_changes(cont_name, cont_ids, query, update, top_level_update=
     for cur_cont in CONTAINER_PROPAGATE:
         if cont_name == cur_cont:
             for key in ['parents.group', 'parents.project', 'parents.subject', 'parents.session', 'parents']:
-                if query.get(key):
-                    del query[key]
+                query.pop(key, None)
             query.update({'_id': {'$in': cont_ids}})
             config.db[cur_cont].update_many(query, top_level_update)
             return

@@ -460,7 +460,6 @@ class SessionStorage(ContainerStorage):
         sessions = config.db.sessions.aggregate([
             {'$match': {'subject': {'$in': search_subjects}}},
             {'$group': {'_id': '$subject', 'count': {'$sum':1}, 'sessions': {'$push': "$_id"}}},
-            #{'$match': {'count': {'$gt': 1}}},
             {'$project': {'_id': 1, 'sessions': 1, 'count': 1}}
         ])
         for session in sessions:
