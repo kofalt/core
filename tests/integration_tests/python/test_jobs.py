@@ -3153,3 +3153,103 @@ def test_jobs_projects_filter(compute_provider, data_builder, default_payload, a
         if j['_id'] == job_id:
             found = True
     assert not found
+
+def test_jobs_suggest_pagination(data_builder, default_payload, as_admin, file_form):
+    acq1 = data_builder.create_acquisition()
+    acq2 = data_builder.create_acquisition()
+    r = as_admin.get('/acquisitions/' + acq1)
+    assert r.ok
+    obj = r.json()
+    project = obj['parents']['project']
+    subject = obj['parents']['subject']
+
+    subject2 = data_builder.create_subject(project=project, label='test_job_pagination_2')
+    subject3 = data_builder.create_subject(project=project, label='test_job_pagination_3')
+
+    gear_doc = default_payload['gear']['gear']
+    gear_doc['inputs'] = {
+        'dicom': {
+            'base': 'file'
+        },
+        'csv':  {
+            'base': 'file'
+        }
+    }
+    gear = data_builder.create_gear(gear=gear_doc)
+    as_admin.post('/projects/' + project + '/files', files=file_form(
+        'one.csv', meta={'name': 'one.csv'}))
+    as_admin.post('/projects/' + project + '/files', files=file_form(
+        'two.csv', meta={'name': 'two.csv'}))
+    as_admin.post('/projects/' + project + '/files', files=file_form(
+        'three.csv', meta={'name': 'three.csv'}))
+    r = as_admin.post('/projects/' + project + '/analyses', json={
+        'label': 'online',
+        'job': {'gear_id': gear,
+                'inputs': {'csv': {'type': 'project', 'id': project, 'name': 'one.csv'}}}
+    })
+    assert r.ok
+    analysis = r.json()['_id']
+
+
+    #Check paging within a single collection, limit should show anayses only
+    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project + '?limit=1')
+    assert r.ok
+    res = r.json()
+    assert not res['files']
+    assert len(res['children']['analyses']) == 1
+    assert not res['children'].get('subjects')
+    assert res['children']['analyses'][0]['_id'] == analysis
+
+    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project + '?limit=2')
+    assert r.ok
+    res = r.json()
+    assert not res['files']
+    assert len(res['children']['analyses']) == 1
+    assert len(res['children']['subjects']) == 1
+    assert res['children']['analyses'][0]['_id'] == analysis
+    assert res['children']['subjects'][0]['_id'] == subject
+
+    # Skip past first collection will return only from the next collection
+    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project + '?limit=1&skip=1')
+    assert r.ok
+    res = r.json()
+    assert not res['files']
+    assert len(res['children']['analyses']) == 0
+    assert len(res['children']['subjects']) == 1
+    assert res['children']['subjects'][0]['_id'] == subject
+
+    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project + '?limit=2&skip=1')
+    assert r.ok
+    res = r.json()
+    assert not res['files']
+    assert len(res['children']['analyses']) == 0
+    assert len(res['children']['subjects']) == 2
+    assert res['children']['subjects'][0]['_id'] == subject
+    assert res['children']['subjects'][1]['_id'] == subject2
+
+
+    # skipping beyond the subjects should result in files being found
+    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project + '?limit=3&skip=2')
+    assert r.ok
+    res = r.json()
+    assert len(res['files']) == 1
+    assert len(res['children']['analyses']) == 0
+    assert len(res['children']['subjects']) == 2
+    assert res['children']['subjects'][0]['_id'] == subject2
+    assert res['children']['subjects'][1]['_id'] == subject3
+
+    # Skipping past all collections returns only files
+    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project + '?limit=3&skip=4')
+    assert r.ok
+    res = r.json()
+    assert len(res['files']) == 3
+    assert len(res['children']['analyses']) == 0
+    assert len(res['children']['subjects']) == 0
+
+    # Skipping beyond all returns only what is remaining in the collection
+    r = as_admin.get('/gears/' + gear + '/suggest/projects/' + project + '?limit=4&skip=6')
+    assert r.ok
+    res = r.json()
+    assert len(res['files']) == 1
+    assert len(res['children']['analyses']) == 0
+    assert len(res['children']['subjects']) == 0
