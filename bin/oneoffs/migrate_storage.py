@@ -102,6 +102,7 @@ def show_progress(current_index, total_files):
     if current_index % (total_files / 10 + 1) == 0:
         log.info('Processed %s files of total %s files ...' % (current_index, total_files))
 
+
 def get_containers_files(containers_prefixes):
     _files = []
 
@@ -115,10 +116,10 @@ def get_containers_files(containers_prefixes):
                     'fileinfo': f,
                     'prefix': prefix
                 }
-
-                if filter_source and f.provider_id != filter_source:
+                # If filter_source (global) is set to a provider_id, only
+                # append files that have the same BSON ID
+                if filter_source and str(f['provider_id']) != filter_source:
                     continue
-
                 _files.append(f_dict)
 
     return _files
