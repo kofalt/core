@@ -174,3 +174,6 @@ def paginate_pipe(collection, pipeline, pagination):
 
     page = next(collection.aggregate(pipeline), {'total': 0, 'results': []})
     return page
+
+def increment_counter(db, counter_name, increment_by=1):
+    result = db.singletons.update_one({'_id': 'counters'}, {'$inc': {counter_name: increment_by}}, upsert=True)

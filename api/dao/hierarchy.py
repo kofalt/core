@@ -9,6 +9,7 @@ import re
 
 from .. import util
 from .. import config
+from ..dao import dbutil
 from .basecontainerstorage import ContainerStorage
 from ..auth import has_access
 from ..web.errors import APIStorageException, APINotFoundException, APIPermissionException, APIConflictException
@@ -296,6 +297,7 @@ def hashes_equal_or_empty(hash1, hash2):
 
 def add_file(cont_name, _id, fileinfo):
     fileinfo['created'] = datetime.datetime.utcnow()
+    dbutil.increment_counter(config.db, 'files_count')
     return config.db[cont_name].find_one_and_update(
         {'_id': _id},
         {'$push': {'files': fileinfo}},
@@ -333,6 +335,7 @@ def replace_file(cont_name, _id, existing_fileinfo, fileinfo, access_logger):
 
 
 def remove_file(cont_name, _id, filename):
+    dbutil.increment_counter(config.db, 'files_count', -1)
     return config.db[cont_name].find_one_and_update(
         {'_id': _id, 'files.name': filename},
         {'$pull': {'files': {'name': filename}}},

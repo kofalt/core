@@ -4,7 +4,7 @@ import copy
 import datetime
 
 from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
-from . import consistencychecker, containerutil
+from . import consistencychecker, containerutil, dbutil
 from .. import config
 from .. import util
 from ..jobs import rules
@@ -137,6 +137,11 @@ class FileStorage(ListStorage):
     def __init__(self, cont_name):
         super(FileStorage,self).__init__(cont_name, 'files', use_object_id=True)
 
+    def _create_el(self, _id, payload, exclude_params):
+        result = super(ListStorage, self)._create_el(_id, payload, exclude_params)
+        dbutil.increment_counter(config.db, 'files_count')
+        return result
+
     def _create_jobs(self, container_before):
         container_after = self.get_container(container_before['_id'])
         container_type = containerutil.singularize(self.cont_name)
@@ -189,10 +194,13 @@ class FileStorage(ListStorage):
 
     def _delete_el(self, _id, query_params):
         files = self.get_container(_id).get('files', [])
+        deleted_count = 0
         for f in files:
             if f['name'].encode('utf-8') == query_params['name']:
                 f['deleted'] = datetime.datetime.utcnow()
+                deleted_count += 1
         result = self.dbc.update_one({'_id': _id}, {'$set': {'files': files, 'modified': datetime.datetime.utcnow()}})
+        dbutil.increment_counter(config.db, 'files_count', -deleted_count)
         self._update_session_compliance(_id)
         return result
 
