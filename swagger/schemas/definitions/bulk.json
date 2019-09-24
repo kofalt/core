@@ -27,7 +27,7 @@
                     "type": "string",
                     "items": {
                         "type": "string",
-                        "enum": ["skip", "copy", null]
+                        "enum": ["skip", "move", null]
                     },
                     "description": "How to handle conflicts.  A value of null results in a dry run only"
                 }

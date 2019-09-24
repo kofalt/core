@@ -124,5 +124,7 @@ class BulkHandler(base.RequestHandler):
         Subjects that do not exist in the destination will be copied
         Conflicts are not an issue so its just a bulk move to update pointers
         '''
+        if (self.payload.get('conflict_mode') is None or self.payload['conflict_mode'] == ''):
+            return None
 
         self.source_storage.move_sessions_to_subject(self.source_list, self.dest_list[0], conflict_mode=None)
