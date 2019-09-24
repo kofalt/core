@@ -143,8 +143,6 @@ def test_bulk_invalid_permissions(as_admin, as_user, data_builder):
     })
     assert r.ok
 
-    print projects[0].subjects[0].sessions[2]
-
     # Works as Admin without explicit permissions
     r = as_admin.post('/bulk/move/sessions', json={
 	"sources": [projects[0].subjects[0].sessions[2]],
@@ -265,7 +263,7 @@ def test_bulk_move_session_to_project_skip(data_builder, api_db, as_admin):
     # We are trying to move the sessions from unique1 and conflict1.
     # unique1 will be a move since we are moving all the sessions
     # unique2 will also be moved this time for moving all the sesisons
-    # conflict1 will be skipped per conflit_mode
+    # conflict1 will be skipped per conflict_mode
     r = as_admin.post('/bulk/move/sessions', json={
 	"sources": sources,
 	"destination_container_type": "projects",
@@ -333,7 +331,7 @@ def test_bulk_move_session_to_subject(data_builder, api_db, as_admin):
 	"sources": sources,
 	"destination_container_type": "subjects",
 	"destinations": [dest_subject],
-	"conflict_mode": ""
+	"conflict_mode": "move"
     })
     assert r.ok
 
@@ -361,7 +359,7 @@ def test_bulk_move_session_to_subject(data_builder, api_db, as_admin):
 	"sources": sources,
 	"destination_container_type": "subjects",
 	"destinations": [dest_subject],
-	"conflict_mode": ""
+	"conflict_mode": "move"
     })
     assert r.ok
 
