@@ -501,7 +501,7 @@ class FileListHandler(ListHandler):
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
                                               response_type=str(fileinfo.get('mimetype', 'application/octet-stream')),
-                                              download_expiration=60)  # Since we redirect to this, use small expiration
+                                              expiration=60)  # Since we redirect to this, use small expiration
                 except fs.errors.ResourceNotFound:
                     self.log.error('Error getting signed_url on non existing file')
 
