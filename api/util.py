@@ -6,17 +6,17 @@ import mimetypes
 import os
 import random
 import re
-import requests
 import string
 import uuid
 
+import requests
+
 import bson
-import fs.path
 import fs.errors
+import fs.path
 import pymongo
 
 from .web import errors
-
 
 BYTE_RANGE_RE = re.compile(r'^(?P<first>\d+)-(?P<last>\d+)?$')
 SUFFIX_BYTE_RANGE_RE = re.compile(r'^(?P<first>-\d+)$')
@@ -503,7 +503,9 @@ def parse_pagination_int_param(int_param):
 
 class dotdict(dict):
     def __getattr__(self, name):
-        return self[name]
+        if not self.get(name):
+            raise AttributeError
+        return self.get(name)
 
 def origin_to_str(origin):
     """Format an origin dictionary as a string"""

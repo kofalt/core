@@ -1,15 +1,16 @@
-import bson.errors
-import bson.objectid
 import copy
 import datetime
 
-from ..web.errors import APIStorageException, APIConflictException, APINotFoundException
-from . import consistencychecker, containerutil
-from .. import config
-from .. import util
-from ..jobs import rules
+import bson.errors
+import bson.objectid
+
+from .. import config, util
 from ..handlers.modalityhandler import check_and_format_classification
-from .containerstorage import SessionStorage, AcquisitionStorage
+from ..jobs import rules
+from ..web.errors import (APIConflictException, APINotFoundException,
+                          APIStorageException)
+from . import consistencychecker, containerutil
+from .containerstorage import AcquisitionStorage, SessionStorage
 
 log = config.log
 
@@ -137,11 +138,11 @@ class FileStorage(ListStorage):
     def __init__(self, cont_name):
         super(FileStorage,self).__init__(cont_name, 'files', use_object_id=True)
 
-    def _create_jobs(self, container_before):
+    def _create_jobs(self, container_before, replaced_files=None):
         container_after = self.get_container(container_before['_id'])
         container_type = containerutil.singularize(self.cont_name)
         return rules.create_jobs(config.db, container_before, container_after,
-                                 container_type)
+                                 container_type, replaced_files)
 
     def _update_el(self, _id, query_params, payload, exclude_params):
         container_before = self.get_container(_id)
@@ -319,6 +320,47 @@ class FileStorage(ListStorage):
             'jobs_spawned': len(jobs_spawned)
         }
 
+
+    def set_virus_scan_state(self, _id, query_params, state):
+        if self.use_object_id:
+            _id = bson.objectid.ObjectId(_id)
+
+        container_before = self.get_container(_id)
+        file_before = self._get_el(_id, query_params)
+        query = {'_id': _id }
+        query[self.list_name] = {'$elemMatch': query_params}
+        m_time = datetime.datetime.utcnow()
+        update =  {
+            '$set': {
+                self.list_name + '.$.virus_scan.state': state,
+            }
+        }
+        result = self.dbc.update_one(query, update)
+        if result.modified_count:
+            # if state changed update modified timestamps
+            self.dbc.update_one(query, {'$set': {
+                self.list_name + '.$.modified': m_time,
+                'modified': m_time
+            }})
+        jobs_spawned = []
+        if result.modified_count and state == 'clean':
+            state_before = file_before['virus_scan']['state']
+            replaced_files = []
+            if state_before == 'quarantined' and file_before.get('replaced'):
+                file_ref = containerutil.FileReference(
+                    containerutil.singularize(self.cont_name),
+                    _id,
+                    file_before['name']
+                )
+                replaced_files.append(file_ref)
+            jobs_spawned = self._create_jobs(container_before, replaced_files)
+        elif state == 'virus':
+            self._delete_el(_id, query_params)
+
+        return {
+            'modified': result.modified_count,
+            'jobs_spawned': len(jobs_spawned)
+        }
 
 
 class StringListStorage(ListStorage):

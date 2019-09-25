@@ -16,7 +16,8 @@ from .jobs import rules
 from .jobs.jobs import Job, JobTicket, Logs
 from .site.storage_provider_service import StorageProviderService
 from .web import encoder
-from .web.errors import FileFormException
+from .web.errors import FileFormException, APIException
+from .webhooks import VirusScanWebhook
 
 
 CHUNK_SIZE = 1048576
@@ -90,6 +91,25 @@ class Placer(object):
         if self.metadata == None:
             raise FileFormException('Metadata required')
 
+    def before_save_file(self, file_attrs):
+        if not config.get_feature('virus_scan', False):
+            return
+        if self.origin['type'] == 'user':
+            callback_url = config.get_config()['webhooks']['virus_scan']
+            if not callback_url:
+                msg = 'Callback url for virus scan webhook is not configured.'
+                config.log.critical(msg)
+                raise APIException(msg)
+            webhook = VirusScanWebhook(callback_url)
+            failures = webhook.call(file_info=file_attrs, parent={
+                'type': self.container_type,
+                '_id': self.id_
+            })
+            file_attrs['virus_scan'] = {
+                'state': 'quarantined',
+                'webhook_sent': not failures
+            }
+
     def save_file(self, file_attrs=None, ignore_hash_replace=False):
         """
         Helper function that moves a file saved via a form field into our CAS.
@@ -103,6 +123,7 @@ class Placer(object):
 
         # Update the DB
         if file_attrs is not None:
+            self.before_save_file(file_attrs)
 
             container_before, self.container, saved_state = hierarchy.upsert_fileinfo(self.container_type, self.id_, file_attrs, self.access_logger,
                 ignore_hash_replace=ignore_hash_replace, logger=self.logger)

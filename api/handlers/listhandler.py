@@ -1,27 +1,28 @@
-import os
-import bson
 import copy
 import datetime
-import dateutil
 import json
+import os
 import uuid
 import zipfile
 
+import bson
+import dateutil
 import fs.path
 
+from .. import config, files, upload, util, validators
+from ..auth import always_ok, listauth
+from ..dao import containerstorage, containerutil, liststorage, noop
+from ..jobs.mappers import RulesMapper
+from ..signed_urls import verify_signed_url
+from ..site import StorageProviderService
+from ..site.providers import get_provider
 from ..types import Origin
 from ..web import base
-from .. import config, files, upload, util, validators
-from ..auth import listauth, always_ok
-from ..dao import noop
-from ..dao import liststorage
-from ..dao import containerutil
-from ..dao import containerstorage
-from ..web.errors import APIStorageException, APIPermissionException, APIUnknownUserException, RangeNotSatisfiable
+from ..web.errors import (APIFileQuarantined, APIPermissionException,
+                          APIStorageException, APIUnknownUserException,
+                          RangeNotSatisfiable)
 from ..web.request import AccessType
-from ..jobs.mappers import RulesMapper
-from ..site.providers import get_provider
-from ..site import StorageProviderService 
+
 
 def initialize_list_configurations():
     """
@@ -424,6 +425,7 @@ class FileListHandler(ListHandler):
         filename = kwargs.get('name')
         # Check ticket id and skip permissions check if it clears
         ticket_id = self.get_param('ticket')
+        signature = self.get_param('signature')
         ticket = None
         if ticket_id:
             ticket = self._check_download_ticket(ticket_id, _id, filename)
@@ -431,11 +433,19 @@ class FileListHandler(ListHandler):
                 # If we don't have an origin with this request, use the ticket's origin
                 self.origin = ticket.get('origin')
             permchecker = always_ok
+        elif signature:
+            verify_signed_url(self.request.url, 'GET')
+            permchecker = always_ok
 
         # Grab fileinfo from db
         fileinfo = keycheck(permchecker(storage.exec_op))('GET', _id, query_params=kwargs)
         if not fileinfo:
             self.abort(404, 'no such file')
+
+        if config.get_feature('virus_scan', False):
+            virus_scan_state = fileinfo.get('virus_scan', {}).get('state')
+            if virus_scan_state and virus_scan_state != 'clean' and ((not ticket_id and not signature) or ticket_id):
+                raise APIFileQuarantined
 
         hash_ = self.get_param('hash')
         if hash_ and hash_ != fileinfo['hash']:
@@ -490,7 +500,8 @@ class FileListHandler(ListHandler):
                     signed_url = file_system.get_signed_url(fileinfo.get('_id'), file_path,
                                               filename=filename,
                                               attachment=(not self.is_true('view')),
-                                              response_type=str(fileinfo.get('mimetype', 'application/octet-stream')))
+                                              response_type=str(fileinfo.get('mimetype', 'application/octet-stream')),
+                                              download_expiration=60)  # Since we redirect to this, use small expiration
                 except fs.errors.ResourceNotFound:
                     self.log.error('Error getting signed_url on non existing file')
 
@@ -690,7 +701,7 @@ class FileListHandler(ListHandler):
 
         # Server-Sent Events are fired in the browser in such a way that one cannot dictate their headers.
         # For these endpoints, authentication must be disabled because the normal Authorization header will not be present.
-        # In this case, the document id will serve instead. Because of the lack of headers we also need to 
+        # In this case, the document id will serve instead. Because of the lack of headers we also need to
         # return an origin based on the origin packfile request.
         if check_user:
             query['user'] = self.uid

@@ -1,0 +1,41 @@
+/callbacks/virus-scan/{ContainerType}/{ContainerId}/files/{FileName}:
+  post:
+    summary: Callback url to send the virus scan result of a file.
+    description: |
+      This endpoint accepts the result from the anti-virus service.
+
+      NOTE: this endpoint only can be used via a signed url.
+    operationId: callback_virus_scan
+    tags:
+      - callbacks
+    parameters:
+      - required: true
+        type: string
+        in: path
+        name: ContainerType
+      - required: true
+        type: string
+        in: path
+        name: ContainerId
+      - required: true
+        type: string
+        in: path
+        name: FileName
+      - name: signature
+        in: query
+        type: string
+        description: Url's signature (signed callback url)
+      - name: expires
+        in: query
+        type: string
+        description: Signed url expiration time (epoch time)
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: schemas/input/callbacks-virus-scan.json
+          example:
+            $ref: examples/input/callbacks-virus-scan.json
+    responses:
+      '200':
+        description: ''

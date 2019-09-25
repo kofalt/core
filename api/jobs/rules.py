@@ -211,6 +211,14 @@ def create_potential_jobs(db, container, container_type, file_, rule_failure_cal
 
     potential_jobs = []
 
+    # Skip if virus scan feature enabled and the file is quarantined
+    if config.get_feature('virus_scan', False):
+        virus_scan_state = file_.get('virus_scan', {}).get('state')
+        if virus_scan_state and virus_scan_state != 'clean':
+            log.info('Skipping rule evaluation for %s: %s %s - file is not clean',
+                container_type, container['_id'], file_['name'])
+            return []
+
     # Get configured rules for this project
     rules = get_rules_for_container(db, container)
 

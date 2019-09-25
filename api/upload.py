@@ -392,6 +392,7 @@ def make_file_attrs(field, origin):
         '_id': field.uuid,
         'provider_id': field.provider_id,
         'name': field.filename,
+        'created': getattr(field, 'created', field.modified),
         'modified': field.modified,
         'size': field.size,
         'mimetype': field.mimetype,

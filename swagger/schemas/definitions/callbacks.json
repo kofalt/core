@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions": {
+    "virus-scan-input": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["clean", "virus"]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Virus scan result",
+      "required": [
+        "state"
+      ]
+    }
+  }
+}

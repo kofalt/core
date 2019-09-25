@@ -187,3 +187,10 @@ class RangeNotSatisfiable(APIException):
     status_code = 416
     default_msg = 'The requested range is not satisfiable.'
 
+class APIFileQuarantined(APIException):
+    """
+    The requested file is quarantined or under scanning for viruses.
+    """
+
+    status_code = 400
+    default_msg = 'The requested file is quarantined or under scanning for viruses.'

@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
         'log_level': 'info',
         'access_log_enabled': False,
         'drone_secret': None,
+        'signed_url_secret': 'secret'
     },
     'site': {
         'id': 'local',
@@ -61,7 +62,8 @@ DEFAULT_CONFIG = {
         # Permanent API features should exist here
         'job_tickets': True,   # Job completion tickets, which allow a new success/failure flow and advanced profiling.
         'job_ask': True,       # Job queue /jobs/ask route.
-        'multiproject': False  # Multiproject support
+        'multiproject': False, # Multiproject support
+        'virus_scan': False,   # Scan files uploaded by users for viruses
     },
     'persistent': {
         'db_uri':     'mongodb://localhost:27017/scitran',
@@ -79,6 +81,9 @@ DEFAULT_CONFIG = {
         'chars': 'BCDFGHJKLMNPQRSTVWXYZ123456789',
         'verify_config': None
     },
+    'webhooks': {
+        'virus_scan': None
+    }
 }
 
 def apply_env_variables(config):
@@ -129,7 +134,7 @@ def apply_runtime_features(config):
     """Apply any features that must be determined at runtime"""
 
 
-    # TODO: These shold be static constants from the provider class but this creates ciruclar 
+    # TODO: These shold be static constants from the provider class but this creates ciruclar
     # dependencies on the import ordering
     # We short circuit the lookup if there is not the possibility for using signed urls
     # We could do an aggregate but generally simple single queries are faster than aggregates
