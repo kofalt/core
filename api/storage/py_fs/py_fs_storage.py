@@ -50,7 +50,8 @@ class PyFsStorage(Interface):
                        purpose='download',
                        filename=None,
                        attachment=True,
-                       response_type=None):
+                       response_type=None,
+                       expiration=None):
         """
         Generate signed URL for upload/download purposes. It makes possible to set the filename when downloading the
         file as an attachment and set the Content-Type header of the response. The latter is useful for example we
@@ -61,6 +62,7 @@ class PyFsStorage(Interface):
         :param filename: Name of the downloaded file, used in the content-disposition header
         :param attachment: True/False, attachment or not
         :param response_type: Content-Type header of the response
+        :param integer expiration: url TTL in seconds
         :return: string, Signed URL
         :raises: ResourceNotFound, FileExpected, NoURL
         """
