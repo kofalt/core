@@ -1,0 +1,345 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>SDK Gears [NEW] &mdash; Flywheel SDK  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+    <link rel="stylesheet" href="../../../static/theme/sphinx_rtd/0.3.1/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../static/theme/sphinx_rtd/0.3.1/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="flywheel package" href="flywheel.html" />
+    <link rel="prev" title="Flywheel Views" href="data_views.html" /> 
+
+  
+  <script src="../../../static/theme/sphinx_rtd/0.3.1/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Flywheel SDK
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started with Flywheel SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_model.html">Data Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_views.html">Flywheel Views</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SDK Gears [NEW]</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#setup">Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#accessing-config">Accessing Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#accessing-inputs">Accessing Inputs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#accessing-the-sdk-client">Accessing the SDK Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#downloading-bids">Downloading BIDS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#writing-outputs">Writing Outputs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#writing-metadata">Writing Metadata</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="flywheel.html">flywheel package</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Flywheel SDK</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>SDK Gears [NEW]</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="sdk-gears-new">
+<h1>SDK Gears [NEW]<a class="headerlink" href="#sdk-gears-new" title="Permalink to this headline">¶</a></h1>
+<p>This page shows examples of writing a gear using the SDK.</p>
+<p>A pre-requisite for using this portion of the SDK is reading the
+<a class="reference external" href="https://github.com/flywheel-io/gears/tree/master/spec">Flywheel gear spec</a>, and understanding
+how the configuration is structured, especially with inputs and configuration values.</p>
+<p>The <a class="reference internal" href="flywheel.html#flywheel.gear_context.GearContext" title="flywheel.gear_context.GearContext"><code class="xref py py-class docutils literal notranslate"><span class="pre">flywheel.gear_context.GearContext</span></code></a> class provides a simplified interface for performing common tasks
+in the lifecycle of a gear, such as accessing input files, configuration values, logging messages,
+accessing the SDK client and writing to the output folder.</p>
+<div class="section" id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
+<p>The first step of using this interface is to create an instance of the GearContext class and,
+if desired, initialize logging. You can also print your configuration to the log to
+make troubleshooting easier during development:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">flywheel</span>
+<span class="k">with</span> <span class="n">flywheel</span><span class="o">.</span><span class="n">GearContext</span><span class="p">()</span> <span class="k">as</span> <span class="n">context</span><span class="p">:</span>
+   <span class="c1"># Setup basic logging</span>
+   <span class="n">context</span><span class="o">.</span><span class="n">init_logging</span><span class="p">()</span>
+
+   <span class="c1"># Log the configuration for this job</span>
+   <span class="n">context</span><span class="o">.</span><span class="n">log_config</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="accessing-config">
+<h2>Accessing Config<a class="headerlink" href="#accessing-config" title="Permalink to this headline">¶</a></h2>
+<p>Once initialized, the job configuration is accessible as a regular python <code class="docutils literal notranslate"><span class="pre">dict</span></code> from the context:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get the configured speed, with a default of 2</span>
+<span class="n">my_speed</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;speed&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="accessing-inputs">
+<h2>Accessing Inputs<a class="headerlink" href="#accessing-inputs" title="Permalink to this headline">¶</a></h2>
+<p>You can get the full path to a named input file, or open the file directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get the path to the input file named &#39;dicom&#39;</span>
+<span class="n">dicom_path</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_input_path</span><span class="p">(</span><span class="s1">&#39;dicom&#39;</span><span class="p">)</span>
+
+<span class="c1"># Open the dicom file for reading</span>
+<span class="k">with</span> <span class="n">context</span><span class="o">.</span><span class="n">open_input</span><span class="p">(</span><span class="s1">&#39;dicom&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dicom_file</span><span class="p">:</span>
+   <span class="n">dicom_data</span> <span class="o">=</span> <span class="n">dicom_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>If you have context inputs, you can get their values directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get the FSL license context value</span>
+<span class="n">fsl_license</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context_value</span><span class="p">(</span><span class="s1">&#39;fsl_license&#39;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">fsl_license</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+   <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;No license found!&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="accessing-the-sdk-client">
+<h2>Accessing the SDK Client<a class="headerlink" href="#accessing-the-sdk-client" title="Permalink to this headline">¶</a></h2>
+<p>If your gear is an SDK gear (that is, it has an api-key input), you can easily access
+an instance of the Flywheel SDK Client:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Lookup a project using the client</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="s1">&#39;my_group/Project 1&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="downloading-bids">
+<h2>Downloading BIDS<a class="headerlink" href="#downloading-bids" title="Permalink to this headline">¶</a></h2>
+<p>If your project or session is fully curated for BIDS, you can download all or a portion
+of the project or session to a working directory in BIDS layout.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Download all files from the session in BIDS format</span>
+<span class="c1"># bids_path will point to the BIDS folder</span>
+<span class="n">bids_path</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">download_session_bids</span><span class="p">()</span>
+
+<span class="c1"># Download anat and func files from the project in BIDS format</span>
+<span class="c1"># bids_path will point to the BIDS folder</span>
+<span class="n">bids_path</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">download_project_bids</span><span class="p">(</span><span class="n">folders</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;anat&#39;</span><span class="p">,</span> <span class="s1">&#39;func&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="writing-outputs">
+<h2>Writing Outputs<a class="headerlink" href="#writing-outputs" title="Permalink to this headline">¶</a></h2>
+<p>The path to the output directory is available as a variable on the context, and
+helper methods exist for opening an output file for writing:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">print</span><span class="p">(</span><span class="s1">&#39;Output path: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">output_dir</span><span class="p">))</span>
+
+<span class="c1"># Open an output file for writing</span>
+<span class="k">with</span> <span class="n">context</span><span class="o">.</span><span class="n">open_output</span><span class="p">(</span><span class="s1">&#39;out-file.dcm&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+   <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">dicom_data</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="writing-metadata">
+<h2>Writing Metadata<a class="headerlink" href="#writing-metadata" title="Permalink to this headline">¶</a></h2>
+<p>Occasionally it’s useful to add or update metadata on the destination, one of the
+parent containers, or files on the destination (including output files)</p>
+<p>This can be done using the metadata helper functions. The metadata will be written either
+when <code class="docutils literal notranslate"><span class="pre">write_metadata()</span></code> is called, or the context is exited (if using a <code class="docutils literal notranslate"><span class="pre">with</span></code> statement)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Metadata will be written at exit of the &quot;with&quot; block,</span>
+<span class="c1"># unless an exception occurs</span>
+<span class="k">with</span> <span class="n">flywheel</span><span class="o">.</span><span class="n">GearContext</span><span class="p">()</span> <span class="k">as</span> <span class="n">context</span><span class="p">:</span>
+   <span class="c1"># Update the session label</span>
+   <span class="n">context</span><span class="o">.</span><span class="n">update_container_metadata</span><span class="p">(</span><span class="s1">&#39;session&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Session 1&#39;</span><span class="p">)</span>
+
+   <span class="c1"># Update the destination (e.g. acquisition) label and timestamp</span>
+   <span class="n">updates</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;fMRI_Ret_bars&#39;</span><span class="p">,</span>
+      <span class="s1">&#39;timestamp&#39;</span><span class="p">:</span> <span class="s1">&#39;2014-05-07T08:50:07+00:00&#39;</span>
+   <span class="p">}</span>
+   <span class="n">context</span><span class="o">.</span><span class="n">update_destination_metadata</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span>
+
+   <span class="c1"># Set the modality and classification of an output file</span>
+   <span class="n">context</span><span class="o">.</span><span class="n">update_file_metadata</span><span class="p">(</span><span class="s1">&#39;out-file.dcm&#39;</span><span class="p">,</span> <span class="n">modality</span><span class="o">=</span><span class="s1">&#39;MR&#39;</span><span class="p">,</span> <span class="n">classification</span><span class="o">=</span><span class="p">{</span>
+      <span class="s1">&#39;Intent&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Functional&#39;</span><span class="p">],</span>
+      <span class="s1">&#39;Measurement&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;T2*&#39;</span><span class="p">]</span>
+   <span class="p">})</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="flywheel.html" class="btn btn-neutral float-right" title="flywheel package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="data_views.html" class="btn btn-neutral" title="Flywheel Views" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018 Flywheel All rights reserved.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  false,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../static/theme/sphinx_rtd/0.3.1/jquery.js"></script>
+      <script type="text/javascript" src="../../../static/theme/sphinx_rtd/0.3.1/underscore.js"></script>
+      <script type="text/javascript" src="../../../static/theme/sphinx_rtd/0.3.1/doctools.js"></script>
+      <script type="text/javascript" src="../../../static/theme/sphinx_rtd/0.3.1/language_data.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../static/theme/sphinx_rtd/0.3.1/js/theme.js"></script>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
